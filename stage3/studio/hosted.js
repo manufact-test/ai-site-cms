@@ -457,7 +457,7 @@
   // Server-only media library: binary bytes never enter document JSON.
   const mediaPanel=element('div','hosted-media');
   const mediaTitle=element('strong',null,'Медиабиблиотека');
-  const mediaHint=element('small',null,'PNG/JPEG/WebP до 1 МБ · MP4 до 16 МБ · приватно до публикации');
+  const mediaHint=element('small',null,'PNG/JPEG/WebP до 1 МБ · MP4 до 16 МиБ · WOFF2 до 1 МиБ · приватно до публикации');
   const mediaInput=element('input');mediaInput.type='file';mediaInput.id='server-media-file';
   mediaInput.accept='image/png,image/jpeg,image/webp';mediaInput.hidden=true;
   const mediaUpload=action('+ Загрузить изображение','server-media-upload',()=>mediaInput.click());
@@ -465,7 +465,11 @@
   const videoInput=element('input');videoInput.type='file';videoInput.id='server-video-file';
   videoInput.accept='video/mp4,.mp4';videoInput.hidden=true;
   const videoUpload=action('+ Загрузить MP4 (до 16 МБ)','server-video-upload',()=>videoInput.click());
-  mediaPanel.append(mediaTitle,mediaHint,mediaUpload,mediaInput,videoUpload,videoInput,mediaList);
+  const fontInput=element('input');fontInput.type='file';fontInput.id='server-font-file';
+  fontInput.accept='.woff2,font/woff2';fontInput.hidden=true;
+  const fontUpload=action('+ Загрузить WOFF2','server-font-upload',()=>fontInput.click());
+  mediaPanel.append(mediaTitle,mediaHint,mediaUpload,mediaInput,videoUpload,videoInput,
+    fontUpload,fontInput,mediaList);
   toolbar.after(mediaPanel);
   // Auditable site-wide media maintenance. Immutable bytes and all published
   // snapshots survive; an operator previews and applies one bounded draft CAS.
@@ -1672,6 +1676,34 @@
     const file=mediaInput.files?.[0];mediaInput.value='';
     if(file)uploadMedia(file);
   });
+  fontInput.addEventListener('change',()=>{
+    const file=fontInput.files?.[0];fontInput.value='';
+    if(!file)return;
+    safe(async()=>{
+      if(!state.siteId||!canEdit()||editor.isDirty())
+        throw Error('Для WOFF2 нужен открытый, сохранённый черновик');
+      if(!/\.woff2$/i.test(file.name)||file.size<48||file.size>1048576)
+        throw Error('Нужен локальный WOFF2 не более 1 МиБ');
+      const alt=prompt('Название локального шрифта (проверьте право использования)',file.name.replace(/\.woff2$/i,''));
+      if(alt===null)return;
+      if(!alt.trim()||alt.length>200)throw Error('Название шрифта обязательно');
+      const bytes=await file.arrayBuffer();
+      const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+        .map(x=>x.toString(16).padStart(2,'0')).join('');
+      const base64=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');
+        reader.onerror=()=>reject(Error('Не удалось прочитать WOFF2'));
+        reader.readAsDataURL(file);
+      });
+      const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/font','POST',
+        {base64,alt,sha256,expectedRevision:state.revision});
+      if(result.sha256!==sha256||result.asset?.mime!=='font/woff2')
+        throw Error('Сервер не подтвердил целостность шрифта');
+      selectSite(result);await refreshSites();await loadHistory();
+      notice('Шрифт загружен. Откройте «Стили и язык сайта», чтобы назначить его тексту/заголовкам.');
+    });
+  });
   videoInput.addEventListener('change',()=>{
     const file=videoInput.files?.[0];videoInput.value='';
     if(!file)return;
@@ -1806,6 +1838,9 @@
   }
   function mediaUses(site,assetId){
     const locations=[];
+    for(const role of ['body','heading'])
+      if(site.theme?.fontFiles?.[role]===assetId)
+        locations.push('Все страницы · '+(role==='body'?'основной текст':'заголовки'));
     for(const page of site.pages)for(const section of page.sections){
       for(const field of [...section.elements,...(section.items||[])])
         if(field.values['content.media']===assetId)
@@ -1851,8 +1886,9 @@
       for(const asset of assets.filter(a=>(a.id+' '+a.alt).toLocaleLowerCase().includes(query))){
         const row=element('div','hosted-media-item');
         row.dataset.assetId=asset.id;
-        const photo=asset.mime==='video/mp4'?element('span','hosted-video-symbol','▶ MP4'):element('img');
-        if(asset.mime!=='video/mp4'){
+        const photo=asset.mime==='video/mp4'?element('span','hosted-video-symbol','▶ MP4'):
+          asset.mime==='font/woff2'?element('span','hosted-video-symbol','Aa WOFF2'):element('img');
+        if(asset.mime!=='video/mp4'&&asset.mime!=='font/woff2'){
           photo.src='/api/sites/'+encodeURIComponent(state.siteId)+'/media/'+encodeURIComponent(asset.id);
           photo.alt=asset.alt;photo.loading='lazy';photo.width=65;photo.height=55;
         }
@@ -2275,6 +2311,7 @@
     templatesSave.disabled=!available||isDirty()||!canEdit();
     templatesRefresh.disabled=!available;
     videoUpload.disabled=!available||!canEdit()||isDirty();
+    fontUpload.disabled=!available||!canEdit()||isDirty();
     backupDownload.disabled=!available||isDirty()||!isOwner();
     backupOpen.disabled=state.busy||!isOwner();
     releaseRefresh.disabled=!available;
@@ -3947,8 +3984,8 @@
           // exist on the server yet, so hosted previewUrl cannot serve it.
           const sources=Object.create(null);
           for(const asset of site.assets){
-            // Before installation the script-disabled approval preview uses
-            // poster images; full MP4 plays only after verified private upload.
+            // Review frames show poster for MP4. Fonts can be provided as
+            // bounded local data URIs for exact pre-import typography preview.
             if(asset.mime==='video/mp4')continue;
             if(!liveImageBytes.has(asset.id))
               liveImageBytes.set(asset.id,await toDataUrl(required(asset.src.slice(1)),asset.mime));
