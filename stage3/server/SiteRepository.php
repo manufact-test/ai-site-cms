@@ -683,12 +683,14 @@ final class SiteRepository
         foreach(array_chunk($leadIds,250) as $ids){
             if(!$ids)continue;
             $marks=implode(',',array_fill(0,count($ids),'?'));
-            $q=$this->db->prepare("SELECT submission_id,channel,state FROM stage3_delivery_outbox
+            $q=$this->db->prepare("SELECT submission_id,delivery_id,channel,state,attempts FROM stage3_delivery_outbox
                 WHERE site_id=? AND submission_id IN ($marks)");
             $q->execute([$siteId,...$ids]);
             foreach($q->fetchAll(PDO::FETCH_ASSOC) as $item)
                 if(in_array($item['channel'],['email','telegram'],true))
-                    $states[$item['submission_id']][$item['channel']]=$item['state'];
+                    $states[$item['submission_id']][$item['channel']]=[
+                        'id'=>$item['delivery_id'],'state'=>$item['state'],
+                        'attempts'=>(int)$item['attempts']];
         }
         return $states;
     }
@@ -734,7 +736,9 @@ final class SiteRepository
         $deliveryStates=$this->deliveryStatesForLeads($siteId,array_column($rows,'submission_id'));
         foreach ($rows as &$row){
             $row['extras']=self::decode($row['extras']);
-            $row['delivery']=$deliveryStates[$row['submission_id']]??[];
+            $jobs=$deliveryStates[$row['submission_id']]??[];
+            $row['delivery']=array_map(static fn(array $job):string=>$job['state'],$jobs);
+            $row['deliveryJobs']=$jobs; // Private operational IDs, never targets or credentials.
         }
         unset($row);
         return ['submissions'=>$rows,'page'=>$page,'pages'=>$pages,'limit'=>$limit,
