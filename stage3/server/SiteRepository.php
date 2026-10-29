@@ -500,23 +500,46 @@ final class SiteRepository
         return ['mime' => $media['mime'], 'bytes' => $bytes, 'sha256' => $media['sha256']];
     }
 
-    public function publishedImage(string $siteId, string $assetId, string $extension): array
+    /**
+     * Public requests need a validator and Content-Length BEFORE BLOB transfer.
+     * Only assets in the current immutable publication may be served.
+     * MySQL LENGTH and SQLite length evaluate bytes server-side: no BLOB materialized.
+     */
+    public function publishedMediaMetadata(string $siteId,string $assetId,string $extension): array
     {
-        $site = $this->published($siteId)['site'];
-        foreach ($site['assets'] as $asset) {
-            if ($asset['id'] === $assetId
-                && $asset['src'] === '/assets/' . $assetId . '.' . $extension) return $this->image($siteId, $assetId);
-            foreach ($asset['variants'] ?? [] as $variant) {
-                if ($variant['id'] === $assetId
-                    && $variant['src'] === '/assets/'.$assetId.'.'.$extension) {
-                    $image = $this->image($siteId, $assetId);
-                    if ($image['sha256'] !== $variant['sha256'] || $image['mime'] !== $asset['mime'])
-                        throw new \RuntimeException('Published responsive SHA256 mismatch');
-                    return $image;
+        $site=$this->published($siteId)['site'];
+        $expectedMime=null;$variantSha=null;
+        foreach($site['assets'] as $asset){
+            if($asset['id']===$assetId&&
+                $asset['src']==='/assets/'.$assetId.'.'.$extension){
+                $expectedMime=$asset['mime'];break;
+            }
+            foreach($asset['variants']??[] as $variant){
+                if($variant['id']===$assetId&&
+                    $variant['src']==='/assets/'.$assetId.'.'.$extension){
+                    $expectedMime=$asset['mime'];$variantSha=$variant['sha256'];break 2;
                 }
             }
         }
-        throw new NotFound('Image is not part of published site');
+        if($expectedMime===null)throw new NotFound('Media is not part of the published site');
+        $stmt=$this->db->prepare('SELECT mime,sha256,LENGTH(bytes) AS byte_size FROM stage3_media WHERE site_id=? AND asset_id=?');
+        $stmt->execute([$siteId,$assetId]);
+        $row=$stmt->fetch(PDO::FETCH_ASSOC);
+        if(!$row||$row['mime']!==$expectedMime
+            ||($variantSha!==null&&!hash_equals($variantSha,(string)$row['sha256']))
+            ||!is_numeric($row['byte_size'])||(int)$row['byte_size']<1)
+            ||!preg_match('/^[a-f0-9]{64}$/D',(string)$row['sha256']))
+            throw new \RuntimeException('Published media metadata integrity mismatch');
+        return ['mime'=>$row['mime'],'sha256'=>$row['sha256'],'byteSize'=>(int)$row['byte_size']];
+    }
+
+    public function publishedImage(string $siteId, string $assetId, string $extension): array
+    {
+        $metadata=$this->publishedMediaMetadata($siteId,$assetId,$extension);
+        $image=$this->image($siteId,$assetId);
+        if($image['mime']!==$metadata['mime']||!hash_equals($metadata['sha256'],$image['sha256']))
+            throw new \RuntimeException('Published media changed between metadata and bytes');
+        return $image;
     }
 
 

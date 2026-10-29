@@ -206,20 +206,30 @@ final class Api
             }
             $this->staticStudioResource($data,$type);
         }
-        if ($method === 'GET' && preg_match('~^/published/([a-z][a-z0-9-]{2,79})/assets/([a-z][a-z0-9-]{2,79})\.(png|jpg|webp|mp4)$~D', $path, $assetMatch)) {
+        if (in_array($method,['GET','HEAD'],true) && preg_match('~^/published/([a-z][a-z0-9-]{2,79})/assets/([a-z][a-z0-9-]{2,79})\.(png|jpg|webp|mp4)$~D', $path, $assetMatch)) {
             try {
-                $image = $this->sites->publishedImage($assetMatch[1], $assetMatch[2], $assetMatch[3]);
-                $etag='"'.$image['sha256'].'"';
-                header('Content-Type: ' . $image['mime']);
+                $meta=$this->sites->publishedMediaMetadata($assetMatch[1],$assetMatch[2],$assetMatch[3]);
+                $etag='"'.$meta['sha256'].'"';
+                header('Content-Type: '.$meta['mime']);
                 header('X-Content-Type-Options: nosniff');
                 header('ETag: ' . $etag);
                 // Media IDs point to immutable bytes across draft revisions and releases.
                 header('Cache-Control: public, max-age=31536000, immutable');
                 header('Vary: Accept-Encoding');
                 header("Content-Security-Policy: default-src 'none'; sandbox");
+                if($meta['mime']==='video/mp4')header('Accept-Ranges: bytes');
                 if (trim($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) {
                     http_response_code(304);exit;
                 }
+                if($method==='HEAD'){
+                    header('Content-Length: '.$meta['byteSize']);exit;
+                }
+                // Read and hash the body only for a requested response, not
+                // on repeated 304 revalidations or metadata-only HEAD checks.
+                $image=$this->sites->image($assetMatch[1],$assetMatch[2]);
+                if($image['mime']!==$meta['mime']||!hash_equals($meta['sha256'],$image['sha256'])
+                    ||strlen($image['bytes'])!==$meta['byteSize'])
+                    throw new \RuntimeException('Published media bytes changed during HTTP request');
                 if($image['mime']==='video/mp4'){
                     $size=strlen($image['bytes']);
                     header('Accept-Ranges: bytes');
