@@ -676,6 +676,23 @@ final class SiteRepository
         return [$where,$params];
     }
 
+    /** Private, paginated lead-notification states; never expose saved targets. */
+    private function deliveryStatesForLeads(string $siteId,array $leadIds): array
+    {
+        $states=[];
+        foreach(array_chunk($leadIds,250) as $ids){
+            if(!$ids)continue;
+            $marks=implode(',',array_fill(0,count($ids),'?'));
+            $q=$this->db->prepare("SELECT submission_id,channel,state FROM stage3_delivery_outbox
+                WHERE site_id=? AND submission_id IN ($marks)");
+            $q->execute([$siteId,...$ids]);
+            foreach($q->fetchAll(PDO::FETCH_ASSOC) as $item)
+                if(in_array($item['channel'],['email','telegram'],true))
+                    $states[$item['submission_id']][$item['channel']]=$item['state'];
+        }
+        return $states;
+    }
+
     public function inboxPage(string $siteId, string $status='all', string $query='', int $page=1, int $limit=25,string $priority='all'): array
     {
         $this->getDraft($siteId);
@@ -714,7 +731,11 @@ final class SiteRepository
         $stmt->bindValue(count($params)+2,($page-1)*$limit,PDO::PARAM_INT);
         $stmt->execute();
         $rows=$stmt->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($rows as &$row)$row['extras']=self::decode($row['extras']);
+        $deliveryStates=$this->deliveryStatesForLeads($siteId,array_column($rows,'submission_id'));
+        foreach ($rows as &$row){
+            $row['extras']=self::decode($row['extras']);
+            $row['delivery']=$deliveryStates[$row['submission_id']]??[];
+        }
         unset($row);
         return ['submissions'=>$rows,'page'=>$page,'pages'=>$pages,'limit'=>$limit,
             'total'=>$total,'counts'=>$stats,'pipeline'=>$pipeline];
@@ -726,19 +747,6 @@ final class SiteRepository
         $data=$this->inboxPage($siteId,$status,$query,1,1000,$priority);
         if ($data['total']>1000)
             throw new \InvalidArgumentException('CSV export exceeds 1000 leads; narrow the filter');
-        // One bounded site-scoped query per 250 exported leads (never N+1).
-        // 'accepted' means the external transport accepted a message, NOT
-        // that a person received it. Recipient addresses stay private.
-        $deliveryStates=[];
-        foreach(array_chunk(array_column($data['submissions'],'submission_id'),250) as $ids){
-            $marks=implode(',',array_fill(0,count($ids),'?'));
-            $q=$this->db->prepare("SELECT submission_id,channel,state FROM stage3_delivery_outbox
-                WHERE site_id=? AND submission_id IN ($marks)");
-            $q->execute([$siteId,...$ids]);
-            foreach($q->fetchAll(PDO::FETCH_ASSOC) as $item)
-                if(in_array($item['channel'],['email','telegram'],true))
-                    $deliveryStates[$item['submission_id']][$item['channel']]=$item['state'];
-        }
         $stream=fopen('php://temp','w+');
         if ($stream===false)throw new \RuntimeException('Cannot prepare CSV');
         fwrite($stream,"\xEF\xBB\xBF");
@@ -750,8 +758,8 @@ final class SiteRepository
             }
             $cells=[$row['submission_id'],$row['submitted_at'],$row['status'],$row['priority'],$row['name'],$row['email'],
                 $row['message'],$row['note'],$row['section_id'],(string)$row['source_version'],implode(' | ',$extras),
-                 (string)($deliveryStates[$row['submission_id']]['email']??''),
-                 (string)($deliveryStates[$row['submission_id']]['telegram']??'')];
+                 (string)($row['delivery']['email']??''),
+                 (string)($row['delivery']['telegram']??'')];
             // Neutralize spreadsheet formulas, including values preceded by whitespace.
             $cells=array_map(static function(string $value): string {
                 return preg_match('/^[\x00-\x20]*[=+\-@]/',$value)===1?"'".$value:$value;
