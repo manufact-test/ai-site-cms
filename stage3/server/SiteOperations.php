@@ -135,6 +135,94 @@ trait SiteOperations
         ];
     }
 
+    /**
+     * Read-only launch preparation for a REAL client form on its current draft
+     * AND any still-live published release.  No outbound connection, no fake
+     * notification test, no permission to publish and no secret disclosure.
+     * Form delivery may be entirely inbox-only by the owner's explicit choice;
+     * it is shown honestly as such, never as a delivered message.
+     */
+    public function launchFormReadiness(string $siteId): array
+    {
+        $draft=$this->getDraft($siteId);
+        try{$published=$this->published($siteId);}catch(NotFound $ignored){$published=null;}
+        $settings=$this->deliverySettingsRow($siteId)
+            ??['email_enabled'=>0,'email_recipient'=>'','telegram_enabled'=>0,'telegram_chat_id'=>''];
+        $transport=[
+            'email'=>$this->deliveryTransport('email'),
+            'telegram'=>$this->deliveryTransport('telegram')
+        ];
+        $forms=[];
+        foreach(['draft'=>$draft['site'],'published'=>$published['site']??null] as $source=>$site){
+            if($site===null)continue;
+            foreach($site['pages'] as $page)foreach($page['sections'] as $section){
+                if(!in_array($section['component'],['lead-form','lead-form-flex'],true))continue;
+                $id=$section['id'];
+                if(!isset($forms[$id])){
+                    $route=$this->formRouteRow($siteId,$id);
+                    $channels=[];
+                    foreach(['email','telegram'] as $channel){
+                        $destination=$this->deliveryTarget($channel,$settings,$route);
+                        $reason=$transport[$channel]['reason'];
+                        $channels[$channel]=[
+                            'mode'=>$route[$channel.'_mode']??'inherit',
+                            'status'=>$destination===null?'disabled':
+                                ($destination===''||!$transport[$channel]['ready']
+                                    ?'configuration_required':'configured_unverified'),
+                            'reason'=>$destination===null?'disabled':
+                                ($destination===''?'recipient_missing':
+                                    (!$transport[$channel]['ready']?$reason:'live_delivery_not_verified')),
+                            'recipientConfigured'=>$destination!==null&&$destination!=='',
+                            'transportConfigured'=>$transport[$channel]['ready']
+                        ];
+                    }
+                    $forms[$id]=[
+                        'sectionId'=>$id,'sources'=>[],'pages'=>[],
+                        'channels'=>$channels,'inboxPersistence'=>'configured_local',
+                        'notificationsConfigured'=>false,'externalDeliveryVerified'=>false
+                    ];
+                }
+                if(!in_array($source,$forms[$id]['sources'],true))$forms[$id]['sources'][]=$source;
+                $forms[$id]['pages'][]=[
+                    'source'=>$source,'pageId'=>$page['id'],
+                    'path'=>$page['path'],'title'=>$page['title']
+                ];
+            }
+        }
+        $items=[];
+        foreach($forms as $entry){
+            $entry['notificationsConfigured']=in_array('configured_unverified',
+                array_column($entry['channels'],'status'),true);
+            $entry['requiresConfiguration']=in_array('configuration_required',
+                array_column($entry['channels'],'status'),true)
+                ||!$entry['notificationsConfigured'];
+            $entry['inboxOnly']=!$entry['notificationsConfigured'];
+            $items[]=$entry;
+        }
+        $queue=['accepted'=>0,'failed'=>0,'configuration_required'=>0,'uncertain'=>0,'pending'=>0];
+        $q=$this->db->prepare('SELECT state,COUNT(*) AS amount FROM stage3_delivery_outbox WHERE site_id=? GROUP BY state');
+        $q->execute([$siteId]);
+        foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row){
+            if(array_key_exists($row['state'],$queue))$queue[$row['state']]=(int)$row['amount'];
+        }
+        return [
+            'format'=>'manufact-launch-form-readiness-v1',
+            'siteId'=>$siteId,'draftRevision'=>$draft['revision'],
+            'publishedVersion'=>$published['version']??null,
+            'collectorSecretConfigured'=>strlen((string)(getenv('STAGE3_FORM_SECRET')?:''))>=32,
+            'formCount'=>count($items),'forms'=>$items,
+            'formConfigurationRequired'=>count(array_filter($items,
+                static fn(array $form):bool=>$form['requiresConfiguration'])),
+            'formsWithConfiguredNotifications'=>count(array_filter($items,
+                static fn(array $form):bool=>$form['notificationsConfigured'])),
+            'queue'=>$queue,
+            'liveDeliveryVerified'=>false,
+            'ownerAcceptanceConfirmed'=>false,
+            'scope'=>'private-configuration-inspection-only',
+            'note'=>'Configured transport never proves external delivery; check real inbox and transport separately.'
+        ];
+    }
+
     public function siteDiagnostics(string $siteId): array
     {
         $draft=$this->getDraft($siteId);
