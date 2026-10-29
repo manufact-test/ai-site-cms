@@ -115,3 +115,30 @@ node stage3/seo-engine/tests/static-upload-impact-smoke.cjs
 Ведущий проверяет новый HEAD `feature/site-seo-engine`, сам интегрирует, проводит один реальный тест на клиентском источнике, затем устраняет найденное. Worker НЕ редактирует `stage3/server/**`, `stage3/studio/**`, main, SDK, workflows и не делает PR/merge/deploy.
 
 **Ритм работы:** полноценные большие заходы около 30 минут, после раннего завершения одной задачи брать вторую; только нужные smoke, не множить тесты вместо CMS.
+
+
+## Дополнение от 29.10.2026: безопасная публикация и доказательства владельца
+
+### Приватные наблюдения PHP CMS
+
+**Сверка визуальных замечаний** (не означает подтверждённое согласие клиента):
+
+\`GET /api/sites/SITE-ID/visual-review?revision=PUBLISHED_SOURCE_REVISION\` → сохранить приватный JSON; в \`prepare-first-site\` или \`first-site-check\` передать \`--visual-review-status /ABS/private-owner-visual.json\`. Revision должен **строго** совпасть с \`sourceRevision\` из owner-authenticated \`GET /api/sites/SITE-ID/published-site\`, а не с текущим draft. Любые нерешённые замечания для desktop/tablet/mobile блокируют release gate \`unresolved-owner-visual-review\`. Текст заметок, имена и внутренние finding ID не публикуются.
+
+**Сверка архивированных утверждённых макетов**:
+
+\`GET /api/sites/SITE-ID/approval-evidence\` → сохранить owner-only JSON; добавить \`--approval-archive-index /ABS/private-owner-approval-index.json\`. Проверяются SHA256 оригинального sealed-v2 handoff, site.json, трёх главных прототипов, двух документов и per-page desktop/tablet/mobile references. При отсутствии/повреждении записей: blocker \`owner-approved-prototype-archive-incomplete\`. Сам архив CMS **не доказывает фактического согласия клиента** и не заменяет визуальную приёмку.
+
+### Воспроизводимый ZIP и rollback при обновлении
+
+\`node stage3/seo-engine/bin/zip-static-upload.cjs --bundle /ABS/verified-private-upload --out /ABS/NEW-public-site.zip\`
+
+ZIP содержит только публичные файлы verified \`static-upload/public\`, в стабильном порядке без timestamp-зависимости. Отдельный \`static-upload-zip-verify.cjs\` заново проверяет central/local ZIP records, CRC32, SHA256 и exact asset inventory. Чувствительные owner records/manifest и диагностические файлы не включаются. ZIP не загружается автоматически.
+
+\`prepare-first-site\` **всегда** создаёт \`public-site.zip\`, а пакет появляется по конечному пути **только после полного завершения во временной папке**. При ошибке staging удаляется.
+
+Для обновления добавьте \`--previous-upload /ABS/previous-private-static-upload\`: создаются приватные \`UPGRADE-IMPACT.json\`, \`UPGRADE-IMPACT.md\` и \`rollback-public-site.zip\` (только старые публичные файлы, SHA256). Потеря 301/noindex/canonical или переписанная без повышения publishedVersion версия блокируют кандидата. Откат требует ручных действий и не откатывает CMS DB/формы. \`--previous-report\` — отдельный параметр для сравнения SEO отчётов, не путать.
+
+**Для ведущего:** интегрировать только \`stage3/seo-engine/**\`, запустить реальный Node + PHP localhost + Chromium + production HTTPS/form POST на первом клиенте, подтвердить три утверждённых изображения и фактическое согласие клиента. Worker не выполнял production deploy/PR/merge и не выдаёт синтаксические/изолированные V8 проверки за полноценный GitHub CI PASS.
+
+**Режим захода:** примерно 30 минут активной крупной разработки; после завершения одного блока раньше времени брать следующий, без бесконечных искусственных тестов.
