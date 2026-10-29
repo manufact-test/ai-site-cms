@@ -91,15 +91,17 @@ function inventory(site,release,sourceDir,provider){
   out.push(Object.freeze({file:extra.name,sha256:sha(Buffer.from(extra.body,'utf8')),
    size:Buffer.byteLength(extra.body,'utf8'),kind:'hosting-redirects'}));
  }
+ const finalBytes=budget+Buffer.byteLength(notFound,'utf8')+
+  Buffer.byteLength(releaseMarker,'utf8')+
+  (extra?Buffer.byteLength(extra.body,'utf8'):0)+
+  (publicHeaders?Buffer.byteLength(publicHeaders.content,'utf8'):0);
+ if(finalBytes>MAX_BYTES)throw Error('Staged public upload including generated host files exceeds 180MB');
  return Object.freeze({
   format:FORMAT,provider,siteId:site.siteId,origin:plan.origin,
   publishedVersion:release.publishedVersion,sourceRevisionClaim:release.sourceRevision,
   officialManifestSha256:release.manifestSha256,sourceRoot:root,
   records:Object.freeze(out),expectedUploadFileCount:out.length,
-  totalPayloadBytes:budget+Buffer.byteLength(notFound,'utf8')+
-   Buffer.byteLength(releaseMarker,'utf8')+
-   (extra?Buffer.byteLength(extra.body,'utf8'):0)+
-   (publicHeaders?Buffer.byteLength(publicHeaders.content,'utf8'):0),
+  totalPayloadBytes:finalBytes,
   notFound,releaseMarker,publicHeaders,
   staticExportManifestPubliclyExposed:false,extra,plan,
   actualNetworkRequests:0,actualHostWrites:0,manualDeploymentRequired:true
