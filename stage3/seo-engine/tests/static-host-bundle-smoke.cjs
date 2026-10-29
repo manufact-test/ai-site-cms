@@ -48,15 +48,17 @@ try{
   {URL,console})((name)=>name==='node:fs'?fs:name==='node:path'?path:
    name==='node:crypto'?crypto:name==='./php-local-static-export.cjs'?STATIC:
    name==='./static-host-rewrites.cjs'?{build:()=>({origin:release.origin,...redirects})}:
+   name==='./static-host-headers.cjs'?{build:()=>({content:'/*\n  X-Content-Type-Options: nosniff\n'})}:
    (()=>{throw Error('Unexpected require '+name)})(),mod,mod.exports,Buffer);
  const B=mod.exports;
  const inv=B.inventory(site,release,source,'cloudflare-pages');
- assert.equal(inv.expectedUploadFileCount,8);
+ assert.equal(inv.expectedUploadFileCount,9);
  assert.ok(!inv.records.some(r=>r.file==='release-manifest.json'));
  const output=path.join(root,'cloudflare-out'),actual=B.prepare(site,release,source,output,'cloudflare-pages');
- assert.equal(actual.files,8);
+ assert.equal(actual.files,9);
  assert.equal(actual.actualHostWrites,0);
  assert.ok(fs.existsSync(path.join(output,'public','_redirects')));
+ assert.ok(fs.existsSync(path.join(output,'public','_headers')));
  const notFound=fs.readFileSync(path.join(output,'public','404.html'),'utf8');
  assert.ok(notFound.includes('noindex,follow'));
  assert.ok(notFound.includes('href="/"'));
@@ -64,7 +66,7 @@ try{
  assert.ok(!fs.existsSync(path.join(output,'public','upload-inventory.json')));
  const ledger=JSON.parse(fs.readFileSync(path.join(output,'upload-inventory.json'),'utf8'));
  assert.equal(ledger.sourceManifestIncludedInPublicRoot,false);
- assert.equal(ledger.filesVerified,8);
+ assert.equal(ledger.filesVerified,9);
  assert.throws(()=>B.prepare(site,release,source,output,'cloudflare-pages'),/overwrite/);
  assert.throws(()=>B.inventory(site,release,source,'unsupported'),/supported provider/);
  const second=path.join(root,'nginx-out');
