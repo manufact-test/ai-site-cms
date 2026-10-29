@@ -172,6 +172,44 @@ function validMenu(m){
     (m.ctaPageId!==''&&!m.ctaLabel.trim())||(m.ctaPageId===''&&m.ctaLabel!==''))
     fail('Invalid site menu settings');
 }
+const FOOTER_DOMAINS=Object.freeze({
+  instagram:['instagram.com'],facebook:['facebook.com','fb.com'],
+  linkedin:['linkedin.com'],youtube:['youtube.com','youtu.be'],
+  telegram:['t.me'],whatsapp:['wa.me','whatsapp.com'],
+  tiktok:['tiktok.com'],x:['x.com','twitter.com'],github:['github.com']
+});
+function validFooter(footer,pages){
+  objectKeys(footer,['description','email','phone','links','socials'],'site.footer');
+  const plain=(v,max)=>typeof v==='string'&&v.length<=max&&!/[\x00-\x1f]/.test(v);
+  if(!plain(footer.description,300)||!plain(footer.email,254)||!plain(footer.phone,32))
+    fail('Invalid footer description or contacts');
+  if(footer.email&&!/^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,24}$/.test(footer.email))
+    fail('Invalid footer email');
+  if(footer.phone&&(!/^\+?[0-9 ()-]{6,32}$/.test(footer.phone)||
+    footer.phone.replace(/\D/g,'').length<6))fail('Invalid footer phone');
+  if(!Array.isArray(footer.links)||footer.links.length>8||
+    !Array.isArray(footer.socials)||footer.socials.length>8)fail('Too many footer links');
+  const pageIds=new Set(pages.map(page=>page.id)),seenPages=new Set(),seenNetworks=new Set();
+  for(const link of footer.links){
+    objectKeys(link,['label','pageId'],'footer.link');
+    if(!plain(link.label,70)||!link.label.trim()||typeof link.pageId!=='string'||
+      !pageIds.has(link.pageId)||seenPages.has(link.pageId))fail('Unknown or duplicated footer page');
+    seenPages.add(link.pageId);
+  }
+  for(const social of footer.socials){
+    objectKeys(social,['network','url'],'footer.social');
+    if(typeof social.network!=='string'||!FOOTER_DOMAINS[social.network]||
+      typeof social.url!=='string'||social.url.length>300||
+      seenNetworks.has(social.network)||/[\x00-\x20<>"']/.test(social.url))
+      fail('Invalid footer social URL');
+    let url;try{url=new URL(social.url);}catch(_){fail('Invalid footer HTTPS address');}
+    const host=url.hostname.toLowerCase();
+    if(url.protocol!=='https:'||url.username||url.password||url.port||
+      !FOOTER_DOMAINS[social.network].some(d=>host===d||host==='www.'+d))
+      fail('Footer social URL must match its declared HTTPS domain');
+    seenNetworks.add(social.network);
+  }
+}
 function validMenuRelations(raw){
   const pages=new Map(raw.pages.map(page=>[page.id,page]));
   for(const page of raw.pages){
@@ -299,7 +337,7 @@ function validateSharedSections(groups){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding','footer'],'site');
   GRAPH_HOST.validateTokens(raw.designTokens);
   if(own(raw,'menu'))validMenu(raw.menu);
   if(own(raw,'theme'))validTheme(raw.theme);
@@ -338,6 +376,7 @@ function validateSite(raw,regInput){
   }
   if(own(raw,'theme'))validFontFiles(raw.theme,assetMimes);
   if(own(raw,'branding'))validBranding(raw.branding,assetMimes);
+  if(own(raw,'footer'))validFooter(raw.footer,raw.pages);
   if(!Array.isArray(raw.pages)||raw.pages.length<1||raw.pages.length>100)fail('Invalid page count');
   const ids=new Set([raw.siteId,...assetIds]),paths=new Set(),sharedGroups=new Map();
   for(const page of raw.pages){
