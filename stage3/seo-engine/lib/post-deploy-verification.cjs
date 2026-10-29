@@ -16,7 +16,25 @@ function input(file,max=2000000){
   throw Error('Unsafe post-deployment input JSON file');
  return JSON.parse(fs.readFileSync(file,'utf8'));
 }
-function inspect(candidate,site,release,publicHttp,publicMedia,byteReport){
+// Require a recent HTTP/asset evidence cohort rather than replaying old
+// public measurements against a candidate with the same claimed version.
+function freshness(httpCaptured,digestCaptured,nowMs=Date.now()){
+ const times=[httpCaptured,digestCaptured].map(t=>{
+  if(typeof t!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(t))
+   return NaN;
+  return Date.parse(t);
+ });
+ const [a,b]=times;
+ const valid=times.every(Number.isFinite)&&times.every(x=>x<=nowMs+120000)&&
+  times.every(x=>nowMs-x<=7200000)&&Math.abs(a-b)<=1800000;
+ return Object.freeze({cohortFresh:valid,
+  publicHttpAgeMinutes:Number.isFinite(a)?Math.round((nowMs-a)/60000):null,
+  mediaSha256AgeMinutes:Number.isFinite(b)?Math.round((nowMs-b)/60000):null,
+  captureGapMinutes:times.every(Number.isFinite)?Math.round(Math.abs(a-b)/60000):null,
+  maximumAgeMinutes:120,maximumGapMinutes:30,
+  liveEvidenceOriginAuthenticated:false});
+}
+function inspect(candidate,site,release,publicHttp,publicMedia,byteReport,cohort=null){
  if(!candidate||typeof candidate!=='string'||!path.isAbsolute(candidate)||
     !site||!Array.isArray(site.pages)||!release||release.siteId!==site.siteId)
   throw Error('Post-deploy review requires exact official published source and private candidate folder');
@@ -59,6 +77,9 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport){
  const fatal=parity.findings.filter(x=>x.severity==='error');
  const review=parity.findings.filter(x=>x.severity!=='error');
  const blockers=[];
+ if(cohort&&!cohort.cohortFresh)
+  blockers.push({code:'public-evidence-stale-or-mixed',
+   reason:'Public HTTPS page and media SHA256 capture must be within two hours of verification and no more than thirty minutes apart. Capture a fresh coherent public deployment snapshot.',count:1});
  if(status.blockingGates||status.status==='TECHNICAL-BLOCKED')
   blockers.push({code:'candidate-has-unresolved-technical-gates',
    reason:'Existing locally prepared CMS/SEO candidate was already technically blocked; post-deploy matching cannot override those gates.',
@@ -79,6 +100,10 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport){
   verifiedForRootStaticHost:parity.comparable,
   matchedPublicReleaseMarker:parity.publicReleaseMarkerMatched,
   rootCaptureWindowStable:parity.publicRootWindowStable,
+  publicEvidenceCohortFresh:cohort?.cohortFresh??null,
+  publicEvidenceAgeMinutes:cohort?.publicHttpAgeMinutes??null,
+  mediaSha256EvidenceAgeMinutes:cohort?.mediaSha256AgeMinutes??null,
+  publicMediaEvidenceGapMinutes:cohort?.captureGapMinutes??null,
   testedUnknownRoute404:parity.negativeRouteStatus===404||parity.negativeRouteStatus===410,
   hiddenOperatorArtifactsResponded2xx:parity.internalArtifactPublicSuccess2xx,
   checkedPages:parity.checkedPages,checkedRedirects:parity.checkedRedirects,
@@ -109,7 +134,9 @@ function readAndInspect(candidate,site,release,httpFile,mediaFile,byteFile){
  const http=input(httpFile,36000000),media=mediaFile?input(mediaFile,1800000):null;
  if(media)MEDIA.assertEvidence(media);
  DELIVERY.assertEvidence(http);
- const bytes=BYTES.read(byteFile,site,release);
- return inspect(candidate,site,release,http,media,bytes);
+ const byteEvidence=input(byteFile,1800000);
+ const bytes=BYTES.review(site,release,byteEvidence);
+ const cohort=freshness(http.capturedAt,byteEvidence.capturedAt);
+ return inspect(candidate,site,release,http,media,bytes,cohort);
 }
-module.exports=Object.freeze({FORMAT,inspect,readAndInspect});
+module.exports=Object.freeze({FORMAT,freshness,inspect,readAndInspect});
