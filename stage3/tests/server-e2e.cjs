@@ -190,6 +190,7 @@ async function stop(){
   const invalidHeader=structuredClone(fixture);invalidHeader.header.phone='javascript:alert(1)';
   assert.equal((await request('POST','/api/sites',{site:invalidHeader})).status,422,
     'Unsafe contact header rejected before DB write');
+  fixture.pages[0].sections[0].appearance={surface:'default',spacing:'normal',align:'left',width:'edge'};
   const created=await request('POST','/api/sites',{site:fixture});
   assert.equal(created.status,201);assert.equal(created.body.revision,1);
   const id=fixture.siteId,endpoint='/api/sites/'+id;
@@ -247,6 +248,8 @@ async function stop(){
   assert.equal((await request('GET','/published/'+id+'/not-a-page/',undefined,
     {'if-none-match':pub.headers.get('etag')})).status,404,
     'Unknown route cannot be cached as an existing page');
+  assert.match(pub.body,/cms-width-edge/);
+  assert.match(pub.body,/body:has\(\.cms-width-edge\)\{overflow-x:clip\}/);
   assert.match(pub.body,/cms-topbar-dark/);
   assert.match(pub.body,/cms-topbar-notice-link/);
   assert.match(pub.body,/tel:\+48500600700/);

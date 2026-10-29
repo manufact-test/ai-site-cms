@@ -239,7 +239,7 @@ function validMenuRelations(raw){
   if(raw.menu?.ctaPageId&&!pages.has(raw.menu.ctaPageId))fail('Menu CTA destination missing');
 }
 const DEFAULT_APPEARANCE=Object.freeze({surface:'default',spacing:'normal',align:'left',width:'default',heading:'default',corners:'default',mobileAlign:'inherit',mobileSpacing:'inherit',button:'default'});
-const EXTRA_APPEARANCE=Object.freeze({"width":["default","narrow","wide"],"heading":["default","compact","expressive"],"corners":["default","soft","round"],"mobileAlign":["inherit","left","center"],"mobileSpacing":["inherit","tight","normal","airy"],"button":["default","solid","outline","pill"]});
+const EXTRA_APPEARANCE=Object.freeze({"width":["default","narrow","wide","edge"],"heading":["default","compact","expressive"],"corners":["default","soft","round"],"mobileAlign":["inherit","left","center"],"mobileSpacing":["inherit","tight","normal","airy"],"button":["default","solid","outline","pill"]});
 function validAppearance(a){
   objectKeys(a,['surface','spacing','align',...Object.keys(EXTRA_APPEARANCE)],'appearance');
   if(!['default','paper','tint','dark'].includes(a.surface)||

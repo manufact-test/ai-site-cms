@@ -2582,7 +2582,7 @@
       pick('surface','Фон', [['default','Как в компоненте'],['paper','Белый / поверхность'],['tint','Мягкий голубой'],['dark','Тёмный']]),
       pick('spacing','Вертикальные отступы',[['tight','Компактные'],['normal','Стандартные'],['airy','Просторные']]),
       pick('align','Выравнивание',[['left','Слева'],['center','По центру']]),
-      pick('width','Ширина секции',[['default','Стандартная'],['narrow','Узкая'],['wide','Во всю ширину содержимого']]),
+      pick('width','Ширина секции',[['default','Стандартная'],['narrow','Узкая'],['wide','Во всю ширину содержимого'],['edge','От края до края экрана']]),
       pick('heading','Типографика H2',[['default','Стандартная'],['compact','Компактная'],['expressive','Выразительная']]),
       pick('corners','Скругления элементов',[['default','Как в компоненте'],['soft','12 пикселей'],['round','28 пикселей']]),
       pick('button','Оформление кнопок',[['default','Наследовать стиль сайта'],['solid','Залитые'],['outline','Контурные'],['pill','Округлые']]),
@@ -5534,7 +5534,7 @@
       '.cms-align-center>section{text-align:center!important}'+
       '.cms-align-center>section>p{margin-left:auto;margin-right:auto}'+
       '.cms-width-narrow>section{max-width:780px!important;margin-inline:auto!important}'+
-      '.cms-width-wide>section{max-width:none!important}'+
+      '.cms-width-wide>section{max-width:none!important}.cms-width-edge{position:relative;left:50%;width:100vw;max-width:none;margin-left:-50vw;margin-right:0}.cms-width-edge>section{max-width:none!important}body:has(.cms-width-edge){overflow-x:clip}'+
       '.cms-heading-compact>section h2{font-size:clamp(24px,2.5vw,34px)!important}'+
       '.cms-heading-expressive>section h2{font-size:clamp(36px,4.5vw,56px)!important}'+
       '.cms-corners-soft>section :is(article,.card,details,img,.action){border-radius:12px!important}'+

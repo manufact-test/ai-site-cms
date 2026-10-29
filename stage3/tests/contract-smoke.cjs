@@ -39,6 +39,14 @@ test('optional site header is safe, page-ID linked and editable',()=>{
   sdk.validateSite(deleted.current,manifests);
 });
 
+test('author sections can use viewport edge width while keeping bounded enums',()=>{
+  const source=same(initial),section=source.pages[0].sections[0];
+  section.appearance={surface:'default',spacing:'normal',align:'left',width:'edge'};
+  sdk.validateSite(source,manifests);
+  const unsafe=same(source);unsafe.pages[0].sections[0].appearance.width='calc(100vw + 999px)';
+  refuses(()=>sdk.validateSite(unsafe,manifests),'free CSS is never accepted as section width');
+});
+
 test('site-wide branding only binds same-site raster logos and PNG favicon',()=>{
   const base=same(initial);
   base.assets=[

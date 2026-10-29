@@ -581,7 +581,8 @@
           "enum": [
             "default",
             "narrow",
-            "wide"
+            "wide",
+            "edge"
           ]
         },
         "heading": {

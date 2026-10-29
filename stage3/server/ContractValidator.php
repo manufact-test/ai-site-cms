@@ -384,7 +384,7 @@ final class ContractValidator
                         && in_array($section['appearance']['spacing']??null,['tight','normal','airy'],true)
                         && in_array($section['appearance']['align']??null,['left','center'],true),
                         'Invalid section appearance');
-                    foreach (['width'=>['default','narrow','wide'],
+                    foreach (['width'=>['default','narrow','wide','edge'],
                         'heading'=>['default','compact','expressive'],
                         'corners'=>['default','soft','round'],
                         'mobileAlign'=>['inherit','left','center'],
