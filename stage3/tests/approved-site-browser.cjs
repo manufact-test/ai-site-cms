@@ -123,6 +123,7 @@ async function execute(){
   for(const name of ['desktop','tablet','mobile'])
     fs.writeFileSync(path.join(folder,'prototypes',name+'.png'),examplePng);
   fs.writeFileSync(path.join(folder,'assets','asset-external-hero.png'),examplePng);
+  fs.writeFileSync(path.join(folder,'assets','asset-external-mobile.png'),examplePng);
   const approvedVideo=Buffer.from(fs.readFileSync(path.join(root,
     'stage3/tests/fixtures/tiny-h264.mp4.b64'),'utf8').trim(),'base64');
   fs.writeFileSync(path.join(folder,'assets','asset-external-film.mp4'),approvedVideo);
@@ -144,10 +145,15 @@ async function execute(){
     const site=window.Stage3Editor.fromBrief('site-approved-browser','Внешний готовый сайт');
     site.assets=[{id:'asset-external-hero',src:'/assets/asset-external-hero.png',
       mime:'image/png',alt:'Фото внешнего сайта'},
+      {id:'asset-external-mobile',src:'/assets/asset-external-mobile.png',
+        mime:'image/png',alt:'Мобильный знак бренда'},
       {id:'asset-external-film',src:'/assets/asset-external-film.mp4',
         mime:'video/mp4',alt:'Видеопрезентация утверждённого сайта'},
       {id:'asset-external-font',src:'/assets/asset-external-font.woff2',
         mime:'font/woff2',alt:'CMS original CI typeface'}];
+    site.branding={logoAssetId:'asset-external-hero',
+      mobileLogoAssetId:'asset-external-mobile',
+      faviconAssetId:'asset-external-hero',logoWidth:176};
     site.theme={background:'#f7f9fc',surface:'#ffffff',text:'#172a43',
       primary:'#0a5bff',font:'system',maxWidth:1140,
       fontFiles:{body:'asset-external-font',heading:'asset-external-font'}};
@@ -352,7 +358,7 @@ async function execute(){
   await page.waitForFunction(()=>!document.getElementById('server-approved-import').disabled);
   const unfinished=(await (await page.request.get(
     origin+'/api/sites/site-approved-browser')).json());
-  assert.equal(unfinished.site.assets.length,3,'Interrupted import retains image, MP4 and WOFF2 in private site');
+  assert.equal(unfinished.site.assets.length,4,'Interrupted import retains both brand images, MP4 and WOFF2');
   assert.equal(unfinished.site.pages[0].sections.length,2,
     'Server stores only the unpublished seed until final manifest Save');
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),404,
@@ -414,10 +420,17 @@ async function execute(){
   const resumed=(await (await page.request.get(origin+'/api/sites/site-approved-browser')).json());
   assert.equal(resumed.revision,unfinished.revision+1,
     'Cross-session recovery reuses stored media and adds ONLY final Save revision');
-  assert.equal(resumed.site.assets.length,3,'Continuation never duplicates immutable image, MP4 or WOFF2');
+  assert.equal(resumed.site.assets.length,4,'Continuation never duplicates logo, mobile logo, MP4 or WOFF2');
   const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
   assert.equal(imported.siteId,'site-approved-browser');
-  assert.equal(imported.assets.length,3);
+  assert.equal(imported.assets.length,4);
+  const importedDesktopLogo=imported.assets.find(a=>a.alt==='Фото внешнего сайта');
+  const importedMobileLogo=imported.assets.find(a=>a.alt==='Мобильный знак бренда');
+  assert.ok(importedDesktopLogo&&importedMobileLogo);
+  assert.equal(imported.branding.logoAssetId,importedDesktopLogo.id);
+  assert.equal(imported.branding.mobileLogoAssetId,importedMobileLogo.id);
+  assert.equal(imported.branding.faviconAssetId,importedDesktopLogo.id);
+  assert.equal(imported.branding.logoWidth,176);
   const importedFont=imported.assets.find(asset=>asset.mime==='font/woff2');
   assert.ok(importedFont&&importedFont.id!=='asset-external-font');
   assert.equal(imported.theme.fontFiles.body,importedFont.id);
@@ -801,6 +814,16 @@ async function execute(){
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),200);
   const approvedPage=await visitor.goto(origin+'/published/site-approved-browser/');
   assert.equal(approvedPage.status(),200);
+  const logo=visitor.locator('header.cms-site-header a.cms-brand picture img');
+  assert.equal(await logo.getAttribute('src'),
+    '/published/site-approved-browser/assets/'+importedDesktopLogo.id+'.png');
+  assert.equal(await logo.getAttribute('width'),'176');
+  assert.equal(await visitor.locator('header.cms-site-header a.cms-brand picture source').getAttribute('srcset'),
+    '/published/site-approved-browser/assets/'+importedMobileLogo.id+'.png');
+  assert.equal(await visitor.locator('link[rel="icon"]').getAttribute('href'),
+    '/published/site-approved-browser/assets/'+importedDesktopLogo.id+'.png');
+  assert.equal(await visitor.locator('link[rel="icon"]').getAttribute('type'),'image/png');
+  assert.equal((await page.request.get(origin+'/published/site-approved-browser/assets/'+importedMobileLogo.id+'.png')).status(),200);
   assert.equal(await visitor.locator('h1').innerText(),'Редактируется после подключения');
   assert.match(await visitor.locator('section.hero h1').getAttribute('style'),/--title-mobile:31px/,
     'Mobile typography override survives server save and public rendering');
