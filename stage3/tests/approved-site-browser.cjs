@@ -783,7 +783,125 @@ async function execute(){
   assert.equal(evidence.pages.length,imported.pages.length);
   for(const item of evidence.pages)for(const width of ['desktop','tablet','mobile'])
     assert.equal(fs.existsSync(path.join(evidenceDir,item.screenshots[width].file)),true);
-  // Capture artifacts are evidence for human visual review, not pixel-diff approval.
+  // A multi-page capture must carry EACH page's own sealed reference rather
+  // than present the homepage as an interior approved design.
+  assert.match(evidence.handoffSha256,/^[a-f0-9]{64}$/);
+  const homeEvidence=evidence.pages.find(x=>x.path==='/');
+  const interiorEvidence=evidence.pages.find(x=>x.id===interiorPage.id);
+  assert.ok(homeEvidence&&interiorEvidence);
+  for(const width of ['desktop','tablet','mobile']){
+    assert.equal(homeEvidence.references[width].sha256,evidence.prototypes[width].sha256);
+    const ref=interiorEvidence.references[width];
+    assert.match(ref.source,new RegExp('interior-'+width+'\\.png
+  // Owner can restore imported site's previously saved version without mutating
+  // public content: stale drafts and published pages are separate snapshots.
+  // Save/Publish reload the server snapshot and may reset the inspector focus.
+  // Re-select the exact imported FAQ before changing the next private draft.
+  await page.locator('#pages .nav-entry').first().click();
+  await page.locator('#sections .nav-entry').last().click();
+  assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
+  await page.locator('#elements .cms-repeat-row').last().locator('button.element').click();
+  await page.locator('#fields [data-field="content.question"]').fill('Черновик, который нужно откатить');
+  await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
+  const preRestoreRevision=(await (await page.request.get(
+    origin+'/api/sites/site-approved-browser')).json()).revision;
+  await page.locator('#save').click();
+  await page.locator('#versions .version').first()
+    .getByText('Ревизия #'+(preRestoreRevision+1)).waitFor();
+  await page.locator('#versions .version').nth(1).click();
+  await page.locator('#server-status')
+    .getByText(new RegExp('Черновик #'+(preRestoreRevision+2))).waitFor();
+  assert.deepEqual((await page.evaluate(()=>window.Stage3Editor.getSite()))
+    .pages[0].sections.find(s=>s.id==='section-approved-faq')
+    .items.map(i=>i.values['content.question']),
+    ['Как оформить заказ?','Что входит в комплект?'],
+    'Restored previous server revision of imported website');
+  await visitor.reload();
+  assert.deepEqual(await visitor.locator('section.faq summary').allInnerTexts(),
+    ['Как оформить заказ?','Что входит в комплект?'],
+    'Restoring a private revision never changes the public site');
+
+  await page.locator('#server-logout').click();
+  await page.locator('#server-login:not([hidden])').waitFor();
+  assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
+    'Real public visitor remains accessible without CMS login');
+  assert.deepEqual(errors,[],'No unhandled browser script exceptions');
+  await visitorCtx.close();
+  console.log('STAGE3 APPROVED SITE CHROMIUM E2E PASS: sealed folder, 3 preview sizes, real media, FAQ order, SEO, draft, publish and restore');
+}
+execute().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{
+  if(browser)await browser.close();
+  if(php&&php.exitCode===null){
+    const stopped=new Promise(resolve=>php.once('exit',resolve));
+    php.kill('SIGTERM');
+    await Promise.race([stopped,new Promise(resolve=>setTimeout(resolve,1500))]);
+  }
+  fs.rmSync(temp,{recursive:true,force:true});
+});
+));
+    assert.ok(fs.existsSync(path.join(evidenceDir,ref.file)));
+    assert.equal(ref.sha256,require('node:crypto').createHash('sha256')
+      .update(fs.readFileSync(path.join(evidenceDir,ref.file))).digest('hex'));
+    assert.notEqual(ref.file,homeEvidence.references[width].file);
+  }
+  assert.ok(fs.existsSync(path.join(evidenceDir,evidence.clientExplanation.file)));
+  assert.ok(fs.existsSync(path.join(evidenceDir,evidence.implementationSpec.file)));
+  const reportHtml=fs.readFileSync(path.join(evidenceDir,'report.html'),'utf8');
+  assert.match(reportHtml,/script-src 'sha256-/);
+  assert.match(reportHtml,/connect-src 'none'/);
+  assert.doesNotMatch(reportHtml,/onerror=|<script src=/i);
+  const offlineContext=await browser.newContext({acceptDownloads:true,viewport:{width:1440,height:950}});
+  const offline=await offlineContext.newPage(),offlineErrors=[];
+  offline.on('pageerror',err=>offlineErrors.push(err.message));
+  try{
+    await offline.goto(require('node:url').pathToFileURL(path.join(evidenceDir,'report.html')).href);
+    await offline.locator('#pages button').first().waitFor();
+    assert.match(await offline.locator('#overview').innerText(),/макетов: 6/);
+    await offline.locator('#pages button').nth(1).click();
+    assert.match(await offline.locator('#reference-status').innerText(),/interior-desktop.png/);
+    assert.equal(await offline.locator('#original').getAttribute('src'),
+      interiorEvidence.references.desktop.file);
+    await offline.locator('#modes [data-mode="overlay"]').click();
+    await offline.locator('#opacity-control').fill('72');
+    assert.equal(await offline.locator('#overlay-image').evaluate(x=>x.style.opacity),'0.72');
+    await offline.locator('#devices [data-device="mobile"]').click();
+    assert.match(await offline.locator('#reference-status').innerText(),/interior-mobile.png/);
+    await offline.locator('#new-note').fill('На мобильном экране нужно исправить поля');
+    await offline.locator('#add-note').click();
+    assert.match(await offline.locator('#overview').innerText(),/открытых замечаний: 1/);
+    const downloadPromise=offline.waitForEvent('download');
+    await offline.locator('#export-json').click();
+    const download=await downloadPromise;
+    assert.match(download.suggestedFilename(),/^manual-visual-review-/);
+    const downloaded=JSON.parse(fs.readFileSync(await download.path(),'utf8'));
+    assert.equal(downloaded.format,'manufact-offline-visual-review-v1');
+    assert.equal(downloaded.siteId,evidence.siteId);
+    assert.equal(downloaded.packageSha256,evidence.handoffSha256);
+    assert.equal(downloaded.visualFindings.length,1);
+    assert.equal(downloaded.visualFindings[0].pageId,interiorPage.id);
+    assert.equal(downloaded.visualFindings[0].device,'mobile');
+    const briefPromise=offline.waitForEvent('download');
+    await offline.locator('#export-brief').click();
+    const brief=await briefPromise;
+    assert.match(fs.readFileSync(await brief.path(),'utf8'),/На мобильном экране нужно исправить поля/);
+    await offline.locator('#notes').getByRole('button',{name:/Отметить исправленным/}).click();
+    assert.match(await offline.locator('#overview').innerText(),/открытых замечаний: 0/);
+    await offline.locator('#import-json').setInputFiles({
+      name:'restore-notes.json',mimeType:'application/json',
+      buffer:Buffer.from(JSON.stringify(downloaded))
+    });
+    await offline.waitForFunction(()=>document.querySelector('#overview')
+      ?.textContent?.includes('открытых замечаний: 1'));
+    const forged={...downloaded,packageSha256:'f'.repeat(64)};
+    await offline.locator('#import-json').setInputFiles({
+      name:'wrong-project.json',mimeType:'application/json',
+      buffer:Buffer.from(JSON.stringify(forged))
+    });
+    await offline.locator('#status').getByText(/Импорт отклонён/).waitFor();
+    assert.match(await offline.locator('#overview').innerText(),/открытых замечаний: 1/);
+    assert.deepEqual(offlineErrors,[],'Offline review must function without JS errors');
+  }finally{await offlineContext.close();}
+    // Capture artifacts are evidence for human visual review, not pixel-diff approval.
   // Owner can restore imported site's previously saved version without mutating
   // public content: stale drafts and published pages are separate snapshots.
   // Save/Publish reload the server snapshot and may reset the inspector focus.
