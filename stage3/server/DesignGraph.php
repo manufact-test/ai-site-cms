@@ -350,7 +350,7 @@ final class DesignGraph
                            &&in_array($assets[$poster]??null,['image/png','image/jpeg','image/webp'],true))),
                     'invalid video binding');
             } elseif ($type==='image') {
-                self::check(is_string($node['assetId']??null)&&isset($assets[$node['assetId']])&&$assets[$node['assetId']]!=='video/mp4'
+                self::check(is_string($node['assetId']??null)&&isset($assets[$node['assetId']])&&str_starts_with($assets[$node['assetId']],'image/')
                     &&(!array_key_exists('href',$node)||self::safeHref($node['href']))
                     &&!isset($node['posterAssetId'])&&!isset($node['loop'])
                     &&is_string($node['alt']??null)&&strlen($node['alt'])<=200
