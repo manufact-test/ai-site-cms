@@ -369,6 +369,47 @@ JS;
             .$cta.$mobile.'</div></header>';
     }
 
+    /** One global, bounded footer across every published route and export mode. */
+    private static function siteFooter(array $site,string $mount): string
+    {
+        $f=$site['footer']??null;
+        if($f===null)return '<footer>'.self::h($site['title']).'</footer>';
+        $brand='<strong class="cms-footer-brand">'.self::h($site['title']).'</strong>';
+        $description=$f['description']!==''?'<p class="cms-footer-description">'.
+            self::h($f['description']).'</p>':'';
+        $links='';
+        $pages=[];foreach($site['pages'] as $page)$pages[$page['id']]=$page;
+        foreach($f['links'] as $link){
+            $page=$pages[$link['pageId']];
+            $links.='<li><a href="'.self::h($mount.$page['path']).'">'.
+                self::h($link['label']).'</a></li>';
+        }
+        $navigation=$links!==''?'<nav class="cms-footer-nav" aria-label="Footer navigation"><ul>'.
+            $links.'</ul></nav>':'';
+        $contacts='';
+        if($f['email']!=='')
+            $contacts.='<a href="mailto:'.self::h($f['email']).'">'.self::h($f['email']).'</a>';
+        if($f['phone']!==''){
+            $phone=preg_replace('/[^0-9+]/','',$f['phone']);
+            $contacts.='<a href="tel:'.self::h($phone).'">'.self::h($f['phone']).'</a>';
+        }
+        $contacts=$contacts!==''?'<address class="cms-footer-contact">'.$contacts.'</address>':'';
+        $labels=['instagram'=>'Instagram','facebook'=>'Facebook','linkedin'=>'LinkedIn',
+            'youtube'=>'YouTube','telegram'=>'Telegram','whatsapp'=>'WhatsApp',
+            'tiktok'=>'TikTok','x'=>'X','github'=>'GitHub'];
+        $socials='';
+        foreach($f['socials'] as $social)
+            $socials.='<li><a href="'.self::h($social['url']).
+                '" target="_blank" rel="noopener noreferrer nofollow">'.
+                self::h($labels[$social['network']]).'</a></li>';
+        $socials=$socials!==''?'<nav class="cms-footer-social" aria-label="Social media"><ul>'.
+            $socials.'</ul></nav>':'';
+        return '<footer class="cms-site-footer"><div class="cms-footer-inner"><div>'.
+            $brand.$description.'</div><div class="cms-footer-links">'.$navigation.$socials.
+            '</div>'.$contacts.'<small class="cms-footer-copy">© '.
+            self::h($site['title']).'</small></div></footer>';
+    }
+
     private static function themeCss(array $site,string $mount,?string $assetBasePath=null): string
     {
         $t = array_merge(['background'=>'#f7f9fc','surface'=>'#ffffff','text'=>'#172a43',
@@ -938,6 +979,7 @@ JS;
             . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . $favicon . '<style>' . self::themeCss($site,$mount,$assetBasePath)
             . '*,*:before,*:after{box-sizing:border-box}body{margin:0;background:var(--cms-bg);color:var(--cms-text);font:var(--cms-body-size)/var(--cms-line-height) var(--cms-font)}h1,h2,h3,h4,h5,h6{font-family:var(--cms-heading-font)}'
             . 'header,main,footer{max-width:var(--cms-width);margin:auto;padding:24px}nav{display:flex;flex-wrap:wrap;gap:18px}a{color:inherit}'
+            . '.cms-site-footer{max-width:none;background:var(--cms-surface);border-top:1px solid #dce5ee;padding:0;overflow-wrap:anywhere}.cms-footer-inner{max-width:var(--cms-width);margin:auto;padding:42px 24px 26px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,1fr);gap:22px 34px;align-items:start}.cms-footer-brand{font:700 21px/1.3 var(--cms-heading-font)}.cms-footer-description{max-width:50ch;white-space:pre-line;line-height:1.65;opacity:.82}.cms-footer-links{display:grid;gap:18px}.cms-footer-nav ul,.cms-footer-social ul{list-style:none;padding:0;margin:0;display:flex;gap:10px 20px;flex-wrap:wrap}.cms-site-footer a{text-decoration:none;overflow-wrap:anywhere}.cms-site-footer a:hover{text-decoration:underline;color:var(--cms-primary)}.cms-site-footer a:focus-visible{outline:3px solid var(--cms-primary);outline-offset:4px;border-radius:3px}.cms-footer-contact{display:grid;gap:10px;font-style:normal}.cms-footer-copy{grid-column:1/-1;opacity:.65;border-top:1px solid #dce5ee;padding-top:18px}@media(max-width:800px){.cms-footer-inner{grid-template-columns:1fr 1fr}.cms-footer-contact{grid-column:1/-1}}@media(max-width:550px){.cms-footer-inner{grid-template-columns:1fr;gap:22px;padding:32px 20px 22px}.cms-footer-contact{grid-column:auto}.cms-footer-nav ul,.cms-footer-social ul{gap:12px 18px}}'
             . 'section{padding:64px 24px;border-bottom:1px solid #e2e8f0}h1{font-size:var(--title-desktop);color:var(--title-color);line-height:1.1;max-width:960px}'
             . 'h2{font-size:var(--cms-h2-size);line-height:1.2}.hero{padding-block:90px}.action{display:inline-block;background:var(--cms-button-bg);color:var(--cms-button-color);'
             . 'padding:14px 22px;border-radius:var(--cms-button-radius);box-shadow:var(--cms-button-shadow);text-decoration:none;font-weight:700}.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}'
@@ -958,7 +1000,6 @@ JS;
             . '@media(max-width:900px){h1{font-size:var(--title-tablet)}}'
             . '@media(max-width:600px){.cms-mobile-align-left>section{text-align:left}.cms-mobile-align-center>section{text-align:center}.cms-mobile-spacing-tight>section{padding-top:24px;padding-bottom:24px}.cms-mobile-spacing-normal>section{padding-top:40px;padding-bottom:40px}.cms-mobile-spacing-airy>section{padding-top:72px;padding-bottom:72px}section{padding:40px 8px}.hero{padding-block:48px}.feature-grid{grid-template-columns:1fr}.story-layout{grid-template-columns:1fr}h1{font-size:var(--title-mobile)}}'
             . '</style></head><body>' . $header
-            . '<main>' . $body . '</main><footer>'
-            . self::h($site['title']) . '</footer></body></html>';
+            . '<main>' . $body . '</main>' . self::siteFooter($site,$mount) . '</body></html>';
     }
 }
