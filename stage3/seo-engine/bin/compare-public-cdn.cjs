@@ -26,13 +26,14 @@ function main(argv){
  if(fs.existsSync(target))throw Error('Output already exists; refuse to overwrite CDN comparison');
  const one=FIRST.readPublicEvidence(o.before,'http'),
   two=FIRST.readPublicEvidence(o.after,'http');
- const oldMedia=o['before-media']?JSON.parse(fs.readFileSync(o['before-media'],'utf8')):null,
-  newMedia=o['after-media']?JSON.parse(fs.readFileSync(o['after-media'],'utf8')):null;
- if(oldMedia||newMedia)for(const file of [o['before-media'],o['after-media']]){
+ const mediaReceipt=file=>{
+  if(!file)return null;
   const stat=fs.lstatSync(file);
   if(!stat.isFile()||stat.isSymbolicLink()||stat.size<100||stat.size>1800000)
    throw Error('Invalid bounded private public-media SHA256 receipt');
- }
+  return JSON.parse(fs.readFileSync(file,'utf8'));
+ };
+ const oldMedia=mediaReceipt(o['before-media']),newMedia=mediaReceipt(o['after-media']);
  const report=DRIFT.compare(one,two,oldMedia,newMedia),parent=fs.realpathSync(path.dirname(target));
  for(const file of [o.before,o.after]){
   const origin=fs.realpathSync(file);
