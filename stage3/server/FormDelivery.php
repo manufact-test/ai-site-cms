@@ -133,6 +133,75 @@ trait FormDelivery
             'note'=>'Transport acceptance is not inbox receipt; check the intended recipient manually.'];
     }
 
+
+    /** Bounded, private, durable manual-routing-test ledger from existing audit. */
+    public function deliveryProbeHistory(string $siteId): array
+    {
+        $this->getDraft($siteId);
+        $q=$this->db->prepare("SELECT actor,action,outcome,detail,created_at FROM stage3_audit
+            WHERE site_id=? AND action IN ('delivery-probe-attempt','delivery-probe-result','delivery-probe-receipt')
+            ORDER BY created_at DESC,event_id DESC LIMIT 240");
+        $q->execute([$siteId]);$probes=[];
+        foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row){
+            if(!preg_match('/^(probe-[a-f0-9]{16}) form=([a-z][a-z0-9-]{2,79}) channel=(email|telegram)(?: error=([a-z_]+))?$/D',
+                $row['detail'],$m))continue;
+            $id=$m[1];
+            if(!isset($probes[$id]))$probes[$id]=[
+                'probeId'=>$id,'sectionId'=>$m[2],'channel'=>$m[3],
+                'requestedAt'=>null,'transportState'=>null,'transportError'=>null,
+                'ownerReceived'=>null,'ownerReceiptAt'=>null,'ownerReceiptActor'=>null
+            ];
+            if($probes[$id]['sectionId']!==$m[2]||$probes[$id]['channel']!==$m[3])continue;
+            if($row['action']==='delivery-probe-attempt')
+                $probes[$id]['requestedAt']=$row['created_at'];
+            if($row['action']==='delivery-probe-result'){
+                $probes[$id]['transportState']=$row['outcome'];
+                $probes[$id]['transportError']=($m[4]??'none')==='none'?null:($m[4]??null);
+            }
+            if($row['action']==='delivery-probe-receipt'){
+                $probes[$id]['ownerReceived']=$row['outcome']==='received';
+                $probes[$id]['ownerReceiptAt']=$row['created_at'];
+                $probes[$id]['ownerReceiptActor']=$row['actor'];
+            }
+        }
+        $items=array_values(array_filter($probes,static fn(array $item):bool=>
+            $item['requestedAt']!==null&&$item['transportState']!==null));
+        usort($items,static fn(array $a,array $b):int=>
+            strcmp($b['requestedAt'],$a['requestedAt'])?:strcmp($b['probeId'],$a['probeId']));
+        return ['format'=>'manufact-form-delivery-probe-history-v1','siteId'=>$siteId,
+            'probes'=>array_slice($items,0,60),
+            'note'=>'Owner-reported test receipt is not proof of actual visitor-form delivery.'];
+    }
+
+    /** Owner can record one personal observation per real test, never forge an attempt. */
+    public function confirmDeliveryProbeReceipt(string $siteId,string $probeId,bool $received,string $operator): array
+    {
+        $this->getDraft($siteId);
+        if(!preg_match('/^probe-[a-f0-9]{16}$/D',$probeId))
+            throw new InvalidArgumentException('Invalid routing-test ID');
+        $this->atomic(function()use($siteId,$probeId,$received,$operator):void{
+            $q=$this->db->prepare("SELECT action,detail FROM stage3_audit WHERE site_id=?
+                AND action IN ('delivery-probe-attempt','delivery-probe-result','delivery-probe-receipt')
+                AND detail LIKE ?");
+            $q->execute([$siteId,$probeId.' form=%']);
+            $attempt=null;$result=null;$already=false;
+            foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row){
+                if(!preg_match('/^'.preg_quote($probeId,'/').' form=([a-z][a-z0-9-]{2,79}) channel=(email|telegram)(?: error=[a-z_]+)?$/D',
+                    $row['detail'],$m))continue;
+                $detail=$probeId.' form='.$m[1].' channel='.$m[2];
+                if($row['action']==='delivery-probe-attempt')$attempt=$detail;
+                if($row['action']==='delivery-probe-result')$result=$detail;
+                if($row['action']==='delivery-probe-receipt')$already=true;
+            }
+            if($attempt===null||$result===null||$attempt!==$result)
+                throw new NotFound('No completed delivery test with this ID');
+            if($already)throw new Conflict('Receipt observation already recorded for this test');
+            $this->audit($operator,'delivery-probe-receipt',$siteId,
+                $received?'received':'not_received',$attempt);
+        });
+        return $this->deliveryProbeHistory($siteId);
+    }
+
     public function deliveryStatus(string $siteId): array
     {
         $this->getDraft($siteId);

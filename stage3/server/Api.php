@@ -917,7 +917,7 @@ final class Api
                 $this->auditDetail='import '.($pending['args'][3]??'').' from '.$sourceId;
                 $this->response(200,$this->sites->applyCrossSiteCollection(...$pending['args']));
             }
-            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/delivery(?:/(retry|routes|probe))?$~D',$path,$deliveryMatch)) {
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/delivery(?:/(retry|routes|probe/receipt|probe|probes))?$~D',$path,$deliveryMatch)) {
                 $siteId=$deliveryMatch[1];$operation=$deliveryMatch[2]??null;
                 if($method==='GET'&&$operation===null)
                     $this->response(200,$this->sites->deliveryStatus($siteId));
@@ -950,6 +950,18 @@ final class Api
                     $this->auditDetail='Owner-requested form routing probe; no customer lead';
                     $this->response(200,$this->sites->probeFormDelivery($siteId,$body['sectionId'],
                         $body['channel'],$principal['username']));
+                }
+                if($method==='GET'&&$operation==='probes'){
+                    if($principal['role']!=='owner')$this->response(403,['error'=>'Owner only']);
+                    $this->response(200,$this->sites->deliveryProbeHistory($siteId));
+                }
+                if($method==='POST'&&$operation==='probe/receipt'){
+                    if($principal['role']!=='owner')$this->response(403,['error'=>'Owner only']);
+                    if(!is_string($body['probeId']??null)||!is_bool($body['received']??null))
+                        throw new InvalidArgumentException('Probe ID and explicit received / not received value required');
+                    $this->auditDetail='Owner manually recorded routing test receipt; not visitor delivery proof';
+                    $this->response(200,$this->sites->confirmDeliveryProbeReceipt(
+                        $siteId,$body['probeId'],$body['received'],$principal['username']));
                 }
                 if($method==='POST'&&$operation==='retry'){
                     if(!is_string($body['reason']??null)||!is_bool($body['includeUncertain']??null))

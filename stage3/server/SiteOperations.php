@@ -213,6 +213,11 @@ trait SiteOperations
             $deliveryRows[$key][$channel][$state]=(int)$row['amount'];
         }
         $items=[];
+        $latestProbeByForm=[];
+        foreach($this->deliveryProbeHistory($siteId)['probes'] as $probe){
+            $key=$probe['sectionId'].'/'.$probe['channel'];
+            if(!isset($latestProbeByForm[$key]))$latestProbeByForm[$key]=$probe;
+        }
         foreach($forms as $entry){
             $entry['notificationsConfigured']=in_array('configured_unverified',
                 array_column($entry['channels'],'status'),true);
@@ -222,7 +227,13 @@ trait SiteOperations
             $entry['inboxOnly']=!$entry['notificationsConfigured'];
             $entry['savedSubmissionCount']=$submissions[$entry['sectionId']]??0;
             $entry['deliveryEvidence']=$deliveryRows[$entry['sectionId']]??new \stdClass();
-            $entry['externalDeliveryVerified']=false; // never infer remote receipt from counters
+            $entry['manualRoutingTests']=[];
+            foreach(['email','telegram'] as $channel){
+                $key=$entry['sectionId'].'/'.$channel;
+                if(isset($latestProbeByForm[$key]))
+                    $entry['manualRoutingTests'][]=$latestProbeByForm[$key];
+            }
+            $entry['externalDeliveryVerified']=false; // even owner-reported probe receipt is not full lead delivery proof
             $items[]=$entry;
         }
         $queue=['accepted'=>0,'failed'=>0,'configuration_required'=>0,'uncertain'=>0,'pending'=>0];

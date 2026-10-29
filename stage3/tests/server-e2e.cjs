@@ -463,6 +463,33 @@ async function stop(){
   assert.match(probeWithoutSender.body.error,/sender_missing/);
   assert.equal((await request('GET',endpoint+'/submissions')).body.submissions.length,0,
     'Routing probes may not create synthetic customer leads');
+
+  const initialProbeHistory=await request('GET',probePath+'s');
+  assert.equal(initialProbeHistory.status,200);
+  assert.deepEqual(initialProbeHistory.body.probes,[]);
+  assert.equal((await request('POST',probePath+'/receipt',
+    {probeId:'probe-ffffffffffffffff',received:true})).status,404);
+  // Test-only audit records: exercise durable owner observations WITHOUT any mail/Telegram I/O.
+  const auditSeed=spawnSync('php',['-r',
+    '$db=new PDO(getenv("STAGE3_DSN"));'+
+    '$q=$db->prepare("INSERT INTO stage3_audit (event_id,actor,action,site_id,outcome,detail,created_at) VALUES (?,?,?,?,?,?,?)");'+
+    'foreach([["delivery-probe-attempt","requested"],["delivery-probe-result","accepted"]] as $r){'+
+    '$q->execute(["event-".bin2hex(random_bytes(12)),"ci",$r[0],"site-industrial-demo",$r[1],'+
+    '"probe-aaaaaaaaaaaaaaaa form=section-quote-form channel=email".($r[0]==="delivery-probe-result"?" error=none":""),gmdate("Y-m-d\\TH:i:s\\Z")]);}'],
+    {cwd:root,env,encoding:'utf8'});
+  assert.equal(auditSeed.status,0,auditSeed.stderr);
+  const observed=await request('POST',probePath+'/receipt',
+    {probeId:'probe-aaaaaaaaaaaaaaaa',received:true});
+  assert.equal(observed.status,200,JSON.stringify(observed.body));
+  assert.equal(observed.body.probes[0].ownerReceived,true);
+  assert.equal(observed.body.probes[0].transportState,'accepted');
+  assert.equal((await request('POST',probePath+'/receipt',
+    {probeId:'probe-aaaaaaaaaaaaaaaa',received:false})).status,409,
+    'An owner observation cannot be overwritten in another browser tab');
+  assert.equal((await request('GET',probePath+'s')).body.probes[0].ownerReceived,true);
+  assert.equal((await request('GET',launchFormsPath)).body.forms[0].manualRoutingTests[0].ownerReceived,true);
+  assert.equal((await request('GET',endpoint+'/submissions')).body.submissions.length,0,
+    'Only audit metadata, never fake customer submissions, may be created by a routing test');
   const afterRouting=await request('GET',launchFormsPath);
   assert.equal(afterRouting.status,200,JSON.stringify(afterRouting.body));
   assert.equal(afterRouting.body.formCount,1);

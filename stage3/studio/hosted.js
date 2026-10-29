@@ -1195,7 +1195,50 @@
       (result.error?' · '+result.error:'')+
       '. Проверьте получение у адресата вручную. В журнал заявок ничего не добавлено.';
     routeProbeReport.dataset.error=String(result.state!=='accepted');
+    await loadProbeHistory();
   }));
+
+  const routeProbeHistory=element('div','hosted-delivery-recent');
+  routeProbeHistory.id='server-delivery-form-probe-history';
+  const routeProbeRefresh=action('Обновить историю проверок','server-delivery-probe-refresh',
+    ()=>safe(loadProbeHistory));
+  async function loadProbeHistory(){
+    routeProbeHistory.replaceChildren();
+    if(!state.siteId||!isOwner())return;
+    const data=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/delivery/probes');
+    if(!data.probes?.length){
+      routeProbeHistory.append(element('small',null,'Ручных тестов ещё не было.'));return;
+    }
+    for(const probe of data.probes.slice(0,20)){
+      const item=element('div','hosted-delivery-attempt');
+      const labels={accepted:'Принято транспортом',failed:'Отклонено',
+        uncertain:'Результат неизвестен',configuration_required:'Нужна настройка'};
+      item.append(element('strong',null,probe.channel.toUpperCase()+' · '+probe.sectionId));
+      item.append(element('small',null,probe.probeId+' · '+probe.requestedAt+
+        ' · '+(labels[probe.transportState]||probe.transportState)));
+      if(probe.ownerReceived!==null){
+        item.append(element('small',null,'По словам владельца: '+
+          (probe.ownerReceived?'сообщение получено':'сообщение не получено')+
+          ' · '+probe.ownerReceiptAt+' · '+probe.ownerReceiptActor));
+      }else{
+        item.append(element('small',null,'Получение адресатом ещё не отмечено. '+
+          'Это наблюдение оператора, а не проверка реальной заявки.'));
+        const actions=element('div','hosted-delivery-actions');
+        for(const [received,label] of [[true,'Я получил тест'],[false,'Тест не пришёл']]){
+          actions.append(action(label,'',()=>safe(async()=>{
+            if(!confirm('Записать ваше наблюдение по тесту '+probe.probeId+': '+
+              (received?'сообщение получено':'сообщение не получено')+
+              '? Это нельзя заменить автоматическим подтверждением доставки заявок.'))return;
+            await api('/api/sites/'+encodeURIComponent(state.siteId)+'/delivery/probe/receipt',
+              'POST',{probeId:probe.probeId,received});
+            await loadProbeHistory();
+          })));
+        }
+        item.append(actions);
+      }
+      routeProbeHistory.append(item);
+    }
+  }
   const routeModeInputs=()=>{
     routeEmail.disabled=routeEmailMode.value!=='custom';
     routeTelegram.disabled=routeTelegramMode.value!=='custom';
@@ -1230,7 +1273,9 @@
     deliveryField('Telegram чат',routeTelegram),
     element('small',null,'Получатель сохраняется с новой заявкой. Правки маршрута не перенаправляют старую очередь.'),
     routeSave,element('strong',null,'Ручная проверка маршрута'),
-    deliveryField('Канал теста',routeProbeChannel),routeProbeSend,routeProbeReport);
+    deliveryField('Канал теста',routeProbeChannel),routeProbeSend,routeProbeReport,
+    element('strong',null,'История ручных тестов (без данных получателей)'),
+    routeProbeRefresh,routeProbeHistory);
   const deliveryActions=element('div','hosted-delivery-actions');
   deliveryActions.append(deliverySave,deliveryRefresh,deliveryRetry,deliveryRetryUncertain);
   deliveryPanel.append(deliveryTitle,deliveryHelp,deliveryReport,deliveryFields,
@@ -1282,6 +1327,7 @@
       deliveryRecent.replaceChildren();return;
     }
     renderDelivery(await api('/api/sites/'+encodeURIComponent(state.siteId)+'/delivery'));
+    await loadProbeHistory();
   }
   let unreadCount=0;
   const alertsRow=element('div','hosted-alerts');
@@ -2505,6 +2551,11 @@
             if(Number.isInteger(total)&&total>0)
               counts.push((channelsText[channel]||channel)+': '+state+' '+total);
         }
+        for(const probe of form.manualRoutingTests||[])
+          entry.append(element('small',null,'Ручной тест '+probe.channel+' '+probe.probeId+
+            ': '+probe.transportState+'; наблюдение владельца: '+
+            (probe.ownerReceived===null?'не записано':(probe.ownerReceived?'получено':'не получено'))+
+            '. Это не доказательство доставки посетительской заявки.'));
         if(counts.length)entry.append(element('small',null,
           'История попыток: '+counts.join(' · ')+'. Принято транспортом ≠ получено человеком.'));
         const configure=action('К настройкам этой формы','',()=>{
