@@ -2712,26 +2712,42 @@
         if(!file)return;
         if(file.size<10||file.size>256000)throw Error('Отчёт должен быть меньше 256 КБ');
         const report=JSON.parse(await file.text());
-        if(report?.format!=='manufact-launch-review-v1'||report.siteId!==site.siteId
-          ||!Number.isInteger(report.revision)||report.revision<1||report.revision>openedRevision
-          ||!Array.isArray(report.visualFindings)||report.visualFindings.length>200)
-          throw Error('Это не отчёт визуальной проверки данного сайта');
-        if(approvedReference?.complete&&
-          report.sourceApproval?.packageSha!==approvedReference.packageSha)
-          throw Error('Архив исходных макетов отличается от текущего сайта');
+        const offline=report?.format==='manufact-offline-visual-review-v1';
+        if(offline){
+          // An exported review is NOT an approved screenshot or a server
+          // sign-off. Accept only portable observations bound to the exact
+          // complete archived v2 source that this owner is currently reviewing.
+          if(!approvedReference?.complete||report.siteId!==site.siteId||
+            report.packageSha256!==approvedReference.packageSha||
+            report.approvedVersion!==approvedReference.version||
+            !Array.isArray(report.visualFindings)||report.visualFindings.length>200||
+            report.status!=='operator-notes-not-client-approval')
+            throw Error('Офлайн-отчёт не относится к этому утверждённому исходному пакету');
+        }else{
+          if(report?.format!=='manufact-launch-review-v1'||report.siteId!==site.siteId
+            ||!Number.isInteger(report.revision)||report.revision<1||report.revision>openedRevision
+            ||!Array.isArray(report.visualFindings)||report.visualFindings.length>200)
+            throw Error('Это не отчёт визуальной проверки данного сайта');
+          if(approvedReference?.complete&&
+            report.sourceApproval?.packageSha!==approvedReference.packageSha)
+            throw Error('Архив исходных макетов отличается от текущего сайта');
+        }
         if(!freshDraft())throw Error('Черновик изменился — сначала сохраните ревизию');
         const valid=new Set(site.pages.map(p=>p.id));
         const incoming=[];
         for(const item of report.visualFindings){
+          const note=offline?item?.text:item?.note;
           if(!item||!valid.has(item.pageId)||!Object.hasOwn(widths,item.device)
-            ||typeof item.note!=='string'||item.note.length<3||item.note.length>500
+            ||typeof note!=='string'||[...note].length<3||[...note].length>500
+            ||/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]/.test(note)
             ||!Number.isInteger(item.scrollY)||item.scrollY<0||item.scrollY>60000
             ||typeof item.resolved!=='boolean'
             ||site.pages.find(p=>p.id===item.pageId)?.path!==item.path)
             throw Error('Некорректное замечание или изменён адрес страницы');
           incoming.push({pageId:item.pageId,path:item.path,device:item.device,
-            note:item.note,scrollY:item.scrollY,
-            resolved:report.revision===openedRevision&&item.resolved});
+            note,scrollY:item.scrollY,
+            // Never import a remotely checked checkbox as CMS approval.
+            resolved:!offline&&report.revision===openedRevision&&item.resolved});
         }
         if(remoteBusy)throw Error('Другая операция с замечаниями ещё выполняется');
         if(storedReview.available){
@@ -2747,7 +2763,8 @@
             replaceRemote(result);
             for(const row of incoming)reviewed.get(row.pageId)?.delete(row.device);
             notice('На сервер записано замечаний: '+result.added+
-              (report.revision===openedRevision?'':' · старая ревизия: перепроверить'));
+              (offline?' · офлайн-запись, обязательна новая ручная проверка':
+                report.revision===openedRevision?'':' · старая ревизия: перепроверить'));
           }finally{
             remoteBusy=false;importReview.disabled=false;
             if(dialog.open){drawFindings();updateReviewed();syncActions();}
@@ -2763,6 +2780,7 @@
         }
         drawFindings();updateReviewed();syncActions();
         notice('Локально загружено: '+added+
+          (offline?' · офлайн-отчёт, все замечания требуют повторного просмотра':'')+
           ' · для долговременного хранения скачайте JSON');
       })().catch(e=>notice('Импорт замечаний отклонён: '+e.message,true));
     });
