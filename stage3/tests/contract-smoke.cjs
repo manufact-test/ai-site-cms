@@ -17,6 +17,28 @@ const same=x=>JSON.parse(JSON.stringify(x));
 const reg=sdk.registry(manifests);
 const hero=manifests[0],highlights=manifests[1],contact=manifests[2];
 
+test('optional site header is safe, page-ID linked and editable',()=>{
+  const X=require('../sdk/draft.cjs'),site=same(initial),target=site.pages.find(p=>p.path!=='/');
+  site.header={notice:'Бесплатная консультация',noticePageId:target.id,
+    phone:'+48 (500) 600-700',email:'hello@example.com',tone:'primary',mobile:'hide'};
+  sdk.validateSite(site,manifests);
+  const invalid=same(site);invalid.header.email='invalid email';
+  refuses(()=>sdk.validateSite(invalid,manifests),'header email is validated');
+  const foreign=same(site);foreign.header.noticePageId='page-not-found';
+  refuses(()=>sdk.validateSite(foreign,manifests),'header references existing pages');
+  const badMode=same(site);badMode.header.mobile='script';
+  refuses(()=>sdk.validateSite(badMode,manifests),'header mobile setting is bounded');
+  const draft=X.begin(site,manifests);
+  const renamed=X.structure(draft,manifests,{action:'updatePage',pageId:target.id,
+    title:target.title,path:'/updated-contact/',expectedRevision:draft.revision});
+  assert.equal(renamed.current.header.noticePageId,target.id);
+  const deleted=X.structure(renamed,manifests,{action:'removePage',pageId:target.id,
+    expectedRevision:renamed.revision});
+  assert.equal(deleted.current.header.noticePageId,'');
+  assert.equal(deleted.current.header.notice,'Бесплатная консультация');
+  sdk.validateSite(deleted.current,manifests);
+});
+
 test('site-wide branding only binds same-site raster logos and PNG favicon',()=>{
   const base=same(initial);
   base.assets=[

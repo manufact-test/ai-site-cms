@@ -185,6 +185,11 @@ async function stop(){
   csrf=login.body.csrfToken;assert.match(csrf,/^[a-f0-9]{64}$/);
   assert.equal((await request('POST','/api/sites',{site:fixture},{'x-csrf-token':'wrong'})).status,403);
   assert.equal((await request('POST','/api/sites',{site:fixture},{origin:'https://attacker.example'})).status,403);
+  fixture.header={notice:'<img src=x onerror=alert(1)>',noticePageId:fixture.pages[1].id,
+    phone:'+48 (500) 600-700',email:'hello@example.com',tone:'dark',mobile:'show'};
+  const invalidHeader=structuredClone(fixture);invalidHeader.header.phone='javascript:alert(1)';
+  assert.equal((await request('POST','/api/sites',{site:invalidHeader})).status,422,
+    'Unsafe contact header rejected before DB write');
   const created=await request('POST','/api/sites',{site:fixture});
   assert.equal(created.status,201);assert.equal(created.body.revision,1);
   const id=fixture.siteId,endpoint='/api/sites/'+id;
@@ -242,6 +247,12 @@ async function stop(){
   assert.equal((await request('GET','/published/'+id+'/not-a-page/',undefined,
     {'if-none-match':pub.headers.get('etag')})).status,404,
     'Unknown route cannot be cached as an existing page');
+  assert.match(pub.body,/cms-topbar-dark/);
+  assert.match(pub.body,/cms-topbar-notice-link/);
+  assert.match(pub.body,/tel:\+48500600700/);
+  assert.match(pub.body,/mailto:hello@example\.com/);
+  assert.match(pub.body,/&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.doesNotMatch(pub.body,/<img src=x onerror/);
   assert.match(pub.body,/&lt;img src=x onerror=alert\(1\)&gt; Updated/);
   assert.doesNotMatch(pub.body,/<img src=x onerror/);
   assert.match(pub.body,/\/published\/site-industrial-demo\/contact\//);

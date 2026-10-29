@@ -844,3 +844,20 @@ Old individual sites without `footer` keep their historical text-only footer. Re
 ### Integration handoff for the next lead developer
 
 The latest lead-integrator operating instructions are in `handoffs/lead-integrator/MAIN-HANDOFF-v7.0-2026-10-29.md`, and the copy-ready next-chat opening message is in `handoffs/lead-integrator/NEXT-CHAT-START-v7.0-2026-10-29.md`. Both documents are descriptive; the actual `feature/stage3-ai-site-contract` Git HEAD and **matching** `contract` + `technology-runtime` Actions are the authoritative verified implementation. Another developer separately owns `feature/site-seo-engine` and `stage3/seo-engine/**`. No real client has provided or accepted a first sealed approved package; do not reinterpret synthetic footer/branding/browser checks as owner acceptance.
+
+## Верхняя полоса шапки в site.json (опционально)
+
+Для утверждённого индивидуального дизайна шапки используйте объект `site.header` с шестью полями:
+
+```json
+"header": {
+  "notice": "Получите консультацию",
+  "noticePageId": "page-contact",
+  "phone": "+48 500 600 700",
+  "email": "hello@example.com",
+  "tone": "primary",
+  "mobile": "show"
+}
+```
+
+`noticePageId` — существующий ID страницы или пустая строка (тогда сообщение не является ссылкой). Пустые `notice`, `phone`, `email` допустимы; если все три пусты, полоса не выводится. `tone`: `light` / `dark` / `primary`; `mobile`: `show` / `hide`. При наличии объекта все поля обязательны. Имена/контакты должны соответствовать утверждённому клиентом содержимому. HTML/JS и произвольные URL не поддерживаются. В Studio: «Конструктор меню» → верхняя полоса → «Применить к черновику», затем независимые Save и Publish. Удаление страницы убирает ссылку, но не исходный текст сообщения. Ни наличие свойства, ни CI не заменяют ручное сравнение desktop/tablet/mobile с утверждёнными макетами.
