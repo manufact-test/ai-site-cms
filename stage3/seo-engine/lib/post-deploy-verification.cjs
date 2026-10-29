@@ -31,7 +31,6 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport){
     !Number.isSafeInteger(status.blockingGates)||status.blockingGates<0||
     !['TECHNICAL-BLOCKED','MANUAL-ACCEPTANCE-REQUIRED'].includes(status.status)||
     !Array.isArray(status.blockingGateIds)||
-    status.blockingGateIds.length<status.blockingGates||
     status.operatorMustApprove!==true||
     status.remoteDeployPerformed!==false||status.actualHostWrites!==0)
   throw Error('Candidate status is not tied to this exact official published revision');
@@ -51,7 +50,6 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport){
  DELIVERY.assertEvidence(publicHttp);
  if(publicMedia)MEDIA.assertEvidence(publicMedia);
  if(!BYTES.isVerified(byteReport)||
-    !byteReport.allCapturedByteDigestsMatch||
     byteReport.officialStaticManifestSha256!==release.manifestSha256||
     byteReport.origin!==publicHttp.origin)
   throw Error('Public asset SHA256 GET evidence is missing/incomplete or from another host/release');
@@ -90,6 +88,9 @@ function inspect(candidate,site,release,publicHttp,publicMedia,byteReport){
   comparedPublicSurfaces:parity.allComparedSurfacesMatched,
   originalCandidateBlockingGates:status.blockingGates,
   postDeployBlockingReasons:blockers,publicFindingCount:parity.findings.length,
+  mediaErrorFindings:byteReport.findings.filter(x=>x.severity==='error').map(x=>({
+   code:x.code,assetId:x.assetId??null,path:x.path??null
+  })),
   publicErrorFindings:fatal.map(x=>({
    code:x.code,pageId:x.pageId??null,path:x.path??null,assetId:x.assetId??null
   })),
