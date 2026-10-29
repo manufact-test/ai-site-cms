@@ -204,7 +204,7 @@ final class DesignGraph
         $count=0;$popups=[];$triggers=[];
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,&$popups,&$triggers,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
                 &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'],true),
@@ -372,6 +372,28 @@ final class DesignGraph
                 } else self::check(!isset($node['href']),'unexpected link');
                 if ($type==='heading')self::check(self::integer($node['level']??2,1,6),'heading level');
                 else self::check(!isset($node['level']),'unexpected level');
+            }
+            if(array_key_exists('runs',$node)){
+                self::check(in_array($type,['heading','text'],true)
+                    &&is_array($node['runs'])&&array_is_list($node['runs'])
+                    &&count($node['runs'])>=2&&count($node['runs'])<=16,
+                    'formatted fragments only belong to headings/paragraphs');
+                $whole='';
+                foreach($node['runs'] as $run){
+                    self::keys($run,['text','strong','italic','color'],$id.'/fragment');
+                    self::check(is_string($run['text']??null)&&strlen($run['text'])>=1
+                        &&mb_strlen($run['text'],'UTF-8')<=1500
+                        &&preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f]/',$run['text'])!==1,
+                        'invalid formatted fragment');
+                    foreach(['strong','italic'] as $key)
+                        self::check(!array_key_exists($key,$run)||is_bool($run[$key]),
+                            'invalid fragment emphasis');
+                    if(array_key_exists('color',$run))
+                        self::resolve($run['color'],'colors',$tokens,$id.'/fragment/color');
+                    $whole.=$run['text'];
+                }
+                self::check($whole===($node['text']??null),
+                    'formatted fragments differ from editable plain text');
             }
             self::check($type==='icon'||(!isset($node['iconSize'])&&!isset($node['iconWeight'])),
                 'Unexpected icon appearance');
@@ -571,13 +593,27 @@ final class DesignGraph
             }
         };
         $collectHeaders($graph['nodes']);
-        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop,&$firstImagePriorityAvailable): string {
+        $richText=static function(array $node)use($t):string{
+            if(!isset($node['runs']))return self::h($node['text']);
+            $html='';
+            foreach($node['runs'] as $run){
+                $part=self::h($run['text']);
+                if(!empty($run['strong']))$part='<strong>'.$part.'</strong>';
+                if(!empty($run['italic']))$part='<em>'.$part.'</em>';
+                if(isset($run['color']))
+                    $part='<span style="color:'.self::resolve($run['color'],'colors',$t,'fragment').'">'.$part.'</span>';
+                $html.=$part;
+            }
+            return $html;
+        };
+        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop,$richText,&$firstImagePriorityAvailable): string {
             $selector=$scope.' .cmsdg-n-'.$n['id'];
             $usesTranslate=false;
             foreach ([$n['styles']??[],$n['responsive']['tablet']??[],$n['responsive']['mobile']??[]] as $layer) {
                 if (array_key_exists('translateX',$layer)||array_key_exists('translateY',$layer)){$usesTranslate=true;break;}
             }
             if ($usesTranslate)$rules[]=$selector.'{--cmsdg-tx:0px;--cmsdg-ty:0px;translate:var(--cmsdg-tx) var(--cmsdg-ty)}';
+            if(isset($n['runs']))$rules[]=$selector.'{white-space:pre-line}';
             $base=self::declarations($n['styles']??[],$t);
             if($base!=='')$rules[]=$selector.'{'.$base.'}';
             foreach (['tablet'=>900,'mobile'=>600] as $bp=>$width) {
@@ -710,8 +746,8 @@ final class DesignGraph
                     return '<svg class="'.$cls.'" viewBox="0 0 24 24" width="'.$size.'" height="'.$size.'" fill="none" stroke="currentColor" stroke-width="'.$weight.'" stroke-linecap="round" stroke-linejoin="round" '.$a.'>'.self::ICON_PATHS[$n['icon']].'</svg>';
                 case 'heading':
                     $tag='h'.($n['level']??2);
-                    return '<'.$tag.' class="'.$cls.'">'.self::h($n['text']).'</'.$tag.'>';
-                case 'text':return '<p class="'.$cls.'">'.self::h($n['text']).'</p>';
+                    return '<'.$tag.' class="'.$cls.'">'.$richText($n).'</'.$tag.'>';
+                case 'text':return '<p class="'.$cls.'">'.$richText($n).'</p>';
                 case 'button':
                     if(isset($n['popupTarget']))
                         return '<button type="button" class="'.$cls.
