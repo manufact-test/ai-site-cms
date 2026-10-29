@@ -1,3 +1,21 @@
+## Final worker handoff update — 29 October 2026
+
+**New actual client-acceptance functionality:** The original local PHP audit `seo-report/bundle.json -> localPhpForms.pages` now controls the mandatory number of **real form POST receipts per public page**, not just a site-wide total. The private human acceptance template pins the PHP bundle SHA256, identifies form expectations per route and rejects receipts on pages where no form was observed, duplicated route+form IDs, and excess receipts. The private `human.html` workspace displays each source-bound page's actual confirmed/expected receipt count and refuses manipulated totals. An all-pass operator attestation still does **not** prove real client signature or grant deployment authorization.
+
+**Session integrity:** New `lib/first-site-session-source-pin.cjs` and smoke freeze all direct private owner/evidence inputs, original PHP summary/bundle, upload manifest and public ZIP before local/public HTTPS stages and rehash them before writing `INTEGRATION-SESSION.json`. If any input changes, the **new private session** is discarded rather than presenting stale mixed-release evidence. Standalone real-world human CLI also rechecks the edited observations and re-verifies ZIP + static upload bytes before promoting its reviewed output. No public POST, CMS write, merge, PR or hosting deploy.
+
+**Mandatory next action:** The lead branch still does not contain these SEO workflow files; only the CMS lead should integrate the SEO subtree and run focused Node smokes, followed by a real owner-published Site v1 / Approved Site v2 / PHP/HTTPS/browser/form client acceptance. No worker CI runs or full Node live client verification can be claimed. See [SEO-WORKER-FINAL-TRANSFER-2026-10-29.md](SEO-WORKER-FINAL-TRANSFER-2026-10-29.md) and [FIRST-SITE-LEAD-QUICKSTART.md](FIRST-SITE-LEAD-QUICKSTART.md).
+
+## Actual per-page form inventory — 29.10.2026 (replaces aggregate-only counting)
+
+The private `first-site-live-acceptance.cjs` now requires the original immutable `candidate/seo-report/bundle.json` in addition to `summary.json`. It reads `bundle.localPhpForms.pages[].path/actualForms`, validates each public content route against the SHA256-verified upload inventory and checks that summed forms equal the local PHP aggregate. The template records `pinned.originalPhpReviewBundleSha256` and `required.formOccurrencesByPage`.
+
+After manual authorized production POST tests, `formTests[]` must include distinct `page + formRef` entries for **each observed PHP form on its own published route**. One page's extra checks cannot compensate for an untested form on another page. `checks.missingFormPages[]` and `checks.perPageFormReceipts{}` show precise deficits; the private `human.html` has a per-page list. A form receipt assigned to a public page with zero forms is rejected. No receipt can be counted twice.
+
+The operator signs each genuine browser/form observation; the tool never performs a POST or checks recipient inboxes. Source-side JS/HTML observations are not proof of delivery, TLS origin, privacy consent, client approval, or final GO. Changing original bundle, ZIP, public static files, contract or filled evidence during a review makes the tool refuse and discard its new output.
+
+**Important:** This requires a fresh private human acceptance template from the updated CLI. An older aggregate-only edited template must be regenerated; never silently migrate old passes to a new release.
+
 # First-site LIVE human acceptance — browser, forms and client
 
 The manual acceptance matrix is a practical checklist for actual approved production websites, NOT a second SEO report engine. It reads a source-pinned public-phase lead relay plus the existing PHP/static and actual observed public HTTPS verification. All operator evidence remains private, and each review returns releaseAuthorized:false.
