@@ -418,16 +418,19 @@ trait FormDelivery
             throw new InvalidArgumentException('Invalid single-delivery retry details');
         $this->getDraft($siteId);
         $this->atomic(function()use($siteId,$deliveryId,$expectedState,$expectedAttempts):void{
-            $q=$this->db->prepare("UPDATE stage3_delivery_outbox SET state='pending',last_error=NULL,updated_at=? WHERE site_id=? AND delivery_id=? AND state=? AND attempts=?");
+            $q=$this->db->prepare("UPDATE stage3_delivery_outbox SET state='pending',attempts=attempts+1,last_error=NULL,updated_at=? WHERE site_id=? AND delivery_id=? AND state=? AND attempts=?");
             $q->execute([$this->now(),$siteId,$deliveryId,$expectedState,$expectedAttempts]);
             if($q->rowCount()!==1)
                 throw new Conflict('Delivery changed or does not belong to this site; refresh before retry');
         });
-        $this->dispatchDelivery($deliveryId);
+        // The explicit retry has already advanced attempts atomically, even
+        // when transport configuration prevents an actual send. This also
+        // invalidates a second stale browser submission within the same second.
+        $this->dispatchDelivery($deliveryId,true);
         return $this->deliveryStatus($siteId);
     }
 
-    private function dispatchDelivery(string $deliveryId): void
+    private function dispatchDelivery(string $deliveryId,bool $precounted=false): void
     {
         $q=$this->db->prepare('SELECT delivery_id,site_id,submission_id,channel,state,target FROM stage3_delivery_outbox WHERE delivery_id=?');
         $q->execute([$deliveryId]);$job=$q->fetch(PDO::FETCH_ASSOC);
@@ -459,7 +462,8 @@ trait FormDelivery
             if(is_array($extra)&&is_string($extra['label']??null)&&is_string($extra['value']??null))
                 $lines[]=$extra['label'].': '.$extra['value'];
         $message=implode("\n",$lines);
-        $start=$this->db->prepare("UPDATE stage3_delivery_outbox SET state='sending',attempts=attempts+1,updated_at=?,last_error=NULL WHERE delivery_id=? AND state='pending'");
+        $attemptExpression=$precounted?'attempts':'attempts+1';
+        $start=$this->db->prepare("UPDATE stage3_delivery_outbox SET state='sending',attempts=$attemptExpression,updated_at=?,last_error=NULL WHERE delivery_id=? AND state='pending'");
         $start->execute([$this->now(),$deliveryId]);if($start->rowCount()!==1)return;
         try{$result=$channel==='email'?$this->sendDeliveryEmail((string)$recipient,(string)$siteId,$message)
             :$this->sendDeliveryTelegram((string)$recipient,$message);}
