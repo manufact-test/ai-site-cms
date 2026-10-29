@@ -2,6 +2,7 @@
 'use strict';
 /* Offline history of several completed private Search Console reports. */
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const PRIVATE=require('../lib/private-output-policy.cjs');
 const {checkBlueprint}=require('../lib/blueprint.cjs');
 const HISTORY=require('../lib/search-history.cjs');
 const HELP='Usage: node stage3/seo-engine/bin/analyze-search-history.cjs --blueprint /ABS/approved-blueprint.json --report /ABS/period-1/performance-insights.json --report /ABS/period-2/performance-insights.json [--report /ABS/period-3/performance-insights.json] --out /ABS/NEW-private-history';
@@ -40,8 +41,7 @@ function main(args){
   return {report:r.json,sha256:r.sha256};
  });
  const history=HISTORY.build(reports);
- const out=path.resolve(f.out);
- if(fs.existsSync(out))throw Error('Private history output folder already exists');
+ const out=PRIVATE.privateOutput(f.out);
  fs.mkdirSync(out,{mode:0o700,recursive:false});
  function write(name,content){
   const fd=fs.openSync(path.join(out,name),'wx',0o600);

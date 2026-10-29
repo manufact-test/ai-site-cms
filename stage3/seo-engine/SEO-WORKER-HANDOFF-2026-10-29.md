@@ -143,4 +143,6 @@ Only stage3/seo-engine/** changes. No merge/PR/deploy. V8 actual-library sample 
 4. **SEO-aware internal linking** (lib/search-link-opportunities.cjs, output from performance CLI): approved Blueprint contextual/CTA edges + measured GSC target page, при переданном Site v1 — actual authored links including DesignGraph. Не придумывает маршруты, не считает отсутствие в authoring доказательством сломанного публичного link, не изменяет CMS.
 5. Руководство SEARCH-OPERATIONS-WORKFLOW.md и один продуктовый smoke tests/search-operations-smoke.cjs.
 
+**Дополнительная обязательная защита:** private-output-policy.cjs запрещает записывать клиентские GSC CSV-derived reports и решения внутри Git checkout даже через symlinked output parent. Перед анализом проверяется, что явно указанная Search Console property покрывает HTTPS origin. Это не Google authentication. Данные и отчёты только во внешних private папках.
+
 **Обязательная честность:** не было live GSC property authentication, реального CSV клиента, customer acceptance, полного Node CI worker HEAD и publication. Проверки новых модулей выполнены на актуальном коде в изолированных V8 scenarios; lead должен выполнить Node smoke в своем full checkout. Только ведущий объединяет ветки/деплоит. После коммитов live SHA и Actions проверить заново.

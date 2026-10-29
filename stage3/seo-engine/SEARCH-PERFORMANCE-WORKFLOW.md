@@ -77,6 +77,8 @@ The same CLI additionally writes **editorial-page-briefs.json** and **editorial-
 
 This is a private, human-review-only companion to the measured search performance worklist. Publishing it or treating the approved Blueprint as proof of actual live HTML is forbidden.
 
+**Input/output safety update:** The declared GSC property must cover the HTTPS public origin. The private output directory must be new and located outside the Git checkout; symlinked paths back into the checkout are refused. Neither check authenticates an actual GSC export.
+
 ## Post-publication operations: several periods, decisions and links
 
 See [SEARCH-OPERATIONS-WORKFLOW.md](SEARCH-OPERATIONS-WORKFLOW.md). The performance CLI now additionally creates search-internal-links.json/.md. The new standalone analyze-search-history.cjs compares 2–24 fully comparable report periods; manage-search-actions.cjs creates source-SHA-pinned private human decision templates and reviews. These are operator-asserted Search Console observations, not automatic permission to edit/publish a client website.

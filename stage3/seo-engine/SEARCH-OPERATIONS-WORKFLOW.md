@@ -102,6 +102,9 @@ Indexed page targets with 150+ impressions and average position at most 20 may r
 
 ## 6. Security, implementation and testing
 
+The new private-output policy refuses to create any GSC evidence or human decision report **inside the repository checkout**, including through a symlinked parent directory. The output parent directory must already exist outside the checkout and the destination must be new. The context preflight also verifies that the explicitly declared Search Console domain or HTTPS URL-prefix property **covers the requested public origin** before consuming the measurements. This is a consistency check, not proof that the CSV came from Google.
+
+
 - Keep raw GSC queries, CSV, SEO reports, owner decision ledgers and Site v1 JSON outside GitHub. Queries can contain private text.
 - Private output directories are created mode 0700 and files mode 0600 on POSIX. Storage ACLs outside the process are not authenticated.
 - No external API calls, no CMS reads/writes, no GSC authenticity validation, no PR, merge, deploy or client publication.

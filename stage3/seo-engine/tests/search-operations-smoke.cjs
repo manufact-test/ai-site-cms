@@ -9,6 +9,7 @@ const CONTEXT=require('../lib/search-evidence-context.cjs');
 const HISTORY=require('../lib/search-history.cjs');
 const LEDGER=require('../lib/search-action-ledger.cjs');
 const LINKS=require('../lib/search-link-opportunities.cjs');
+const PRIVATE=require('../lib/private-output-policy.cjs');
 const blueprintBytes=fs.readFileSync(path.join(BASE,'fixtures/industrial.blueprint.json'));
 const blueprint=checkBlueprint(JSON.parse(blueprintBytes.toString('utf8')));
 const blueprintSha256=crypto.createHash('sha256').update(blueprintBytes).digest('hex');
@@ -18,6 +19,9 @@ const searchContext=CONTEXT.validate({
  device:'ALL',filters:[],exportMethod:'gsc-ui',
  exportedAt:'2026-10-29T13:00:00Z',dataState:'final'
 });
+assert.equal(CONTEXT.assertOrigin(searchContext,'https://www.example.com/'),true);
+assert.throws(()=>CONTEXT.assertOrigin(searchContext,'https://not-example.com/'),/does not cover/);
+assert.throws(()=>PRIVATE.privateOutput(path.join(BASE,'DO-NOT-WRITE-PRIVATE-GSC')),/inside the repository/);
 function report(start,end,clicks,impressions){
  const pages=GSC.readCsv('Top pages,Clicks,Impressions,CTR,Position\n'+
   'https://example.com/,'+clicks+','+impressions+','+(100*clicks/impressions).toFixed(2)+'%,9\n'+

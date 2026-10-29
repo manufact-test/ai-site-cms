@@ -2,6 +2,7 @@
 'use strict';
 /* Offline Search Console CSV -> private editorial worklist; never changes CMS. */
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const PRIVATE=require('../lib/private-output-policy.cjs');
 const GSC=require('../lib/gsc-performance.cjs');
 const BRIEFS=require('../lib/content-optimization-briefs.cjs');
 const CONTEXT=require('../lib/search-evidence-context.cjs');
@@ -85,6 +86,7 @@ function main(argv){
  };
  const blueprint=checkBlueprint(JSON.parse(read('blueprint',2500000)));
  const searchContext=CONTEXT.validate(JSON.parse(read('context',30000)));
+ CONTEXT.assertOrigin(searchContext,f.origin);
  const site=f.site?JSON.parse(read('site',2500000)):null;
  if(site){
   const {auditSite}=require('../lib/analyze.cjs');
@@ -99,8 +101,7 @@ function main(argv){
  const result=GSC.analyze({blueprint,site,origin:f.origin,current:{pages,queries,pairs},
   period:{start:f['period-start'],end:f['period-end']},previousPages,
   previousPeriod:previousPages?{start:f['previous-start'],end:f['previous-end']}:null});
- const dest=path.resolve(f.out);
- if(fs.existsSync(dest))throw Error('Output directory already exists');
+ const dest=PRIVATE.privateOutput(f.out);
  fs.mkdirSync(dest,{mode:0o700,recursive:false});
  const write=(name,value)=>{
   const fd=fs.openSync(path.join(dest,name),'wx',0o600);

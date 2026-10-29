@@ -2,6 +2,7 @@
 'use strict';
 /* Human-only SEO task acceptance and review, pinned to private historical observations. */
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const PRIVATE=require('../lib/private-output-policy.cjs');
 const LEDGER=require('../lib/search-action-ledger.cjs');
 const HELP='Usage: node stage3/seo-engine/bin/manage-search-actions.cjs template --history /ABS/search-history.json --out /ABS/NEW-private-dir [--previous-history /ABS/old-history.json --previous-ledger /ABS/old-ledger.json]\nOR: node stage3/seo-engine/bin/manage-search-actions.cjs review --history /ABS/search-history.json --ledger /ABS/edited-action-ledger.json --out /ABS/NEW-private-dir';
 function args(argv){
@@ -40,7 +41,7 @@ function writeFolder(folder,contents){
 function main(argv){
  const f=args(argv);
  if(!f){process.stdout.write(HELP+'\n');return;}
- const hist=read(f.flags.history),dest=path.resolve(f.flags.out);
+ const hist=read(f.flags.history),dest=PRIVATE.privateOutput(f.flags.out);
  if(f.command==='template'){
   let old=null;
   if(f.flags['previous-history']){

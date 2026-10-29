@@ -39,4 +39,19 @@ function validate(raw){
   device:raw.device,filters:stableFilters,exportMethod:raw.exportMethod,exportedAt:raw.exportedAt,
   dataState:raw.dataState,comparabilityKey,authenticity:'operator-declared-not-verified'});
 }
-module.exports=Object.freeze({FORMAT,validate});
+function assertOrigin(context,publicOrigin){
+ const c=validate(context),url=new URL(publicOrigin);
+ if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash)throw Error('Search property requires valid HTTPS public origin');
+ const host=url.hostname.toLowerCase();
+ if(c.property.toLowerCase().startsWith('sc-domain:')){
+  const domain=c.property.slice('sc-domain:'.length).toLowerCase();
+  if(host!==domain&&!host.endsWith('.'+domain))
+   throw Error('Declared Search Console domain property does not cover the analyzed public origin');
+ }else{
+  const prefix=new URL(c.property);
+  if(url.origin!==prefix.origin||!url.pathname.startsWith(prefix.pathname))
+   throw Error('Declared Search Console URL-prefix property does not cover the analyzed public origin');
+ }
+ return true;
+}
+module.exports=Object.freeze({FORMAT,validate,assertOrigin});
