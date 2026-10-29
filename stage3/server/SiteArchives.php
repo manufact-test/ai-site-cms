@@ -324,6 +324,8 @@ trait SiteArchives
     public function planArchive(array $archive, string $target, int $limit = self::ARCHIVE_LIMIT): array
     {
         $p = $this->validateArchive($archive, $target, $limit);
+        if($p['visualFindings']!==[]&&!$this->hasVisualReviewTable())
+            throw new InvalidArgumentException('Visual review schema upgrade required before restoring this archive');
         $q = $this->db->prepare('SELECT site_id FROM stage3_drafts WHERE site_id = ?'); $q->execute([$target]);
         if ($q->fetchColumn() !== false) throw new Conflict('Target site already exists; choose a new ID');
         return ['targetSiteId' => $target, 'sourceSiteId' => $p['siteId'], 'title' => $p['draft']['site']['title'],
