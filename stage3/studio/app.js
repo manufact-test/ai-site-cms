@@ -1394,7 +1394,7 @@
       const node=selectedGraphNode();
       if(node&&['heading','text','button','link','quote','table-cell','list-item','disclosure','tab'].includes(node.type)){
         if(!canWrite())return feedback('Нет права на редактирование.',true);
-        if(editGraphWork(n=>{n.text=quickInput.value;}))dismissQuick();
+        if(editGraphWork(n=>{n.text=quickInput.value;delete n.runs;}))dismissQuick();
         return;
       }
       const page=pageForWork(),section=sectionForWork();
@@ -2165,7 +2165,7 @@
               else if(key==='iconSize'){
                 if(!val.trim())delete node.iconSize;
                 else node.iconSize=Number(val);
-              }else node[key]=key==='level'?Number(val):val;
+              }else{node[key]=key==='level'?Number(val):val;if(key==='text')delete node.runs;}
             });
           });
           wrap.append(caption,input);panel.append(wrap);
@@ -2449,7 +2449,7 @@
         surface:[['default','Как в компоненте'],['paper','Белый'],['tint','Мягкий голубой'],['dark','Тёмный']],
         spacing:[['tight','Компактно'],['normal','Стандартно'],['airy','Просторно']],
         align:[['left','Слева'],['center','По центру']],
-        width:[['default','Обычно'],['narrow','Узкий'],['wide','Широкий']],
+        width:[['default','Обычно'],['narrow','Узкий'],['wide','Широкий'],['edge','От края до края экрана']],
         heading:[['default','Обычный заголовок'],['compact','Компактный'],['expressive','Крупный']],
         corners:[['default','Как в компоненте'],['soft','Мягкие'],['round','Сильное скругление']],
         button:[['default','Общие кнопки'],['solid','Заливка'],['outline','Контур'],['pill','Округлые']],
@@ -3415,7 +3415,76 @@
       const headline=make('h3','Редактирование · '+n.type);root.append(headline);
       const fields=make('div','', 'cms-design-fields');root.append(fields);
       if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item','popup'].includes(n.type)){
-        fields.append(ctl('Текст',n.text,value=>{n.text=value;},'multiline'));
+        fields.append(ctl('Текст (сбрасывает акценты)',n.text,value=>{n.text=value;delete n.runs;},'multiline'));
+      }
+      if(['heading','text'].includes(n.type)){
+        const editor=make('details');editor.id='cms-design-rich-text';editor.open=!!n.runs;
+        editor.append(make('summary','Акценты внутри текста · цвет, жирный, курсив'));
+        editor.append(make('p','Каждый фрагмент остаётся текстом, а не HTML. Изменение общего текста выше сбросит фрагменты.'));
+        const applyRuns=update=>{
+          try{
+            const next=cp(graph);
+            const find=nodes=>{for(const item of nodes){
+              if(item.id===n.id)return item;
+              if(item.children){const x=find(item.children);if(x)return x;}
+            }return null;};
+            const target=find(next.nodes);update(target);
+            if(target.runs)target.text=target.runs.map(part=>part.text).join('');
+            DESIGN_GRAPH.validateGraph(next,new Set(session.current.assets.map(a=>a.id)),
+              new Set(),tokens,new Map(session.current.assets.map(a=>[a.id,a.mime])));
+            recordHistory();graph=next;render();
+          }catch(error){notice('Фрагменты не изменены: '+error.message,true);}
+        };
+        if(!n.runs){
+          const start=button('Добавить оформленные фрагменты','btn small',()=>applyRuns(node=>{
+            const split=node.text.length>1500?1500:node.text.length;
+            node.runs=[{text:node.text.slice(0,split)||'Текст'},
+              {text:node.text.slice(split)||' новый фрагмент',strong:true,color:'@accent'}];
+          }));
+          start.id='cms-design-rich-start';editor.append(start);
+        }else{
+          const rows=make('div',undefined,'cms-design-fields');
+          n.runs.forEach((fragment,i)=>{
+            const line=make('fieldset');line.dataset.richIndex=String(i);
+            line.append(make('legend','Фрагмент '+(i+1)));
+            const words=make('textarea',undefined,'control');words.rows=2;words.value=fragment.text;
+            words.setAttribute('aria-label','Текст фрагмента '+(i+1));
+            words.addEventListener('change',()=>applyRuns(node=>{node.runs[i].text=words.value;}));
+            const strong=make('input');strong.type='checkbox';strong.checked=!!fragment.strong;
+            strong.setAttribute('aria-label','Жирный фрагмент '+(i+1));
+            strong.addEventListener('change',()=>applyRuns(node=>{node.runs[i].strong=strong.checked;}));
+            const italic=make('input');italic.type='checkbox';italic.checked=!!fragment.italic;
+            italic.setAttribute('aria-label','Курсив фрагмента '+(i+1));
+            italic.addEventListener('change',()=>applyRuns(node=>{node.runs[i].italic=italic.checked;}));
+            const color=make('input');color.type='text';color.className='control';
+            color.placeholder='@accent или #112233';color.value=fragment.color||'';
+            color.setAttribute('aria-label','Цвет фрагмента '+(i+1));
+            color.addEventListener('change',()=>applyRuns(node=>{
+              if(color.value.trim())node.runs[i].color=color.value.trim();
+              else delete node.runs[i].color;
+            }));
+            const up=button('↑','btn small',()=>applyRuns(node=>{
+              [node.runs[i-1],node.runs[i]]=[node.runs[i],node.runs[i-1]];
+            }));up.disabled=i===0;up.setAttribute('aria-label','Поднять фрагмент '+(i+1));
+            const down=button('↓','btn small',()=>applyRuns(node=>{
+              [node.runs[i+1],node.runs[i]]=[node.runs[i],node.runs[i+1]];
+            }));down.disabled=i===n.runs.length-1;down.setAttribute('aria-label','Опустить фрагмент '+(i+1));
+            const remove=button('Удалить','btn small',()=>applyRuns(node=>{
+              node.runs.splice(i,1);if(node.runs.length<2)delete node.runs;
+            }));
+            line.append(words,make('label','Жирный '),strong,make('label','Курсив '),italic,
+              make('label','Цвет'),color,up,down,remove);rows.append(line);
+          });
+          editor.append(rows);
+          const add=button('+ Фрагмент','btn small',()=>applyRuns(node=>{
+            node.runs.push({text:' новый фрагмент'});
+          }));
+          add.id='cms-design-rich-add';add.disabled=n.runs.length>=16;
+          const clear=button('Убрать оформление','btn small',()=>applyRuns(node=>{delete node.runs;}));
+          clear.id='cms-design-rich-clear';
+          editor.append(add,clear);
+        }
+        fields.append(editor);
       }
       if(n.type==='quote')fields.append(ctl('Автор или источник цитаты',n.cite||'',value=>{n.cite=value;}));
       if(n.type==='list')fields.append(ctl('Тип списка',{initial:n.ordered?'ordered':'unordered',
