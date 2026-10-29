@@ -2459,6 +2459,18 @@
           entry.append(element('p',info.status==='configuration_required'?
             'hosted-launch-forms-warning':null,(channelsText[channel]||channel)+': '+label));
         }
+        entry.append(element('small',null,
+          'В приватном журнале: '+form.savedSubmissionCount+' заявок. '+
+          'Это сохранение в CMS, не доставка адресату.'));
+        const counts=[];
+        for(const [channel,states] of Object.entries(form.deliveryEvidence||{})){
+          if(!states||typeof states!=='object')continue;
+          for(const [state,total] of Object.entries(states))
+            if(Number.isInteger(total)&&total>0)
+              counts.push((channelsText[channel]||channel)+': '+state+' '+total);
+        }
+        if(counts.length)entry.append(element('small',null,
+          'История попыток: '+counts.join(' · ')+'. Принято транспортом ≠ получено человеком.'));
         const configure=action('К настройкам этой формы','',()=>{
           dialog.close();
           deliveryPanel.scrollIntoView({behavior:'smooth',block:'start'});
