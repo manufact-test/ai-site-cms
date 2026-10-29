@@ -1371,6 +1371,13 @@
     deliveryEmailEnabled.checked=!!s.emailEnabled;deliveryEmailRecipient.value=s.emailRecipient||'';
     deliveryTelegramEnabled.checked=!!s.telegramEnabled;deliveryTelegramChat.value=s.telegramChatId||'';
     deliveryReport.replaceChildren();
+    const dispatchMode=data.dispatch?.mode||'inline';
+    deliveryReport.append(element('small',null,
+      dispatchMode==='queue'
+        ?'Отправка после сохранения: только приватная очередь. Нужен настроенный CLI-worker/cron; без него уведомления останутся в ожидании.'
+        :'Отправка после сохранения: сразу через настроенный транспорт. Заявка сохраняется независимо от результата.'));
+    if(data.dispatch?.valid===false)deliveryReport.append(element('small',null,
+      'Внимание: неверное STAGE3_DELIVERY_DISPATCH_MODE на сервере. Безопасно выбран режим очереди до исправления.'));
     const reasonLabels={
       sender_missing:'На сервере не задан STAGE3_MAIL_FROM',sender_invalid:'STAGE3_MAIL_FROM некорректен',
       mail_unavailable:'PHP mail() недоступен',smtp_host_invalid:'Некорректный SMTP_HOST',smtp_security_invalid:'Неверная пара SMTP_SECURITY/SMTP_PORT',smtp_tls_unavailable:'На PHP нет поддержки OpenSSL для SMTP',smtp_user_missing:'Нет или неверен SMTP_USER',smtp_password_missing:'Нет SMTP_PASSWORD',bot_token_missing:'На сервере не задан STAGE3_TELEGRAM_BOT_TOKEN',
