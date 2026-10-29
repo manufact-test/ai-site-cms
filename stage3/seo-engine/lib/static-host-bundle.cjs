@@ -4,6 +4,7 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const STATIC=require('./php-local-static-export.cjs');
 const REWRITES=require('./static-host-rewrites.cjs');
+const HEADERS=require('./static-host-headers.cjs');
 const FORMAT='manufact-seo-static-upload-bundle-v1';
 const PROVIDERS=Object.freeze(['apache','nginx','netlify','cloudflare-pages']);
 const SHA=/^[a-f0-9]{64}$/;
@@ -68,6 +69,14 @@ function inventory(site,release,sourceDir,provider){
  const extra=provider==='apache'?{name:'.htaccess',body:plan.apache.content}:
   provider==='netlify'?{name:'_redirects',body:plan.netlify.content}:
   provider==='cloudflare-pages'?{name:'_redirects',body:plan.cloudflarePages.content}:null;
+ const publicHeaders=['netlify','cloudflare-pages'].includes(provider)?
+  HEADERS.build(site,provider):null;
+ if(publicHeaders){
+  if(seen.has('_headers'))throw Error('Official site contains conflicting _headers');
+  out.push(Object.freeze({file:'_headers',kind:'hosting-headers',
+   sha256:sha(Buffer.from(publicHeaders.content,'utf8')),
+   size:Buffer.byteLength(publicHeaders.content,'utf8')}));
+ }
  if(extra){
   if(seen.has(extra.name))throw Error('Hosting configuration collides with release asset');
   out.push(Object.freeze({file:extra.name,sha256:sha(Buffer.from(extra.body,'utf8')),
@@ -79,8 +88,9 @@ function inventory(site,release,sourceDir,provider){
   officialManifestSha256:release.manifestSha256,sourceRoot:root,
   records:Object.freeze(out),expectedUploadFileCount:out.length,
   totalPayloadBytes:budget+Buffer.byteLength(notFound,'utf8')+
-   (extra?Buffer.byteLength(extra.body,'utf8'):0),
-  notFound,
+   (extra?Buffer.byteLength(extra.body,'utf8'):0)+
+   (publicHeaders?Buffer.byteLength(publicHeaders.content,'utf8'):0),
+  notFound,publicHeaders,
   staticExportManifestPubliclyExposed:false,extra,plan,
   actualNetworkRequests:0,actualHostWrites:0,manualDeploymentRequired:true
  });
@@ -106,6 +116,7 @@ function prepare(site,release,sourceDir,outputRoot,provider){
  };
  for(const record of plan.records){
   const bytes=record.kind==='hosting-redirects'?Buffer.from(plan.extra.body,'utf8'):
+   record.kind==='hosting-headers'?Buffer.from(plan.publicHeaders.content,'utf8'):
    record.kind==='not-found'?Buffer.from(plan.notFound,'utf8'):
    fs.readFileSync(path.join(source,record.file));
   if(sha(bytes)!==record.sha256||bytes.length!==record.size)
@@ -134,6 +145,7 @@ function prepare(site,release,sourceDir,outputRoot,provider){
   'The official release-manifest.json is intentionally EXCLUDED from public upload.',
   'The old-page HTML fallbacks are carried for compatibility; server MUST return real 301.',
   'A top-level 404.html is generated with noindex: necessary to disable Cloudflare Pages default SPA fallback.',
+  'Netlify/Cloudflare Pages: generated _headers config applies nosniff, referrer policy and HTML revalidation; CSP remains manual until browser/form testing.',
   'Apache/Nginx operators must also confirm their error_page/ErrorDocument emits true HTTP 404.',
   'NEVER deploy a partial directory or merge it with an existing stale public root.',
   '',
