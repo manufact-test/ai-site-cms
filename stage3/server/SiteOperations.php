@@ -189,6 +189,29 @@ trait SiteOperations
                 ];
             }
         }
+        // Evidence is per immutable FORM section, not a cross-site total:
+        // a single working test form must not make another form seem ready.
+        // Provider acceptance means API/mail accepted the operation, NOT
+        // delivery to a recipient's inbox or proof of owner acceptance.
+        $submissions=[];
+        $q=$this->db->prepare('SELECT section_id,COUNT(*) AS amount FROM stage3_submissions WHERE site_id=? GROUP BY section_id');
+        $q->execute([$siteId]);
+        foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row)
+            $submissions[$row['section_id']]=(int)$row['amount'];
+        $deliveryRows=[];
+        $q=$this->db->prepare('SELECT s.section_id,o.channel,o.state,COUNT(*) AS amount
+            FROM stage3_delivery_outbox o
+            JOIN stage3_submissions s ON s.site_id=o.site_id AND s.submission_id=o.submission_id
+            WHERE o.site_id=?
+            GROUP BY s.section_id,o.channel,o.state');
+        $q->execute([$siteId]);
+        foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row){
+            $key=(string)$row['section_id'];
+            $channel=(string)$row['channel'];$state=(string)$row['state'];
+            if(!isset($deliveryRows[$key]))$deliveryRows[$key]=[];
+            if(!isset($deliveryRows[$key][$channel]))$deliveryRows[$key][$channel]=[];
+            $deliveryRows[$key][$channel][$state]=(int)$row['amount'];
+        }
         $items=[];
         foreach($forms as $entry){
             $entry['notificationsConfigured']=in_array('configured_unverified',
@@ -197,6 +220,9 @@ trait SiteOperations
                 array_column($entry['channels'],'status'),true)
                 ||!$entry['notificationsConfigured'];
             $entry['inboxOnly']=!$entry['notificationsConfigured'];
+            $entry['savedSubmissionCount']=$submissions[$entry['sectionId']]??0;
+            $entry['deliveryEvidence']=$deliveryRows[$entry['sectionId']]??new \stdClass();
+            $entry['externalDeliveryVerified']=false; // never infer remote receipt from counters
             $items[]=$entry;
         }
         $queue=['accepted'=>0,'failed'=>0,'configuration_required'=>0,'uncertain'=>0,'pending'=>0];
