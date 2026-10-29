@@ -2268,6 +2268,11 @@
         storedReview=await api(reviewEndpoint+'?revision='+openedRevision);
       }catch(error){reviewLoadError=error.message;}
     }
+    let formReadiness=null,formReadinessError='';
+    if(isOwner()){
+      try{formReadiness=await api('/api/sites/'+encodeURIComponent(site.siteId)+'/launch-forms');}
+      catch(error){formReadinessError=error.message;}
+    }
     const reviewedDraft=JSON.stringify(site);
     const launchProgress=element('p','hosted-launch-progress','Проверено страниц: 0/'+site.pages.length);
     const fillActions=element('div','hosted-launch-quick-actions');
@@ -2400,6 +2405,94 @@
     if(readiness.issues.length>100)
       backlogList.append(element('p',null,'Ещё '+(readiness.issues.length-100)+' замечаний. Закройте часть полей и откройте проверку снова.'));
     backlog.append(backlogList);
+    const launchForms=element('section','hosted-launch-forms');
+    launchForms.id='server-launch-forms';
+    const launchFormsHeader=element('div','hosted-launch-forms-header');
+    const launchFormsTitle=element('h3',null,'Маршруты заявок перед запуском');
+    const launchFormsRefresh=action('Проверить ещё раз','server-launch-forms-refresh',()=>{});
+    const launchFormsExport=action('Скачать отчёт о формах JSON',
+      'server-launch-forms-export',()=>{});
+    const launchFormsRows=element('div','hosted-launch-forms-rows');
+    launchFormsRows.id='server-launch-forms-rows';
+    const channelsText={email:'Email',telegram:'Telegram'};
+    const drawLaunchForms=()=>{
+      launchFormsRows.replaceChildren();
+      launchFormsExport.disabled=!formReadiness;
+      if(!isOwner()){
+        launchFormsRows.append(element('p',null,'Проверка маршрутов уведомлений доступна владельцу CMS.'));
+        return;
+      }
+      if(!formReadiness){
+        launchFormsRows.append(element('p',null,'Не удалось проверить конфигурацию: '+
+          (formReadinessError||'нет ответа сервера')+'. Это не подтверждение доставки.'));
+        return;
+      }
+      if(formReadiness.siteId!==site.siteId||formReadiness.draftRevision!==openedRevision){
+        launchFormsRows.append(element('p',null,'Сохранённая ревизия изменилась. Откройте проверку заново.'));
+        return;
+      }
+      const overall=element('p',null,
+        'Форм: '+formReadiness.formCount+
+        ' · требуют настройки/решения: '+formReadiness.formConfigurationRequired+
+        ' · с настроенным уведомлением: '+formReadiness.formsWithConfiguredNotifications+
+        ' · подтверждённых реальных доставок: нет');
+      overall.id='server-launch-forms-summary';
+      launchFormsRows.append(overall);
+      if(!formReadiness.collectorSecretConfigured)
+        launchFormsRows.append(element('p','hosted-launch-forms-warning',
+          'Не задан ключ приёма заявок STAGE3_FORM_SECRET. Реальная отправка не готова.'));
+      if(!formReadiness.forms.length)
+        launchFormsRows.append(element('p',null,'В черновике и текущей публикации нет форм.'));
+      for(const form of formReadiness.forms){
+        const entry=element('div','hosted-launch-form-entry');
+        const heading=element('strong',null,
+          form.pages.map(p=>p.title+' '+p.path).filter((x,i,a)=>a.indexOf(x)===i).join(' · ')+
+          ' · '+form.sectionId);
+        entry.append(heading,element('small',null,
+          'Источник: '+form.sources.join(' + ')+
+          ' · '+(form.inboxOnly?'только приватный журнал заявок':
+              'уведомления настроены, доставка не доказана')));
+        for(const [channel,info] of Object.entries(form.channels)){
+          const label=info.status==='disabled'?'отключён':
+            info.status==='configuration_required'?'CONFIGURATION_REQUIRED ('+info.reason+')':
+              'настроен, требуется реальная проверка';
+          entry.append(element('p',info.status==='configuration_required'?
+            'hosted-launch-forms-warning':null,(channelsText[channel]||channel)+': '+label));
+        }
+        launchFormsRows.append(entry);
+      }
+      if(formReadiness.queue.failed||formReadiness.queue.uncertain||
+          formReadiness.queue.configuration_required){
+        launchFormsRows.append(element('p','hosted-launch-forms-warning',
+          'Очередь: ошибка '+formReadiness.queue.failed+
+          ' · неопределённая отправка '+formReadiness.queue.uncertain+
+          ' · ожидание настройки '+formReadiness.queue.configuration_required));
+      }
+      launchFormsRows.append(element('small',null,
+        'Это только локальный аудит настроек. Письмо/Telegram не отправляется. '+
+        'Тестовую заявку и фактическую доставку владелец должен проверить отдельно.'));
+    };
+    launchFormsRefresh.addEventListener('click',()=>safe(async()=>{
+      if(!isOwner()||!state.siteId||state.siteId!==site.siteId)return;
+      formReadiness=null;formReadinessError='';drawLaunchForms();
+      try{formReadiness=await api('/api/sites/'+encodeURIComponent(site.siteId)+'/launch-forms');}
+      catch(error){formReadinessError=error.message;}
+      drawLaunchForms();
+    }));
+    launchFormsExport.addEventListener('click',()=>{
+      if(!formReadiness||formReadiness.siteId!==state.siteId)return;
+      const report={...formReadiness,exportedAt:new Date().toISOString(),
+        purpose:'configuration-preflight-not-external-delivery-or-client-approval'};
+      const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)+'\n'],
+        {type:'application/json'}));
+      const a=document.createElement('a');a.href=url;
+      a.download=site.siteId+'-form-readiness.json';
+      document.body.append(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1500);
+    });
+    launchFormsHeader.append(launchFormsTitle,launchFormsRefresh,launchFormsExport);
+    launchForms.append(launchFormsHeader,launchFormsRows);
+    launchForms.hidden=!isOwner();drawLaunchForms();
     const visualIndex=element('section','hosted-launch-visual-index');
     visualIndex.id='server-launch-visual-index';
     const visualIndexTitle=element('h3',null,'Открытые замечания по сайту');
@@ -2453,7 +2546,7 @@
     footer.append(editPage,quality,saveDraft,exportReport,importReview,importReviewFile,copyFindings,publishSaved,close);
     detail.append(pageHeading,devices,compareModes,overlayControls,syncControls,previewPanels,previewStatus,issues,findingPanel,markReviewed);
     body.append(pages,detail);
-    dialog.append(header,backlog,visualIndex,body,footer);
+    dialog.append(header,backlog,launchForms,visualIndex,body,footer);
     document.body.append(dialog);
     let selectedRow=comparisonRows[0],device='desktop',viewMode='draft',request=0;
     let pendingFindingJump=null;
