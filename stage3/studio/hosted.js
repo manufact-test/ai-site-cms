@@ -2405,7 +2405,16 @@
     const visualIndexTitle=element('h3',null,'Открытые замечания по сайту');
     const visualIndexRows=element('div','hosted-launch-visual-index-rows');
     visualIndexRows.id='server-launch-visual-index-rows';
-    visualIndex.append(visualIndexTitle,visualIndexRows);
+    const reviewHistoryOpen=action('История прошлых ревизий',
+      'server-launch-visual-history-open',()=>{});
+    reviewHistoryOpen.hidden=!isOwner();
+    const reviewHistoryPanel=element('div','hosted-launch-review-history');
+    reviewHistoryPanel.id='server-launch-review-history';
+    reviewHistoryPanel.hidden=true;
+    const reviewHistoryRevisions=element('div','hosted-launch-review-history-revisions');
+    const reviewHistoryDetails=element('div','hosted-launch-review-history-details');
+    reviewHistoryPanel.append(reviewHistoryRevisions,reviewHistoryDetails);
+    visualIndex.append(visualIndexTitle,visualIndexRows,reviewHistoryOpen,reviewHistoryPanel);
     const exportReport=action('Скачать отчёт JSON','server-launch-report',()=>{});
     const copyFindings=action('Копировать замечания для разработчика',
       'server-launch-copy-findings',()=>{});
@@ -2465,6 +2474,43 @@
       manualFindings.splice(0,manualFindings.length,...report.findings.map(x=>({...x})));
       drawFindings();updateReviewed();syncActions();
     };
+    reviewHistoryOpen.addEventListener('click',()=>{
+      if(!isOwner())return;
+      if(!reviewHistoryPanel.hidden){reviewHistoryPanel.hidden=true;return;}
+      reviewHistoryPanel.hidden=false;
+      reviewHistoryRevisions.replaceChildren(element('small',null,'Загружаем историю…'));
+      reviewHistoryDetails.replaceChildren();
+      void (async()=>{
+        const history=await api(reviewEndpoint+'/history');
+        if(!dialog.open)return;
+        reviewHistoryRevisions.replaceChildren();
+        if(!history.available){
+          reviewHistoryRevisions.append(element('small',null,'Серверный журнал недоступен без миграции.'));
+          return;
+        }
+        if(!history.revisions.length)
+          reviewHistoryRevisions.append(element('small',null,'Сохранённых замечаний пока нет.'));
+        for(const entry of history.revisions){
+          const b=action('Черновик #'+entry.revision+' · '+entry.total+
+            ' замечаний · '+entry.open+' открытых','',()=>{
+            reviewHistoryDetails.replaceChildren(element('small',null,'Открываем ревизию #'+entry.revision+'…'));
+            void api(reviewEndpoint+'?revision='+entry.revision).then(data=>{
+              if(!dialog.open||reviewHistoryPanel.hidden)return;
+              reviewHistoryDetails.replaceChildren(element('strong',null,
+                'Замечания ревизии #'+entry.revision+
+                  (data.historical?' · только просмотр':' · текущая')));
+              for(const note of data.findings.slice(0,200))
+                reviewHistoryDetails.append(element('p',null,
+                  (note.resolved?'✓ Закрыто':'⚠ Открыто')+' · '+note.path+
+                  ' · '+note.device+' · Y '+note.scrollY+' px · '+note.note+
+                  ' · '+note.createdBy+' ('+note.createdAt+')'+
+                  (note.resolved?' · '+note.resolvedBy+' ('+note.resolvedAt+')':'')));
+            }).catch(error=>notice('История проверки недоступна: '+error.message,true));
+          });
+          reviewHistoryRevisions.append(b);
+        }
+      })().catch(error=>notice('Не удалось прочитать историю: '+error.message,true));
+    });
     const openFindings=(pageId,mode)=>manualFindings.filter(f=>
       !f.resolved&&f.pageId===pageId&&f.device===mode);
     const unresolvedCount=()=>manualFindings.filter(f=>!f.resolved).length;
