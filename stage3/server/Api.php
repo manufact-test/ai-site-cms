@@ -941,7 +941,7 @@ final class Api
                 $this->response(200,$this->sites->compareIndependentConnection($externalConnection[1],
                     $body['remoteIdentity'],$body['publicOrigin'],$body['formCollector']??null));
             }
-            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/delivery(?:/(retry|routes|probe/receipt|probe|probes))?$~D',$path,$deliveryMatch)) {
+            if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/delivery(?:/(retry-one|retry|routes|probe/receipt|probe|probes))?$~D',$path,$deliveryMatch)) {
                 $siteId=$deliveryMatch[1];$operation=$deliveryMatch[2]??null;
                 if($method==='GET'&&$operation===null)
                     $this->response(200,$this->sites->deliveryStatus($siteId));
@@ -986,6 +986,18 @@ final class Api
                     $this->auditDetail='Owner manually recorded routing test receipt; not visitor delivery proof';
                     $this->response(200,$this->sites->confirmDeliveryProbeReceipt(
                         $siteId,$body['probeId'],$body['received'],$principal['username']));
+                }
+                if($method==='POST'&&$operation==='retry-one'){
+                    if($principal['role']!=='owner')$this->response(403,['error'=>'Owner only']);
+                    if(!is_string($body['deliveryId']??null)||!is_string($body['expectedState']??null)
+                        ||!is_int($body['expectedAttempts']??null)
+                        ||!is_bool($body['includeUncertain']??null)
+                        ||($body['confirm']??null)!==true||!is_string($body['reason']??null))
+                        throw new InvalidArgumentException('Single delivery, current state and explicit confirmation required');
+                    $this->auditDetail='Owner requested one delivery retry: '.substr(trim($body['reason']),0,180);
+                    $this->response(200,$this->sites->retryOneLeadDelivery($siteId,$body['deliveryId'],
+                        $body['expectedState'],$body['expectedAttempts'],
+                        $body['includeUncertain'],$body['reason']));
                 }
                 if($method==='POST'&&$operation==='retry'){
                     if(!is_string($body['reason']??null)||!is_bool($body['includeUncertain']??null))
