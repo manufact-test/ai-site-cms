@@ -46,7 +46,7 @@ test('semantic formatted inline heading fragments are safe and copyable',()=>{
     {id:'node-rich-heading',type:'heading',level:1,
       text:'Сайты нового уровня <без скриптов>',
       runs:[{text:'Сайты '},{text:'нового уровня ',strong:true,color:'@accent'},
-        {text:'<без скриптов>',italic:true}],
+        {text:'<без скриптов>',italic:true,href:'/contact/'}],
       styles:{fontSize:48}}
   ]};
   site.pages[0].sections=[section];
@@ -56,6 +56,17 @@ test('semantic formatted inline heading fragments are safe and copyable',()=>{
   assert.match(html,/style="color:#0a5bff"/);
   assert.match(html,/<em>&lt;без скриптов&gt;<\/em>/);
   assert.doesNotMatch(html,/<без скриптов>/);
+  assert.match(html,/href="\/contact\/"/);
+  const X=require('../sdk/draft.cjs'),session=X.begin(site,manifests);
+  const edited=X.structure(session,manifests,{action:'updatePage',pageId:site.pages[1].id,
+    path:'/new-contacts/',title:site.pages[1].title,expectedRevision:session.revision});
+  const linked=edited.current.pages[0].sections[0].designGraph.nodes[0].runs[2];
+  assert.equal(linked.href,'/new-contacts/','Inline links follow real page rename');
+  const broken=same(site);broken.pages[0].sections[0].designGraph.nodes[0].runs[2].href='/missing/';
+  assert.ok(sdk.inspectSite(broken,manifests).errors.some(v=>v.kind==='broken-link'));
+  const dangerous=same(site);dangerous.pages[0].sections[0].designGraph.nodes[0].runs[2].href='javascript:alert(1)';
+  refuses(()=>sdk.validateSite(dangerous,manifests),'script URL in rich fragment refused');
+
   const mismatch=same(site);mismatch.pages[0].sections[0].designGraph.nodes[0].runs[1].text='чужой';
   refuses(()=>sdk.validateSite(mismatch,manifests),'formatted and plain text cannot diverge');
   const unsafe=same(site);unsafe.pages[0].sections[0].designGraph.nodes[0].runs[1].color='url(javascript:1)';
