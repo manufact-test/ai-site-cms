@@ -653,6 +653,9 @@ async function stop(){
   assert.equal(firstDeliveryEvidence.forms[0].deliveryEvidence.email.configuration_required,1,
     'Transport failure is attributed to the right form, not disguised as success');
   assert.equal(firstDeliveryEvidence.forms[0].externalDeliveryVerified,false);
+  assert.equal(firstDeliveryEvidence.dispatch.mode,'inline','Default form response behavior is preserved');
+  assert.equal(firstDeliveryEvidence.queueWorkerVerified,false,
+    'Configuration-only launch review never claims a live queue worker was observed');
 
   // Destination is frozen at receipt: changing routing cannot redirect the
   // already queued private lead to a different recipient.
