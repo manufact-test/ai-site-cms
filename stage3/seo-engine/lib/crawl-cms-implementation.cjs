@@ -25,7 +25,11 @@ function build(source){
   'canonical approved Blueprint must match crawl policy');
  valid(typeof policy.base==='string'&&policy.base.startsWith('https://')&&
   policy.base.endsWith('/')&&Array.isArray(policy.pages)&&
-  Array.isArray(policy.findings),
+  Array.isArray(policy.findings)&&
+  ['complete','sample'].includes(policy.scope)&&
+  Array.isArray(policy.agents)&&policy.agents.length>0&&policy.agents.length<=8&&
+  policy.agents.every(x=>typeof x==='string'&&x.length>0)&&
+  ['urlset','index'].includes(policy.sitemapMeta?.kind),
   'invalid current crawl policy');
  valid(site?.format==='manufact-ai-site-v1'&&site.schemaVersion===1&&
   site.siteId===bp.siteId&&Array.isArray(site.pages)&&site.pages.length<=80,
@@ -63,10 +67,10 @@ function build(source){
  valid(watched.size===known.size,'crawl policy page inventory incomplete');
  const indexable=p=>p.seo.robots==='index'&&p.seo.canonicalPath===p.path;
  const packets=[],missing=[],extra=[],conflicts=[],blockers=[],manual=[];
- const push=(priority,category,pageId,path,origin,detail,action)=>{
+ const push=(priority,category,pageId,path,origin,detail,action,eventKey=null)=>{
   valid(Object.hasOwn(PRIORITY,priority),'invalid P0/P1/P2 priority');
   manual.push({priority,category,pageId:pageId||null,path:path||null,
-   source:origin,detail,leadAction:action,automatic:false});
+   source:origin,detail,leadAction:action,eventKey,automatic:false});
  };
  for(const p of bp.pages){
   const current=actual.get(p.id),crawler=watched.get(p.id);
@@ -119,7 +123,8 @@ function build(source){
     if(!drift[field])continue;
     push('P2','cms-metadata',p.id,p.path,'site-v1-drift',
      'Current seo.'+field+' differs from approved Blueprint.',
-     'Inspect the existing CMS page SEO field and any manual override; do not apply a crawler fix to editorial metadata.');
+     'Inspect the existing CMS page SEO field and any manual override; do not apply a crawler fix to editorial metadata.',
+     'field:'+field);
    }
   }
   const agents=crawler.crawlerDecisions||[];
@@ -128,7 +133,8 @@ function build(source){
    push(agent.agent?.toLowerCase()==='googlebot'?'P0':'P1',
     'publisher-robots-policy',p.id,p.path,'original-crawl-policy',
     'Supplied robots.txt excludes approved canonical indexable URL for '+agent.agent+'.',
-    'Lead must verify actually served robots.txt and matched agent group, then authorize a separate robots publisher correction.');
+    'Lead must verify actually served robots.txt and matched agent group, then authorize a separate robots publisher correction.',
+    'agent:'+agent.agent.toLowerCase());
   }
   if(indexable(p)&&crawler.sitemap==='not-observed'&&
    policy.scope==='complete'&&policy.sitemapMeta?.kind==='urlset'){
@@ -163,7 +169,7 @@ function build(source){
   const p=known.get(item.pageId)||pageByPath.get(item.path);
   push(item.priority,category,p?.id||item.pageId||null,p?.path||item.path||null,origin,
    safe(item.reason||item.message||item.type||item.id),
-   safe(item.manualNext||item.instruction||leadAction));
+   safe(item.manualNext||item.instruction||leadAction),'source-id:'+String(item.id||''));
  };
  for(const f of policy.findings)if(f.pageId===null||!known.has(f.pageId))
   correlateAction(f,'original-crawl-policy','manual-crawl-investigation',
@@ -178,7 +184,8 @@ function build(source){
  if(repair)for(const hold of repair.manualHolds)
   push('P1','candidate-manual-hold',hold.pageId||null,hold.path||null,
    'private-crawl-repair',safe(hold.reason)+' — '+safe(hold.detail),
-   'Keep candidate private; resolve group ambiguity and privacy intent with owner/lead.');
+   'Keep candidate private; resolve group ambiguity and privacy intent with owner/lead.',
+   'hold:'+String(hold.reason||'')+':'+String(hold.agent||''));
  const order=(a,b)=>PRIORITY[a.priority]-PRIORITY[b.priority]||
   (a.path||'').localeCompare(b.path||'')||a.category.localeCompare(b.category);
  manual.sort(order);
@@ -208,6 +215,8 @@ function build(source){
   return {...a,
    taskId:'crawl-cms:'+sha([a.priority,a.category,a.pageId||'',
     a.path||'',a.source,a.detail].join('|')).slice(0,24),
+   issueKey:'crawl-topic:'+sha([a.category,a.pageId||'',a.path||'',a.source,
+    a.eventKey||'one-issue-per-page'].join('|')).slice(0,24),
    ownerTeam,
    evidenceRequired:required(ownerTeam),
    sourceSiteVersionAuthenticated:false,
@@ -224,6 +233,8 @@ function build(source){
   approvedBlueprintCanonicalSha256:policy.blueprintSha256,
   originalBlueprintRawSha256:blueprintRawSha256,originalSiteRawSha256:siteRawSha256,
   selectedSiteFingerprint:fingerprint(site),
+  crawlerAgents:policy.agents,crawlCoverageScope:policy.scope,
+  sitemapSourceKind:policy.sitemapMeta.kind,
   sourcePolicyRobotsSha256:policy.robotsSha256,
   sourcePolicySitemapSha256:policy.sitemapSha256,
   originalSiteAuthenticated:false,publicHostAuthenticated:false,
