@@ -176,9 +176,9 @@ test('authored form fields render in a truthful inert Graph Studio preview',()=>
     '--cmsdg-form-button-bg:#0a5bff','--cmsdg-form-border:#667788']){
     assert.ok(styled.includes(value),'Preview form appearance '+value);
   }
-  assert.match(styled,/@media\\(max-width:900px\\)\\{[^}]*--cmsdg-form-gap:12px/);
-  assert.match(styled,/@media\\(max-width:600px\\)\\{[^}]*--cmsdg-form-gap:8px/);
-  assert.match(styled,/var\\(--cmsdg-form-button-radius,10px\\)/);
+  assert.match(styled,/@media\(max-width:900px\)\{[^}]*--cmsdg-form-gap:12px/);
+  assert.match(styled,/@media\(max-width:600px\)\{[^}]*--cmsdg-form-gap:8px/);
+  assert.match(styled,/var\(--cmsdg-form-button-radius,10px\)/);
   const clean=JSON.stringify(slot);
   for(const [key,badValue] of [['gap',-1],['inputRadius',999],['borderColor','url(javascript:evil)'],
     ['labelWeight',900],['buttonBackground','@missing']]){
