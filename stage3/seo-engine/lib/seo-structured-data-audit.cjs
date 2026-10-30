@@ -192,7 +192,7 @@ function review({blueprint,blueprintRawSha256,site,siteRawSha256,
        'JSON-LD entity URL is invalid, not HTTPS or escapes the approved public site mount.',
        {urlClassification:resolved.status});
      else if(resolved.status==='same-site'&&
-      (field==='url'||typesHere.includes('WebPage')||typesHere.includes('Article'))&&
+      (typesHere.includes('WebPage')||typesHere.includes('Article'))&&
       resolved.url.split('#')[0]!==canonical)
       add(page,'entity-canonical-mismatch','P1',field,
        'JSON-LD page entity URL does not resolve to the approved canonical page.',
