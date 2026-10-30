@@ -13,17 +13,8 @@ function run(folder){
   const faq=sections.filter(s=>s.component==='faq-accordion');
   const forms=sections.filter(s=>s.component==='lead-form-flex');
   const custom=sections.filter(s=>s.component==='custom-section');
-  const usedMedia=new Set();
-  const ids=new Set(site.assets.map(asset=>asset.id));
-  // Traverse the typed site document; no code is executed.
-  function scan(value,key=''){
-    if(typeof value==='string'&&ids.has(value))usedMedia.add(value);
-    else if(Array.isArray(value))for(const v of value)scan(v,key);
-    else if(value&&typeof value==='object')
-      for(const [k,v] of Object.entries(value))scan(v,k);
-  }
-  for(const page of site.pages)scan(page);
-  const orphan=site.assets.filter(a=>!usedMedia.has(a.id));
+  // A literal heading equal to an asset ID is not an image binding.
+  const orphan=site.assets.filter(a=>checked.unusedMediaIds.includes(a.id));
   const missingAlt=site.assets.filter(a=>!String(a.alt||'').trim());
   const brokenSeo=site.pages.filter(p=>!p.seo||!p.seo.title||!p.seo.description);
   const redirects=site.redirects||[];
@@ -47,6 +38,7 @@ function run(folder){
     '- FAQ sections: '+faq.length+' · FAQ questions: '+faq.reduce((n,s)=>n+(s.items||[]).length,0),
     '- Flexible forms: '+forms.length+' · assets: '+site.assets.length+' · responsive variants: '+
       site.assets.reduce((n,a)=>n+(a.variants||[]).length,0),
+    '- Declared image, video and font uses: '+checked.boundMediaFields,
     '- Redirects: '+redirects.length,
     '',
     '## Page inventory',
