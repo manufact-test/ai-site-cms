@@ -104,10 +104,10 @@ function compare(before,beforeSha,after,afterSha,ledger=null,ledgerSha=null){
   scope:x.crawlCoverageScope||null,
   sitemapKind:x.sitemapSourceKind||null});
  const sourceBefore=comparability(before),sourceAfter=comparability(after);
- const sameCoverage=JSON.stringify(sourceBefore)===JSON.stringify(sourceAfter);
- verify(sameCoverage,
+ const legacyCoverageUnknown=!sourceBefore.agents||!sourceBefore.scope||!sourceBefore.sitemapKind||
+  !sourceAfter.agents||!sourceAfter.scope||!sourceAfter.sitemapKind;
+ if(!legacyCoverageUnknown)verify(JSON.stringify(sourceBefore)===JSON.stringify(sourceAfter),
   'cannot compare changed crawler agents, sitemap evidence scope or sitemap XML source type');
- const legacyCoverageUnknown=!sourceBefore.agents||!sourceBefore.scope||!sourceBefore.sitemapKind;
  const decisions=ledger?checkDecisions(before,beforeSha,ledger):new Map();
  if(ledger)verify(SHA.test(ledgerSha||''),'original decision file raw SHA256 required');
  else verify(!ledgerSha,'ledger SHA256 cannot exist without original ledger');
@@ -192,13 +192,14 @@ function compare(before,beforeSha,after,afterSha,ledger=null,ledgerSha=null){
    completedReportedNowAbsentUnverified:removedReported.length,
    sourceSiteBytesChanged:before.originalSiteRawSha256!==after.originalSiteRawSha256,
    hasHumanLedger:!!ledger,humanStatusesOnBefore:guard},
-  sourceCoverage:sourceBefore,
+  sourceCoverageBefore:sourceBefore,sourceCoverageAfter:sourceAfter,
   persistent,noLongerSeen,newlyObserved,changedObservation,
   mandatoryFollowUp:[
    'Re-authenticate current owner-published CMS revision and each public HTTPS response before calling any issue fixed.',
    'Compare real X-Robots-Tag, meta robots, canonical, redirects and actual served robots/sitemap XML.',
    'Investigate new OR escalated/changed P0 immediately; previous human decision cannot be auto-transferred to new task IDs.',
    'A task missing from this snapshot is NOT a verified public fix, index recovery, ranking gain or owner acceptance.',
+   ...(legacyCoverageUnknown?['One source lacks crawl agents, scope or sitemap type; coverage comparability is UNKNOWN and missing tasks must not be interpreted as fixes.']:[]),
    'Completed-reported work still observed requires immediate independent investigation; do not mark GO.',
    'Only owner/lead separately approve any CMS Save/Publish or hosting change with rollback.'
   ],
