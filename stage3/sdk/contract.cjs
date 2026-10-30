@@ -631,10 +631,12 @@ function remapImportedMedia(raw,regInput,idMap,serverAssets){
   }
   const copySite=clone(source);copySite.assets=clone(serverAssets);
   let bindings=0;
+  const usedMediaIds=new Set();
   const bind=(object,key)=>{
     if(!object||!own(object,key)||object[key]==='')return;
     const target=idMap.get(object[key]);
     if(!target)fail('Unmapped typed media reference',key);
+    usedMediaIds.add(object[key]);
     object[key]=target;bindings++;
   };
   if(copySite.theme?.fontFiles)
@@ -670,7 +672,10 @@ function remapImportedMedia(raw,regInput,idMap,serverAssets){
       if(section.designGraph)walk(section.designGraph.nodes);
     }
   }
-  return Object.freeze({site:validateSite(copySite,reg),bindings});
+  const unusedMediaIds=source.assets.filter(asset=>!usedMediaIds.has(asset.id))
+    .map(asset=>asset.id);
+  return Object.freeze({site:validateSite(copySite,reg),bindings,
+    usedMediaIds:[...usedMediaIds].sort(),unusedMediaIds});
 }
 function controls(doc,regInput,pageId,sectionId,elementId){
   const reg=regInput instanceof Map?regInput:registry(regInput);
