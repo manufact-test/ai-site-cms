@@ -668,11 +668,14 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     if(n.backgroundVideo){
       const v=n.backgroundVideo,b=selector+' > .cmsdg-video-backdrop';
       const poster=id=>'url('+cssUrl(imageUrl(id))+')';
-      rules.push(selector+'{position:relative;isolation:isolate}'+b+
+      const basePosition=n.styles?.position&&n.styles.position!=='static'?n.styles.position:'relative';
+      rules.push(selector+'{position:'+basePosition+';isolation:isolate}'+b+
         '{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;border-radius:inherit;'+
         'background-image:'+poster(v.posterAssetId)+';background-size:cover;background-repeat:no-repeat;'+
         'background-position:'+(v.positionX??50)+'% '+(v.positionY??50)+'%}');
       for(const [bp,limit] of [['tablet',900],['mobile',600]]){
+        const position=n.responsive?.[bp]?.position;
+        if(position)rules.push('@media(max-width:'+limit+'px){'+selector+'{position:'+(position==='static'?'relative':position)+'}}');
         const id=v[bp+'PosterAssetId'];if(id)
           rules.push('@media(max-width:'+limit+'px){'+b+'{background-image:'+poster(id)+'}}');
       }
