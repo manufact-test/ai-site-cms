@@ -70,6 +70,7 @@ function render(brief,{allowIncomplete=false}={}){
   '.arch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:11px;margin-top:13px}',
   '.arch-page{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fbfdfe;overflow-wrap:anywhere}',
   '.arch-page strong{display:block}.arch-page .route{font-size:12px;color:var(--muted)}',
+  '.baseline-list{padding-left:22px}.baseline-list li{padding:7px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}',
   '.chip{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;margin:8px 5px 0 0;background:#e8f4f1;color:#166d62;border-radius:40px}',
   '.chip.warn{background:#fff0df;color:#925329}.arch-signals{padding-left:20px}.arch-signals li{margin:6px 0}',
   '@media(max-width:700px){main{padding:10px}.panel{padding:15px}header{padding:22px}.fields{grid-template-columns:1fr}.toolbar{position:static}.toolbar button,.toolbar .file{flex:1;text-align:center}}'
@@ -86,6 +87,12 @@ function render(brief,{allowIncomplete=false}={}){
   '<button id="export">Export for SEO compiler</button><label class="file">Import private draft <input id="import" type="file" accept=".json,application/json"></label>'+
   '<span id="message" role="status" class="small"></span></div>'+
   '<div id="stats" class="stats"></div>'+ 
+  '<section class="panel"><h2>Draft vs previous SEO Blueprint</h2>'+ 
+  '<p class="muted small">Optional local comparison while editing. Import a previous v1 brief or compiled Blueprint for the SAME site. This preview is tentative: no SHA256, actual CMS status, redirect or client authorization is verified until the strict Node comparison command runs.</p>'+ 
+  '<div class="toolbar"><label class="file">Load previous private Blueprint/brief <input id="baseline-import" type="file" accept=".json,application/json"></label>'+ 
+  '<button id="baseline-clear" class="secondary" type="button">Clear comparison</button></div>'+ 
+  '<p id="baseline-status" class="muted"></p><div id="baseline-stats" class="stats"></div>'+ 
+  '<ol id="baseline-list" class="baseline-list"></ol></section>'+ 
   '<section class="panel"><h2>Architecture intelligence — live draft</h2>'+ 
   '<p class="muted small">Only the explicitly planned contextual links and CTAs are counted. Navigation, live crawling, search rankings and actual indexation are unknown. This preview is not the authoritative architecture audit.</p>'+ 
   '<div id="arch-overview" class="stats"></div><div id="arch-pages" class="arch-grid"></div>'+ 
@@ -100,7 +107,7 @@ function render(brief,{allowIncomplete=false}={}){
   '<p class="muted small">The root / page is mandatory; page IDs, section IDs, routes and references must remain unique and consistent.</p>'+
   '<div id="pages"></div></section>'+
   '<section class="panel"><h2>Next step: compile and review</h2>'+
-  '<p>After exporting <code>seo-brief-*.json</code>, run <code>node stage3/seo-engine/bin/seo-blueprint.cjs compile --brief /ABS/private/seo-brief.json</code> and save the JSON output privately. Then run <code>review-blueprint</code> and <code>review-architecture</code> on that compiled Blueprint. Owner approval and CMS integration remain separate.</p>'+
+  '<p>After exporting <code>seo-brief-*.json</code>, run <code>node stage3/seo-engine/bin/seo-blueprint.cjs compile --brief /ABS/private/seo-brief.json</code> and save the JSON output privately. Then run <code>review-blueprint</code> and <code>review-architecture</code> on that compiled Blueprint. To compare against an approved previous release, run <code>compare-seo-blueprints.cjs --before /ABS/OLD.json --after /ABS/NEW.json --out /ABS/PRIVATE</code>. Owner approval and CMS integration remain separate.</p>'+
   '<p class="notice">Keep files PRIVATE. Do not enter passwords, customer personal data, recipient addresses or unapproved promises. Export does not prove search volumes, factual accuracy, rendered pages or acceptance.</p></section>'+
   '<script type="application/json" id="source-json">'+json+'</script><script>'+script+'</script></main></body></html>';
 }
@@ -108,7 +115,7 @@ function editor(){
  'use strict';
  const $=id=>document.getElementById(id),clone=x=>JSON.parse(JSON.stringify(x));
  const initial=JSON.parse($('source-json').textContent);
- let data=clone(initial),expanded=new Set();
+ let data=clone(initial),expanded=new Set(),baseline=null;
  const idPattern=/^[a-z][a-z0-9-]{2,79}$/,pathPattern=/^\/(?:[a-z0-9-]+\/)*$/;
  const all=x=>Array.isArray(x)?x:[];
  const choices={
@@ -413,6 +420,60 @@ function editor(){
   if(warnings.length>60)$('arch-signals').append(node('li',
    'Additional signals omitted from this local preview.'));
  }
+ function compareBaseline(){
+  $('baseline-stats').replaceChildren();$('baseline-list').replaceChildren();
+  if(!baseline){
+   $('baseline-status').textContent='No previous plan loaded. This does not block a new-site brief.';
+   return;
+  }
+  const previous=new Map(baseline.pages.map(p=>[p.id,p]));
+  const current=new Map(data.pages.map(p=>[p.id,p]));
+  let moved=0,added=0,removed=0,seo=0,sections=0,links=0;
+  const entries=[];
+  const say=(id,message)=>entries.push((id||'site')+': '+message);
+  const byId=[...new Set([...previous.keys(),...current.keys()])].sort();
+  if(baseline.language!==data.language||baseline.region!==data.region||
+   baseline.goal!==data.goal||baseline.audience!==data.audience)
+   say('site','Language, region, audience or business goal draft changed.');
+  for(const id of byId){
+   const a=previous.get(id),b=current.get(id);
+   if(!a){added++;say(id,'New page '+b.path+' — live route is not verified.');continue;}
+   if(!b){removed++;say(id,'Page '+a.path+' removed — owner must decide whether to retire or redirect.');continue;}
+   if(a.path!==b.path){moved++;say(id,
+    'Planned route '+a.path+' → '+b.path+
+    '; this editor does not create or verify a 301 redirect.');}
+   const prevCanon=a.seo.canonicalPath||a.path,newCanon=b.seo.canonicalPath||b.path;
+   const fields=['title','description','robots','ogTitle','ogDescription'].filter(
+    k=>(a.seo[k]||'')!==(b.seo[k]||''));
+   if(prevCanon!==newCanon)fields.push('canonical');
+   if(fields.length){seo++;say(id,'SEO head plan changed: '+fields.join(', ')+'.');}
+   if(JSON.stringify(a.intent)!==JSON.stringify(b.intent))
+    say(id,'Visitor intent/topics changed — check against approved audience.');
+   const simplify=link=>[link.toPageId,link.anchor,link.why];
+   const previousLinks=a.links.map(simplify),currentLinks=b.links.map(simplify);
+   if(JSON.stringify(previousLinks)!==JSON.stringify(currentLinks)){
+    links++;say(id,'Contextual link plan changed. Inspect actual CMS/rendered links.');
+   }
+   const prevSec=a.sections.map(s=>JSON.stringify(s)),newSec=b.sections.map(s=>JSON.stringify(s));
+   if(JSON.stringify(prevSec)!==JSON.stringify(newSec)){
+    sections++;say(id,'Section/heading/CTA or media plan revised.');
+   }
+  }
+  const badges=[['Moved URLs',moved],['Added pages',added],
+   ['Removed pages',removed],['SEO head changes',seo],['Section changes',sections],
+   ['Link changes',links]];
+  for(const [name,n] of badges){
+   const el=node('div',undefined,'stat');append(el,node('small',name),node('b',String(n)));
+   $('baseline-stats').append(el);
+  }
+  $('baseline-status').textContent='UNVERIFIED BROWSER PREVIEW · '+
+   baseline.pages.length+' baseline pages → '+data.pages.length+
+   ' current draft pages. For authoritative source SHA256, P0/P1/P2 and 301 checks run compare-seo-blueprints.cjs.';
+  if(!entries.length)$('baseline-list').append(node('li',
+   'No differences in the fields covered by this lightweight preview; authoritative full compiler comparison still required.'));
+  else entries.slice(0,130).forEach(x=>$('baseline-list').append(node('li',x)));
+  if(entries.length>130)$('baseline-list').append(node('li','Additional changes omitted from browser preview.'));
+ }
  function check(){
   const issue=problems(),list=$('problems');
   list.replaceChildren();
@@ -425,6 +486,7 @@ function editor(){
    const item=node('div',undefined,'stat');append(item,node('small',key),node('b',String(val)));$('stats').append(item);
   });
   architecture();
+  compareBaseline();
   return issue;
  }
  function usable(candidate){
@@ -457,6 +519,29 @@ function editor(){
   const issue=check();
   if(issue.length){$('message').textContent='Fix '+issue.length+' field(s) before compiler export. Save draft remains available.';return;}
   download('seo-brief');$('message').textContent='Brief downloaded. Run the original Node compiler; this UI never approves a release.';
+ });
+ $('baseline-import').addEventListener('change',async e=>{
+  const file=e.target.files[0];if(!file)return;
+  try{
+   if(file.size>2000000)throw Error('Baseline file exceeds 2 MB');
+   const original=JSON.parse(await file.text());
+   if(!original||!['manufact-seo-brief-v1','manufact-seo-blueprint-v1'].includes(original.format)||
+    original.siteId!==initial.siteId||!Array.isArray(original.pages)||
+    original.pages.length<1||original.pages.length>80||
+    !original.pages.every(p=>p&&idPattern.test(p.id)&&pathPattern.test(p.path)&&
+     p.seo&&typeof p.seo==='object'&&p.intent&&typeof p.intent==='object'&&
+     Array.isArray(p.sections)&&Array.isArray(p.links)))
+    throw Error('A same-site v1 brief or Blueprint with identifiable pages is required');
+   baseline={siteId:original.siteId,format:original.format,pages:original.pages,
+    language:original.language,region:original.region,goal:original.goal,audience:original.audience};
+   compareBaseline();
+   $('message').textContent='Private baseline preview loaded; only the Node comparison authenticates canonical structure.';
+  }catch(error){$('message').textContent='Baseline import refused: '+error.message;}
+  e.target.value='';
+ });
+ $('baseline-clear').addEventListener('click',()=>{
+  baseline=null;compareBaseline();
+  $('message').textContent='Comparison cleared; current authoring draft was not changed.';
  });
  $('import').addEventListener('change',async e=>{
   const file=e.target.files[0];if(!file)return;
