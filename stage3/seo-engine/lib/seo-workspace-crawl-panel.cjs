@@ -7,6 +7,7 @@ const CMS=require('./crawl-cms-implementation.cjs');
 const CMS_VIEW=require('./crawl-cms-implementation-view.cjs');
 const CYCLE=require('./crawl-cms-lifecycle.cjs');
 const CYCLE_VIEW=require('./crawl-cms-recheck-view.cjs');
+const CYCLE_DESK=require('./crawl-cms-decision-desk.cjs');
 const HASH=/^[0-9a-f]{64}$/;
 const hex=s=>crypto.createHash('sha256').update(s).digest('hex');
 const escape=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -118,7 +119,7 @@ function build(data){
    repairManifest:manifest,indexing:data.indexing||null});
   cmsView=CMS_VIEW.render(cmsReview);
  }
- let cmsTemplate=null,cmsRecheck=null,cmsRecheckView=null;
+ let cmsTemplate=null,cmsDecisionDeskHtml=null,cmsRecheck=null,cmsRecheckView=null;
  if(data.cmsBaseline!==undefined||data.cmsDecisions!==undefined)
   check(cmsReview&&data.cmsBaseline&&HASH.test(hashes.cmsBaseline||'')&&
    (!data.cmsDecisions||HASH.test(hashes.cmsDecisions||'')),
@@ -127,6 +128,7 @@ function build(data){
   const renderedCurrent=JSON.stringify(cmsReview,null,2)+'\n';
   const currentRawSha=hex(renderedCurrent);
   cmsTemplate=CYCLE.template(cmsReview,currentRawSha);
+  cmsDecisionDeskHtml=CYCLE_DESK.render(cmsReview,currentRawSha);
   if(data.cmsBaseline){
    cmsRecheck=CYCLE.compare(data.cmsBaseline,hashes.cmsBaseline,
     cmsReview,currentRawSha,data.cmsDecisions||null,hashes.cmsDecisions||null);
@@ -190,7 +192,7 @@ function build(data){
    '<p>Manual holds: '+repair.manualHolds.length+'; explicit Allow suggestions: '+repair.appliedSuggestions.length+
    '; original Site v1 revision independently authenticated: NO.</p></section>';
  }
- const cmsLink=cmsView?'<section><h2>CMS / publisher implementation mapping</h2><p><a href="crawl-cms.html">Open source-bound CMS and publisher implementation worklist</a> · <a href="crawl-cms-worklist.md">Lead Markdown</a> · <a href="crawl-cms-worklist.json">Private JSON</a> · <a href="crawl-cms-decisions-TEMPLATE.json">NEW-cycle human decision template</a>'+
+ const cmsLink=cmsView?'<section><h2>CMS / publisher implementation mapping</h2><p><a href="crawl-cms.html">Open source-bound CMS and publisher implementation worklist</a> · <a href="crawl-cms-worklist.md">Lead Markdown</a> · <a href="crawl-cms-worklist.json">Private JSON</a> · <a href="crawl-cms-decisions-TEMPLATE.json">NEW-cycle human decision template</a> · <a href="crawl-cms-decisions.html">Private offline Decision Desk</a>'+
   (cmsRecheckView?' · <a href="crawl-cms-recheck.html">Compare old vs current tasks</a> · <a href="crawl-cms-recheck.md">Lead recheck summary</a>':'')+'</p><p>Source-drift pages: '+cmsReview.summary.driftPages+' · Extra pages: '+cmsReview.summary.unapprovedExtraPages+' · Manual implementation actions: '+cmsReview.summary.totalManualActions+'. No CMS Save or publishing is authorized.</p></section>':'';
  const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;"><title>MANUFACT — Private Crawl Operations</title><style>'+css+'</style></head><body><main><header><div>MANUFACT · PRIVATE SEO OPERATOR WORKSPACE</div><h1>Search delivery &amp; crawl intelligence</h1><p>Site '+escape(policy.siteId)+' · '+escape(policy.base)+'</p><p>Original-source observations, not authenticated crawler traffic or Google URL Inspection.</p></header>'+
   '<section><h2>Manual review queue</h2><p><span class="tag">P0 '+counts.P0+' · P1 '+counts.P1+' · P2 '+counts.P2+'</span></p>'+
@@ -220,7 +222,7 @@ function build(data){
   'Requires independent owner approval, source revision, actual public HTTPS and rollback review.',
   'No autonomous fixes, no release GO, no Google proof.',''].join('\n');
  return {siteId:policy.siteId,base:policy.base,blueprintSha256:policy.blueprintSha256,
-  html,markdown:md,candidate,cmsReview,cmsView,cmsTemplate,cmsRecheck,cmsRecheckView,
+  html,markdown:md,candidate,cmsReview,cmsView,cmsTemplate,cmsDecisionDeskHtml,cmsRecheck,cmsRecheckView,
   counts,sourceIdentity:{policyRobotsSha256:policy.robotsSha256,
    policySitemapSha256:policy.sitemapSha256,
    canonicalBlueprintSha256:policy.blueprintSha256,
