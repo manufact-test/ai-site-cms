@@ -132,6 +132,52 @@
     const n=document.createElement('button');n.type='button';
     n.textContent=text;n.className=cls;n.addEventListener('click',onClick);return n;
   }
+  /* Shared, typed composition picker for both Studio editors. */
+  function compositionPatternControls(prefix,onInsert,canInsert=()=>true){
+    const wrap=document.createElement('details');wrap.id=prefix+'-pattern-picker';
+    wrap.style.cssText='padding:12px;border:1px solid #cbd5e1;border-radius:12px;margin:10px 0;max-width:100%';
+    const title=document.createElement('summary');title.textContent='+ Составная композиция · 6 вариантов';
+    title.style.cssText='cursor:pointer;font-weight:700';
+    const note=document.createElement('p');
+    note.textContent='Вставка после верхнеуровневой группы выбранного элемента. Все элементы, стили и действия затем можно индивидуально редактировать. Ссылки-заглушки ведут на главную страницу.';
+    note.style.cssText='margin:10px 0;font-size:13px;line-height:1.4';
+    const choice=document.createElement('select');choice.className='control';choice.id=prefix+'-pattern-type';
+    for(const [key,item] of Object.entries(COMPOSITION_PATTERNS.PATTERNS)){
+      const option=document.createElement('option');option.value=key;
+      option.textContent=item.label+' — '+item.description;choice.append(option);
+    }
+    const images=session.current.assets.filter(a=>['image/png','image/jpeg','image/webp'].includes(a.mime));
+    const media=document.createElement('div');media.id=prefix+'-pattern-images';
+    media.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0';
+    const selection={};
+    for(const [device,label] of [['desktop','Изображение · ПК'],['tablet','Планшет · отдельно'],['mobile','Телефон · отдельно']]){
+      const field=document.createElement('label');
+      field.textContent=label;field.style.cssText='display:grid;gap:5px;font-size:13px';
+      const input=document.createElement('select');input.className='control';input.id=prefix+'-pattern-'+device;
+      if(device!=='desktop'){
+        const empty=document.createElement('option');empty.value='';empty.textContent='Наследовать ПК';input.append(empty);
+      }
+      for(const asset of images){
+        const option=document.createElement('option');option.value=asset.id;option.textContent=asset.alt||asset.id;input.append(option);
+      }
+      field.append(input);media.append(field);selection[device]=input;
+    }
+    const add=button('Вставить композицию','btn small primary',()=>{
+      const find=id=>images.find(a=>a.id===id)||null;
+      onInsert(choice.value,{asset:find(selection.desktop.value),
+        tabletAsset:find(selection.tablet.value),mobileAsset:find(selection.mobile.value)});
+    });
+    add.id=prefix+'-pattern-add';add.dataset.editorWrite='true';
+    const hint=document.createElement('small');hint.id=prefix+'-pattern-hint';
+    const refresh=()=>{
+      const requires=COMPOSITION_PATTERNS.PATTERNS[choice.value].needsImage;
+      media.hidden=!requires;add.disabled=!canInsert()||(requires&&!images.length);
+      hint.textContent=requires?(images.length?'Для планшета и телефона можно выбрать другие кадры.':'Сначала загрузите PNG, JPG или WebP.'):'Дополнительные изображения не требуются.';
+    };
+    choice.addEventListener('change',refresh);
+    wrap.append(title,note,choice,media,add,hint);refresh();
+    return wrap;
+  }
   function drawTree(){
     $('pages').replaceChildren();
     session.current.pages.forEach(page=>{
@@ -2143,6 +2189,13 @@
         removeGraphNode.disabled=!canWrite()||subtreeSize(current)>=rows.length;
         graphActions.append(addText,addChild,moveUp,moveDown,duplicateGraphNode,removeGraphNode);
         panel.append(title,hint,nodes,graphActions);
+        panel.append(compositionPatternControls('cms-work',(key,media)=>{
+          mutateGraphWork(({section})=>{
+            const next=COMPOSITION_PATTERNS.insert(section.designGraph,current.id,key,
+              {id:()=>uniqueId('dg-node'),...media});
+            section.designGraph=next.graph;workGraphNode=next.nodeId;
+          });
+        },canWrite));
         const property=(label,key,value,options=null)=>{
           const wrap=document.createElement('label');wrap.className='cms-work-field';
           const caption=document.createElement('span');caption.textContent=label;
@@ -3257,7 +3310,16 @@
         const b=button(name,'btn small',fn);toolbar.append(b);return b;
       };
       const undoButton=action('↶ Отменить',undoGraph);undoButton.id='cms-design-undo';
-      const redoButton=action('↷ Повторить',redoGraph);redoButton.id='cms-design-redo';
+      const redoButton=action('↷ Повторить',redoGraph);
+      toolbar.append(compositionPatternControls('cms-design',(key,media)=>{
+        try{
+          const next=COMPOSITION_PATTERNS.insert(graph,selection,key,{id:()=>uniqueId('dg-node'),...media});
+          DESIGN_GRAPH.validateGraph(next.graph,new Set(session.current.assets.map(a=>a.id)),
+            new Set(),tokens,new Map(session.current.assets.map(a=>[a.id,a.mime])));
+          recordHistory();graph=next.graph;selection=next.nodeId;render();
+          notice('Составная композиция добавлена. Все элементы редактируются, Undo доступен.');
+        }catch(error){notice('Композиция не добавлена: '+error.message,true);}
+      }));redoButton.id='cms-design-redo';
       updateHistoryButtons();
       action('+ Вложенный',()=>{
         if(!['container','disclosure','tab','list','popup'].includes(n.type))return notice('Для вложенности выберите контейнер или панель',true);
