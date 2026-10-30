@@ -61,6 +61,33 @@ test('device visibility edits are undoable, safe and reflected in preview data',
   assert.equal(set(visible,'desktop',true).revision,visible.revision);
   assert.equal(D.blockPreview(origin,manifests,site.pages[0].id,section.id,'mobile').deviceVisibility.mobile,false);
 });
+test('viewport audit rejects blank mobile pages and flags hidden headings and anchor targets',()=>{
+  const site=same(initial),home=site.pages[0];
+  for(const section of home.sections)section.deviceVisibility={mobile:false};
+  refuses(()=>sdk.validateSite(site,manifests),'All individually allowed switches can still blank a page');
+  delete home.sections[1].deviceVisibility;
+  // The desktop hero remains visible only on desktop/tablet; mobile retains section two.
+  const first=home.sections[0],second=home.sections[1];
+  const report=sdk.inspectSite(site,manifests);
+  assert.equal(report.deviceCoverage.find(x=>x.pageId===home.id&&x.device==='mobile').sections,1);
+  assert.ok(report.warnings.some(w=>w.kind==='device-missing-h1'&&w.device==='mobile'&&w.pageId===home.id));
+  assert.ok(!report.warnings.some(w=>w.kind==='device-missing-h1'&&w.device==='desktop'&&w.pageId===home.id));
+  // Real internal anchor exists but its visible source cannot reach its hidden target.
+  const action=second.elements.flatMap(el=>Object.entries(el.values)).find(([,value])=>typeof value==='string'&&value.startsWith('/'));
+  if(action)action[0]; // Links are tested below on a separately authored Graph node.
+  const DG=require('../sdk/design-graph.cjs');
+  second.designGraph={version:1,id:'graph-visible-anchor',nodes:[
+    {id:'graph-link-hidden-target',type:'link',text:'Открыть блок',href:'/#'+first.id,styles:{}}
+  ]};
+  const checked=sdk.inspectSite(site,manifests);
+  assert.ok(checked.warnings.some(w=>w.kind==='hidden-anchor-device'&&w.device==='mobile'&&w.targetSectionId===first.id));
+  const fixed=same(site);
+  delete fixed.pages[0].sections[0].deviceVisibility;
+  const clean=sdk.inspectSite(fixed,manifests);
+  assert.ok(!clean.warnings.some(w=>w.kind==='hidden-anchor-device'));
+  assert.ok(!clean.warnings.some(w=>w.kind==='device-missing-h1'&&w.pageId===home.id));
+  assert.ok(!sdk.inspectSite(initial,manifests).warnings.some(w=>w.kind.startsWith('device-')));
+});
 test('responsive editorial grids and semantic composition safety',()=>{
   const G=require('../sdk/design-graph.cjs'),site=same(initial);
   const section=sdk.sectionFrom(manifests.find(m=>m.id==='custom-section'),'section-editorial');

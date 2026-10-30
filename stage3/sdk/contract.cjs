@@ -459,6 +459,11 @@ function validateSite(raw,regInput){
       if(section.component==='custom-section'&&!own(section,'designGraph'))fail('Custom section requires a Design Graph',section.id);
       if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
     }
+    // Every device must retain at least one authored section. Distinct sections
+    // can be hidden independently even though each one is visible somewhere.
+    for(const device of BREAKPOINTS)
+      if(!page.sections.some(section=>section.deviceVisibility?.[device]!==false))
+        fail('Page has no visible sections on '+device,page.path);
   }
   validateSharedSections(sharedGroups);
   validMenuRelations(raw);
@@ -487,7 +492,7 @@ function inspectSite(raw,regInput){
   const charCount=value=>Array.from(String(value||'')).length;
   const genericAlt=/^(?:image|photo|picture|graphic|video|фото|изображение|картинка|рисунок|видео)(?:\s+\d+)?$/i;
   const titleGroups=new Map(),descriptionGroups=new Map();
-  const imageUses=new Set();
+  const imageUses=new Set(),deviceCoverage=[];
   let indexable=0;
   const pushHeading=(page,section,headings,level,label,nodeId=null)=>{
     const value=typeof label==='string'?label.trim():'';
@@ -507,6 +512,14 @@ function inspectSite(raw,regInput){
       warnings.push(add('old-link',page,href,'Ссылка ведёт через перенаправление '+redirected.get(route)+'.',extra));
     else if(hash&&!pageByPath.get(route).sections.some(section=>section.id===hash))
       errors.push(add('broken-anchor',page,href,'Якорь секции не существует.',extra));
+    else if(hash){
+      const targetPage=pageByPath.get(route),target=targetPage.sections.find(section=>section.id===hash);
+      const source=page.sections.find(section=>section.id===sectionId);
+      if(target)for(const device of BREAKPOINTS)
+        if(target.deviceVisibility?.[device]===false&&source?.deviceVisibility?.[device]!==false)
+          warnings.push(add('hidden-anchor-device',page,href,
+            'Ссылка ведёт к скрытой на '+device+' секции.',{...extra,device,targetSectionId:hash}));
+    }
   };
   const checkMedia=(assetId,page,section,elementId)=>{
     if(typeof assetId!=='string'||!assetId)return;
@@ -589,6 +602,23 @@ function inspectSite(raw,regInput){
       }
     }
     const h1s=headings.filter(item=>item.level===1);
+    for(const device of BREAKPOINTS){
+      const visibleSections=page.sections.filter(section=>section.deviceVisibility?.[device]!==false);
+      const available=new Set(visibleSections.map(section=>section.id));
+      const deviceHeadings=headings.filter(item=>available.has(item.sectionId));
+      const h1Count=deviceHeadings.filter(item=>item.level===1).length;
+      deviceCoverage.push({pageId:page.id,path:page.path,device,sections:visibleSections.length,h1:h1Count});
+      // The baseline audit below remains unchanged for legacy sites.
+      // These extras are emitted only when a real per-device section switch exists.
+      if(!page.sections.some(section=>section.deviceVisibility))continue;
+      if(h1Count===0)warnings.push(add('device-missing-h1',page,page.path,
+        'Нет видимого H1 на '+device+' после скрытия секций.',{device}));
+      if(h1Count>1)warnings.push(add('device-multiple-h1',page,page.path,
+        'На '+device+' видны '+h1Count+' заголовка H1.',{device}));
+      if(deviceHeadings.length&&deviceHeadings[0].level!==1&&h1Count)
+        warnings.push(add('device-h1-position',page,page.path,
+          'На '+device+' первый видимый заголовок не H1.',{device}));
+    }
     if(!h1s.length)warnings.push(add('missing-h1',page,page.path,'На странице нет заголовка H1.'));
     if(h1s.length>1)warnings.push(add('multiple-h1',page,page.path,'На странице '+h1s.length+' заголовка H1; оставьте один основной.'));
     if(headings.length&&headings[0].level!==1&&h1s.length)
@@ -611,7 +641,7 @@ function inspectSite(raw,regInput){
   duplicates(descriptionGroups,'duplicate-seo-description','SEO description');
   if(site.pages.length&&indexable===0)
     warnings.push(add('site-noindex',null,'/','Все страницы закрыты от индексации. Проверьте, что это сделано намеренно.'));
-  return {errors,warnings,pages:site.pages.length,redirects:redirected.size,indexable,noindex:site.pages.length-indexable};
+  return {errors,warnings,pages:site.pages.length,redirects:redirected.size,indexable,noindex:site.pages.length-indexable,deviceCoverage};
 }
 // Rebind only media slots declared by this individual site's typed contract.
 // A blanket recursive string replacement corrupts client text when it happens

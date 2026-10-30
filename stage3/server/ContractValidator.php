@@ -455,6 +455,13 @@ final class ContractValidator
                 if (array_key_exists('designGraph',$section))
                     DesignGraph::validate($section['designGraph'],$assets,$ids,$site['designTokens']??null);
             }
+            foreach(['desktop','tablet','mobile'] as $device){
+                $visible=false;
+                foreach($page['sections'] as $section)if(($section['deviceVisibility'][$device]??true)!==false){
+                    $visible=true;break;
+                }
+                self::must($visible,'Page has no visible sections on '.$device.': '.$page['path']);
+            }
         }
         foreach($sharedGroups as $key=>$members){
             self::must(count($members)<=20,'Too many shared section instances');

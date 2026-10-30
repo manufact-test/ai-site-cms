@@ -327,4 +327,9 @@ $badDevice=$deviceSite;
 $badDevice['pages'][0]['sections'][0]['deviceVisibility']=['desktop'=>false,'tablet'=>false,'mobile'=>false];
 try{$validator->validate($badDevice);throw new RuntimeException('All-hidden section accepted');}
 catch(InvalidArgumentException $expected){}
+$emptyPage=$site;
+foreach($emptyPage['pages'][0]['sections'] as &$item)$item['deviceVisibility']=['mobile'=>false];
+unset($item);
+try{$validator->validate($emptyPage);throw new RuntimeException('Blank mobile page accepted');}
+catch(InvalidArgumentException $expected){}
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";
