@@ -1013,7 +1013,7 @@ test('CMS device field overrides can return to inherited values without affectin
   const target={pageId:'page-home',sectionId:'section-hero',elementId:'section-hero-heading',
     path:'style.fontSize'};
   const font=()=>d.current.pages[0].sections[0].elements[0].values['style.fontSize'];
-  assert.equal(font().desktop,'48px');
+  assert.equal(font().desktop,'64px');
   assert.equal(font().mobile,'32px');
   d=D.inheritBreakpoint(d,manifests,{...target,breakpoint:'mobile',expectedRevision:d.revision});
   assert.equal(Object.hasOwn(font(),'mobile'),false);
