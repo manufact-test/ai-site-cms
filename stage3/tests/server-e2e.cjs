@@ -11,6 +11,28 @@ process.on('uncaughtException',error=>{console.error('HTTP E2E uncaught after '+
 const nativeFetch=globalThis.fetch.bind(globalThis);
 globalThis.fetch=async (...args)=>{
   lastHttpProbe=String(args[1]?.method||'GET')+' '+String(args[0]);httpProbeCount++;
+  if(String(args[0]).includes('/bundle.js')){
+    /* The native Node HTTP parser tests compressed editor framing directly.
+       Node's global undici fetch can assert on the closing loopback gzip socket,
+       hiding useful server diagnostics in this isolated large-response test. */
+    const http=require('node:http'),zlib=require('node:zlib');
+    const url=new URL(String(args[0])),options=args[1]||{};
+    const result=await new Promise((resolve,reject)=>{
+      const req=http.request(url,{method:options.method||'GET',
+        headers:{'Connection':'close',...options.headers}},res=>{
+        const chunks=[];res.on('data',data=>chunks.push(data));
+        res.once('error',reject);res.once('end',()=>resolve({
+          status:res.statusCode,headers:res.headers,bytes:Buffer.concat(chunks)
+        }));
+      });
+      req.once('error',reject);req.end();
+    });
+    const headers=new Headers(result.headers);
+    const data=result.headers['content-encoding']==='gzip'?zlib.gunzipSync(result.bytes):result.bytes;
+    return new Response([204,205,304].includes(result.status)?null:data,{
+      status:result.status,headers
+    });
+  }
   const response=await nativeFetch(...args);
   if(response.body===null)return response;
   const bytes=await response.arrayBuffer();
