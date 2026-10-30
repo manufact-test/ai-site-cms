@@ -364,7 +364,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await question.locator('select').first().selectOption('radio');
     await question.locator('textarea').fill('Email\nТелефон');
     await question.locator('textarea').dispatchEvent('change');
-    await question.locator('input[type=checkbox]').check();
+    await question.getByRole('checkbox',{name:'Обязательно'}).check();
+    await question.getByRole('checkbox',{name:'На всю ширину формы (если 2 колонки)'}).check();
     await page.locator('#cms-form-apply').click();
     const built=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
       .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex');
@@ -372,6 +373,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(built.formFields[0].kind,'radio');
     assert.deepEqual(built.formFields[0].options,['Email','Телефон']);
     assert.equal(built.formFields[0].required,true);
+    assert.equal(built.formFields[0].fullWidth,true);
     await canvas.locator('.contact').getByText('Номер заказа').waitFor();
     await page.locator('#undo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
