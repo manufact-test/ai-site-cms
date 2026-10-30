@@ -62,7 +62,9 @@ function normalizePath(path){
    out+=/[a-z0-9\-._~]/i.test(c)?c:'%'+b.toString(16).toUpperCase().padStart(2,'0');
    i+=2;continue;
   }
-  out+=encodedChar(s[i]);
+  const cp=String.fromCodePoint(s.codePointAt(i));
+  out+=encodedChar(cp);
+  if(cp.length===2)i++;
  }
  return out;
 }
@@ -126,7 +128,18 @@ function parseSitemap(xml){
   if(!/^https:\/\//.test(value)||value.length>2000||seen.has(value))
    throw Error('Duplicate, missing or non-HTTPS sitemap URL');
   seen.add(value);
-  records.push({loc:value});
+  const mods=[...m[1].matchAll(/<(?:[\w-]+:)?lastmod\s*>([\s\S]*?)<\/(?:[\w-]+:)?lastmod\s*>/gi)];
+  if(mods.length>1)throw Error('Sitemap URL has multiple lastmod elements');
+  const lastmod=mods.length?xmlDecode(mods[0][1].trim()):null;
+  if(lastmod){
+   if(!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2}))?$/.test(lastmod))
+    throw Error('Invalid XML sitemap lastmod date format');
+   const parsed=new Date(lastmod);
+   if(!Number.isFinite(parsed.valueOf())||
+    (!lastmod.includes('T')&&parsed.toISOString().slice(0,10)!==lastmod))
+    throw Error('Invalid XML sitemap lastmod calendar date');
+  }
+  records.push({loc:value,lastmod});
  }
  if(!records.length)throw Error('Sitemap XML has no URL records');
  const opens=[...xml.matchAll(new RegExp('<(?:[\\w-]+:)?'+element+'\\b[^>]*>','gi'))].length;
