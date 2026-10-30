@@ -22,6 +22,8 @@ function render(plan){
   'h2{margin-top:0}.warning{padding:13px 15px;background:#fff5e8;border-left:4px solid #be9252;border-radius:8px}',
   'li{margin:8px 0;overflow-wrap:anywhere}code{font-size:12px;overflow-wrap:anywhere}',
   '.task{border:1px solid var(--line);border-left:4px solid #278b7f;border-radius:9px;padding:13px;margin:10px 0}',
+  'pre{padding:15px;background:#f4f8fa;border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:430px;font:12px/1.55 ui-monospace,Consolas,monospace}',
+  'summary{cursor:pointer;font-weight:800;padding:9px 0}',
   '.hold{border-left-color:#ba6050}.muted{color:#607a87}.tag{background:#eaf5ef;border-radius:7px;padding:3px 8px;font-weight:800;font-size:11px}',
   '@media(max-width:650px){main{padding:9px}header,section{padding:17px}}'
  ].join('');
@@ -52,7 +54,13 @@ function render(plan){
   ' · new sitemap generated from approved canonical indexable URLs.</p></section>'+
   '<section><h2>Proposed sitemap.xml</h2><ol>'+urls+'</ol>'+
   '<p class="muted">No lastmod has been invented; real destination HTTP 200 and canonical must be confirmed separately.</p></section>'+
-  '<section><h2>Explicit proposed Allow rules</h2>'+
+  '<section><h2>Private candidate source preview</h2>'+
+  '<p class="muted">The full original candidate files are separately available as PROPOSED-robots.txt and PROPOSED-sitemap.xml. This preview is limited for long source files; no publication occurs here.</p>'+
+  '<details><summary>PROPOSED-robots.txt</summary><pre>'+esc(plan.proposedRobots.slice(0,45000))+
+  (plan.proposedRobots.length>45000?'\n[Preview shortened — open the complete private file]':'')+'</pre></details>'+
+  '<details><summary>PROPOSED-sitemap.xml</summary><pre>'+esc(plan.proposedSitemap.slice(0,45000))+
+  (plan.proposedSitemap.length>45000?'\n[Preview shortened — open the complete private file]':'')+'</pre></details></section>'+
+  '<section><h2>Explicit proposed Allow rules</h2>'+ 
   (changes||'<p>No new explicit robot-group allowances requested or possible.</p>')+'</section>'+
   '<section><h2>Manual holds and blast-radius review</h2>'+
   (holds||'<p>No ambiguous group detected. This is still NOT permission to publish.</p>')+'</section>'+
