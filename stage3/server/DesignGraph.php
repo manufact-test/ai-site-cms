@@ -157,7 +157,7 @@ final class DesignGraph
                 continue;
             }
             if (in_array($key,['gap','rowGap','columnGap','padding','paddingX','paddingY','paddingTop','paddingRight','paddingBottom','paddingLeft',
-                'top','left','right','bottom','minHeight'],true)){
+                'paddingTop','paddingRight','paddingBottom','paddingLeft','top','left','right','bottom','minHeight'],true)){
                 self::resolve($value,'spacing',$tokens,$at.'/'.$key);continue;
             }
             if(in_array($key,['radius','fontSize','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'],true)){
@@ -500,7 +500,7 @@ final class DesignGraph
             if(in_array($key,['color','background','borderColor','outlineColor'],true))
                 $value=self::resolve($value,'colors',$t,$key);
             if(in_array($key,['gap','rowGap','columnGap','padding','paddingX','paddingY',
-                'top','left','right','bottom','minHeight','radius','fontSize','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'],true)){
+                'paddingTop','paddingRight','paddingBottom','paddingLeft','top','left','right','bottom','minHeight','radius','fontSize','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'],true)){
                 $group=$key==='fontSize'?'typography':(in_array($key,['radius','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'],true)?'radii':'spacing');
                 $value=self::resolve($value,$group,$t,$key);
             }
