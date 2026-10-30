@@ -56,6 +56,12 @@ assert(result.actions.some(x=>x.category==='publisher-sitemap'&&x.pageId==='page
 assert(result.actions.some(x=>x.category==='publisher-redirect-collision'&&x.priority==='P0'));
 assert(result.actions.some(x=>x.category==='cms-unapproved-page'));
 assert(result.actions.every(x=>x.automatic===false));
+assert(result.actions.every(x=>x.taskId.startsWith('crawl-cms:')&&
+ x.readyToImplement===false&&x.ownerApprovalRequired===true&&
+ Array.isArray(x.evidenceRequired)&&x.evidenceRequired.length>0));
+assert(result.summary.workstreams.CMS_EDITOR>=1);
+assert(result.summary.workstreams.PUBLISHER_LEAD>=1);
+assert.deepEqual(result.actions.map(x=>x.taskId),CMS.build(input).actions.map(x=>x.taskId));
 const viewed=VIEW.render(result);
 assert(viewed.html.includes('default-src &#39;none&#39;'));
 assert(viewed.html.includes('crawl-cms-worklist.md'));
