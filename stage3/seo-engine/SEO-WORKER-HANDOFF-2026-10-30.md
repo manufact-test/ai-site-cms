@@ -1,3 +1,13 @@
+## Independent SEO worker addendum — 30 October 2026: rendered HTML/DOM reconciliation delivered
+
+Latest new functionality (after the previously confirmed `2fc5517b...` checkpoint): [RENDERED-CONTENT-QA.md](RENDERED-CONTENT-QA.md). Added a source-pinned, private **HTTP HTML vs actual operator-supplied desktop/tablet/mobile rendered DOM** comparison: approved routes, canonical/noindex and other head metadata mutations, H1/main, navigation/CTA, JSON-LD root types and gaps. New `lib/seo-rendered-content-audit.cjs`, view, standalone `bin/review-rendered-content.cjs`, synthetic Node smoke; integrated as optional `crawl.renderedCapture` into the existing ONE SEO workspace and unsigned lead packet hashes. Readiness has **13** human gates, the new `rendered-seo-content-parity` stays manual/blocked with missing sources.
+
+No real browser, real customer site, Google or live client acceptance was run. Core was exercised in isolated Node in-memory; **full checkout Node smoke/CI still required**. No site designs or client source content copied. Strict directory/branch ownership unchanged.
+
+**Next priority:** focus on the *first actual customer pilot* with the main integrator: lead executes the focused real Node smoke, independently collects matching source revision, sealed package, HTTP/DOM captures and owner confirmation. Diagnose genuine gaps only; do not duplicate SEO workspace, CMS or build template catalogs. Independent SEO worker must still never PR/merge/deploy or touch lead-owned files.
+
+---
+
 # MANUFACT AI Site CMS — SEO WORKER HANDOFF — 2026-10-30
 
 ## 0. Scope, repository and ownership (read first)

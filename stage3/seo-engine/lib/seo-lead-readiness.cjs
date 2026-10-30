@@ -34,6 +34,7 @@ function build({siteId,first=null,launch=null,search=null,visibility=null,
   originalSiteV1:crawl?.sourceIdentity?.siteSnapshotSha256||null,
   crawlerPolicy:crawl?.sourceIdentity?.files?.policy||null,
   currentPublicHttp:crawl?.sourceIdentity?.files?.publicCapture||null,
+  renderedDOM:crawl?.sourceIdentity?.files?.renderedCapture||null,
   ownerHumanLeadContract:human?.contractSha||null,
   indexingReport:indexingSourceSha256||crawl?.sourceIdentity?.files?.indexingReport||null
  };
@@ -194,6 +195,21 @@ function build({siteId,first=null,launch=null,search=null,visibility=null,
   schema?.inputSHA256?.publicHttp||null,
   {schemaP0:schema?.summary.P0??null,schemaP1:schema?.summary.P1??null,
    uninspected:schema?.summary.uninspectedPages??null});
+ const rendered=crawl?.renderedContent||null;
+ push('rendered-seo-content-parity','PRE_LAUNCH','P0',
+  !rendered?'NEEDS-EVIDENCE':rendered.summary.P0>0?'BLOCKED':
+   rendered.summary.missingRenderPages>0?'NEEDS-EVIDENCE':'LEAD-REVIEW-REQUIRED',
+  'SEO_OPERATOR','Published HTML vs desktop/tablet/mobile DOM SEO signal reconciliation',
+  !rendered?'No current release-paired rendered DOM source was supplied.':
+   'Original source pairs report '+rendered.summary.P0+' P0, '+rendered.summary.P1+
+   ' P1 and '+rendered.summary.missingRenderPages+' incompletely compared page(s); browser, source revision and Google rendering are NOT authenticated.',
+  ['Correlate captured DOM and HTTPS source with the exact same published version',
+   'Inspect per-viewport H1, CTA routes, canonical/noindex and JSON-LD mutations',
+   'Get independent browser and client accessibility signoff; never equate DOM parity with Google indexing'],
+  ['public-release-evidence','manual-browser-and-client-acceptance'],
+  sources.renderedDOM,{renderedP0:rendered?.summary.P0??null,
+   renderedP1:rendered?.summary.P1??null,
+   missingRenderedPages:rendered?.summary.missingRenderPages??null});
  const queueStatus=queue?.summary;
  if(queueStatus)insist(Number.isSafeInteger(queueStatus.urgent)&&
   Number.isSafeInteger(queueStatus.pending),'invalid human action queue totals');

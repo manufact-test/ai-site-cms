@@ -1,3 +1,13 @@
+## 30 October 2026 — Rendered Content / HTTP-to-DOM SEO Reconciliation (independent worker)
+
+**NEW coherent pilot block:** `lib/seo-rendered-content-audit.cjs`, `lib/seo-rendered-content-view.cjs`, `bin/review-rendered-content.cjs`, `tests/seo-rendered-content-smoke.cjs` and [RENDERED-CONTENT-QA.md](RENDERED-CONTENT-QA.md). Compares original approved Blueprint + owner Site v1 + captured public HTTPS HTML against operator-provided desktop/tablet/mobile **rendered DOM**, strictly matching exact site ID, route and HTTPS mount. Checks critical canonical/noindex JavaScript mutation, metadata/title/lang mutation, missing H1/main, approved CTA/internal destinations, JSON-LD root-type shifts and evidence gaps. Only original file SHA256, stable IDs/route and counts appear in private reports; no original customer markup/claims or deployment. Legacy `static-html` method is explicitly not a real rendered source. Source revision, browser and Google provenance remain **UNVERIFIED**.
+
+The **existing** SEO Operator Workspace now accepts optional `crawl.renderedCapture` alongside `publicCapture`, original `cmsBlueprint` and `cmsSite`. It links `rendered-content.html/.md/.json` in the same private workspace and includes hashes in `LEAD-PACKET-INTEGRITY.json`. Source-bound Lead Readiness gets a **13th** human gate `rendered-seo-content-parity`, P0 BLOCKED, absent/incomplete evidence NEEDS-EVIDENCE, otherwise LEAD-REVIEW-REQUIRED — never release GO. No CMS, PHP, main, CI, PR, merge or production change. See the workflow doc for the exact CLI, input contract and limitations.
+
+**Verification honesty:** core diagnostic exercised in **isolated actual Node in-memory** with real Blueprint/HTML/head parsers (clean source pair 0 findings; changed title/canonical/H1 detected). Entire checkout smoke `node stage3/seo-engine/tests/seo-rendered-content-smoke.cjs` and CI have **not** been run on the SEO branch. Lead developer must run integrated Node smoke before pilot. Sole integration owner remains `feature/stage3-ai-site-contract`.
+
+---
+
 # MANUFACT AI Site CMS — SEO Worker Final Transfer, 30 October 2026
 
 **Repository:** https://github.com/manufact-test/ai-site-cms
