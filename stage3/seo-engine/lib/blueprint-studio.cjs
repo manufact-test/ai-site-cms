@@ -137,6 +137,7 @@ function editor(){
   else{e=node('input');e.type=opt.type||'text';}
   const val=obj[key];
   e.value=Array.isArray(val)?val.join('\n'):String(val??'');
+  if(opt.readOnly)e.readOnly=true;
   const change=()=>{
    if(opt.lines)obj[key]=e.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
    else if(opt.number)obj[key]=Number(e.value);
@@ -165,7 +166,7 @@ function editor(){
   $('site').replaceChildren();$('facts').replaceChildren();$('research').replaceChildren();$('pages').replaceChildren();
   [['Site ID','siteId'],['Site name','title'],['Region served','region'],
    ['Audience','audience'],['Business goal','goal']].forEach(([name,key])=>
-    field($('site'),name,data,key,{full:key==='audience'||key==='goal'}));
+    field($('site'),name,data,key,{full:key==='audience'||key==='goal',readOnly:key==='siteId'}));
   field($('site'),'Primary language',data,'language',{options:choices.language});
   data.facts.forEach((f,i)=>{
    const n=nest($('facts'),'Fact '+(i+1));n.head.append(button('Remove',()=>drop(data.facts,i),'danger'));
@@ -257,29 +258,38 @@ function editor(){
   const text=(v,n=1,max=700)=>typeof v==='string'&&v.trim().length>=n&&v.length<=max&&
    !/[\x00-\x1f]/.test(v)&&!/<\s*\/?\s*[a-z][^>]*>/i.test(v);
   if(!idPattern.test(data.siteId||''))add('siteId','Use lowercase stable ID (3–80 characters)');
-  for(const k of ['title','region','audience','goal'])if(!text(data[k]))add(k,'Required text');
+  for(const [k,max] of [['title',130],['region',120],['audience',600],['goal',600]])
+   if(!text(data[k],1,max))add(k,'Required text (max '+max+' characters)');
   if(!choices.language.includes(data.language))add('language','Unsupported language');
   if(!Array.isArray(data.pages)||!data.pages.length||data.pages.length>80)add('pages','1–80 pages required');
   if(!Array.isArray(data.facts)||data.facts.length>100)add('facts','Maximum 100 facts');
+  if(!Array.isArray(data.research)||data.research.length>60)add('research','Maximum 60 sources');
   for(const f of all(data.facts)){
    if(!idPattern.test(f.id||'')||factIds.has(f.id))add('fact','Missing, invalid or duplicate fact ID');
    factIds.add(f.id);
-   if(!text(f.claim))add('fact '+f.id,'Claim required');
-   if(!choices.status.includes(f.status))add('fact '+f.id,'Choose verification status');
+   if(!text(f.claim,1,600))add('fact '+f.id,'Claim required (max 600 characters)');
+   if(!choices.status.includes(f.status)||!choices.origin.includes(f.origin))
+    add('fact '+f.id,'Verification status and source origin required');
    if(f.source&&!/^https:\/\/[^@\s/?#]+[^\s]*$/i.test(f.source))add('fact '+f.id,'HTTPS source required');
   }
   for(const r of all(data.research)){
    if(!/^https:\/\/[^@\s/?#]+[^\s]*$/i.test(r.url||''))add('research','HTTPS URL required');
-   if(!text(r.observation))add('research','Observation required');
+   if(!text(r.observation,1,800)||!choices.research.includes(r.kind))
+    add('research','Observation (max 800 characters) and source type required');
   }
   for(const pg of all(data.pages)){
    if(!idPattern.test(pg.id||'')||ids.has(pg.id))add('page','Invalid or duplicate page ID');
    ids.add(pg.id);pageIds.add(pg.id);
    if(!pathPattern.test(pg.path||'')||paths.has(pg.path))add('page '+pg.id,'Invalid/duplicate trailing-slash route');
    paths.add(pg.path);
-   if(!text(pg.name)||!text(pg.intent?.need)||!all(pg.intent?.topics).length||
-    all(pg.intent?.topics).some(v=>!text(v)))add('page '+pg.id,'Name, visitor need and topic required');
-   if(!text(pg.seo?.title)||!text(pg.seo?.description))add('page '+pg.id,'Title and description required');
+   if(!text(pg.name,1,160)||!text(pg.intent?.need,1,500)||
+    !choices.intent.includes(pg.intent.type)||!all(pg.intent?.topics).length||
+    pg.intent.topics.length>15||all(pg.intent?.topics).some(v=>!text(v,1,100)))
+    add('page '+pg.id,'Name, intent, visitor need and 1–15 topics required');
+   if(!text(pg.seo?.title,1,160)||!text(pg.seo?.description,1,300)||
+    !choices.robots.includes(pg.seo.robots)||pg.seo.ogTitle&&!text(pg.seo.ogTitle,1,160)||
+    pg.seo.ogDescription&&!text(pg.seo.ogDescription,1,300))
+    add('page '+pg.id,'Valid SEO title (160 max), meta description (300 max), robots and optional OG required');
    let h1=0;
    if(!all(pg.sections).length)add('page '+pg.id,'At least one section required');
    if(pg.sections.length>40)add('page '+pg.id,'Maximum 40 sections');
@@ -288,15 +298,18 @@ function editor(){
    for(const s of all(pg.sections)){
     if(!idPattern.test(s.id||'')||ids.has(s.id))add('section','Invalid or reused section ID');
     ids.add(s.id);if(s.level===1)h1++;
-    if(!text(s.heading)||!text(s.why)||!all(s.points).length||s.points.length>15)
-     add('section '+s.id,'Heading, purpose and 1–15 points required');
+    if(!text(s.heading,1,180)||!text(s.why,1,500)||!Number.isSafeInteger(s.level)||
+     s.level<1||s.level>6||!all(s.points).length||s.points.length>15||
+     s.points.some(x=>!text(x,1,300)))
+     add('section '+s.id,'Heading, H-level, purpose and 1–15 points required');
     if(s.cta&&(!text(s.cta.label)||!text(s.cta.purpose)))add('section '+s.id,'CTA label and purpose required');
-    if(s.media&&(!text(s.media.why)||s.media.purpose==='informative'&&!text(s.media.alt)||
+    if(s.media&&(!choices.media.includes(s.media.purpose)||!text(s.media.why,1,300)||
+      s.media.purpose==='informative'&&!text(s.media.alt,1,200)||
       s.media.purpose==='decorative'&&s.media.alt!==''))
      add('section '+s.id,'Media purpose, alt and reason must agree');
    }
    if(h1!==1)add('page '+pg.id,'Exactly one H1 section required');
-   for(const r of ['desktop','tablet','mobile'])if(!text(pg.responsive?.[r]))
+   for(const r of ['desktop','tablet','mobile'])if(!text(pg.responsive?.[r],1,700))
     add('page '+pg.id,'Missing '+r+' behavior');
   }
   if(!paths.has('/'))add('pages','Home / route required');
