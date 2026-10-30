@@ -39,7 +39,8 @@ function render(report){
  const stats=[
   [report.summary.persistent,'Persistent / still observed'],
   [report.summary.noLongerSeen,'No longer observed / NOT verified fixed'],
-  [report.summary.newlyObserved,'New or changed observations'],
+  [report.summary.newlyObserved,'New task observations'],
+  [report.summary.changedObservation,'Same issue / changed detail or priority'],
   [report.summary.completedReportedStillObserved,'Reported complete but STILL observed']
  ].map(([n,label])=>'<div class="stat"><b>'+n+'</b><p>'+esc(label)+'</p></div>').join('');
  const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
@@ -54,10 +55,12 @@ function render(report){
   table(report.persistent)+'</section>'+
   '<section><h2>2 · New or changed observations</h2><p>Never inherit a human approval from a previous task ID.</p>'+
   table(report.newlyObserved)+'</section>'+
-  '<section><h2>3 · No longer observed</h2><p class="note">This means absent in the new operator-selected worklist. It is NOT a verified public fix, improved indexation or permission to close a task.</p>'+
+  '<section><h2>3 · Existing issues with changed details</h2><p>Task identity changed but stable issue topic was matched. Previous human decisions are <b>not</b> inherited.</p>'+table(report.changedObservation)+'</section>'+
+  '<section><h2>4 · No longer observed</h2><p class="note">This means absent in the new operator-selected worklist. It is NOT a verified public fix, improved indexation or permission to close a task.</p>'+
   table(report.noLongerSeen)+'</section>'+
   '<section><h2>Original evidence fingerprints</h2><div class="scroll"><table><tbody>'+sources+'</tbody></table></div>'+
-  '<p>Selected Site v1 original bytes changed: '+(report.summary.sourceSiteBytesChanged?'YES':'NO')+'. This comparison does not authenticate the revision.</p></section>'+
+  '<p>Selected Site v1 original bytes changed: '+(report.summary.sourceSiteBytesChanged?'YES':'NO')+'. This comparison does not authenticate the revision.</p>'+
+  '<p>Crawler agent/scope/sitemap evidence comparable: '+(report.summary.coverageComparisonComplete?'YES, matching declared coverage':'UNKNOWN — legacy source lacks coverage metadata')+'.</p></section>'+
   '<section><h2>Required independent checks before any claim of success</h2><ol>'+
   report.mandatoryFollowUp.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ol>'+
   '<p><a href="crawl-cms-recheck.md">Lead Markdown worklist</a> · <a href="crawl-cms-recheck.json">Original-source comparison JSON</a></p>'+
