@@ -85,3 +85,8 @@ The original `crawl` workspace configuration optionally accepts `cmsBlueprint` *
 ## Source-bound post-edit cycle and human ledger
 
 New optional `crawl.cmsBaseline` = exact original previous `crawl-cms-worklist.json`; `crawl.cmsDecisions` = human-edited earlier source-anchored decision ledger (requires baseline). Current `cmsBlueprint` + `cmsSite` remain mandatory. Creates `crawl-cms-decisions.html` and matching new template every cycle; optional previous baseline creates `crawl-cms-recheck.html/.md/.json`. The landing page gains a follow-up card; the existing crawl card and CMS review link the offline desk. Changed issue detail is classified separately using a stable topic ID; crawler agent/scope/sitemap-kind comparability is checked. No automatic resolution, approval or release. Exact workflow: [CRAWL-CMS-LIFECYCLE.md](CRAWL-CMS-LIFECYCLE.md).
+
+
+## New source-bound actual-public-observation layer
+
+The crawl config optionally accepts `publicCapture`: the exact private original `manufact-seo-delivery-evidence-v1` transcript from the **existing** read-only HTTPS capture tool. It requires `cmsBlueprint` and `cmsSite`, and the current crawl policy; all site, canonical Blueprint and original file SHA256 identities are checked. The private current workspace then adds `crawl-public-followup.html`, Markdown and read-only JSON, and links the result on `crawl.html` and the main landing page. No HTML page bodies are emitted in the report; original transcript remains in a private source folder. See [CRAWL-PUBLIC-FOLLOWUP.md](CRAWL-PUBLIC-FOLLOWUP.md).
