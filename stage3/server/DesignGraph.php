@@ -111,7 +111,7 @@ final class DesignGraph
             'align'=>['start','center','end','stretch','between'],
             'justify'=>['start','center','end','stretch','between'],
             'alignSelf'=>['auto','start','center','end','stretch'],
-            'position'=>['static','relative','absolute'],'textAlign'=>['left','center','right'],
+            'position'=>['static','relative','absolute','sticky'],'textAlign'=>['left','center','right'],
             'flexWrap'=>['nowrap','wrap'],
             'fontFamily'=>['inherit','system','arial','georgia','serif','mono','site-body','site-heading'],
             'objectFit'=>['cover','contain','fill','none'],
@@ -738,10 +738,16 @@ final class DesignGraph
                         $id='cmsdg-lightbox-'.$child['id'];
                         $caption=empty($child['caption'])?'':'<figcaption>'.self::h($child['caption']).'</figcaption>';
                         $trigger=empty($n['lightbox'])?$visual:'<button type="button" class="cmsdg-lightbox-trigger" popovertarget="'.$id.'" aria-label="Открыть фотографию '.($index+1).'">'.$visual.'</button>';
+                        $before='cmsdg-lightbox-'.$n['children'][($index+count($n['children'])-1)%count($n['children'])]['id'];
+                        $after='cmsdg-lightbox-'.$n['children'][($index+1)%count($n['children'])]['id'];
+                        $navigation='<nav class="cmsdg-gallery-nav" aria-label="Навигация по фотографиям">'.
+                            '<button type="button" popovertarget="'.$before.'" aria-label="Предыдущая фотография">←</button>'.
+                            '<span>'.($index+1).' / '.count($n['children']).'</span>'.
+                            '<button type="button" popovertarget="'.$after.'" aria-label="Следующая фотография">→</button></nav>';
                         $popup='';
                         if(!empty($n['lightbox']))$popup='<div id="'.$id.'" popover="auto" class="cmsdg-gallery-popover" role="dialog" aria-label="'.self::h($child['alt']?:'Фотография '.($index+1)).'">'.
                             '<button type="button" class="cmsdg-gallery-close" popovertarget="'.$id.'" popovertargetaction="hide" aria-label="Закрыть фотографию">×</button>'.
-                            '<div class="cmsdg-gallery-expanded">'.$visual.'</div>'.$caption.'</div>';
+                            '<div class="cmsdg-gallery-expanded">'.$visual.'</div>'.$caption.$navigation.'</div>';
                         $body.='<figure class="cmsdg-gallery-item">'.$trigger.$caption.$popup.'</figure>';
                     }
                     return '<div class="'.$cls.' cmsdg-gallery'.($grid?' cmsdg-gallery-grid':'').'" role="region" aria-roledescription="gallery" aria-label="'.self::h($n['text']).'" tabindex="0"'.$vars.'>'.$body.'</div>';
@@ -860,6 +866,8 @@ final class DesignGraph
             .$scope.' .cmsdg-gallery-expanded{display:grid;place-items:center;clear:both}'
             .$scope.' .cmsdg-gallery-expanded img{width:auto;max-width:100%;max-height:75dvh;height:auto;object-fit:contain}'
             .$scope.' .cmsdg-gallery-close{float:right;margin:0 0 8px 12px;border:1px solid #8b9aac;border-radius:50%;background:#fff;color:#182b3d;min-width:40px;height:40px;font:24px system-ui;cursor:pointer}'
+            .$scope.' .cmsdg-gallery-nav{display:flex;justify-content:center;align-items:center;gap:24px;margin-top:10px}'
+            .$scope.' .cmsdg-gallery-nav button{min-width:42px;height:42px;border:1px solid #8b9aac;border-radius:8px;background:#fff;color:#182b3d;font:24px system-ui;cursor:pointer}'
             .$scope.' .cmsdg-picture img{max-width:100%;height:auto}'
             .$scope.' .cmsdg-image-action{display:inline-block;max-width:100%}'
             .$scope.' .cmsdg-image-action img{display:block}'
