@@ -234,7 +234,7 @@ $gallerySite['assets'][]=['id'=>'asset-photo-beta','src'=>'/assets/asset-photo-b
     'alt'=>'Интерьер','mime'=>'image/png'];
 $gallerySite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
     'id'=>'gallery-portfolio','type'=>'gallery','text'=>'Объекты компании',
-    'layout'=>'grid','columnsDesktop'=>4,'columnsTablet'=>2,'columnsMobile'=>1,'lightbox'=>true,'photoShape'=>'landscape',
+    'layout'=>'grid','columnsDesktop'=>4,'columnsTablet'=>2,'columnsMobile'=>1,'lightbox'=>true,'photoShape'=>'landscape','photoShapeTablet'=>'square','photoShapeMobile'=>'portrait',
     'children'=>[
       ['id'=>'gallery-photo-alpha','type'=>'image','assetId'=>'asset-photo-alpha',
         'alt'=>'Фасад','caption'=>'Проект <первый>','styles'=>[]],
@@ -245,6 +245,7 @@ $gallerySite['pages'][0]['sections'][2]['designGraph']['nodes'][
     count($gallerySite['pages'][0]['sections'][2]['designGraph']['nodes'])-1]['styles']=['position'=>'sticky','top'=>12];
 $validator->validate($gallerySite);
 $galleryHtml=PublicRenderer::html($gallerySite,'/');
+graphTest(str_contains($galleryHtml,'cmsdg-gallery-tablet-square')&&str_contains($galleryHtml,'cmsdg-gallery-mobile-portrait'),'PHP gallery responsive photo shapes');
 graphTest(str_contains($galleryHtml,'cmsdg-gallery-shape-landscape'),'PHP gallery must render selected photo shape');
 graphTest(str_contains($galleryHtml,'cmsdg-gallery-grid')&&
     str_contains($galleryHtml,'position:sticky;top:12px')&&
