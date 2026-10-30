@@ -678,12 +678,12 @@ async function stop(){
     {expectedRevision:1})).status,200);
   const overlaidForms=(await request('GET','/api/sites/'+overlaid.siteId+'/launch-forms')).body;
   assert.equal(overlaidForms.formCount,0,'Graph override must not count as a public form');
-  const overlaidRoutes=(await request('GET','/api/sites/'+overlaid.siteId+'/delivery/routes')).body;
-  assert.equal(overlaidRoutes.forms.length,0,'Graph override must not expose a recipient route');
+  const overlaidRoutes=(await request('GET','/api/sites/'+overlaid.siteId+'/delivery')).body;
+  assert.equal(overlaidRoutes.routes.length,0,'Graph override must not expose a recipient route');
   const overlaidHtml=(await request('GET','/published/'+overlaid.siteId+'/contact/')).body;
   assert.doesNotMatch(overlaidHtml,/name="_token"/,'Graph replaced the actual visitor form');
-  const crypto=require('node:crypto');
-  const overlaidToken=crypto.createHmac('sha256',env.STAGE3_FORM_SECRET)
+  const formCrypto=require('node:crypto');
+  const overlaidToken=formCrypto.createHmac('sha256',env.STAGE3_FORM_SECRET)
     .update(overlaid.siteId+'|'+overlaidSection.id+'|1').digest('hex');
   const forged=await fetch(origin+'/forms/'+overlaid.siteId+'/'+overlaidSection.id,{
     method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','origin':origin},
