@@ -5970,6 +5970,7 @@
       elementId=checked.pages[0].sections[0].elements[0].id;
       savedBytes=JSON.stringify(checked);draw();
     },
+    remapImportedMedia:(site,idMap,assets)=>C.remapImportedMedia(site,manifests,idMap,assets),
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
   initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initFooterEditor();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();

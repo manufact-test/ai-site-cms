@@ -4324,17 +4324,11 @@
             {base64:await fileBase64(entry.original),alt:entry.alt,variants,expectedRevision:result.revision});
           ids.set(entry.id,result.asset.id);
         }
-        const retarget=value=>{
-          if(typeof value==='string')return ids.get(value)||value;
-          if(Array.isArray(value))return value.map(retarget);
-          if(value&&typeof value==='object')
-            return Object.fromEntries(Object.entries(value).map(([key,part])=>[key,retarget(part)]));
-          return value;
-        };
-        const next=retarget(site);
-        next.assets=result.site.assets; // Server-issued immutable IDs, paths, dimensions and responsive hashes.
+        // Only manifest-declared media slots are remapped. Never rewrite text,
+        // section labels, SEO copy, URLs or any other literal client content.
+        const remapped=editor.remapImportedMedia(site,ids,result.site.assets);
         result=await api('/api/sites/'+encodeURIComponent(site.siteId)+'/save','POST',
-          {site:next,expectedRevision:result.revision});
+          {site:remapped.site,expectedRevision:result.revision});
         // The site draft is saved BEFORE its independent immutable evidence.
         // A failed evidence upload never rolls back/publishes the real site;
         // owner can resume only the approval archive via a separate button.
@@ -4343,6 +4337,7 @@
         await archiveApproval();
         forgetTicket();
         notice((resumed?'Импорт безопасно продолжен. ':'Сайт подключён как черновик. ')+
+          'Переподключено медиаполей: '+remapped.bindings+'. '+
           (handoff.format.endsWith('-v2')?'Архив согласования сохранён. ':'Пакет v1: архив не создавался. ')+
           'Публикация только по отдельной кнопке.');
       }catch(error){

@@ -961,6 +961,70 @@ test('schema artifacts parse and match versioned entry formats',()=>{
 });
 
 const draft=require('../sdk/draft.cjs');
+test('sealed individual site import remaps only typed media references, never client words',()=>{
+  const before=same(initial),source=same(initial);
+  const image='asset-author-image',video='asset-author-video',font='asset-author-font';
+  source.assets=[
+    {id:image,src:'/assets/'+image+'.png',mime:'image/png',alt:'Произвольная фотография'},
+    {id:video,src:'/assets/'+video+'.mp4',mime:'video/mp4',alt:'Презентация'},
+    {id:font,src:'/assets/'+font+'.woff2',mime:'font/woff2',alt:'Фирменный шрифт'}
+  ];
+  source.branding={logoAssetId:image,faviconAssetId:image};
+  source.theme={...source.theme,fontFiles:{body:font,heading:font}};
+  source.pages[0].seo={title:'Авторская страница',description:image,robots:'index',
+    ogTitle:video,ogDescription:font,ogImage:image};
+  source.pages[0].sections[0].elements[0].values['content.text']=image;
+  const showcase=sdk.sectionFrom(reg.get('image-showcase'),'section-imported-gallery');
+  const imageSlot=reg.get('image-showcase').elements.find(el=>el.fields.some(f=>f.type==='media'));
+  assert.ok(imageSlot,'Published section declares its own media slot');
+  const mediaField=imageSlot.fields.find(f=>f.type==='media');
+  showcase.elements.find(el=>el.slot===imageSlot.slot).values[mediaField.path]=image;
+  source.pages[0].sections.push(showcase);
+  const custom=sdk.sectionFrom(reg.get('custom-section'),'section-imported-design');
+  custom.designGraph={version:1,id:'graph-imported-media',nodes:[{
+    id:'imported-section',type:'container',styles:{},
+    backgroundMedia:{assetId:image},children:[
+      {id:'imported-copy',type:'text',text:image,styles:{}},
+      {id:'imported-photo',type:'image',assetId:image,alt:'Фотография',styles:{}},
+      {id:'imported-film',type:'video',assetId:video,posterAssetId:image,
+        alt:'Короткое видео',styles:{}}
+    ]
+  }]};
+  source.pages[0].sections.push(custom);
+  sdk.validateSite(source,manifests);
+  const initialBytes=JSON.stringify(source);
+  const ids=new Map([[image,'asset-server-image'],[video,'asset-server-video'],[font,'asset-server-font']]);
+  const targets=source.assets.map(a=>({...a,id:ids.get(a.id),
+    src:'/assets/'+ids.get(a.id)+a.src.slice(a.src.lastIndexOf('.'))}));
+  const imported=sdk.remapImportedMedia(source,manifests,ids,targets);
+  assert.ok(imported.bindings>=10,'All typed media bindings are counted');
+  assert.equal(imported.site.pages[0].seo.ogImage,ids.get(image));
+  assert.equal(imported.site.theme.fontFiles.heading,ids.get(font));
+  assert.equal(imported.site.branding.logoAssetId,ids.get(image));
+  assert.equal(imported.site.pages[0].sections[2].elements
+    .find(x=>x.slot===imageSlot.slot).values[mediaField.path],ids.get(image));
+  const graph=imported.site.pages[0].sections[3].designGraph.nodes[0];
+  assert.equal(graph.backgroundMedia.assetId,ids.get(image));
+  assert.equal(graph.children[1].assetId,ids.get(image));
+  assert.equal(graph.children[2].assetId,ids.get(video));
+  assert.equal(graph.children[2].posterAssetId,ids.get(image));
+  assert.equal(graph.children[0].text,image,'Visible client copy must not be rewritten');
+  assert.equal(imported.site.pages[0].sections[0].elements[0].values['content.text'],image);
+  assert.equal(imported.site.pages[0].seo.description,image);
+  assert.equal(imported.site.pages[0].seo.ogTitle,video);
+  assert.equal(imported.site.pages[0].seo.ogDescription,font);
+  assert.equal(JSON.stringify(source),initialBytes,'Original sealed input remains untouched');
+  assert.equal(JSON.stringify(initial),JSON.stringify(before),'No fixture mutation');
+  refuses(()=>sdk.remapImportedMedia(source,manifests,new Map([[image,ids.get(image)]]),targets),
+    'Missing source media mapping fails closed');
+  const duplicated=new Map(ids);duplicated.set(video,ids.get(image));
+  refuses(()=>sdk.remapImportedMedia(source,manifests,duplicated,targets),
+    'Cross-type/duplicate mapping rejected');
+  const wrong=targets.map(a=>({...a}));wrong[0].mime='image/jpeg';
+  refuses(()=>sdk.remapImportedMedia(source,manifests,ids,wrong),
+    'MIME mismatch rejected before Save');
+});
+
 test('typed manual edit -> isolated block preview -> undo -> redo',()=>{
   const before=JSON.stringify(initial);
   const started=draft.begin(initial,manifests);

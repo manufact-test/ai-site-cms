@@ -606,6 +606,72 @@ function inspectSite(raw,regInput){
     warnings.push(add('site-noindex',null,'/','Все страницы закрыты от индексации. Проверьте, что это сделано намеренно.'));
   return {errors,warnings,pages:site.pages.length,redirects:redirected.size,indexable,noindex:site.pages.length-indexable};
 }
+// Rebind only media slots declared by this individual site's typed contract.
+// A blanket recursive string replacement corrupts client text when it happens
+// to equal the original asset ID. The approved input remains immutable.
+function remapImportedMedia(raw,regInput,idMap,serverAssets){
+  const reg=regInput instanceof Map?regInput:registry(regInput);
+  const source=validateSite(raw,reg);
+  if(!(idMap instanceof Map)||idMap.size!==source.assets.length||
+    !Array.isArray(serverAssets)||serverAssets.length!==source.assets.length)
+    fail('Incomplete or unexpected imported media inventory');
+  const destination=new Map();
+  for(const asset of serverAssets){
+    if(!asset||typeof asset.id!=='string'||destination.has(asset.id))
+      fail('Duplicate or invalid server media');
+    destination.set(asset.id,asset);
+  }
+  const assigned=new Set();
+  for(const asset of source.assets){
+    const serverId=idMap.get(asset.id),target=destination.get(serverId);
+    if(typeof serverId!=='string'||!target||assigned.has(serverId)||
+      target.mime!==asset.mime)
+      fail('Media import ID or MIME mismatch',asset.id);
+    assigned.add(serverId);
+  }
+  const copySite=clone(source);copySite.assets=clone(serverAssets);
+  let bindings=0;
+  const bind=(object,key)=>{
+    if(!object||!own(object,key)||object[key]==='')return;
+    const target=idMap.get(object[key]);
+    if(!target)fail('Unmapped typed media reference',key);
+    object[key]=target;bindings++;
+  };
+  if(copySite.theme?.fontFiles)
+    for(const key of ['body','heading'])bind(copySite.theme.fontFiles,key);
+  if(copySite.branding)
+    for(const key of ['logoAssetId','mobileLogoAssetId','faviconAssetId'])bind(copySite.branding,key);
+  const walk=nodes=>{
+    for(const node of nodes){
+      for(const key of ['assetId','posterAssetId'])bind(node,key);
+      if(node.responsiveMedia)for(const key of ['tabletAssetId','mobileAssetId'])
+        bind(node.responsiveMedia,key);
+      if(node.backgroundMedia)for(const key of ['assetId','tabletAssetId','mobileAssetId'])
+        bind(node.backgroundMedia,key);
+      if(node.backgroundVideo)for(const key of
+        ['assetId','posterAssetId','tabletPosterAssetId','mobilePosterAssetId'])
+        bind(node.backgroundVideo,key);
+      if(node.children)walk(node.children);
+    }
+  };
+  for(const page of copySite.pages){
+    if(page.seo)bind(page.seo,'ogImage');
+    for(const section of page.sections){
+      const manifest=select(reg,section.component,section.manifestVersion);
+      const slotDefs=new Map(manifest.elements.map(def=>[def.slot,def.fields]));
+      for(const element of section.elements){
+        const values=element.values;
+        for(const field of slotDefs.get(element.slot)||[])
+          if(field.type==='media')bind(values,field.path);
+      }
+      for(const item of section.items||[])
+        for(const field of manifest.repeat?.fields||[])
+          if(field.type==='media')bind(item.values,field.path);
+      if(section.designGraph)walk(section.designGraph.nodes);
+    }
+  }
+  return Object.freeze({site:validateSite(copySite,reg),bindings});
+}
 function controls(doc,regInput,pageId,sectionId,elementId){
   const reg=regInput instanceof Map?regInput:registry(regInput);
   const site=validateSite(doc,reg),page=site.pages.find(p=>p.id===pageId),sec=page?.sections.find(s=>s.id===sectionId);
@@ -732,5 +798,5 @@ function upgrade(raw,previous,next,allOtherManifests,decisions={}){
 }
 module.exports=Object.freeze({DEFAULT_MENU,DEFAULT_THEME,
   FORMAT,MANIFEST,BREAKPOINTS,DEFAULT_APPEARANCE,validateManifest,registry,validateSite,inspectSite,
-  controls,effectiveValue,sectionFrom,siteFromBrief,upgrade,sharedSectionShape
+  controls,effectiveValue,sectionFrom,siteFromBrief,upgrade,sharedSectionShape,remapImportedMedia
 });

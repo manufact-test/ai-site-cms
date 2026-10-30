@@ -160,7 +160,7 @@ async function execute(){
       primary:'#0a5bff',font:'system',maxWidth:1140,
       fontFiles:{body:'asset-external-font',heading:'asset-external-font'}};
     site.pages[0].seo={title:'Внешний готовый сайт',description:'Проверка подключения внешнего сайта',
-      robots:'index',ogImage:'asset-external-hero'};
+      robots:'index',ogTitle:'asset-external-hero',ogImage:'asset-external-hero'};
     const faq=window.Stage3Editor.manifests().find(x=>x.id==='faq-accordion');
     const fromFields=fields=>Object.fromEntries(fields.map(f=>[f.path,structuredClone(f.default)]));
     const section={
@@ -610,6 +610,8 @@ async function execute(){
   await page.locator('#sections .nav-entry').first().click();
   assert.notEqual(imported.assets[0].id,'asset-external-hero','Server gives immutable site-owned asset ID');
   assert.equal(imported.pages[0].seo.ogImage,imported.assets[0].id,'SEO media reference remapped');
+  assert.equal(imported.pages[0].seo.ogTitle,'asset-external-hero',
+    'Client-authored SEO text matching a media ID is never rewritten');
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),404,
     'Approved folder import must never publish implicitly');
   await page.locator('#fields [data-field="content.text"]').first().fill('Редактируется после подключения');
