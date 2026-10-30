@@ -586,6 +586,15 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
   const safeMount=mount.replace(/\/$/,'');
   const assets=new Map(site.assets.map(a=>[a.id,a])),rules=[];
   const scope='.cmsdg-'+graph.id;
+  const galleryTranslations={
+    ru:['Открыть фотографию','Закрыть фотографию','Предыдущая фотография','Следующая фотография','Навигация по фотографиям','Фотография'],
+    en:['Open photo','Close photo','Previous photo','Next photo','Photo navigation','Photo'],
+    pl:['Otwórz zdjęcie','Zamknij zdjęcie','Poprzednie zdjęcie','Następne zdjęcie','Nawigacja zdjęć','Zdjęcie'],
+    de:['Foto öffnen','Foto schließen','Vorheriges Foto','Nächstes Foto','Fotonavigation','Foto'],
+    be:['Адкрыць фота','Закрыць фота','Папярэдняе фота','Наступнае фота','Навігацыя па фота','Фота'],
+    uk:['Відкрити фото','Закрити фото','Попереднє фото','Наступне фото','Навігація фотографіями','Фото']
+  };
+  const gl=galleryTranslations[site.language]||galleryTranslations.ru;
   const attr=s=>escapeHtml(s);
   const imageUrl=id=>{
     const a=assets.get(id);
@@ -715,15 +724,15 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
         const image=visit(child);
         const id='cmsdg-lightbox-'+child.id;
         const caption=child.caption?'<figcaption>'+attr(child.caption)+'</figcaption>':'';
-        const trigger=n.lightbox?'<button type="button" class="cmsdg-lightbox-trigger" popovertarget="'+id+'" aria-label="Открыть фотографию '+(index+1)+'">'+image+'</button>':image;
+        const trigger=n.lightbox?'<button type="button" class="cmsdg-lightbox-trigger" popovertarget="'+id+'" aria-label="'+gl[0]+' '+(index+1)+'">'+image+'</button>':image;
         const before='cmsdg-lightbox-'+n.children[(index+n.children.length-1)%n.children.length].id;
         const after='cmsdg-lightbox-'+n.children[(index+1)%n.children.length].id;
-        const navigation='<nav class="cmsdg-gallery-nav" aria-label="Навигация по фотографиям">'+
-          '<button type="button" popovertarget="'+before+'" aria-label="Предыдущая фотография">←</button>'+
+        const navigation='<nav class="cmsdg-gallery-nav" aria-label="'+gl[4]+'">'+
+          '<button type="button" popovertarget="'+before+'" aria-label="'+gl[2]+'">←</button>'+
           '<span>'+(index+1)+' / '+n.children.length+'</span>'+
-          '<button type="button" popovertarget="'+after+'" aria-label="Следующая фотография">→</button></nav>';
-        const popup=n.lightbox?'<div id="'+id+'" popover="auto" class="cmsdg-gallery-popover" role="dialog" aria-label="'+attr(child.alt||'Фотография '+(index+1))+'">'+
-          '<button type="button" class="cmsdg-gallery-close" popovertarget="'+id+'" popovertargetaction="hide" aria-label="Закрыть фотографию">×</button>'+
+          '<button type="button" popovertarget="'+after+'" aria-label="'+gl[3]+'">→</button></nav>';
+        const popup=n.lightbox?'<div id="'+id+'" popover="auto" class="cmsdg-gallery-popover" role="dialog" aria-label="'+attr(child.alt||gl[5]+' '+(index+1))+'">'+
+          '<button type="button" class="cmsdg-gallery-close" popovertarget="'+id+'" popovertargetaction="hide" aria-label="'+gl[1]+'">×</button>'+
           '<div class="cmsdg-gallery-expanded">'+image+'</div>'+caption+navigation+'</div>':'';
         return '<figure class="cmsdg-gallery-item">'+trigger+caption+popup+'</figure>';
       }).join('');
