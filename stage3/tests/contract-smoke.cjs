@@ -1807,6 +1807,42 @@ test('editable icon catalog stays first-party, bounded, semantic and PHP-compati
   sdk.validateSite(site,manifests);
 });
 
+test('grid gallery captions, native lightbox and safe click-actions',()=>{
+  const G=require('../sdk/design-graph.cjs'),site=same(initial);
+  site.assets.push(
+    {id:'asset-photo-alpha',src:'/assets/asset-photo-alpha.png',alt:'Фотография фасада',mime:'image/png'},
+    {id:'asset-photo-beta',src:'/assets/asset-photo-beta.png',alt:'Фотография интерьера',mime:'image/png'});
+  const section=sdk.sectionFrom(reg.get('custom-section'),'section-gallery-full');
+  const gallery={id:'gallery-portfolio',type:'gallery',text:'Реальные проекты <портфолио>',
+    layout:'grid',columnsDesktop:4,columnsTablet:2,columnsMobile:1,lightbox:true,
+    children:[
+      {id:'gallery-photo-alpha',type:'image',assetId:'asset-photo-alpha',alt:'Фасад',caption:'Проект <первый>',styles:{}},
+      {id:'gallery-photo-beta',type:'image',assetId:'asset-photo-beta',alt:'Интерьер',caption:'Интерьер & свет',styles:{}}
+    ]};
+  section.designGraph={version:1,id:'graph-gallery-full',nodes:[gallery]};
+  site.pages[0].sections.push(section);sdk.validateSite(site,manifests);
+  const html=G.render(site,section.designGraph);
+  assert.match(html,/cmsdg-gallery-grid/);
+  assert.match(html,/--cmsdg-gallery-columns:4;--cmsdg-gallery-tablet:2;--cmsdg-gallery-mobile:1/);
+  assert.match(html,/popovertarget="cmsdg-lightbox-gallery-photo-alpha"/);
+  assert.match(html,/role="dialog" aria-label="Фасад"/);
+  assert.match(html,/<figcaption>Проект &lt;первый&gt;<\/figcaption>/);
+  assert.doesNotMatch(html,/<первый>/);
+  const linked=same(site);
+  linked.pages[0].sections.at(-1).designGraph.nodes[0].children[0].href='/';
+  refuses(()=>sdk.validateSite(linked,manifests),'Linked gallery images cannot also open lightbox');
+  const bad=same(site);
+  bad.pages[0].sections.at(-1).designGraph.nodes[0].columnsDesktop=20;
+  refuses(()=>sdk.validateSite(bad,manifests),'Gallery columns are bounded');
+  const unsafe=same(site);
+  unsafe.pages[0].sections.at(-1).designGraph.nodes[0].children[1].caption='<script>\n</script>';
+  refuses(()=>sdk.validateSite(unsafe,manifests),'Gallery caption rejects controls');
+  gallery.lightbox=false;gallery.layout='scroll';
+  delete gallery.columnsDesktop;delete gallery.columnsTablet;delete gallery.columnsMobile;
+  sdk.validateSite(site,manifests);
+  assert.match(G.render(site,section.designGraph),/cmsdg-gallery-item/);
+});
+
 test('135 mandatory requirements keep evidence and honest owner acceptance',()=>{
   const ledger=read('mandatory-coverage.json');
   assert.equal(ledger.totalRequired,135);
