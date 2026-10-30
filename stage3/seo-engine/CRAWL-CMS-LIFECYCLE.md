@@ -105,10 +105,12 @@ node stage3/seo-engine/tests/seo-workspace-crawl-smoke.cjs
 node stage3/seo-engine/tests/seo-operator-workspace-smoke.cjs
 ```
 
-The new lifecycle smoke tests two original reports using the existing `industrial.blueprint.json` fixture and changed operator Site v1; one task is owner-reported complete and still observed, another disappears but **is not** verified resolved, and new tasks must not inherit approval. It exercises exact raw ledger SHA pinning, old/new mismatch rejection, HTML safety, standalone CLI template, two-cycle output, repeat-output refusal, source-mutation refusal and a no-ledger comparison.
+The new lifecycle smoke tests two original reports using the existing `industrial.blueprint.json` fixture and changed operator Site v1; one task is owner-reported complete and still observed, another disappears but **is not** verified resolved, and new tasks must not inherit approval. It exercises exact raw ledger SHA pinning, old/new mismatch rejection, HTML safety, standalone CLI template, two-cycle output, repeat-output refusal, stale-decision refusal and a no-ledger comparison.
 
 **Verification distinction:** the worker can perform isolated V8 source/syntax composition on GitHub files; **real Node CLI smoke and live customer acceptance require the integrated checkout and have not been executed in the worker environment**. A green lead CI for another branch is NOT a test of these new SEO files.
 
 ## Lead integration boundary
 
 Bring over the allowed SEO subtree only, run the small relevant Node smokes, review the source hashes, verify the real current Site v1 revision and the actual public host, have the owner approve concrete repairs, then use lead-controlled editor/publisher with manual QA and rollback. Never copy the raw worklists, human ledger or customer GSC data to the repository. Do not merge or deploy this worker branch automatically.
+
+**Verification addendum (2026-10-30):** the worker also exercised the actual lifecycle and standalone CLI source through an isolated V8 integration adapter with a virtual Node `fs`/`path`/`crypto` implementation. It produced a private decision template (JSON + offline HTML), a full seven-file recheck folder, pinned manifests, refused overwriting an existing directory and rejected a stale original worklist SHA ledger. This was **not** a real Node process or actual filesystem test. The `tests/crawl-cms-lifecycle-smoke.cjs` remains for the lead-integrated Node checkout.
