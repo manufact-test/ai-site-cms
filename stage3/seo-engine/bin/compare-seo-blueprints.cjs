@@ -8,6 +8,7 @@ const BP=require('../lib/blueprint.cjs');
 const DIFF=require('../lib/blueprint-change-review.cjs');
 const VIEW=require('../lib/blueprint-change-view.cjs');
 const DECISIONS=require('../lib/blueprint-change-decisions.cjs');
+const EDITOR=require('../lib/blueprint-decision-editor.cjs');
 const POLICY=require('../lib/private-output-policy.cjs');
 const ROOT=fs.realpathSync(path.resolve(__dirname,'../../..'));
 const HELP='Usage: node stage3/seo-engine/bin/compare-seo-blueprints.cjs --before /ABS/private/OLD-blueprint-or-brief.json --after /ABS/private/NEW-blueprint-or-brief.json --out /ABS/NEW-private-diff';
@@ -61,15 +62,18 @@ function main(argv){
  const md=DIFF.markdown(report);
  const reportJson=JSON.stringify(report,null,2)+'\n';
  const worksheet=DECISIONS.template(report);
+ const decisionEditor=EDITOR.render(report);
  const files={
   'index.html':view.html,
   'BLUEPRINT-CHANGE-IMPACT.json':reportJson,
   'BLUEPRINT-CHANGE-IMPACT.md':md,
   'DECISION-WORKSHEET.json':JSON.stringify(worksheet,null,2)+'\n',
+  'DECISION-DESK.html':decisionEditor,
   'PRIVATE-README.md':[
    '# MANUFACT SEO — private Blueprint change desk','',
    'Open index.html locally to inspect P0/P1/P2 impacts and page route/SEO comparisons.',
    'The two supplied original sources are normalized to canonical compiled Blueprint v1.',
+   'Open DECISION-DESK.html to fill/restore the source-bound worksheet offline, then use review-blueprint-decisions.cjs.',
    'The decision worksheet is a PRIVATE, UNFILLED lead work ledger, not client approval.',
    'A proposed HTTP 301/200 is ONLY a check to perform AFTER independent CMS implementation.',
    'No actual HTTP requests, content edits, CMS writes, redirects, authenticated approvals, PRs or merges.',
@@ -87,6 +91,7 @@ function main(argv){
    canonicalBlueprintSha256:{
     before:report.beforeBlueprintSha256,after:report.afterBlueprintSha256},
    impactReportSha256:sha(reportJson),renderedHtmlSha256:sha(view.html),
+   decisionEditorSha256:sha(decisionEditor),
    actualNetworkRequests:0,hostWrites:0,redirectsCreated:0,
    releaseAuthorized:false,clientSignoffAuthenticated:false
   },null,2)+'\n'

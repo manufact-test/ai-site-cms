@@ -159,6 +159,8 @@ function start(){
   const problems=[];
   d.actions.forEach((a,i)=>{
    if(a.decision==='pending')return;
+   if(!validText(a.evidenceRef)||!validText(a.notes))
+    problems.push({i,text:'Evidence reference or notes contain invalid characters or exceed 600'});
    if(!validText(a.reviewer,120)||a.reviewer.trim().length<3)
     problems.push({i,text:'Reviewer name required (3–120 characters)'});
    if(!validDate(a.reviewedAt))

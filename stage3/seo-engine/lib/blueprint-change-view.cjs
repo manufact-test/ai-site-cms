@@ -81,7 +81,7 @@ function render(report){
   '<header class="hero"><div class="kicker">MANUFACT · OWNER-ONLY SEO OPERATIONS</div>'+
   '<h1>Blueprint Change Impact</h1><p>Site: '+esc(report.siteId)+'</p><div class="status">'+
   esc(status)+'</div><p>Before and after are canonical SEO plans, NOT evidence that the CMS or public URL actually changed.</p></header>'+
-  '<nav class="jump"><a href="#changes">What changed</a><a href="#p0">P0 blockers</a>'+
+  '<nav class="jump"><a href="DECISION-DESK.html">Open offline decision desk</a><a href="#changes">What changed</a><a href="#p0">P0 blockers</a>'+
   '<a href="#p1">P1 reviews</a><a href="#p2">P2 editorial</a><a href="#checks">Verify after implementation</a></nav>'+
   '<div class="stats">'+stats+'</div>'+
   '<section id="changes" class="panel"><h2>Approved Blueprint plan difference</h2>'+
