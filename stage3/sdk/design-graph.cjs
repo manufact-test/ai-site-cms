@@ -43,15 +43,25 @@ const STYLE_KEYS=['display','columns','direction','align','justify','gap','paddi
   'paddingX','paddingY','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginBottom','widthPercent','minHeight','minHeightViewport','heightViewport','gridColumnSpan',
   'flexWrap','flexGrow','alignSelf','letterSpacing','fontFamily','objectFit','aspectRatio',
   'overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset','shadowFine','gridTracks','gridAutoRowsPx'];
-const FORM_APPEARANCE_SIZES=Object.freeze({gap:[0,64],inputRadius:[0,48],inputPadding:[4,32],
-  buttonRadius:[0,48],buttonPadding:[6,32]});
-const FORM_APPEARANCE_COLORS=['inputBackground','borderColor','buttonBackground','buttonColor'];
-const FORM_APPEARANCE_KEYS=[...Object.keys(FORM_APPEARANCE_SIZES),'labelWeight',...FORM_APPEARANCE_COLORS];
+const FORM_APPEARANCE_SIZES=Object.freeze({gap:[0,64],labelGap:[0,24],columns:[1,2],maxWidth:[240,1200],
+  inputRadius:[0,48],inputPadding:[4,32],inputFontSize:[12,24],borderWidth:[0,4],
+  stepRadius:[0,48],stepPadding:[0,40],
+  buttonRadius:[0,48],buttonPadding:[6,32],buttonFontSize:[12,28]});
+const FORM_APPEARANCE_COLORS=['inputBackground','borderColor','inputColor','labelColor','focusColor',
+  'stepBackground','stepBorderColor','progressColor','buttonBackground','buttonColor'];
+const FORM_APPEARANCE_KEYS=[...Object.keys(FORM_APPEARANCE_SIZES),'labelWeight','buttonWeight',...FORM_APPEARANCE_COLORS];
 const FORM_APPEARANCE_CSS=Object.freeze({gap:'--cmsdg-form-gap',inputRadius:'--cmsdg-form-input-radius',
   inputPadding:'--cmsdg-form-input-padding',buttonRadius:'--cmsdg-form-button-radius',
   buttonPadding:'--cmsdg-form-button-padding',labelWeight:'--cmsdg-form-label-weight',
   inputBackground:'--cmsdg-form-input-bg',borderColor:'--cmsdg-form-border',
-  buttonBackground:'--cmsdg-form-button-bg',buttonColor:'--cmsdg-form-button-color'});
+  buttonBackground:'--cmsdg-form-button-bg',buttonColor:'--cmsdg-form-button-color',
+  labelGap:'--cmsdg-form-label-gap',columns:'--cmsdg-form-columns',maxWidth:'--cmsdg-form-max-width',
+  inputFontSize:'--cmsdg-form-input-font-size',borderWidth:'--cmsdg-form-border-width',
+  buttonFontSize:'--cmsdg-form-button-font-size',buttonWeight:'--cmsdg-form-button-weight',
+  inputColor:'--cmsdg-form-input-color',labelColor:'--cmsdg-form-label-color',focusColor:'--cmsdg-form-focus-color',
+  stepRadius:'--cmsdg-form-step-radius',stepPadding:'--cmsdg-form-step-padding',
+  stepBackground:'--cmsdg-form-step-bg',stepBorderColor:'--cmsdg-form-step-border',
+  progressColor:'--cmsdg-form-progress-color'});
 const DEFAULT_TOKENS=Object.freeze({
   colors:{foreground:'#182b3d',background:'#ffffff',accent:'#0a5bff',muted:'#667788'},
   spacing:{small:12,medium:24,large:48},
@@ -97,15 +107,15 @@ function validateFormAppearance(appearance,tokens,at){
     if(own(FORM_APPEARANCE_SIZES,key)){
       const [min,max]=FORM_APPEARANCE_SIZES[key];
       if(!number(value,min,max))fail(at+'/'+key,'invalid form size');
-    }else if(key==='labelWeight'){
-      if(![400,500,600,700].includes(value))fail(at+'/'+key,'invalid form label weight');
+    }else if(key==='labelWeight'||key==='buttonWeight'){
+      if(![400,500,600,700].includes(value))fail(at+'/'+key,'invalid form font weight');
     }else resolve(value,'colors',tokens,at+'/'+key);
   }
 }
 function formAppearanceCSS(appearance,tokens,at){
   return Object.entries(appearance).map(([key,value])=>
     FORM_APPEARANCE_CSS[key]+':'+(FORM_APPEARANCE_COLORS.includes(key)?
-      resolve(value,'colors',tokens,at+'/'+key):String(value)+(key==='labelWeight'?'':'px'))).join(';');
+      resolve(value,'colors',tokens,at+'/'+key):String(value)+(['labelWeight','buttonWeight','columns'].includes(key)?'':'px'))).join(';');
 }
 function validateStyle(style,tokens,at,mode='base'){
   keys(style,STYLE_KEYS,at);
@@ -677,7 +687,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     }
     for(const item of authoredSection.formFields||[])
       fields.push({id:item.id,kind:item.kind,label:item.label,required:item.required,
-        placeholder:item.placeholder,options:item.options,when:item.when});
+        placeholder:item.placeholder,options:item.options,when:item.when,fullWidth:item.fullWidth});
     const fieldMarkup=field=>{
       const label=attr(field.label)+(field.required?' *':'')+(field.when?' <small>('+attr(words[4])+')</small>':'');
       const options=(field.options||[]).map(option=>'<option>'+attr(option)+'</option>').join('');
@@ -689,8 +699,10 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       else if(field.kind==='checkbox')control='<input disabled type="checkbox">';
       else control='<input disabled type="'+attr(['text','tel','email','number','date','url'].includes(field.kind)?field.kind:'text')+
         '" placeholder="'+attr(field.placeholder||'')+'">';
-      if(field.kind==='radio')return '<fieldset data-cms-form-field="'+attr(field.id)+'" class="cmsdg-preview-field'+(field.when?' cmsdg-preview-conditional':'')+'"><legend>'+label+'</legend>'+control+'</fieldset>';
-      return '<label data-cms-form-field="'+attr(field.id)+'" class="cmsdg-preview-field'+(field.when?' cmsdg-preview-conditional':'')+'">'+label+control+'</label>';
+      const classes='cmsdg-preview-field'+(field.kind==='textarea'||field.fullWidth?' cmsdg-preview-wide':'')+
+        (field.when?' cmsdg-preview-conditional':'');
+      if(field.kind==='radio')return '<fieldset data-cms-form-field="'+attr(field.id)+'" class="'+classes+'"><legend>'+label+'</legend>'+control+'</fieldset>';
+      return '<label data-cms-form-field="'+attr(field.id)+'" class="'+classes+'">'+label+control+'</label>';
     };
     const steps=Array.isArray(authoredSection.formSteps)?authoredSection.formSteps:null;
     const stepIndex=steps?Math.min(steps.length-1,Math.max(0,
@@ -700,9 +712,12 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     const progress=steps?'<p class="cmsdg-preview-progress">'+attr(words[3])+' '+(stepIndex+1)+' / '+steps.length+' · '+attr(steps[stepIndex].title)+'</p>':'';
     const next=steps?'<div class="cmsdg-preview-steps"><button type="button" disabled>'+attr(words[1])+
       '</button><button type="button" disabled>'+attr(words[2])+'</button></div>':'';
+    const activeFields=visible.map(fieldMarkup).join('');
+    const body=steps?'<fieldset class="cmsdg-preview-step"><legend>'+attr(steps[stepIndex].title)+
+      '</legend>'+activeFields+next+'</fieldset>':activeFields;
     return '<div class="cmsdg-form-preview" role="group" aria-label="'+attr(labelOf('heading'))+'">'+
       '<h2>'+attr(labelOf('heading'))+'</h2>'+progress+
-      visible.map(fieldMarkup).join('')+next+
+      body+
       '<label class="cmsdg-preview-consent"><input type="checkbox" disabled> '+attr(labelOf('consent-label'))+'</label>'+
       '<button type="button" disabled class="cmsdg-preview-submit">'+attr(labelOf('submit-label'))+'</button>'+
       '<small class="cmsdg-preview-note">'+attr(words[0])+'</small></div>';
@@ -997,10 +1012,15 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     scope+' .cmsdg-preview-submit{padding:12px 18px;border:0;border-radius:10px;background:var(--cms-primary,#0a5bff);color:#fff;font:inherit}'+
     scope+' .cmsdg-preview-steps{display:flex;gap:12px}'+
     scope+' .cmsdg-preview-steps button{padding:10px;border-radius:8px;border:1px solid #b9c8d8;background:transparent;color:inherit}'+
-    scope+' .cmsdg-form-slot .cmsdg-form-preview{gap:var(--cmsdg-form-gap,16px)}'+
-    scope+' .cmsdg-form-slot .cmsdg-preview-field{font-weight:var(--cmsdg-form-label-weight,600)}'+
+    scope+' .cmsdg-form-slot .cmsdg-form-preview{gap:var(--cmsdg-form-gap,16px);grid-template-columns:repeat(var(--cmsdg-form-columns,1),minmax(0,1fr));max-width:var(--cmsdg-form-max-width,700px)}'+
+    scope+' .cmsdg-form-slot .cmsdg-form-preview>h2,'+scope+' .cmsdg-form-slot .cmsdg-preview-progress,'+scope+' .cmsdg-form-slot .cmsdg-preview-step,'+scope+' .cmsdg-form-slot .cmsdg-preview-steps,'+scope+' .cmsdg-form-slot .cmsdg-preview-consent,'+scope+' .cmsdg-form-slot .cmsdg-preview-submit,'+scope+' .cmsdg-form-slot .cmsdg-preview-note,'+scope+' .cmsdg-form-slot .cmsdg-preview-wide{grid-column:1/-1}'+
+    scope+' .cmsdg-form-slot .cmsdg-preview-step{display:grid;grid-template-columns:repeat(var(--cmsdg-form-columns,1),minmax(0,1fr));gap:var(--cmsdg-form-gap,16px);min-width:0;margin:0;border:1px solid var(--cmsdg-form-step-border,#dae4ef);border-radius:var(--cmsdg-form-step-radius,12px);padding:var(--cmsdg-form-step-padding,18px);background:var(--cmsdg-form-step-bg,transparent)}'+
+    scope+' .cmsdg-form-slot .cmsdg-preview-step legend{font-weight:700;padding:0 9px}'+
+    scope+' .cmsdg-form-slot .cmsdg-preview-progress{color:var(--cmsdg-form-progress-color,inherit)}'+
+    scope+' .cmsdg-form-slot .cmsdg-preview-field{font-weight:var(--cmsdg-form-label-weight,600);color:var(--cmsdg-form-label-color,inherit);gap:var(--cmsdg-form-label-gap,6px)}'+
     scope+' .cmsdg-form-slot .cmsdg-preview-field input:not([type=checkbox]):not([type=radio]),'+scope+' .cmsdg-form-slot .cmsdg-preview-field select,'+scope+' .cmsdg-form-slot .cmsdg-preview-field textarea{padding:var(--cmsdg-form-input-padding,12px);border-radius:var(--cmsdg-form-input-radius,8px);border-color:var(--cmsdg-form-border,#a5b3c4);background:var(--cmsdg-form-input-bg,#fff)}'+
-    scope+' .cmsdg-form-slot .cmsdg-preview-submit{padding:var(--cmsdg-form-button-padding,12px) 18px;border-radius:var(--cmsdg-form-button-radius,10px);background:var(--cmsdg-form-button-bg,var(--cms-primary,#0a5bff));color:var(--cmsdg-form-button-color,#fff)}'+
+    scope+' .cmsdg-form-slot .cmsdg-preview-field input:not([type=checkbox]):not([type=radio]),'+scope+' .cmsdg-form-slot .cmsdg-preview-field select,'+scope+' .cmsdg-form-slot .cmsdg-preview-field textarea{border-width:var(--cmsdg-form-border-width,1px);color:var(--cmsdg-form-input-color,inherit);font-size:var(--cmsdg-form-input-font-size,inherit)}'+
+    scope+' .cmsdg-form-slot .cmsdg-preview-submit{padding:var(--cmsdg-form-button-padding,12px) 18px;border-radius:var(--cmsdg-form-button-radius,10px);background:var(--cmsdg-form-button-bg,var(--cms-primary,#0a5bff));color:var(--cmsdg-form-button-color,#fff);font-size:var(--cmsdg-form-button-font-size,inherit);font-weight:var(--cmsdg-form-button-weight,inherit)}'+
     scope+' .cmsdg-preview-note{font-size:.8em;opacity:.7}'+
     scope+' .cmsdg-quote{margin:12px 0;padding:20px;border-inline-start:4px solid currentColor}'+
     scope+' .cmsdg-quote blockquote{margin:0}'+

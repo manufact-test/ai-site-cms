@@ -19,14 +19,26 @@ final class DesignGraph
         'rowGap','columnGap','paddingX','paddingY','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginBottom','widthPercent',
         'minHeight','minHeightViewport','heightViewport','gridColumnSpan','flexWrap','flexGrow','alignSelf','letterSpacing',
         'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset','shadowFine','gridTracks','gridAutoRowsPx'];
-    private const FORM_SIZES=['gap'=>[0,64],'inputRadius'=>[0,48],'inputPadding'=>[4,32],
-        'buttonRadius'=>[0,48],'buttonPadding'=>[6,32]];
-    private const FORM_COLORS=['inputBackground','borderColor','buttonBackground','buttonColor'];
+    private const FORM_SIZES=['gap'=>[0,64],'labelGap'=>[0,24],'columns'=>[1,2],
+        'maxWidth'=>[240,1200],'inputRadius'=>[0,48],'inputPadding'=>[4,32],
+        'inputFontSize'=>[12,24],'borderWidth'=>[0,4],
+        'stepRadius'=>[0,48],'stepPadding'=>[0,40],
+        'buttonRadius'=>[0,48],'buttonPadding'=>[6,32],'buttonFontSize'=>[12,28]];
+    private const FORM_COLORS=['inputBackground','borderColor','inputColor','labelColor','focusColor',
+        'stepBackground','stepBorderColor','progressColor','buttonBackground','buttonColor'];
     private const FORM_CSS=['gap'=>'--cmsdg-form-gap','inputRadius'=>'--cmsdg-form-input-radius',
         'inputPadding'=>'--cmsdg-form-input-padding','buttonRadius'=>'--cmsdg-form-button-radius',
         'buttonPadding'=>'--cmsdg-form-button-padding','labelWeight'=>'--cmsdg-form-label-weight',
         'inputBackground'=>'--cmsdg-form-input-bg','borderColor'=>'--cmsdg-form-border',
-        'buttonBackground'=>'--cmsdg-form-button-bg','buttonColor'=>'--cmsdg-form-button-color'];
+        'buttonBackground'=>'--cmsdg-form-button-bg','buttonColor'=>'--cmsdg-form-button-color',
+        'labelGap'=>'--cmsdg-form-label-gap','columns'=>'--cmsdg-form-columns',
+        'maxWidth'=>'--cmsdg-form-max-width','inputFontSize'=>'--cmsdg-form-input-font-size',
+        'borderWidth'=>'--cmsdg-form-border-width','buttonFontSize'=>'--cmsdg-form-button-font-size',
+        'buttonWeight'=>'--cmsdg-form-button-weight','inputColor'=>'--cmsdg-form-input-color',
+        'labelColor'=>'--cmsdg-form-label-color','focusColor'=>'--cmsdg-form-focus-color',
+        'stepRadius'=>'--cmsdg-form-step-radius','stepPadding'=>'--cmsdg-form-step-padding',
+        'stepBackground'=>'--cmsdg-form-step-bg','stepBorderColor'=>'--cmsdg-form-step-border',
+        'progressColor'=>'--cmsdg-form-progress-color'];
     private const ICON_PATHS=[
         'check'=>'<path d="M5 12l4 4L19 6"/>',
         'arrow'=>'<path d="M5 12h14m-6-6 6 6-6 6"/>',
@@ -87,7 +99,7 @@ final class DesignGraph
         self::keys($appearance,array_keys(self::FORM_CSS),$at);
         foreach($appearance as $key=>$value){
             if(isset(self::FORM_SIZES[$key]))self::check(self::integer($value,...self::FORM_SIZES[$key]),$at.' invalid form size '.$key);
-            elseif($key==='labelWeight')self::check(in_array($value,[400,500,600,700],true),$at.' invalid label weight');
+            elseif($key==='labelWeight'||$key==='buttonWeight')self::check(in_array($value,[400,500,600,700],true),$at.' invalid form font weight');
             else self::resolve($value,'colors',$tokens,$at.'/'.$key);
         }
     }
@@ -97,7 +109,7 @@ final class DesignGraph
         foreach($appearance as $key=>$value){
             $resolved=in_array($key,self::FORM_COLORS,true)
                 ? self::resolve($value,'colors',$tokens,$at.'/'.$key)
-                : $value.($key==='labelWeight'?'':'px');
+                : $value.(in_array($key,['labelWeight','buttonWeight','columns'],true)?'':'px');
             $declarations[]=self::FORM_CSS[$key].':'.$resolved;
         }
         return implode(';',$declarations);

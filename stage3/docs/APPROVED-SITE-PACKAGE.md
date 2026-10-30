@@ -1040,3 +1040,28 @@ Inside **one actual** `lead-form` / `lead-form-flex` section with the ordinary m
 ```
 
 The tablet/mobile objects are **overrides**, not copies: omitted properties inherit the desktop declaration. In Studio, the selected form-slot exposes the controls in both advanced Graph Inspector and page-wide Workbench. Every setting is finite and validated by **both** JS and PHP; unsafe `style` strings, arbitrary selectors, `javascript:` color values, duplicate form slots or a `form-slot` in a generic `custom-section` fail validation. The PHP Graph form-slot wrapper now emits a correctly quoted class attribute, closing an actual HTML parser ambiguity found in the server E2E. The Studio canvas provides disabled visual form fields and step selection; only PHP preview/published pages contain the real visitor form and action. Use actual approved image measurements, not assumed defaults.
+
+#### Adaptive form geometry and step design (31 October 2026)
+
+An existing `form-slot` can additionally express the following optional, device-specific presentation overrides in any of its three `formAppearance*` objects:
+
+| Property | Valid values | What the owner sees |
+| --- | --- | --- |
+| `columns` | integer 1–2 | Grid for fields inside the real form and each form step |
+| `maxWidth` | integer 240–1200 | Maximum form width in px; within the authored Graph container |
+| `labelGap` | integer 0–24 | Distance from label to control |
+| `inputFontSize`, `buttonFontSize` | 12–24, 12–28 | Text sizes in px |
+| `borderWidth` | integer 0–4 | Input/select/textarea border thickness in px |
+| `buttonWeight` | 400, 500, 600, 700 | Submit button font weight |
+| `labelColor`, `inputColor`, `focusColor` | HEX #RRGGBB or declared `@colorToken` | Labels, control values and keyboard focus ring |
+| `stepRadius`, `stepPadding` | integer 0–48, 0–40 | Multi-step group corners and inner padding in px |
+| `stepBackground`, `stepBorderColor`, `progressColor` | HEX or declared color token | Step card surface/outline and progress text |
+
+Every original field's request name and validation remain unchanged. The always-existing message field and any textarea span the entire grid. For an additional field created by the existing **flexible** form builder, optional `"fullWidth":true` also spans the entire row, even when the form uses two columns. Example of one safe author-created extra question:
+
+```json
+{"id":"field-project-type","label":"Тип проекта","kind":"select","required":true,
+ "options":["Сайт","Магазин"],"placeholder":"","fullWidth":true}
+```
+
+An approved stepped form is shown in the Studio Graph canvas as an **inert** titled step card with only that step's real manifest field labels, disabled controls, progress and navigation. This is not a visitor submission. The real PHP server preview/published page renders the actual `<fieldset class="lead-step">`, signed POST action and collector wiring. The scoped presentation applies to both, preserving ordinary forms without a Design Graph. Always inspect desktop/tablet/mobile and the real visitor form independently before owner acceptance.

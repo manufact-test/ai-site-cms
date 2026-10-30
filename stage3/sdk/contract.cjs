@@ -266,14 +266,15 @@ function validateFormFields(section){
   }
   const seen=new Set();
   for(const f of section.formFields){
-    objectKeys(f,['id','label','kind','required','options','placeholder','when'],'formField');
+    objectKeys(f,['id','label','kind','required','options','placeholder','when','fullWidth'],'formField');
     if(typeof f.id!=='string'||!/^field-[a-z][a-z0-9-]{2,49}$/.test(f.id)||seen.has(f.id))
       fail('Invalid or duplicate form field ID',section.id);
     seen.add(f.id);
     if(typeof f.label!=='string'||!f.label.trim()||f.label.length>100||/[\x00-\x1f]/.test(f.label)||
       !FORM_KINDS.includes(f.kind)||typeof f.required!=='boolean'||
       typeof f.placeholder!=='string'||f.placeholder.length>120||/[\x00-\x1f]/.test(f.placeholder)||
-      !Array.isArray(f.options))fail('Invalid additional form field',f.id);
+      !Array.isArray(f.options)||own(f,'fullWidth')&&typeof f.fullWidth!=='boolean')
+      fail('Invalid additional form field',f.id);
     if(['select','radio'].includes(f.kind)){
       if(f.options.length<2||f.options.length>12||new Set(f.options).size!==f.options.length||
         f.options.some(v=>typeof v!=='string'||!v.trim()||v.length>80||/[\x00-\x1f]/.test(v)))

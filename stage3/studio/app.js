@@ -2228,14 +2228,16 @@
                   if(node[layerKey]&&!Object.keys(node[layerKey]).length)delete node[layerKey];
                   return;
                 }
-                const bounds={gap:[0,64],inputRadius:[0,48],inputPadding:[4,32],
-                  buttonRadius:[0,48],buttonPadding:[6,32]};
+                const bounds={gap:[0,64],labelGap:[0,24],columns:[1,2],maxWidth:[240,1200],
+                  inputRadius:[0,48],inputPadding:[4,32],inputFontSize:[12,24],borderWidth:[0,4],
+                  stepRadius:[0,48],stepPadding:[0,40],
+                  buttonRadius:[0,48],buttonPadding:[6,32],buttonFontSize:[12,28]};
                 let value=val.trim();
                 if(Object.hasOwn(bounds,field)){
                   const raw=Number(value),[min,max]=bounds[field];
                   if(!Number.isInteger(raw)||raw<min||raw>max)throw Error('Введите число '+min+'–'+max+' px');
                   value=raw;
-                }else if(field==='labelWeight'){
+                }else if(field==='labelWeight'||field==='buttonWeight'){
                   value=Number(value);
                   if(![400,500,600,700].includes(value))throw Error('Допустимая насыщенность: 400 / 500 / 600 / 700');
                 }else if(!/^#[0-9a-f]{6}$/i.test(value)&&
@@ -2300,10 +2302,19 @@
               '. Пустое поле — наследовать стиль.';
             panel.append(help);
             for(const [key,label] of [['gap','Расстояние между полями, px'],
+              ['columns','Количество колонок формы (1–2)'],['maxWidth','Максимальная ширина формы, px'],
+              ['labelGap','Отступ от подписи, px'],
               ['inputRadius','Скругление поля, px'],['inputPadding','Внутренний отступ поля, px'],
+              ['inputFontSize','Размер текста поля, px'],['borderWidth','Толщина обводки поля, px'],
+              ['stepRadius','Скругление шага, px'],['stepPadding','Отступ внутри шага, px'],
               ['buttonRadius','Скругление кнопки, px'],['buttonPadding','Отступ кнопки, px'],
+              ['buttonFontSize','Размер текста кнопки, px'],['buttonWeight','Насыщенность кнопки (400–700)'],
               ['labelWeight','Насыщенность подписей (400–700)'],
               ['inputBackground','Фон полей · #hex / @token'],['borderColor','Цвет обводки · #hex / @token'],
+              ['inputColor','Текст полей · #hex / @token'],['labelColor','Подписи · #hex / @token'],
+              ['focusColor','Обводка в фокусе · #hex / @token'],
+              ['stepBackground','Фон шага · #hex / @token'],['stepBorderColor','Обводка шага · #hex / @token'],
+              ['progressColor','Цвет прогресса · #hex / @token'],
               ['buttonBackground','Фон кнопки · #hex / @token'],['buttonColor','Текст кнопки · #hex / @token']])
               property(label,'form:'+key,layer[key]??'');
           }
@@ -3647,11 +3658,20 @@
         const layer=n[layerKey]||{};
         const settings=[
           ['gap','Расстояние между полями (px)',0,64],
+          ['columns','Количество колонок формы (1–2)',1,2],
+          ['maxWidth','Максимальная ширина формы (px)',240,1200],
+          ['labelGap','Отступ от подписи (px)',0,24],
           ['inputRadius','Скругление полей (px)',0,48],
           ['inputPadding','Внутренний отступ полей (px)',4,32],
+          ['inputFontSize','Размер текста поля (px)',12,24],
+          ['borderWidth','Толщина обводки поля (px)',0,4],
+          ['stepRadius','Скругление шага (px)',0,48],
+          ['stepPadding','Отступ внутри шага (px)',0,40],
           ['buttonRadius','Скругление кнопки (px)',0,48],
           ['buttonPadding','Вертикальный отступ кнопки (px)',6,32],
-          ['labelWeight','Насыщенность подписей',400,700]];
+          ['buttonFontSize','Размер текста кнопки (px)',12,28],
+          ['labelWeight','Насыщенность подписей',400,700],
+          ['buttonWeight','Насыщенность кнопки',400,700]];
         const hint=make('p','',
           'cms-design-form-hint');hint.textContent='Оформление формы · '+(mode==='desktop'?'ПК':mode==='tablet'?'планшет':'телефон')+
           '. Пустые значения наследуют оформление старшего экрана.';
@@ -3661,7 +3681,7 @@
             if(!value.trim()){if(n[layerKey])delete n[layerKey][key];}
             else {
               const raw=Number(value);
-              const safe=key==='labelWeight'?([400,500,600,700].includes(raw)?raw:600):
+              const safe=['labelWeight','buttonWeight'].includes(key)?([400,500,600,700].includes(raw)?raw:600):
                 Math.round(Math.max(min,Math.min(max,Number.isFinite(raw)?raw:min)));
               (n[layerKey]||(n[layerKey]={}))[key]=safe;
             }
@@ -3669,6 +3689,8 @@
           },'number'));
         }
         for(const [key,label] of [['inputBackground','Фон поля'],['borderColor','Обводка поля'],
+          ['inputColor','Текст поля'],['labelColor','Подписи полей'],['focusColor','Обводка в фокусе'],
+          ['stepBackground','Фон шага'],['stepBorderColor','Обводка шага'],['progressColor','Цвет прогресса'],
           ['buttonBackground','Фон кнопки'],['buttonColor','Текст кнопки']]){
           fields.append(ctl(label+' · #112233 / @accent',layer[key]||'',value=>{
             const color=value.trim();
@@ -5238,7 +5260,8 @@
     }
     function createField(label,kind='text',required=false,extra={}){
       return {id:uniqueId('field-f'),label,kind,required,
-        options:extra.options||[],placeholder:extra.placeholder||'',...(extra.when?{when:extra.when}:{})};
+        options:extra.options||[],placeholder:extra.placeholder||'',
+        ...(extra.fullWidth?{fullWidth:true}:{}),...(extra.when?{when:extra.when}:{})};
     }
     function loadPreset(){
       if(!preset.value)return;
@@ -5374,9 +5397,12 @@
         options(kn,[['text','Текст'],['tel','Телефон'],['email','Email'],['select','Список'],['radio','Радиокнопки'],['checkbox','Флажок'],['number','Число'],['date','Дата'],['url','Ссылка'],['textarea','Длинный текст']]);
         kn.value=field.kind;
         const [required]=input('Обязательно','checkbox',field.required,v=>{field.required=v;drawSimulator();});
+        const [fullWidth]=input('На всю ширину формы (если 2 колонки)','checkbox',!!field.fullWidth,v=>{
+          if(v)field.fullWidth=true;else delete field.fullWidth;
+        });
         const [placeholder,pn]=input('Подсказка','text',field.placeholder,v=>{field.placeholder=v;drawSimulator();});
         pn.maxLength=120;
-        grid.append(label,kind,required,placeholder);
+        grid.append(label,kind,required,fullWidth,placeholder);
         if(['select','radio'].includes(field.kind)){
           const [choices,cn]=input('Варианты (один на строку)','textarea',field.options.join('\n'),v=>{
             field.options=v.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);render();

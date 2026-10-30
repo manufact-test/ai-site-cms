@@ -1241,9 +1241,16 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('[data-design-device="desktop"]').click();
     await page.locator('#cms-design-node-select').selectOption('graph-browser-lead-slot');
     await page.getByLabel('Расстояние между полями (px)').last().fill('24');
+    await page.getByLabel('Количество колонок формы (1–2)').last().fill('2');
+    await page.getByLabel('Максимальная ширина формы (px)').last().fill('920');
     assert.match((await graphFormFrame.locator('style').allTextContents()).join('\n'),/--cmsdg-form-gap:24px/);
+    assert.match((await graphFormFrame.locator('style').allTextContents()).join('\n'),/--cmsdg-form-columns:2/);
+    assert.equal(await graphFormFrame.locator('.cmsdg-form-preview').evaluate(el=>
+      getComputedStyle(el).gridTemplateColumns.split(' ').length),2,
+      'The authored desktop form is actually two columns in the inert canvas');
     await page.locator('[data-design-device="mobile"]').click();
     await page.getByLabel('Скругление кнопки (px)').last().fill('19');
+    await page.getByLabel('Количество колонок формы (1–2)').last().fill('1');
     assert.match((await graphFormFrame.locator('style').allTextContents()).join('\n'),/@media\(max-width:600px\)\{[^}]*--cmsdg-form-button-radius:19px/);
     await page.locator('#cms-design-form-step').selectOption('1');
     await graphFormFrame.getByText('Электронная почта').waitFor();
@@ -1251,6 +1258,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('[data-design-device="mobile"]').click();
     assert.equal(await page.locator('#cms-design-preview-frame').evaluate(el=>el.style.width),'390px');
     assert.match(await graphFormFrame.locator('.cmsdg-preview-progress').innerText(),/2 \/ 2/);
+    assert.equal(await graphFormFrame.locator('.cmsdg-form-preview').evaluate(el=>
+      getComputedStyle(el).gridTemplateColumns.split(' ').length),1,
+      'Mobile form column override is visually applied');
     await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Закрыть'}).click();
     await page.locator('#cms-open-page-preview').click();
     await page.locator('#cms-page-preview[open]').waitFor();
@@ -1263,10 +1273,13 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#cms-work-graph-node').inputValue(),'graph-browser-lead-slot');
     await page.locator('#cms-work-graph-panel [data-work-graph-field="form:gap"]').fill('26');
     await page.locator('#cms-work-graph-panel [data-work-graph-field="form:gap"]').dispatchEvent('change');
+    await page.locator('#cms-work-graph-panel [data-work-graph-field="form:labelGap"]').fill('11');
+    await page.locator('#cms-work-graph-panel [data-work-graph-field="form:labelGap"]').dispatchEvent('change');
     const workFormChanged=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages[1]
       .sections.find(section=>section.id==='section-graph-preview-ui');
     assert.equal(workFormChanged.designGraph.nodes[0].children[1].formAppearance?.gap,26,
       'Full-page workbench edits the actual typed Graph form appearance');
+    assert.equal(workFormChanged.designGraph.nodes[0].children[1].formAppearance?.labelGap,11);
 
     // Real native Chromium interaction, without adding a custom public runtime.
     const graphHost=require('../sdk/design-graph.cjs');

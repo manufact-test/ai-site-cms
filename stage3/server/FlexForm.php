@@ -71,7 +71,7 @@ final class FlexForm
         $seen = [];
         foreach ($fields as $field) {
             if (!is_array($field) || count(array_diff(array_keys($field),
-                ['id','label','kind','required','options','placeholder','when'])) ||
+                ['id','label','kind','required','options','placeholder','when','fullWidth'])) ||
                 count(array_diff(['id','label','kind','required','options','placeholder'], array_keys($field)))) {
                 throw new InvalidArgumentException('Invalid form field keys');
             }
@@ -90,7 +90,8 @@ final class FlexForm
                 || !is_bool($field['required']) || !is_string($placeholder)
                 || strlen($placeholder) > 120 || preg_match('//u', $placeholder) !== 1
                 || preg_match('/[\x00-\x1f]/', $placeholder)
-                || !is_array($field['options']) || !array_is_list($field['options'])) {
+                || !is_array($field['options']) || !array_is_list($field['options'])
+                || (array_key_exists('fullWidth',$field) && !is_bool($field['fullWidth']))) {
                 throw new InvalidArgumentException('Invalid form field definition');
             }
             if (in_array($kind, ['select','radio'], true)) $options = self::options($field['options']);
@@ -110,7 +111,7 @@ final class FlexForm
             }
             $result[] = ['name'=>$name,'label'=>$label,'kind'=>$kind,
                 'required'=>$field['required'],'options'=>$options,
-                'placeholder'=>$placeholder,'when'=>$when];
+                'placeholder'=>$placeholder,'when'=>$when,'fullWidth'=>$field['fullWidth']??false];
             if ($kind === 'select') $selects[$name] = $options;
         }
         return $result;

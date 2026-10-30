@@ -137,7 +137,7 @@ test('authored form fields render in a truthful inert Graph Studio preview',()=>
   const G=require('../sdk/design-graph.cjs'),site=same(initial);
   const section=sdk.sectionFrom(manifests.find(m=>m.id==='lead-form-flex'),'section-editor-preview');
   section.formFields=[{id:'field-interest',label:'Услуга <script> & детали',kind:'select',
-    required:false,options:['Проект & расчёт','Другое'],placeholder:''}];
+    required:false,options:['Проект & расчёт','Другое'],placeholder:'',fullWidth:true}];
   section.formSteps=[
     {title:'Контакт и интерес',fields:['name','field-interest']},
     {title:'Ответ клиенту',fields:['email','message']}
@@ -155,7 +155,9 @@ test('authored form fields render in a truthful inert Graph Studio preview',()=>
   assert.match(preview,/Услуга &lt;script&gt; &amp; детали/);
   assert.match(preview,/Проект &amp; расчёт/);
   assert.match(preview,/Шаг 1 \/ 2/);
+  assert.match(preview,/<fieldset class="cmsdg-preview-step"><legend>Контакт и интерес<\/legend>/);
   assert.match(preview,/data-cms-form-field="field-interest"/);
+  assert.match(preview,/data-cms-form-field="field-interest" class="cmsdg-preview-field cmsdg-preview-wide"/);
   assert.match(preview,/type="button" disabled/);
   assert.doesNotMatch(preview,/<form\b|action=|name="_token"|method="post"/i,
     'Offline Studio cannot submit or expose an editable form token');
@@ -164,29 +166,43 @@ test('authored form fields render in a truthful inert Graph Studio preview',()=>
   const editorPreview=G.render(site,structuredClone(section.designGraph),'',null,section.id,null,section);
   assert.match(editorPreview,/Услуга &lt;script&gt;/);
   const slot=section.designGraph.nodes[0].children[1];
-  slot.formAppearance={gap:22,inputRadius:16,inputPadding:14,buttonRadius:25,
-    buttonPadding:15,labelWeight:700,inputBackground:'#f5f8fa',
-    borderColor:'@muted',buttonBackground:'@accent',buttonColor:'#ffffff'};
-  slot.formAppearanceTablet={gap:12};
-  slot.formAppearanceMobile={gap:8,buttonRadius:12};
+  slot.formAppearance={gap:22,labelGap:9,columns:2,maxWidth:960,inputRadius:16,
+    inputPadding:14,inputFontSize:17,borderWidth:2,stepRadius:15,stepPadding:24,buttonRadius:25,
+    buttonPadding:15,buttonFontSize:18,buttonWeight:600,labelWeight:700,inputBackground:'#f5f8fa',
+    borderColor:'@muted',labelColor:'@foreground',inputColor:'#223344',focusColor:'@accent',
+    stepBackground:'#f8fafc',stepBorderColor:'@muted',progressColor:'@accent',
+    buttonBackground:'@accent',buttonColor:'#ffffff'};
+  slot.formAppearanceTablet={gap:12,columns:2};
+  slot.formAppearanceMobile={gap:8,columns:1,buttonRadius:12};
   sdk.validateSite(site,manifests);
   const styled=G.render(site,section.designGraph,'',null,section.id,null,section);
   for(const value of ['--cmsdg-form-gap:22px','--cmsdg-form-input-radius:16px',
     '--cmsdg-form-button-padding:15px','--cmsdg-form-label-weight:700',
-    '--cmsdg-form-button-bg:#0a5bff','--cmsdg-form-border:#667788']){
+    '--cmsdg-form-button-bg:#0a5bff','--cmsdg-form-border:#667788',
+    '--cmsdg-form-columns:2','--cmsdg-form-max-width:960px',
+    '--cmsdg-form-input-font-size:17px','--cmsdg-form-border-width:2px',
+    '--cmsdg-form-button-weight:600','--cmsdg-form-focus-color:#0a5bff',
+    '--cmsdg-form-step-radius:15px','--cmsdg-form-step-padding:24px',
+    '--cmsdg-form-step-bg:#f8fafc','--cmsdg-form-progress-color:#0a5bff']){
     assert.ok(styled.includes(value),'Preview form appearance '+value);
   }
   assert.match(styled,/@media\(max-width:900px\)\{[^}]*--cmsdg-form-gap:12px/);
   assert.match(styled,/@media\(max-width:600px\)\{[^}]*--cmsdg-form-gap:8px/);
+  assert.match(styled,/@media\(max-width:600px\)\{[^}]*--cmsdg-form-columns:1/);
+  assert.match(G.render(site,section.designGraph,'',null,section.id,null,section,1),/cmsdg-preview-wide/);
+  assert.match(styled,/grid-template-columns:repeat\(var\(--cmsdg-form-columns,1\)/);
   assert.match(styled,/var\(--cmsdg-form-button-radius,10px\)/);
   const clean=JSON.stringify(slot);
-  for(const [key,badValue] of [['gap',-1],['inputRadius',999],['borderColor','url(javascript:evil)'],
-    ['labelWeight',900],['buttonBackground','@missing']]){
+  section.formFields[0].fullWidth='yes';refuses(()=>sdk.validateSite(site,manifests));
+  section.formFields[0].fullWidth=true;
+  for(const [key,badValue] of [['gap',-1],['columns',3],['maxWidth',2000],
+    ['inputFontSize',8],['borderWidth',12],['stepPadding',99],['inputRadius',999],['borderColor','url(javascript:evil)'],
+    ['labelWeight',900],['buttonWeight',900],['focusColor','@missing'],['buttonBackground','@missing']]){
     slot.formAppearance[key]=badValue;refuses(()=>sdk.validateSite(site,manifests));
     Object.assign(slot,JSON.parse(clean));
   }
   slot.formAppearanceMobile={gap:'12px'};refuses(()=>sdk.validateSite(site,manifests));
-  slot.formAppearanceMobile={gap:8,buttonRadius:12};
+  slot.formAppearanceMobile={gap:8,columns:1,buttonRadius:12};
   slot.formAppearance={...slot.formAppearance,unrestrictedCss:'expression(evil)'};refuses(()=>sdk.validateSite(site,manifests));
   Object.assign(slot,JSON.parse(clean));
   section.designGraph.nodes[0].formAppearance={gap:8};

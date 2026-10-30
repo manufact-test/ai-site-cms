@@ -346,9 +346,12 @@ $formSection=['id'=>'section-graph-lead','component'=>'lead-form','manifestVersi
             'responsive'=>['mobile'=>['columns'=>1]],'children'=>[
                 ['id'=>'graph-lead-intro','type'=>'text','text'=>'Вопрос по проекту'],
                 ['id'=>'graph-live-form-slot','type'=>'form-slot','styles'=>['padding'=>16],
-                  'formAppearance'=>['gap'=>20,'inputRadius'=>15,'buttonRadius'=>24,
-                      'inputBackground'=>'#f5f8fa','buttonBackground'=>'@accent'],
-                  'formAppearanceMobile'=>['gap'=>9,'buttonRadius'=>10]]
+                  'formAppearance'=>['gap'=>20,'labelGap'=>8,'columns'=>2,'maxWidth'=>900,
+                      'inputRadius'=>15,'inputFontSize'=>18,'borderWidth'=>2,'stepRadius'=>12,
+                      'stepPadding'=>22,'stepBackground'=>'#f8fafc','progressColor'=>'@accent','buttonRadius'=>24,
+                      'buttonFontSize'=>17,'buttonWeight'=>600,'inputColor'=>'#223344',
+                      'focusColor'=>'@accent','inputBackground'=>'#f5f8fa','buttonBackground'=>'@accent'],
+                  'formAppearanceMobile'=>['gap'=>9,'columns'=>1,'buttonRadius'=>10]]
             ]]]]];
 $formSite['pages'][0]['sections'][]=$formSection;
 $validator->validate($formSite);
@@ -366,14 +369,26 @@ graphTest(substr_count($publishedForm,'<form class="lead-form"')===1
     &&str_contains($publishedForm,'name="consent"'),
     'A typed Graph form slot renders the existing real secure PHP form once');
 graphTest(str_contains($publishedForm,'--cmsdg-form-gap:20px')
+    &&str_contains($publishedForm,'--cmsdg-form-columns:2')
+    &&str_contains($publishedForm,'--cmsdg-form-max-width:900px')
+    &&str_contains($publishedForm,'--cmsdg-form-button-weight:600')
+    &&str_contains($publishedForm,'--cmsdg-form-focus-color:#0a5bff')
+    &&str_contains($publishedForm,'--cmsdg-form-step-padding:22px')
+    &&str_contains($publishedForm,'--cmsdg-form-step-bg:#f8fafc')
+    &&str_contains($publishedForm,'class="lead-field-message"')
+    &&str_contains($publishedForm,'grid-template-columns:repeat(var(--cmsdg-form-columns,1)')
     &&str_contains($publishedForm,'--cmsdg-form-input-radius:15px')
     &&str_contains($publishedForm,'--cmsdg-form-button-bg:#0a5bff')
-    &&str_contains($publishedForm,'@media(max-width:600px){.cmsdg-graph-live-lead .cmsdg-n-graph-live-form-slot{--cmsdg-form-gap:9px;--cmsdg-form-button-radius:10px}}')
+    &&str_contains($publishedForm,'@media(max-width:600px){.cmsdg-graph-live-lead .cmsdg-n-graph-live-form-slot{--cmsdg-form-gap:9px;--cmsdg-form-columns:1;--cmsdg-form-button-radius:10px}}')
     &&str_contains($publishedForm,'var(--cmsdg-form-input-radius,8px)'),
     'Public PHP form exposes validated per-device appearance overrides');
 $invalidForm=$formSite;
 $invalidForm['pages'][0]['sections'][2]['designGraph']['nodes'][0]['children'][1]['formAppearance']['inputRadius']=999;
 try{$validator->validate($invalidForm);throw new RuntimeException('Oversized form radius accepted');}
+catch(InvalidArgumentException $expected){}
+$invalidForm=$formSite;
+$invalidForm['pages'][0]['sections'][2]['designGraph']['nodes'][0]['children'][1]['formAppearance']['columns']=3;
+try{$validator->validate($invalidForm);throw new RuntimeException('Three-column form accepted');}
 catch(InvalidArgumentException $expected){}
 $invalidForm=$formSite;
 $invalidForm['pages'][0]['sections'][2]['designGraph']['nodes'][0]['children'][1]['formAppearance']['buttonBackground']='url(javascript:bad)';
