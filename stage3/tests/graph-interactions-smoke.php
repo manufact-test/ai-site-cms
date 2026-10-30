@@ -227,4 +227,31 @@ graphTest(str_contains($geomHtml,'min-height:90vh;min-height:90svh')&&
     str_contains($geomHtml,'padding-top:12px')&&
     str_contains($geomHtml,'radial-gradient(circle closest-side at 25% 70%'),
     'PHP renderer must preserve authored viewport and radial geometry');
+$gallerySite=$site;
+$gallerySite['assets'][]=['id'=>'asset-photo-alpha','src'=>'/assets/asset-photo-alpha.png',
+    'alt'=>'Фасад','mime'=>'image/png'];
+$gallerySite['assets'][]=['id'=>'asset-photo-beta','src'=>'/assets/asset-photo-beta.png',
+    'alt'=>'Интерьер','mime'=>'image/png'];
+$gallerySite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'gallery-portfolio','type'=>'gallery','text'=>'Объекты компании',
+    'layout'=>'grid','columnsDesktop'=>4,'columnsTablet'=>2,'columnsMobile'=>1,'lightbox'=>true,
+    'children'=>[
+      ['id'=>'gallery-photo-alpha','type'=>'image','assetId'=>'asset-photo-alpha',
+        'alt'=>'Фасад','caption'=>'Проект <первый>','styles'=>[]],
+      ['id'=>'gallery-photo-beta','type'=>'image','assetId'=>'asset-photo-beta',
+        'alt'=>'Интерьер','caption'=>'Уют & свет','styles'=>[]]
+    ]];
+$validator->validate($gallerySite);
+$galleryHtml=PublicRenderer::html($gallerySite,'/');
+graphTest(str_contains($galleryHtml,'cmsdg-gallery-grid')&&
+    str_contains($galleryHtml,'--cmsdg-gallery-columns:4;--cmsdg-gallery-tablet:2;--cmsdg-gallery-mobile:1')&&
+    str_contains($galleryHtml,'popovertarget="cmsdg-lightbox-gallery-photo-alpha"')&&
+    str_contains($galleryHtml,'<figcaption>Проект &lt;первый&gt;</figcaption>')&&
+    !str_contains($galleryHtml,'<первый>'),
+    'PHP renders real gallery with safe captions and native lightbox');
+$badGallery=$gallerySite;
+$last=count($badGallery['pages'][0]['sections'][2]['designGraph']['nodes'])-1;
+$badGallery['pages'][0]['sections'][2]['designGraph']['nodes'][$last]['children'][0]['href']='/';
+try{$validator->validate($badGallery);throw new RuntimeException('Conflicting lightbox link accepted');}
+catch(InvalidArgumentException $expected){}
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";
