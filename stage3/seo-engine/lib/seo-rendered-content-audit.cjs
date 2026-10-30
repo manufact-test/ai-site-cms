@@ -6,6 +6,8 @@ const BP=require('./blueprint.cjs');
 const HTTP=require('./delivery-evidence.cjs');
 const HTML=require('./html-evidence.cjs');
 const PARITY=require('./parity.cjs');
+const CHROME=require('./seo-rendered-capture.cjs');
+const crypto=require('node:crypto');
 const FORMAT='manufact-seo-rendered-content-audit-v1';
 const DEVICES=['desktop','tablet','mobile'];
 const HASH=/^[a-f0-9]{64}$/;
@@ -69,7 +71,12 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
  const origin=HTTP.assertEvidence(capture).href;
  assert(capture.origin===origin,'normalized HTTPS origin/mount required');
  if(expectedBase!==null)assert(origin===expectedBase,'approved HTTPS mount differs from source');
- assert(viewports?.format==='manufact-seo-viewport-evidence-v1'&&
+ const version2=viewports?.format===CHROME.FORMAT;
+ if(version2){
+  CHROME.assertV2(viewports,captureRawSha256);
+  assert(viewports.origin===origin&&viewports.siteId===plan.siteId,
+   'rendered capture v2 mount or client ID differs from original HTTPS capture');
+ }else assert(viewports?.format==='manufact-seo-viewport-evidence-v1'&&
   viewports.siteId===plan.siteId&&Array.isArray(viewports.pages)&&
   viewports.pages.length<=80,'same-site original viewport capture required');
  const byHttp=new Map(),byView=new Map(),allPaths=new Set(plan.pages.map(p=>p.path));
@@ -133,6 +140,19 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   const expectedH1=p.sections.find(s=>s.level===1);
   for(const device of DEVICES){
    const v=views?.captures[device],rendered=v?.method==='rendered-dom';
+   if(version2&&server&&v&&(!v.matchesOriginalHttpBody||
+    v.serverResponseSha256!==crypto.createHash('sha256').update(source?.html||'','utf8').digest('hex'))){
+    report.devices[device]={inspected:false,method:v.method,reason:'browser-http-body-drift'};
+    issue(p,device,'browser-http-body-drift','P1',
+     'Original navigation HTML differs from saved public HTTPS source; this DOM must not be used for source-pair conclusions.');
+    continue;
+   }
+   if(version2&&v&&!v.stableMarkup){
+    report.devices[device]={inspected:false,method:v.method,reason:'rendered-dom-unsettled'};
+    issue(p,device,'dom-not-settled','P1',
+     'Browser DOM kept changing during bounded capture; obtain a new same-release snapshot.');
+    continue;
+   }
    if(!rendered||!server){
     report.devices[device]={inspected:false,method:v?.method||null,
      reason:!server?'http-source-unavailable':v?'not-rendered-dom':'viewport-missing'};
@@ -140,6 +160,14 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
      'Rendered DOM evidence not supplied; static HTML cannot establish post-JavaScript SEO state.');
     continue;
    }
+   if(version2&&v.pageErrors>0)issue(p,device,'browser-script-errors','P1',
+    'Browser reported page JavaScript errors during rendered snapshot; inspect runtime logs separately.',
+    {pageErrorCount:v.pageErrors});
+   if(version2&&v.blockedRequests>0)issue(p,device,'blocked-browser-requests','P1',
+    'Browser denied '+v.blockedRequests+' requests ('+
+     CHROME.BLOCK_REASONS.filter(k=>v.blockedReasons[k]>0).map(
+      k=>k+': '+v.blockedReasons[k]).join(', ')+'); rendering may be incomplete.',
+    {blockedRequestCount:v.blockedRequests,blockedReasonCounts:v.blockedReasons});
    const current=head(v.html,expected),observedRoutes=routes(current.parsed,expected,origin,allPaths);
    const serverRoutes=routes(server.parsed,expected,origin,allPaths);
    if(current.meta.status!=='parsed-head')issue(p,device,'rendered-head-incomplete','P1',
@@ -244,14 +272,29 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
  findings.sort((a,b)=>LEVEL[a.priority]-LEVEL[b.priority]||
   a.pageId.localeCompare(b.pageId)||String(a.device).localeCompare(String(b.device))||
   a.code.localeCompare(b.code)||a.id.localeCompare(b.id));
+ const browserBodyMatches=(p,device)=>{
+  const sourceBody=byHttp.get(p.id)?.html,v=p.captures[device];
+  return typeof sourceBody==='string'&&v.matchesOriginalHttpBody&&
+   v.serverResponseSha256===crypto.createHash('sha256').update(sourceBody,'utf8').digest('hex');
+ };
  const summary={plannedPages:plan.pages.length,httpInspectedPages:pages.filter(p=>p.httpInspected).length,
   fullyComparedPages:pages.filter(p=>p.evidenceState==='SOURCE-PAIR-OBSERVED').length,
   missingRenderPages:pages.filter(p=>p.evidenceState!=='SOURCE-PAIR-OBSERVED').length,
   inspectedDevicePairs:pages.reduce((n,p)=>n+DEVICES.filter(d=>p.devices[d].inspected).length,0),
+  browserResponseMatchedPairs:version2?viewports.pages.reduce((n,p)=>n+DEVICES.filter(d=>browserBodyMatches(p,d)).length,0):null,
+  browserResponseDriftPairs:version2?viewports.pages.reduce((n,p)=>n+DEVICES.filter(d=>!browserBodyMatches(p,d)).length,0):null,
+  browserBlockedPairs:version2?viewports.pages.reduce((n,p)=>n+DEVICES.filter(d=>p.captures[d].blockedRequests>0).length,0):null,
+  browserBlockedReasonCounts:version2?Object.fromEntries(CHROME.BLOCK_REASONS.map(k=>
+   [k,viewports.pages.reduce((n,p)=>n+DEVICES.reduce(
+    (count,d)=>count+p.captures[d].blockedReasons[k],0),0)])):null,
+  browserPageErrorPairs:version2?viewports.pages.reduce((n,p)=>n+DEVICES.filter(d=>p.captures[d].pageErrors>0).length,0):null,
+  browserUnsettledPairs:version2?viewports.pages.reduce((n,p)=>n+DEVICES.filter(d=>!p.captures[d].stableMarkup).length,0):null,
   P0:findings.filter(f=>f.priority==='P0').length,
   P1:findings.filter(f=>f.priority==='P1').length,
   P2:findings.filter(f=>f.priority==='P2').length};
  return {format:FORMAT,version:1,siteId:plan.siteId,base:origin,
+  renderedCaptureFormat:viewports.format,
+  originalHttpBytePinnedInRenderedCapture:version2,
   inputSHA256:{blueprint:blueprintRawSha256,site:siteRawSha256,
    publicHttp:captureRawSha256,viewports:viewportsRawSha256},
   pages,findings,summary,

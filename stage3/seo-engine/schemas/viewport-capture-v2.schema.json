@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Read-only original public Chromium rendered SEO capture v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "siteId",
+    "origin",
+    "capturedAt",
+    "publicCaptureRawSha256",
+    "browser",
+    "pages",
+    "httpSourceAuthenticated",
+    "browserProvenanceAuthenticated",
+    "sourceRevisionAuthenticated",
+    "googleRenderingVerified",
+    "releaseAuthorized"
+  ],
+  "properties": {
+    "format": {
+      "const": "manufact-seo-viewport-evidence-v2"
+    },
+    "siteId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,79}$"
+    },
+    "origin": {
+      "type": "string",
+      "format": "uri"
+    },
+    "capturedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "publicCaptureRawSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine",
+        "requestPolicy",
+        "ephemeralContext"
+      ],
+      "properties": {
+        "engine": {
+          "const": "chromium-playwright"
+        },
+        "requestPolicy": {
+          "const": "same-origin-GET-HEAD-no-websocket"
+        },
+        "ephemeralContext": {
+          "const": true
+        }
+      }
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 60,
+      "items": {
+        "$ref": "#/$defs/page"
+      }
+    },
+    "httpSourceAuthenticated": {
+      "const": false
+    },
+    "browserProvenanceAuthenticated": {
+      "const": false
+    },
+    "sourceRevisionAuthenticated": {
+      "const": false
+    },
+    "googleRenderingVerified": {
+      "const": false
+    },
+    "releaseAuthorized": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "html",
+        "htmlSha256",
+        "requestUrl",
+        "responseUrl",
+        "status",
+        "viewport",
+        "collectedAt",
+        "blockedRequests",
+        "blockedReasons",
+        "pageErrors",
+        "stableMarkup",
+        "serverResponseSha256",
+        "matchesOriginalHttpBody"
+      ],
+      "properties": {
+        "method": {
+          "const": "rendered-dom"
+        },
+        "html": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 250000
+        },
+        "htmlSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "requestUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "responseUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "status": {
+          "const": 200
+        },
+        "viewport": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "width",
+            "height"
+          ],
+          "properties": {
+            "width": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "collectedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "blockedRequests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pageErrors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stableMarkup": {
+          "type": "boolean"
+        },
+        "serverResponseSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "matchesOriginalHttpBody": {
+          "type": "boolean"
+        },
+        "blockedReasons": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "offOrigin",
+            "outsideMount",
+            "unsafeMethod",
+            "unapprovedNavigation",
+            "requestBudget",
+            "other"
+          ],
+          "properties": {
+            "offOrigin": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "outsideMount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unsafeMethod": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unapprovedNavigation": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "requestBudget": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "other": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "captures"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{2,79}$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/(?:[a-z0-9-]+/)*$"
+        },
+        "captures": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "desktop",
+            "tablet",
+            "mobile"
+          ],
+          "properties": {
+            "desktop": {
+              "$ref": "#/$defs/capture"
+            },
+            "tablet": {
+              "$ref": "#/$defs/capture"
+            },
+            "mobile": {
+              "$ref": "#/$defs/capture"
+            }
+          }
+        }
+      }
+    }
+  }
+}

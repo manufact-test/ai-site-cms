@@ -19,6 +19,13 @@ function render(report){
   'Compared pages: '+s.fullyComparedPages+'/'+s.plannedPages+
    ' · observed device pairs: '+s.inspectedDevicePairs+' · P0: '+s.P0+
    ' · P1: '+s.P1+' · P2: '+s.P2,
+  ...(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?[
+   '',
+   'Chromium main-response body matches: '+s.browserResponseMatchedPairs+'/'+(s.plannedPages*3)+
+   ' · drift: '+s.browserResponseDriftPairs+' · blocked-request pairs: '+s.browserBlockedPairs+
+   ' · script-error pairs: '+s.browserPageErrorPairs+' · changing-DOM pairs: '+s.browserUnsettledPairs,
+   'Denied reasons: '+Object.entries(s.browserBlockedReasonCounts).map(([k,n])=>k+'='+n).join(' · '),
+  ]:[]),
   '',
   '## Coverage',
   '',
@@ -52,7 +59,11 @@ function render(report){
   '<div class="eyebrow">PRIVATE · READ-ONLY · NOT RELEASE AUTHORIZATION</div>'+
   '<h1>Rendered SEO content reconciliation</h1>'+
   '<p>Operator-provided original HTTP HTML vs desktop, tablet and mobile rendered DOM; linked to approved Blueprint. No host/browser provenance or deployed source revision is authenticated.</p>'+
-  '<div class="kpis">'+[['Compared',s.fullyComparedPages+'/'+s.plannedPages],['Device pairs',s.inspectedDevicePairs],['P0',s.P0],['P1',s.P1],['P2',s.P2]].map(x=>'<div class="kpi"><b>'+esc(x[1])+'</b>'+esc(x[0])+'</div>').join('')+'</div>'+
+  '<div class="kpis">'+[['Compared',s.fullyComparedPages+'/'+s.plannedPages],['Device pairs',s.inspectedDevicePairs],['P0',s.P0],['P1',s.P1],['P2',s.P2],
+   ...(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?[
+    ['HTTP body matches',s.browserResponseMatchedPairs+'/'+(s.plannedPages*3)],
+    ['Body drift',s.browserResponseDriftPairs],['Blocked request pairs',s.browserBlockedPairs],
+    ['Script error pairs',s.browserPageErrorPairs],['Unsettled DOM pairs',s.browserUnsettledPairs]]:[])].map(x=>'<div class="kpi"><b>'+esc(x[1])+'</b>'+esc(x[0])+'</div>').join('')+'</div>'+
   '<section><h2>Evidence coverage</h2><div class="scroll"><table><thead><tr><th>Page</th><th>Route</th><th>HTTP</th><th>Desktop</th><th>Tablet</th><th>Mobile</th></tr></thead><tbody>'+
   report.pages.map(p=>'<tr><td>'+esc(p.pageId)+'</td><td>'+esc(p.path)+'</td><td>'+(p.httpInspected?'observed':'unknown')+
    '</td>'+['desktop','tablet','mobile'].map(d=>'<td>'+esc(p.devices[d].inspected?'rendered DOM':p.devices[d].reason)+'</td>').join('')+'</tr>').join('')+

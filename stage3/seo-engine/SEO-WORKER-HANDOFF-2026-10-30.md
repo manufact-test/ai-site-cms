@@ -1,3 +1,15 @@
+## 30 October 2026 — Chromium rendered-source first-client pilot collector
+
+**Delivered in SEO worker branch only:** [RENDERED-CAPTURE-PILOT.md](RENDERED-CAPTURE-PILOT.md). This extends the existing read-only HTTP-to-DOM reconciliation with an **explicitly operator-run Chromium collector**; it is not a CMS feature, a site template or a new operator dashboard.
+
+- `lib/seo-rendered-capture.cjs`: approved Blueprint/Site/public-HTTPS triple validation, public-only DNS/IPv4 pin, sandboxed isolated Playwright Chromium contexts, explicit GET/HEAD same-mount routing, WebSocket/service-worker and unsafe navigation blocks, 80-requests-per-device budget, full desktop/tablet/mobile DOM serialization. Refuses invalid or mutable input envelopes.
+- `bin/capture-rendered-public.cjs`: operator CLI requires `--blueprint --site --public-http --origin --out`; source-hashed no-overwrite private artifact plus redacted integrity receipt. Never run without a human-approved real public host.
+- `schemas/viewport-capture-v2.schema.json`: strict schema with raw original HTTP capture file SHA256 **and** browser main-response-body SHA256 per page/device, explicit booleans for unmatched HTML, JavaScript errors, blocked requests, and DOM stability. No server or Google provenance is claimed.
+- `lib/seo-rendered-content-audit.cjs`: backward-compatible v1/v2 intake. For v2, a changed browser main response or unsettled DOM fails closed to P1/uninspected; existing private static HTML/Markdown report now shows browser source match, drift, blocked-request, JS error and unstable DOM counts.
+- `tests/seo-rendered-capture-smoke.cjs`: focused offline Node smoke with mocked browser, no network. The checkout test and a real authorized Chromium/site pilot **still require execution**; this note does not claim they passed.
+
+Operator flow: existing `capture-public-https.cjs` → new `capture-rendered-public.cjs` → existing `review-rendered-content.cjs` or existing Operator Workspace `crawl.renderedCapture`. These are source observations only: no Google rendering, owner source revision, approval, publish/deploy or release signoff is authenticated. All original DOM stays outside Git; main developer is the only integrator.
+
 ## Independent SEO worker addendum — 30 October 2026: rendered HTML/DOM reconciliation delivered
 
 Latest new functionality (after the previously confirmed `2fc5517b...` checkpoint): [RENDERED-CONTENT-QA.md](RENDERED-CONTENT-QA.md). Added a source-pinned, private **HTTP HTML vs actual operator-supplied desktop/tablet/mobile rendered DOM** comparison: approved routes, canonical/noindex and other head metadata mutations, H1/main, navigation/CTA, JSON-LD root types and gaps. New `lib/seo-rendered-content-audit.cjs`, view, standalone `bin/review-rendered-content.cjs`, synthetic Node smoke; integrated as optional `crawl.renderedCapture` into the existing ONE SEO workspace and unsigned lead packet hashes. Readiness has **13** human gates, the new `rendered-seo-content-parity` stays manual/blocked with missing sources.
