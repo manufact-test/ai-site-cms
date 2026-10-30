@@ -969,26 +969,3 @@ The isolated HTTP E2E exposed incomplete PHP gzip bytes for the large compiled `
 Author-owned Design Graph containers now support safe `styles.gridTracks: [2,3,1]` (2–6 integer fractional weights 1–12) and `styles.gridAutoRowsPx: 96` (24–600) at independent desktop, tablet and mobile breakpoints. Combined child `gridColumnStart/gridColumnSpan` and `gridRowStart/gridRowSpan` emit stable placement regardless of JSON property order. Exclusive `columns`, `gridColumnsPreset`, and `gridTracks` protect template intent per device. Semantic `container.semanticTag` is restricted to `div/article/section/aside`, with an optional safe, escaped `ariaLabel` for non-div landmarks (1–120 characters). Full and whole-page Studio editors expose authoring controls, with PHP and JS rendering and isolated contract tests. Existing sites remain compatible; this does not add arbitrary HTML, remote assets or template-factory behavior. MUST tally/owner acceptance unchanged; real customer mockup comparison is still required.
 
 Whole-page canvas inspector now exposes each nested element's independent desktop/tablet/mobile grid column/row start, span, and justify-self controls under geometry, so asymmetric text, art and interactive cards can be laid out without opening the advanced designer. Invalid geometry is rejected by the same safe Graph validator and supports Undo.
-
-### 30 October 2026 — six editable composition starters, shared between both Studio modes
-
-The first-party stage3/sdk/composition-patterns.cjs defines six fully typed authoring starters:
-editorial-split (asymmetric copy/image), project-case (image with project facts), service-cards
-(three interactive cards), pricing-grid (three editable tier cards and native lists),
-media-hero (site-owned responsive background photo with overlay), and faq-feature
-(native accessible disclosures and an editorial text column).
-
-Both the full Design Graph editor and the whole-page visual workspace expose the same
-composition picker, site-owned raster media chooser and optional distinct tablet/mobile
-assets. Each starter inserts as a new root sibling after the selected root ancestor,
-keeping table/list/gallery nesting safe. The operation is immutable and passes the
-same Graph/site validation as manual edits; a successful insert is one Undo revision.
-
-The starters are NOT final client templates: every heading, price, link, image,
-device style, motion and individual descendant remains editable. CTA links use the
-existing root path as a safe placeholder; prices explicitly say they are on request.
-PHP/HTML/Next.js publication consumes the unchanged typed Design Graph renderer.
-The deterministic offline fixture verifies 61 starter nodes in PHP visitor rendering;
-JS smoke cases validate each pattern, responsive geometry, media ownership,
-duplication and nonmutation. The hermetic bundle is compiled from the new module.
-No main, SEO-worker, production, MUST status or owner acceptance has changed.

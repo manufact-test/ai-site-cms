@@ -316,15 +316,4 @@ foreach(['gridTracks'=>[1,'bad'],'gridAutoRowsPx'=>9999] as $key=>$value){
 }
 $invalid=$editorialSite;$invalid['pages'][0]['sections'][2]['designGraph']['nodes'][0]['semanticTag']='script';
 try{$validator->validate($invalid);throw new RuntimeException('Bad semantic tag accepted');}catch(InvalidArgumentException $expected){}
-$patternSite=$site;
-$patternGraph=json_decode(file_get_contents(dirname(__DIR__).'/fixtures/composition-patterns.json'),true,512,JSON_THROW_ON_ERROR);
-$patternSite['pages'][0]['sections'][2]['designGraph']=$patternGraph;
-$validator->validate($patternSite);
-$patternHtml=PublicRenderer::html($patternSite,'/');
-graphTest(str_contains($patternHtml,'Стоимость по запросу')&&str_contains($patternHtml,'cmsdg-list')
-  &&str_contains($patternHtml,'<details')&&str_contains($patternHtml,'<article'),
-  'PHP renders complete service, pricing and interactive FAQ composition starters');
-graphTest(str_contains($patternHtml,'@media(max-width:600px)')&&
-  str_contains($patternHtml,'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)'),
-  'PHP renders responsive multi-column starters');
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";

@@ -1913,47 +1913,6 @@ test('grid gallery captions, native lightbox and safe click-actions',()=>{
   assert.match(G.render(site,section.designGraph),/cmsdg-gallery-item/);
 });
 
-test('six typed composition patterns: responsive, immutable and safe',()=>{
-  const G=require('../sdk/design-graph.cjs'),P=require('../sdk/composition-patterns.cjs');
-  const photo={id:'owned-pattern-photo',mime:'image/png',src:'/assets/pattern-sample.png',
-    alt:'Визуализация клиентского проекта',width:1200,height:800};
-  const mobile={...photo,id:'owned-pattern-mobile',src:'/assets/pattern-mobile.png'};
-  const assets=new Set([photo.id,mobile.id]);
-  const media=new Map([[photo.id,photo.mime],[mobile.id,mobile.mime]]);
-  const renderingSite={assets:[photo,mobile],designTokens:G.DEFAULT_TOKENS};
-  assert.equal(Object.keys(P.PATTERNS).length,6);
-  for(const key of Object.keys(P.PATTERNS)){
-    let n=0;const options={id:()=>('pattern-'+key+'-'+(++n)),asset:photo};
-    if(P.PATTERNS[key].needsImage)options.mobileAsset=mobile;
-    const node=P.create(key,options),graph={version:1,id:'patterns-test-graph',nodes:[node]};
-    G.validateGraph(graph,assets,new Set(),G.DEFAULT_TOKENS,media);
-    const html=G.render(renderingSite,graph);
-    assert.match(html,/<(?:section|article)/);
-    assert.match(html,/@media\(max-width:600px\)/);
-    assert.doesNotMatch(html,/<script|javascript:/i);
-    if(P.PATTERNS[key].needsImage)assert.match(html,/pattern-(?:sample|mobile)\.png/);
-    if(key==='pricing-grid')assert.match(html,/Стоимость по запросу/);
-    if(key==='faq-feature')assert.match(html,/<details/);
-    const original=JSON.stringify(graph);
-    let serial=100;const result=P.insert(graph,node.children[0].id,key,{
-      id:()=>('pattern-copy-'+(++serial)),asset:photo
-    });
-    G.validateGraph(result.graph,assets,new Set(),G.DEFAULT_TOKENS,media);
-    assert.equal(result.graph.nodes.length,2);
-    assert.equal(result.graph.nodes[1].id,result.nodeId);
-    assert.equal(JSON.stringify(graph),original,'original graph must stay unchanged');
-    assert.match(G.render(renderingSite,result.graph),/cmsdg-n-pattern-copy/);
-  }
-  let n=0;const id=()=>('valid-pattern-node-'+(++n));
-  refuses(()=>P.create('unknown',{id,asset:photo}),'reject unknown pattern');
-  refuses(()=>P.create('editorial-split',{id}),'require uploaded media');
-  refuses(()=>P.create('media-hero',{id,asset:{id:'bad-media',mime:'text/html'}}),'reject HTML as media');
-  refuses(()=>P.create('pricing-grid',{id,mobileAsset:mobile}),'non-media pattern refuses device images');
-  refuses(()=>P.insert({version:1,id:'empty-graph',nodes:[]},'missing','pricing-grid',{id}),'reject missing anchor');
-  const wrongGraph={version:1,id:'bad-owned-asset',nodes:[P.create('media-hero',{id,asset:photo})]};
-  refuses(()=>G.validateGraph(wrongGraph,new Set(),new Set(),G.DEFAULT_TOKENS,new Map()),'no cross-site media');
-});
-
 test('135 mandatory requirements keep evidence and honest owner acceptance',()=>{
   const ledger=read('mandatory-coverage.json');
   assert.equal(ledger.totalRequired,135);
