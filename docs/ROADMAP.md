@@ -542,3 +542,8 @@ Approved-site typed galleries now accept optional `photoShapeTablet` and `photoS
 ### 30 October 2026 — no-JavaScript horizontal gallery navigation
 
 Typed gallery nodes now accept optional boolean `scrollControls` for horizontal `scroll` layout only (not `grid`). Both Studio editors offer the option; switching to grid disables it. The PHP and first-party JS visitor render per-photo previous/next links targeting stable photo IDs, localized accessible labels and visible keyboard focus, without external JS or third-party carousel dependencies. Existing swipe scrolling remains; each gallery image, caption, source asset, and native lightbox behavior remain independent. Two visitor validator tests cover the generated anchors and invalid types. This is functional engineering; verify the real approved client design on desktop/tablet/mobile before owner acceptance. No production, SEO-worker, main or ownerAccepted changes.
+
+
+### 30 October 2026 — responsive carousel visible-card counts
+
+Individual horizontally scrolling galleries can now opt into `visibleDesktop` (1–6), `visibleTablet` (1–4), and `visibleMobile` (1–2), with explicit bounded integer validation on both JS and PHP. Device-specific CSS widths account for the existing 16px gap; the default 82%-peek/420px behavior is retained if no visible-card values exist. Both Studio editors expose the fields, switching to grid clears incompatible scroll-only configuration, and the offline bundle preserves parity. Contract/PHP smoke checks cover source values and invalid mobile count. Original media assets are never changed. Real approved desktop/tablet/mobile mockup equivalence still needs owner review. 135 MUST classifications and ownerAccepted=0 are unchanged; no main/SEO-worker/production writes.
