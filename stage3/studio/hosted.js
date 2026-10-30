@@ -2498,7 +2498,10 @@
     // Never replace the authoritative audit with a second simplified scanner.
     const readiness=editor.launchReadiness(),inspected=readiness.audit;
     const allSections=site.pages.flatMap(page=>page.sections);
-    const formSections=allSections.filter(section=>section.component==='lead-form-flex'&&!section.designGraph);
+    const hasFormSlot=nodes=>nodes.some(node=>node.type==='form-slot'||
+      hasFormSlot(node.children||[]));
+    const formSections=allSections.filter(section=>['lead-form','lead-form-flex'].includes(section.component)&&
+      (!section.designGraph||hasFormSlot(section.designGraph.nodes)));
     const conditionalFields=formSections.flatMap(section=>section.formFields||[])
       .filter(field=>field.when).length;
     const graphNodes=nodes=>nodes.reduce((total,node)=>total+1+

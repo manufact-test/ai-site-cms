@@ -2001,10 +2001,12 @@
           ['text','Текст'],['heading','Заголовок'],['button','Кнопка'],['link','Текстовая ссылка'],['quote','Цитата / отзыв'],
           ['image','Изображение'],['video','Видео MP4'],['icon','Иконка'],
           ['container','Контейнер'],['list','Список пунктов'],['disclosure','Раскрывающаяся панель'],
-          ['tabs','Вкладки'],['gallery','Галерея со свайпом'],['table','Таблица с данными'],['divider','Разделитель'],['popup','Всплывающее окно']
+          ['tabs','Вкладки'],['gallery','Галерея со свайпом'],['table','Таблица с данными'],['divider','Разделитель'],['popup','Всплывающее окно'],
+          ...(['lead-form','lead-form-flex'].includes(section.component)?[['form-slot','Форма заявки · рабочая']]:[])
         ]){
           const option=document.createElement('option');option.value=type;option.textContent=label;
           if(['image','video','gallery'].includes(type)&&!mediaOf(type).length)option.disabled=true;
+          if(type==='form-slot'&&DESIGN_GRAPH.formSlotIds(section.designGraph).length)option.disabled=true;
           insertType.append(option);
         }
         const insertPlace=document.createElement('select');insertPlace.className='control';
@@ -3138,6 +3140,9 @@
     const changeTree=(operation,selectId)=>{
       try{
         const next=DESIGN_GRAPH.editTree(graph,operation);
+        if(DESIGN_GRAPH.formSlotIds(next).length>1||
+          (DESIGN_GRAPH.formSlotIds(next).length&&!['lead-form','lead-form-flex'].includes(sourceSection.component)))
+          throw Error('Рабочая форма допускается один раз и только в блоке формы заявки');
         recordHistory();DESIGN_GRAPH.validateGraph(next,new Set(session.current.assets.map(a=>a.id)),
           new Set(),tokens,new Map(session.current.assets.map(a=>[a.id,a.mime])));
         graph=next;
@@ -3365,9 +3370,13 @@
         changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
       });
       action('Тип +',()=>{
-        const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / table / divider / icon / video / disclosure / tabs / list / popup','heading');
+        const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / table / divider / icon / video / disclosure / tabs / list / popup'+
+          (['lead-form','lead-form-flex'].includes(sourceSection.component)?' / form-slot (рабочая форма)':''),'heading');
         if(type===null)return;
         if(!DESIGN_GRAPH.TYPES.includes(type))return notice('Неизвестный тип',true);
+        if(type==='form-slot'&&(!['lead-form','lead-form-flex'].includes(sourceSection.component)||
+          DESIGN_GRAPH.formSlotIds(graph).length))
+          return notice('Рабочее место заявки разрешено один раз и только в блоке формы',true);
         const node={id:uniqueId('dg-node'),type,styles:{}};
         if(type==='container')node.children=[];
         if(type==='popup'){node.text='Информация';node.children=[{id:uniqueId('dg-node'),type:'text',text:'Содержимое окна',styles:{}}];}

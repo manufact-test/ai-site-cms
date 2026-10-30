@@ -31,7 +31,7 @@ trait FormRoutes
             foreach($site['pages'] as $page)
                 foreach($page['sections'] as $section)
                     if(in_array($section['component'],['lead-form','lead-form-flex'],true)
-                        && !isset($section['designGraph'])){
+                        && (!isset($section['designGraph']) || DesignGraph::formSlotIds($section['designGraph'])!==[])){
                         $id=$section['id'];
                         if(!isset($forms[$id]))
                             $forms[$id]=['sectionId'=>$id,'label'=>(string)$page['title'].' · '.$id,

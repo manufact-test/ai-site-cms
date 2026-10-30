@@ -199,6 +199,19 @@ final class DesignGraph
             preg_match('~^mailto:[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,63}$~iD',$href)===1||
             preg_match('~^tel:\+[1-9][0-9]{6,14}$~D',$href)===1);
     }
+    public static function formSlotIds(array $graph): array
+    {
+        $slots=[];
+        $walk=static function(array $nodes)use(&$walk,&$slots):void{
+            foreach($nodes as $node){
+                if(($node['type']??null)==='form-slot')$slots[]=$node['id'];
+                if(isset($node['children']))$walk($node['children']);
+            }
+        };
+        $walk($graph['nodes']??[]);
+        return $slots;
+    }
+
     public static function validate(mixed $graph,array $assets,array &$ids,mixed $tokensInput=null): void
     {
         self::keys($graph,['version','id','nodes'],'graph');
@@ -215,7 +228,7 @@ final class DesignGraph
             self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile','semanticTag','ariaLabel'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
-                &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'],true),
+                &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup','form-slot'],true),
                 'invalid or duplicate node');
             $ids[$id]=true;
             if(array_key_exists('semanticTag',$node))self::check($type==='container'&&in_array($node['semanticTag'],['div','article','section','aside'],true),'invalid semantic container tag');
@@ -332,6 +345,9 @@ final class DesignGraph
             } elseif (in_array($type,['container','divider','tabs','list','table-row'],true)) {
                 foreach (['text','href','assetId','alt','level','posterAssetId','loop'] as $field)
                     self::check(!array_key_exists($field,$node),'invalid container/divider content');
+            } elseif ($type==='form-slot') {
+                self::check(!array_intersect(['text','href','assetId','alt','level','icon','posterAssetId','loop','ordered','cite','caption','children','runs','popupTarget','backgroundMedia','backgroundVideo','responsiveMedia','sequence','semanticTag','ariaLabel','layout'],array_keys($node)),
+                    'form slot must be a presentation-only leaf');
             } elseif ($type==='table-cell') {
                 self::check(is_string($node['text']??null)&&strlen($node['text'])<=1600&&
                     preg_match('/[\x00-\x1f]/',$node['text'])!==1&&
@@ -597,7 +613,7 @@ final class DesignGraph
     }
 
     /** Builds a portable, fully escaped, no-JavaScript composition for both PHP and static output. */
-    public static function render(array $site,array $graph,string $mount,?string $sectionId=null,?string $assetBasePath=null,bool $aboveFold=false): string
+    public static function render(array $site,array $graph,string $mount,?string $sectionId=null,?string $assetBasePath=null,bool $aboveFold=false,?string $formMarkup=null): string
     {
         $t=self::tokens($site['designTokens']??null);
         $assetMap=[];foreach ($site['assets'] as $asset)$assetMap[$asset['id']]=$asset;
@@ -653,7 +669,7 @@ final class DesignGraph
             }
             return $html;
         };
-        $visit=function (array $n,?string $parentType=null) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop,$richText,$gl,&$firstImagePriorityAvailable): string {
+        $visit=function (array $n,?string $parentType=null) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop,$richText,$gl,&$firstImagePriorityAvailable,$formMarkup): string {
             $selector=$scope.' .cmsdg-n-'.$n['id'];
             $usesTranslate=false;
             foreach ([$n['styles']??[],$n['responsive']['tablet']??[],$n['responsive']['mobile']??[]] as $layer) {
@@ -814,6 +830,9 @@ final class DesignGraph
                         $panels.=$visit($tab);
                     }
                     return '<div class="'.$cls.' cmsdg-tabs-'.$n['id'].'"><div class="cmsdg-tabs-controls" role="group" aria-label="Вкладки">'.$controls.'</div><div class="cmsdg-tabs-panels">'.$panels.'</div></div>';
+                case 'form-slot':
+                    return '<div class="'.$cls.' cmsdg-form-slot">'.
+                        ($formMarkup??'<p>Форма заявки: проверьте поля в серверном предпросмотре.</p>').'</div>';
                 case 'divider':return '<hr class="'.$cls.'">';
                 case 'icon':
                     $a=($n['alt']??'')!==''?

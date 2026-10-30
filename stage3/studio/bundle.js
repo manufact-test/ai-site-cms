@@ -39,7 +39,7 @@ const ICON_PATHS=Object.freeze({
  "package":"<path d=\"m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10\"/>"
 });
 const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
-const TYPES=['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'];
+const TYPES=['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup','form-slot'];
 const STYLE_KEYS=['display','columns','direction','align','justify','gap','padding','radius',
   'color','background','fontSize','fontWeight','lineHeight','maxWidth','position','top','left',
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
@@ -300,6 +300,9 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
 
       if(own(node,'text')||own(node,'href')||own(node,'assetId')||own(node,'alt')||own(node,'level')||own(node,'posterAssetId')||own(node,'loop'))
         fail(node.id,'invalid container content');
+    }else if(node.type==='form-slot'){
+      if(['text','href','assetId','alt','level','icon','posterAssetId','loop','ordered','cite','caption','children','runs','popupTarget','backgroundMedia','backgroundVideo','responsiveMedia','sequence','semanticTag','ariaLabel','layout'].some(k=>own(node,k)))
+        fail(node.id,'form slot is a presentation-only leaf');
     }else if(node.type==='table-cell'){
       if(typeof node.text!=='string'||node.text.length>1600||/[\x00-\x1f]/.test(node.text)||
         ['href','assetId','alt','level','icon','loop','posterAssetId','ordered'].some(k=>own(node,k)))
@@ -402,6 +405,15 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   graph.nodes.forEach(n=>visit(n,0));
   for(const t of triggers)if(!popups.has(t.target))fail(t.id,'popup target absent from this graph');
   return graph;
+}
+function formSlotIds(graph){
+  const ids=[];
+  const visit=nodes=>{for(const node of nodes||[]){
+    if(node.type==='form-slot')ids.push(node.id);
+    if(Array.isArray(node.children))visit(node.children);
+  }};
+  visit(graph?.nodes);
+  return ids;
 }
 function baseGraph(sectionId){
   return {version:1,id:sectionId+'-design',nodes:[
@@ -773,6 +785,8 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       for(const tab of n.children)rules.push(scope+' .cmsdg-tabs-'+n.id+':has(> .cmsdg-tabs-controls > #cmsdg-tab-'+tab.id+':checked) > .cmsdg-tabs-panels > #cmsdg-panel-'+tab.id+'{display:block}');
       return '<div class="'+cls+' cmsdg-tabs-'+n.id+'"><div class="cmsdg-tabs-controls" role="group" aria-label="Вкладки">'+controls+'</div><div class="cmsdg-tabs-panels">'+n.children.map(visit).join('')+'</div></div>';
     }
+    if(n.type==='form-slot')return '<div class="'+cls+' cmsdg-form-slot" role="group" aria-label="Форма заявки">'+
+      '<p>Форма заявки: проверяйте поля и отправку в серверном предпросмотре.</p></div>';
     if(n.type==='divider')return '<hr class="'+cls+'">';
     if(n.type==='icon'){
       const size=n.iconSize||'1em',weight={thin:'1.25',regular:'2',bold:'3'}[n.iconWeight||'regular'];
@@ -995,7 +1009,7 @@ function auditAccessibility(graph,tokensInput){
   return findings;
 }
 
-module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,auditAccessibility,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,SEQUENCE_EASINGS,ICON_PATHS});
+module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,auditAccessibility,formSlotIds,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,SEQUENCE_EASINGS,ICON_PATHS});
 
 return module.exports;})();
 const CONTRACT=(()=>{const module={exports:{}};const require=name=>{if(name==='./design-graph.cjs')return DESIGN_GRAPH;throw Error('Unknown contract import');};
@@ -1458,7 +1472,12 @@ function validateSite(raw,regInput){
       validateFormFields(section);
       validateFormSteps(section);
       if(section.component==='custom-section'&&!own(section,'designGraph'))fail('Custom section requires a Design Graph',section.id);
-      if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
+      if(own(section,'designGraph')){
+        GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
+        const slots=GRAPH_HOST.formSlotIds(section.designGraph);
+        if(slots.length>1||(slots.length===1&&!['lead-form','lead-form-flex'].includes(section.component)))
+          fail('Form slot must appear once, only inside an actual lead form section',section.id);
+      }
     }
     // Every device must retain at least one authored section. Distinct sections
     // can be hidden independently even though each one is visible somewhere.
@@ -1633,13 +1652,15 @@ function inspectSite(raw,regInput){
     const sectionById=new Map(page.sections.map(section=>[section.id,section]));
     const hasVisibilitySettings=page.sections.some(section=>section.deviceVisibility||
       (section.designGraph&&graphHasVisibility(section.designGraph.nodes)));
-    // A Design Graph replaces the legacy component's public output. A form
-    // component with a Graph is NOT a functioning visitor lead form.
-    const isRenderedForm=section=>!section.designGraph&&
-      ['lead-form','lead-form-flex'].includes(section.component);
+    /* A graph form only works through its validated single first-party form slot. */
+    const slotOf=section=>section.designGraph?GRAPH_HOST.formSlotIds(section.designGraph)[0]:null;
+    const isRenderedForm=section=>['lead-form','lead-form-flex'].includes(section.component)&&
+      (!section.designGraph||!!slotOf(section));
+    const isVisibleForm=(section,device)=>isRenderedForm(section)&&
+      (!section.designGraph||graphVisibleNodes(section,device).has(slotOf(section)));
     const totalForms=page.sections.filter(isRenderedForm).length;
     for(const section of page.sections)
-      if(section.designGraph&&['lead-form','lead-form-flex'].includes(section.component))
+      if(section.designGraph&&['lead-form','lead-form-flex'].includes(section.component)&&!slotOf(section))
         warnings.push(add('form-overridden-by-design',page,'#'+section.id,
           'Композиция заменяет исходную форму: на странице она не выводится.',{sectionId:section.id}));
     for(const device of BREAKPOINTS){
@@ -1650,7 +1671,7 @@ function inspectSite(raw,regInput){
           (!section.designGraph||!item.nodeId||graphVisibleNodes(section,device).has(item.nodeId));
       });
       const h1Count=deviceHeadings.filter(item=>item.level===1).length;
-      const formCount=visibleSections.filter(isRenderedForm).length;
+      const formCount=visibleSections.filter(section=>isVisibleForm(section,device)).length;
       deviceCoverage.push({pageId:page.id,path:page.path,device,sections:visibleSections.length,
         h1:h1Count,forms:formCount});
       if(totalForms>0&&formCount===0)
@@ -4766,10 +4787,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           ['text','Текст'],['heading','Заголовок'],['button','Кнопка'],['link','Текстовая ссылка'],['quote','Цитата / отзыв'],
           ['image','Изображение'],['video','Видео MP4'],['icon','Иконка'],
           ['container','Контейнер'],['list','Список пунктов'],['disclosure','Раскрывающаяся панель'],
-          ['tabs','Вкладки'],['gallery','Галерея со свайпом'],['table','Таблица с данными'],['divider','Разделитель'],['popup','Всплывающее окно']
+          ['tabs','Вкладки'],['gallery','Галерея со свайпом'],['table','Таблица с данными'],['divider','Разделитель'],['popup','Всплывающее окно'],
+          ...(['lead-form','lead-form-flex'].includes(section.component)?[['form-slot','Форма заявки · рабочая']]:[])
         ]){
           const option=document.createElement('option');option.value=type;option.textContent=label;
           if(['image','video','gallery'].includes(type)&&!mediaOf(type).length)option.disabled=true;
+          if(type==='form-slot'&&DESIGN_GRAPH.formSlotIds(section.designGraph).length)option.disabled=true;
           insertType.append(option);
         }
         const insertPlace=document.createElement('select');insertPlace.className='control';
@@ -5903,6 +5926,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const changeTree=(operation,selectId)=>{
       try{
         const next=DESIGN_GRAPH.editTree(graph,operation);
+        if(DESIGN_GRAPH.formSlotIds(next).length>1||
+          (DESIGN_GRAPH.formSlotIds(next).length&&!['lead-form','lead-form-flex'].includes(sourceSection.component)))
+          throw Error('Рабочая форма допускается один раз и только в блоке формы заявки');
         recordHistory();DESIGN_GRAPH.validateGraph(next,new Set(session.current.assets.map(a=>a.id)),
           new Set(),tokens,new Map(session.current.assets.map(a=>[a.id,a.mime])));
         graph=next;
@@ -6130,9 +6156,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
       });
       action('Тип +',()=>{
-        const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / table / divider / icon / video / disclosure / tabs / list / popup','heading');
+        const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / table / divider / icon / video / disclosure / tabs / list / popup'+
+          (['lead-form','lead-form-flex'].includes(sourceSection.component)?' / form-slot (рабочая форма)':''),'heading');
         if(type===null)return;
         if(!DESIGN_GRAPH.TYPES.includes(type))return notice('Неизвестный тип',true);
+        if(type==='form-slot'&&(!['lead-form','lead-form-flex'].includes(sourceSection.component)||
+          DESIGN_GRAPH.formSlotIds(graph).length))
+          return notice('Рабочее место заявки разрешено один раз и только в блоке формы',true);
         const node={id:uniqueId('dg-node'),type,styles:{}};
         if(type==='container')node.children=[];
         if(type==='popup'){node.text='Информация';node.children=[{id:uniqueId('dg-node'),type:'text',text:'Содержимое окна',styles:{}}];}

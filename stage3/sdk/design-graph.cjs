@@ -36,7 +36,7 @@ const ICON_PATHS=Object.freeze({
  "package":"<path d=\"m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10\"/>"
 });
 const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
-const TYPES=['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'];
+const TYPES=['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup','form-slot'];
 const STYLE_KEYS=['display','columns','direction','align','justify','gap','padding','radius',
   'color','background','fontSize','fontWeight','lineHeight','maxWidth','position','top','left',
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
@@ -297,6 +297,9 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
 
       if(own(node,'text')||own(node,'href')||own(node,'assetId')||own(node,'alt')||own(node,'level')||own(node,'posterAssetId')||own(node,'loop'))
         fail(node.id,'invalid container content');
+    }else if(node.type==='form-slot'){
+      if(['text','href','assetId','alt','level','icon','posterAssetId','loop','ordered','cite','caption','children','runs','popupTarget','backgroundMedia','backgroundVideo','responsiveMedia','sequence','semanticTag','ariaLabel','layout'].some(k=>own(node,k)))
+        fail(node.id,'form slot is a presentation-only leaf');
     }else if(node.type==='table-cell'){
       if(typeof node.text!=='string'||node.text.length>1600||/[\x00-\x1f]/.test(node.text)||
         ['href','assetId','alt','level','icon','loop','posterAssetId','ordered'].some(k=>own(node,k)))
@@ -399,6 +402,15 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   graph.nodes.forEach(n=>visit(n,0));
   for(const t of triggers)if(!popups.has(t.target))fail(t.id,'popup target absent from this graph');
   return graph;
+}
+function formSlotIds(graph){
+  const ids=[];
+  const visit=nodes=>{for(const node of nodes||[]){
+    if(node.type==='form-slot')ids.push(node.id);
+    if(Array.isArray(node.children))visit(node.children);
+  }};
+  visit(graph?.nodes);
+  return ids;
 }
 function baseGraph(sectionId){
   return {version:1,id:sectionId+'-design',nodes:[
@@ -770,6 +782,8 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       for(const tab of n.children)rules.push(scope+' .cmsdg-tabs-'+n.id+':has(> .cmsdg-tabs-controls > #cmsdg-tab-'+tab.id+':checked) > .cmsdg-tabs-panels > #cmsdg-panel-'+tab.id+'{display:block}');
       return '<div class="'+cls+' cmsdg-tabs-'+n.id+'"><div class="cmsdg-tabs-controls" role="group" aria-label="Вкладки">'+controls+'</div><div class="cmsdg-tabs-panels">'+n.children.map(visit).join('')+'</div></div>';
     }
+    if(n.type==='form-slot')return '<div class="'+cls+' cmsdg-form-slot" role="group" aria-label="Форма заявки">'+
+      '<p>Форма заявки: проверяйте поля и отправку в серверном предпросмотре.</p></div>';
     if(n.type==='divider')return '<hr class="'+cls+'">';
     if(n.type==='icon'){
       const size=n.iconSize||'1em',weight={thin:'1.25',regular:'2',bold:'3'}[n.iconWeight||'regular'];
@@ -992,4 +1006,4 @@ function auditAccessibility(graph,tokensInput){
   return findings;
 }
 
-module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,auditAccessibility,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,SEQUENCE_EASINGS,ICON_PATHS});
+module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,auditAccessibility,formSlotIds,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,SEQUENCE_EASINGS,ICON_PATHS});

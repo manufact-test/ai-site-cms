@@ -603,7 +603,7 @@ final class SiteRepository
             foreach ($page['sections'] as $section) {
                 if ($section['id'] === $sectionId
                     && in_array($section['component'], ['lead-form','lead-form-flex'], true)
-                    && !isset($section['designGraph'])) {
+                    && (!isset($section['designGraph']) || DesignGraph::formSlotIds($section['designGraph'])!==[])) {
                     $form = $section;
                 }
             }

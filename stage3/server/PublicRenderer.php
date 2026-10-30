@@ -593,6 +593,67 @@ JS;
                 $position,strlen($match[0][0]))];
     }
 
+    /* The same first-party validated form is rendered in a plain section and in a typed Graph slot. */
+    private static function formBody(array $site,array $section,string $path,string $mount,
+        ?string $collectorBase,int $publishedVersion,?string $publicOrigin,bool $preview): string
+    {
+        $siteId=$site['siteId'];
+        $language=self::language($site);
+        if ($publishedVersion < 1 && !$preview) {
+            throw new \RuntimeException('Forms require an explicit immutable published version');
+        }
+        $action = $preview ? '#preview-only' : FormGateway::endpoint($collectorBase ?? '', $siteId, $section['id']);
+        $token = $preview ? '' : FormGateway::token($siteId, $section['id'], $publishedVersion);
+        // Only an origin authored by the publisher (or this same-origin
+        // /published/site route) can be a post-submit return location.
+        // Never derive a visitor redirect from submitted form text.
+        $returnUrl = '';
+        if (!$preview) {
+            if ($publicOrigin !== null) $returnUrl = $publicOrigin . $mount . $path;
+            elseif (($collectorBase ?? '') === ''
+                && $mount === '/published/' . rawurlencode($siteId))
+                $returnUrl = $mount . $path;
+        }
+        $extras = self::extraFields($section);
+        $fields = [
+            'name'=>'<label>' . self::label($section, 'name-label') . '<input name="name" type="text" minlength="2" maxlength="120" required autocomplete="name"></label>',
+            'email'=>'<label>' . self::label($section, 'email-label') . '<input name="email" type="email" maxlength="254" required autocomplete="email"></label>',
+            'message'=>'<label>' . self::label($section, 'message-label') . '<textarea name="message" minlength="10" maxlength="4000" required rows="5"></textarea></label>',
+        ] + $extras['fields'];
+        $steps = FlexForm::steps($section);
+        $formFields = '';
+        if ($steps === []) {
+            $formFields = implode('', $fields);
+        } else {
+            $formFields .= '<p class="lead-step-progress" role="status" aria-live="polite"></p>';
+            foreach ($steps as $index => $step) {
+                $formFields .= '<fieldset class="lead-step"><legend>' . self::h($step['title']) . '</legend>';
+                foreach ($step['fields'] as $fieldName) $formFields .= $fields[$fieldName];
+                $formFields .= '<div class="lead-step-nav">';
+                if ($index > 0) $formFields .= '<button type="button" class="lead-step-back" data-step-back>'.self::ui($language,'back').'</button>';
+                if ($index < count($steps)-1) $formFields .= '<button type="button" class="lead-step-next" data-step-next>'.self::ui($language,'next').'</button>';
+                $formFields .= '</div></fieldset>';
+            }
+        }
+        $body = '<h2>' . self::label($section, 'heading') . '</h2>'
+            . '<form class="lead-form"'.($steps !== [] ? ' data-multi-step="yes"' : '')
+            .' method="post" accept-charset="utf-8" action="' . self::h($action) . '">'
+            . ($preview ? '' : '<input type="hidden" name="_release" value="' . $publishedVersion . '">'
+                . '<input type="hidden" name="_token" value="' . self::h($token) . '">'
+                . ($returnUrl !== '' ? '<input type="hidden" name="_return" value="' . self::h($returnUrl) . '">' : ''))
+            . '<div class="lead-honey" aria-hidden="true"><label>Website <input tabindex="-1" autocomplete="off" type="text" name="website" value=""></label></div>'
+            . ($extras['css'] !== '' ? '<style>' . $extras['css'] . '</style>' : '')
+            . $formFields
+            . '<label class="lead-consent"><input type="checkbox" name="consent" value="yes" required> '
+            . self::label($section, 'consent-label') . '</label>'
+            . '<button class="action lead-submit" type="submit">' . self::label($section, 'submit-label') . '</button>'
+            . '</form>';
+        if ($steps !== [] && !$preview) {
+            $body .= '<script>' . self::formStepsScript() . '</script>';
+        }
+        return $body;
+    }
+
     public static function html(array $site, string $path, ?string $basePath = null, ?string $collectorBase = null, int $publishedVersion = 0, ?string $publicOrigin = null, ?string $assetBasePath = null, bool $preview = false): ?string
     {
         $page = null;
@@ -614,7 +675,14 @@ JS;
             $beforeSkin = strlen($body);
             $id = self::h($section['id']);
             if (isset($section['designGraph'])) {
-                $body .= DesignGraph::render($site,$section['designGraph'],$mount,$section['id'],$assetBasePath,$sectionIndex===0);
+                $slotIds=DesignGraph::formSlotIds($section['designGraph']);
+                $formMarkup=null;
+                if($slotIds&&in_array($section['component'],['lead-form','lead-form-flex'],true)){
+                    $formMarkup='<div class="lead-section">'.
+                        self::formBody($site,$section,$path,$mount,$collectorBase,$publishedVersion,$publicOrigin,$preview).
+                        '</div>';
+                }
+                $body .= DesignGraph::render($site,$section['designGraph'],$mount,$section['id'],$assetBasePath,$sectionIndex===0,$formMarkup);
             } elseif ($section['component'] === 'company-hero') {
                 $values = self::element($section, 'heading');
                 $color = (string)$values['style.color'];
@@ -826,59 +894,9 @@ JS;
                     . self::label($section, 'heading') . '</h2>'
                     . $picture . '<p>' . self::label($section, 'caption') . '</p></section>';
             } elseif (in_array($section['component'], ['lead-form','lead-form-flex'], true)) {
-                if ($publishedVersion < 1 && !$preview) {
-                    throw new \RuntimeException('Forms require an explicit immutable published version');
-                }
-                $action = $preview ? '#preview-only' : FormGateway::endpoint($collectorBase ?? '', $siteId, $section['id']);
-                $token = $preview ? '' : FormGateway::token($siteId, $section['id'], $publishedVersion);
-                // Only an origin authored by the publisher (or this same-origin
-                // /published/site route) can be a post-submit return location.
-                // Never derive a visitor redirect from submitted form text.
-                $returnUrl = '';
-                if (!$preview) {
-                    if ($publicOrigin !== null) $returnUrl = $publicOrigin . $mount . $path;
-                    elseif (($collectorBase ?? '') === ''
-                        && $mount === '/published/' . rawurlencode($siteId))
-                        $returnUrl = $mount . $path;
-                }
-                $extras = self::extraFields($section);
-                $fields = [
-                    'name'=>'<label>' . self::label($section, 'name-label') . '<input name="name" type="text" minlength="2" maxlength="120" required autocomplete="name"></label>',
-                    'email'=>'<label>' . self::label($section, 'email-label') . '<input name="email" type="email" maxlength="254" required autocomplete="email"></label>',
-                    'message'=>'<label>' . self::label($section, 'message-label') . '<textarea name="message" minlength="10" maxlength="4000" required rows="5"></textarea></label>',
-                ] + $extras['fields'];
-                $steps = FlexForm::steps($section);
-                $formFields = '';
-                if ($steps === []) {
-                    $formFields = implode('', $fields);
-                } else {
-                    $formFields .= '<p class="lead-step-progress" role="status" aria-live="polite"></p>';
-                    foreach ($steps as $index => $step) {
-                        $formFields .= '<fieldset class="lead-step"><legend>' . self::h($step['title']) . '</legend>';
-                        foreach ($step['fields'] as $fieldName) $formFields .= $fields[$fieldName];
-                        $formFields .= '<div class="lead-step-nav">';
-                        if ($index > 0) $formFields .= '<button type="button" class="lead-step-back" data-step-back>'.self::ui($language,'back').'</button>';
-                        if ($index < count($steps)-1) $formFields .= '<button type="button" class="lead-step-next" data-step-next>'.self::ui($language,'next').'</button>';
-                        $formFields .= '</div></fieldset>';
-                    }
-                }
-                $body .= '<section id="' . $id . '" class="lead-section">'
-                    . '<h2>' . self::label($section, 'heading') . '</h2>'
-                    . '<form class="lead-form"'.($steps !== [] ? ' data-multi-step="yes"' : '')
-                    .' method="post" accept-charset="utf-8" action="' . self::h($action) . '">'
-                    . ($preview ? '' : '<input type="hidden" name="_release" value="' . $publishedVersion . '">'
-                        . '<input type="hidden" name="_token" value="' . self::h($token) . '">'
-                        . ($returnUrl !== '' ? '<input type="hidden" name="_return" value="' . self::h($returnUrl) . '">' : ''))
-                    . '<div class="lead-honey" aria-hidden="true"><label>Website <input tabindex="-1" autocomplete="off" type="text" name="website" value=""></label></div>'
-                    . ($extras['css'] !== '' ? '<style>' . $extras['css'] . '</style>' : '')
-                    . $formFields
-                    . '<label class="lead-consent"><input type="checkbox" name="consent" value="yes" required> '
-                    . self::label($section, 'consent-label') . '</label>'
-                    . '<button class="action lead-submit" type="submit">' . self::label($section, 'submit-label') . '</button>'
-                    . '</form></section>';
-                if ($steps !== [] && !$preview) {
-                    $body .= '<script>' . self::formStepsScript() . '</script>';
-                }
+                $body .= '<section id="'.$id.'" class="lead-section">'.
+                    self::formBody($site,$section,$path,$mount,$collectorBase,$publishedVersion,$publicOrigin,$preview).
+                    '</section>';
             } elseif ($section['component'] === 'cta-banner') {
                 $body .= '<section id="' . $id . '" class="cta-banner"><h2>'
                     . self::label($section, 'heading') . '</h2><p>'

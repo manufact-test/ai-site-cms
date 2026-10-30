@@ -452,8 +452,13 @@ final class ContractValidator
                 FlexForm::steps($section); // all fields partitioned exactly once across 2–4 steps
                 if ($section['component']==='custom-section')
                     self::must(array_key_exists('designGraph',$section),'Custom section requires a Design Graph');
-                if (array_key_exists('designGraph',$section))
+                if (array_key_exists('designGraph',$section)){
                     DesignGraph::validate($section['designGraph'],$assets,$ids,$site['designTokens']??null);
+                    $slots=DesignGraph::formSlotIds($section['designGraph']);
+                    self::must(count($slots)<=1 &&
+                        (!$slots||in_array($section['component'],['lead-form','lead-form-flex'],true)),
+                        'Form slot must appear only once in a lead form section');
+                }
             }
             foreach(['desktop','tablet','mobile'] as $device){
                 $visible=false;

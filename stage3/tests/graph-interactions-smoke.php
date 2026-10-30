@@ -332,4 +332,42 @@ foreach($emptyPage['pages'][0]['sections'] as &$item)$item['deviceVisibility']=[
 unset($item);
 try{$validator->validate($emptyPage);throw new RuntimeException('Blank mobile page accepted');}
 catch(InvalidArgumentException $expected){}
+/* Approved client layouts can mount one real, signed form inside a typed Graph. */
+$formSite=json_decode(file_get_contents(dirname(__DIR__).'/fixtures/industrial-site.json'),true,512,JSON_THROW_ON_ERROR);
+$formManifest=json_decode(file_get_contents(dirname(__DIR__).'/components/lead-form.json'),true,512,JSON_THROW_ON_ERROR);
+$formElements=[];
+foreach($formManifest['elements'] as $field)$formElements[]=[
+    'id'=>'form-element-'.$field['slot'],'slot'=>$field['slot'],
+    'values'=>['content.text'=>$field['fields'][0]['default']]
+];
+$formSection=['id'=>'section-graph-lead','component'=>'lead-form','manifestVersion'=>'1.0.0',
+    'elements'=>$formElements,'designGraph'=>['version'=>1,'id'=>'graph-live-lead',
+        'nodes'=>[['id'=>'graph-lead-layout','type'=>'container','styles'=>['display'=>'grid','columns'=>2],
+            'responsive'=>['mobile'=>['columns'=>1]],'children'=>[
+                ['id'=>'graph-lead-intro','type'=>'text','text'=>'Вопрос по проекту'],
+                ['id'=>'graph-live-form-slot','type'=>'form-slot','styles'=>['padding'=>16]]
+            ]]]]];
+$formSite['pages'][0]['sections'][]=$formSection;
+$validator->validate($formSite);
+$beforeSecret=getenv('STAGE3_FORM_SECRET');
+putenv('STAGE3_FORM_SECRET=isolated-test-only-form-secret-32-char-boundary');
+try{$publishedForm=PublicRenderer::html($formSite,'/',null,null,1);}
+finally{
+    if($beforeSecret===false)putenv('STAGE3_FORM_SECRET');
+    else putenv('STAGE3_FORM_SECRET='.$beforeSecret);
+}
+graphTest(substr_count($publishedForm,'<form class="lead-form"')===1
+    &&str_contains($publishedForm,'class="cmsdg-n-graph-live-form-slot cmsdg-form-slot"')
+    &&str_contains($publishedForm,'action="/forms/site-industrial-demo/section-graph-lead"')
+    &&str_contains($publishedForm,'name="_token"')
+    &&str_contains($publishedForm,'name="consent"'),
+    'A typed Graph form slot renders the existing real secure PHP form once');
+$invalidForm=$formSite;
+$invalidForm['pages'][0]['sections'][2]['designGraph']['nodes'][]=['id'=>'second-live-slot','type'=>'form-slot'];
+try{$validator->validate($invalidForm);throw new RuntimeException('Duplicate form slot accepted');}
+catch(InvalidArgumentException $expected){}
+$invalidForm=$formSite;
+$invalidForm['pages'][0]['sections'][2]['designGraph']['nodes'][0]['children'][1]['href']='https://untrusted.example/';
+try{$validator->validate($invalidForm);throw new RuntimeException('Form slot external action accepted');}
+catch(InvalidArgumentException $expected){}
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";

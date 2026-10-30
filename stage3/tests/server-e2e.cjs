@@ -692,6 +692,43 @@ async function stop(){
   });
   assert.equal(overlaidResponse.status,422,'Even a valid HMAC cannot submit a form not in the visitor page');
 
+  /* A typed form slot reactivates only the real legacy form implementation,
+     with the same signed immutable release, collector and private routing. */
+  const composed=structuredClone(fixture);
+  composed.siteId='site-composed-lead';
+  const composedSection=require(path.join(root,'stage3/sdk/contract.cjs'))
+    .sectionFrom(formDef,'section-composed-lead');
+  composedSection.designGraph={version:1,id:'graph-composed-lead',nodes:[
+    {id:'composed-layout',type:'container',styles:{display:'grid',columns:2,gap:24},
+      responsive:{mobile:{columns:1}},children:[
+        {id:'composed-copy',type:'text',text:'Обсудим проект'},
+        {id:'composed-live-form',type:'form-slot',styles:{padding:16}}
+      ]}
+  ]};
+  composed.pages[1].sections.push(composedSection);
+  assert.equal((await request('POST','/api/sites',{site:composed})).status,201);
+  assert.equal((await request('POST','/api/sites/'+composed.siteId+'/publish',
+    {expectedRevision:1})).status,200);
+  const composedReady=(await request('GET','/api/sites/'+composed.siteId+'/launch-forms')).body;
+  assert.equal(composedReady.formCount,1,'Graph-owned slot is a real visitor form');
+  const composedRoutes=(await request('GET','/api/sites/'+composed.siteId+'/delivery')).body;
+  assert.equal(composedRoutes.routes.length,1,'A real Graph form can configure delivery');
+  const composedHtml=(await request('GET','/published/'+composed.siteId+'/contact/')).body;
+  assert.equal((composedHtml.match(/<form class="lead-form"/g)||[]).length,1);
+  assert.match(composedHtml,/cmsdg-n-composed-live-form cmsdg-form-slot/);
+  assert.match(composedHtml,/name="_token"/);
+  const composedToken=formCrypto.createHmac('sha256',env.STAGE3_FORM_SECRET)
+    .update(composed.siteId+'|'+composedSection.id+'|1').digest('hex');
+  const composedPost=await fetch(origin+'/forms/'+composed.siteId+'/'+composedSection.id,{
+    method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','origin':origin},
+    body:new URLSearchParams({_release:'1',_token:composedToken,website:'',
+      name:'Graph visitor',email:'graph@example.test',message:'Request about the project',consent:'yes'})
+  });
+  assert.equal(composedPost.status,201,'The Graph slot uses the real immutable-release collector');
+  const savedComposed=(await request('GET','/api/sites/'+composed.siteId+'/launch-forms')).body;
+  assert.equal(savedComposed.forms[0].savedSubmissionCount,1,
+    'Submission from the published Graph slot is persisted privately');
+
   assert.equal((await request('POST',deliveryRoute+'/routes',{
     sectionId:'section-quote-form',emailMode:'custom',emailRecipient:'team-b@example.test',
     telegramMode:'off',telegramChatId:'',expectedVersion:0,reason:'Reject stale route'})).status,409);

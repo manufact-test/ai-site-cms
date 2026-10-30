@@ -98,6 +98,41 @@ test('a Design Graph replacing a form is not counted as a functioning visitor fo
   assert.equal(report.deviceCoverage.find(x=>x.pageId===page.id&&x.device==='mobile').forms,0);
   assert.ok(report.warnings.some(x=>x.kind==='form-overridden-by-design'&&x.sectionId===form.id));
 });
+test('custom client Graph form slot retains real form semantics and device coverage',()=>{
+  const D=require('../sdk/design-graph.cjs'),site=same(initial);
+  const section=sdk.sectionFrom(manifests.find(m=>m.id==='lead-form-flex'),'section-graph-form');
+  section.designGraph={version:1,id:'graph-inquiry-form',nodes:[
+    {id:'inquiry-layout',type:'container',styles:{display:'grid',columns:2,gap:20},
+      responsive:{mobile:{columns:1}},children:[
+        {id:'inquiry-copy',type:'heading',level:2,text:'Напишите нам'},
+        {id:'inquiry-live-slot',type:'form-slot',styles:{padding:16}}
+      ]}
+  ]};
+  site.pages[1].sections.push(section);
+  sdk.validateSite(site,manifests);
+  assert.deepEqual(D.formSlotIds(section.designGraph),['inquiry-live-slot']);
+  const report=sdk.inspectSite(site,manifests);
+  assert.equal(report.deviceCoverage.find(v=>v.pageId===site.pages[1].id&&v.device==='mobile').forms,1);
+  assert.ok(!report.warnings.some(w=>w.kind==='form-overridden-by-design'&&w.sectionId===section.id));
+  assert.match(D.render(site,section.designGraph),/cmsdg-form-slot/);
+  assert.doesNotMatch(D.render(site,section.designGraph),/<form\b/,
+    'Offline Graph inspector shows an inert slot, not a forged submission form');
+  const hidden=same(site);
+  hidden.pages[1].sections.at(-1).designGraph.nodes[0].children[1].responsive={mobile:{hidden:true}};
+  const mobile=sdk.inspectSite(hidden,manifests);
+  assert.equal(mobile.deviceCoverage.find(v=>v.pageId===site.pages[1].id&&v.device==='mobile').forms,0);
+  assert.ok(mobile.warnings.some(w=>w.kind==='device-missing-form'&&w.device==='mobile'));
+  const duplicated=same(site);
+  duplicated.pages[1].sections.at(-1).designGraph.nodes.push(
+    {id:'inquiry-second-slot',type:'form-slot'});
+  refuses(()=>sdk.validateSite(duplicated,manifests),'Duplicate live form slot rejected');
+  const fake=same(site);
+  fake.pages[1].sections.at(-1).designGraph.nodes[0].children[1].text='Submit without validation';
+  refuses(()=>sdk.validateSite(fake,manifests),'Form slot cannot carry custom visitor HTML');
+  const wrong=same(site);
+  wrong.pages[1].sections.at(-1).component='custom-section';
+  refuses(()=>sdk.validateSite(wrong,manifests),'Form slot is not allowed in generic Graph section');
+});
 test('responsive Graph headings and hidden mobile lead forms use effective visibility',()=>{
   const site=same(initial),page=site.pages[0],hero=page.sections[0];
   hero.designGraph={version:1,id:'graph-responsive-seo',nodes:[

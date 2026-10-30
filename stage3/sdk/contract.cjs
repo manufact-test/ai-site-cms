@@ -457,7 +457,12 @@ function validateSite(raw,regInput){
       validateFormFields(section);
       validateFormSteps(section);
       if(section.component==='custom-section'&&!own(section,'designGraph'))fail('Custom section requires a Design Graph',section.id);
-      if(own(section,'designGraph'))GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
+      if(own(section,'designGraph')){
+        GRAPH_HOST.validateGraph(section.designGraph,assetIds,ids,raw.designTokens,assetMimes);
+        const slots=GRAPH_HOST.formSlotIds(section.designGraph);
+        if(slots.length>1||(slots.length===1&&!['lead-form','lead-form-flex'].includes(section.component)))
+          fail('Form slot must appear once, only inside an actual lead form section',section.id);
+      }
     }
     // Every device must retain at least one authored section. Distinct sections
     // can be hidden independently even though each one is visible somewhere.
@@ -632,13 +637,15 @@ function inspectSite(raw,regInput){
     const sectionById=new Map(page.sections.map(section=>[section.id,section]));
     const hasVisibilitySettings=page.sections.some(section=>section.deviceVisibility||
       (section.designGraph&&graphHasVisibility(section.designGraph.nodes)));
-    // A Design Graph replaces the legacy component's public output. A form
-    // component with a Graph is NOT a functioning visitor lead form.
-    const isRenderedForm=section=>!section.designGraph&&
-      ['lead-form','lead-form-flex'].includes(section.component);
+    /* A graph form only works through its validated single first-party form slot. */
+    const slotOf=section=>section.designGraph?GRAPH_HOST.formSlotIds(section.designGraph)[0]:null;
+    const isRenderedForm=section=>['lead-form','lead-form-flex'].includes(section.component)&&
+      (!section.designGraph||!!slotOf(section));
+    const isVisibleForm=(section,device)=>isRenderedForm(section)&&
+      (!section.designGraph||graphVisibleNodes(section,device).has(slotOf(section)));
     const totalForms=page.sections.filter(isRenderedForm).length;
     for(const section of page.sections)
-      if(section.designGraph&&['lead-form','lead-form-flex'].includes(section.component))
+      if(section.designGraph&&['lead-form','lead-form-flex'].includes(section.component)&&!slotOf(section))
         warnings.push(add('form-overridden-by-design',page,'#'+section.id,
           'Композиция заменяет исходную форму: на странице она не выводится.',{sectionId:section.id}));
     for(const device of BREAKPOINTS){
@@ -649,7 +656,7 @@ function inspectSite(raw,regInput){
           (!section.designGraph||!item.nodeId||graphVisibleNodes(section,device).has(item.nodeId));
       });
       const h1Count=deviceHeadings.filter(item=>item.level===1).length;
-      const formCount=visibleSections.filter(isRenderedForm).length;
+      const formCount=visibleSections.filter(section=>isVisibleForm(section,device)).length;
       deviceCoverage.push({pageId:page.id,path:page.path,device,sections:visibleSections.length,
         h1:h1Count,forms:formCount});
       if(totalForms>0&&formCount===0)
