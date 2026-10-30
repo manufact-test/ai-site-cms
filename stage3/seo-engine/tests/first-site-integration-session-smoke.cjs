@@ -89,9 +89,26 @@ const review={format:PLAN.FORMAT,phase:'human-review',inputs:{candidate,
  postDeploy:'/tmp/post.json',contract:'/tmp/relay.json',filled:'/tmp/filled.json'}};
 assert.deepEqual(PLAN.steps(review,home).map(x=>x.key),['live-acceptance-review','workspace']);
 const human=PLAN.summary(review,{root:home,
- 'live-acceptance-review':{siteId:'my-site',action:'review',status:'HUMAN-EVIDENCE-INCOMPLETE'},
+ 'live-acceptance-review':{siteId:'my-site',action:'review',status:'HUMAN-EVIDENCE-INCOMPLETE',
+  urgent:0,pending:8},
  workspace:{siteId:'my-site'}});
 assert.equal(human.humanAcceptanceReviewCreated,true);
+assert.equal(human.integrationDisposition,'HUMAN-ACCEPTANCE-INCOMPLETE');
+assert.equal(human.humanAcceptancePendingActions,8);
+const failedHuman=PLAN.summary(review,{root:home,
+ 'live-acceptance-review':{siteId:'my-site',action:'review',status:'HUMAN-OBSERVATIONS-FAILED',
+  urgent:2,pending:4},workspace:{siteId:'my-site'}});
+assert.equal(failedHuman.integrationDisposition,'HUMAN-ACCEPTANCE-FAILED');
+assert.equal(failedHuman.humanAcceptanceUrgentActions,2);
+const signoff=PLAN.summary(review,{root:home,
+ 'live-acceptance-review':{siteId:'my-site',action:'review',
+  status:'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION',urgent:0,pending:1},
+ workspace:{siteId:'my-site'}});
+assert.equal(signoff.integrationDisposition,'INDEPENDENT-OWNER-AUTHORIZATION-REQUIRED');
+assert.equal(signoff.sitePublicationAuthorized,false);
+assert.throws(()=>PLAN.summary(review,{root:home,
+ 'live-acceptance-review':{siteId:'my-site',action:'review',status:'READY-TO-PUBLISH',urgent:0,pending:1},
+ workspace:{siteId:'my-site'}}),/disposition/);
 assert.equal(human.sitePublicationAuthorized,false);
 assert(human.liveAcceptanceNextActionsRelativeFile.endsWith('.json'));
 assert(PLAN.markdown(human).includes('specific next actions'));

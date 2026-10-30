@@ -1,3 +1,7 @@
+## 30 October 2026 — human-review result codes are truthful
+
+The one-command `human-review` runner now propagates real source-derived P0/P1 counts into private `INTEGRATION-SESSION.json` and handoff. Its integration disposition reflects the actual human review: `TECHNICAL-RELEASE-BLOCKED`, `HUMAN-ACCEPTANCE-FAILED`, `HUMAN-ACCEPTANCE-INCOMPLETE`, or `INDEPENDENT-OWNER-AUTHORIZATION-REQUIRED`. It never reports owner signoff as the only remaining action while technical/browser/form checks have failed. Even the final state has `sitePublicationAuthorized:false`. `human-review` source input and public ZIP pins are rechecked before the session is promoted.
+
 ## 30 October 2026 — integrated human-review phase
 
 The main first-site session runner now includes `human-review` after `public` or `public-capture`. The public operator workspace links directly to the generated private offline `LIVE-ACCEPTANCE-DESK.html`. After manually observing real browser/device and authorized POST/delivery, export a private filled JSON and invoke the same runner with the source candidate, original postDeploy, original lead relay contract and filled evidence. The runner rechecks the public ZIP/source pins, invokes the strict reviewer, creates next-action files and an HTML `human.html` workspace, then seals output SHA256 in the new session. No auto-approval, client POST, merge or deploy.

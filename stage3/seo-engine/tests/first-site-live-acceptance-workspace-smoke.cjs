@@ -26,7 +26,7 @@ const contract={format:'manufact-seo-first-site-lead-relay-v1',siteId:site,
  identity:{officialStaticManifestSha256:manifest,publicZipSha256:zip},
  inputSha256:{summary:summarySha,post:postSha},
  evidence:{originalLocalBlockers:0}};
-const report={format:'manufact-seo-first-site-live-acceptance-review-v1',
+const report={format:'manufact-seo-first-site-live-acceptance-review-v1',readOnly:true,
  siteId:site,publishedVersion:9,ownerSourceRevisionClaim:11,
  sourceContractSha256:contractSha,officialStaticManifestSha256:manifest,
  observedPublicHttpsHostClaim:'https://example.org',

@@ -158,6 +158,20 @@ function summary(config,outputs){
  assert(expected.every(k=>outputs[k]&&typeof outputs[k]==='object'),
   'stage results are incomplete');
  const source=outputs.relay||outputs['live-acceptance-review'];
+ const human=outputs['live-acceptance-review']||null;
+ const reviewStates=Object.freeze({
+  'TECHNICAL-EVIDENCE-BLOCKED':'TECHNICAL-RELEASE-BLOCKED',
+  'HUMAN-OBSERVATIONS-FAILED':'HUMAN-ACCEPTANCE-FAILED',
+  'HUMAN-EVIDENCE-INCOMPLETE':'HUMAN-ACCEPTANCE-INCOMPLETE',
+  'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION':'INDEPENDENT-OWNER-AUTHORIZATION-REQUIRED'
+ });
+ if(human)assert(human.action==='review'&&
+  Object.hasOwn(reviewStates,human.status)&&
+  Number.isSafeInteger(human.urgent)&&human.urgent>=0&&
+  Number.isSafeInteger(human.pending)&&human.pending>=1&&
+  (human.status==='OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION'?
+   human.urgent===0&&human.pending===1:true),
+  'human review lacks valid disposition or source-derived P0/P1 action totals');
  const result={format:'manufact-seo-first-site-integration-session-v1',version:1,
   phase:c.phase,readOnly:true,siteId:source.siteId,
   localCandidatePrepared:c.phase==='local',
@@ -167,9 +181,11 @@ function summary(config,outputs){
   candidateDisposition:outputs.prepare?.status||null,
   postDeployDisposition:outputs.verify?.status||null,
   integrationDisposition:outputs.relay?.stage||
-   (c.phase==='human-review'?'HUMAN-REVIEW-RECORDED-OWNER-SIGNOFF-REQUIRED':null),
+   (human?reviewStates[human.status]:null),
   humanAcceptanceReviewCreated:c.phase==='human-review',
-  humanAcceptanceReviewStatus:outputs['live-acceptance-review']?.status||null,
+  humanAcceptanceReviewStatus:human?.status||null,
+  humanAcceptanceUrgentActions:human?.urgent??null,
+  humanAcceptancePendingActions:human?.pending??null,
   integrationReportRelativePath:c.phase==='human-review'?null:'lead-relay/INTEGRATION-CONTRACT.json',
   instructionsRelativePath:c.phase==='human-review'?
    'live-acceptance-review/LIVE-ACCEPTANCE-NEXT-ACTIONS.md':'lead-relay/LEAD-NEXT-ACTIONS.md',
@@ -254,6 +270,9 @@ function markdown(session,source=null){
  if(session.liveAcceptanceDeskRelativeFile)lines.push('- Open private editor: '+session.liveAcceptanceDeskRelativeFile);
  if(session.liveAcceptanceReviewRelativeFile)lines.push('- Reviewed operator observations: '+session.liveAcceptanceReviewRelativeFile,
   '- Specific next actions: '+session.liveAcceptanceNextActionsRelativeFile);
+ if(session.phase==='human-review')lines.push('Human status: '+s(session.humanAcceptanceReviewStatus),
+  'Urgent P0 fixes: '+s(session.humanAcceptanceUrgentActions),
+  'Pending P1 evidence/authorization tasks: '+s(session.humanAcceptancePendingActions));
  lines.push('- Exact source/ZIP release relay: '+
   (session.integrationReportRelativePath||'original source contract supplied in private config'),
   '- Lead next actions: '+session.instructionsRelativePath,

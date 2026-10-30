@@ -149,7 +149,11 @@ async function main(argv){
        report.releaseAuthorized!==false||next.releaseAuthorized!==false||
        next.siteId!==report.siteId)
      throw Error('Reviewed human evidence does not match exact source and lead contract');
+    if(!Number.isSafeInteger(next.counts?.urgent)||
+       !Number.isSafeInteger(next.counts?.pending)||next.counts.pending<1)
+     throw Error('Private action queue lacks validated operator P0/P1 counts');
     return {siteId:info.siteId,action:'review',status:report.status,
+     urgent:next.counts.urgent,pending:next.counts.pending,
      reportSha256:sha(body),nextActionsSha256:sha(actions)};
    },
    prepare:PREP.main,capture:CAPTURE.main,verify:VERIFY.main,relay:RELAY.main,
