@@ -128,6 +128,7 @@ function build(input){
   crawlCmsMarkdown:crawl?.cmsView?.markdown||null,
   crawlCmsJson:crawl?.cmsReview?JSON.stringify(crawl.cmsReview,null,2)+'\n':null,
   crawlCmsDecisionsTemplate:crawl?.cmsTemplate?JSON.stringify(crawl.cmsTemplate,null,2)+'\n':null,
+  crawlCmsDecisionDeskHtml:crawl?.cmsDecisionDeskHtml||null,
   crawlCmsRecheckHtml:crawl?.cmsRecheckView?.html||null,
   crawlCmsRecheckMarkdown:crawl?.cmsRecheckView?.markdown||null,
   crawlCmsRecheckJson:crawl?.cmsRecheck?JSON.stringify(crawl.cmsRecheck,null,2)+'\n':null,
