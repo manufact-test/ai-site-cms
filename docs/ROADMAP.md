@@ -547,3 +547,8 @@ Typed gallery nodes now accept optional boolean `scrollControls` for horizontal 
 ### 30 October 2026 — responsive carousel visible-card counts
 
 Individual horizontally scrolling galleries can now opt into `visibleDesktop` (1–6), `visibleTablet` (1–4), and `visibleMobile` (1–2), with explicit bounded integer validation on both JS and PHP. Device-specific CSS widths account for the existing 16px gap; the default 82%-peek/420px behavior is retained if no visible-card values exist. Both Studio editors expose the fields, switching to grid clears incompatible scroll-only configuration, and the offline bundle preserves parity. Contract/PHP smoke checks cover source values and invalid mobile count. Original media assets are never changed. Real approved desktop/tablet/mobile mockup equivalence still needs owner review. 135 MUST classifications and ownerAccepted=0 are unchanged; no main/SEO-worker/production writes.
+
+
+### 30 October 2026 — standalone authored image figures
+
+Typed Design Graph `image.caption` now works on standalone pictures as well as gallery photos. The JS and PHP renderers produce semantic `<figure class="cmsdg-image-figure">` + escaped `<figcaption>` for standalone images, preserving responsive `<picture>` variants and safe optional image links. Inside galleries, the existing outer gallery `<figure>` owns captions; no nested duplicate figures are emitted. Both Studio modes expose caption editing for any image. Regression coverage added for linked standalone figures, HTML escaping, and rejecting control characters. No arbitrary custom HTML enabled; owner visual comparison with real approved site remains pending. This is an engineering candidate, not owner acceptance.
