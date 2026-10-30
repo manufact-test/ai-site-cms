@@ -6,6 +6,7 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const CYCLE=require('../lib/crawl-cms-lifecycle.cjs');
 const VIEW=require('../lib/crawl-cms-recheck-view.cjs');
+const DESK=require('../lib/crawl-cms-decision-desk.cjs');
 const PRIVATE=require('../lib/private-output-policy.cjs');
 const ROOT=path.resolve(__dirname,'../../..');
 const HELP=[
@@ -60,6 +61,7 @@ function main(args){
  if(config.mode==='template'){
   const template=CYCLE.template(input.worklist.data,input.worklist.sha256);
   created['crawl-cms-decisions-TEMPLATE.json']=JSON.stringify(template,null,2)+'\n';
+  created['crawl-cms-decisions.html']=DESK.render(input.worklist.data,input.worklist.sha256);
   overview={mode:'human-ledger-TEMPLATE',siteId:template.siteId,templateTasks:template.decisions.length,
    humanEditable:true,autoApproval:false};
  }else{
@@ -71,7 +73,8 @@ function main(args){
    'crawl-cms-recheck.html':view.html,
    'crawl-cms-recheck.md':view.markdown,
    'crawl-cms-recheck.json':JSON.stringify(r,null,2)+'\n',
-   'crawl-cms-next-decisions-TEMPLATE.json':JSON.stringify(nextTemplate,null,2)+'\n'
+   'crawl-cms-next-decisions-TEMPLATE.json':JSON.stringify(nextTemplate,null,2)+'\n',
+   'crawl-cms-next-decisions.html':DESK.render(input.after.data,input.after.sha256)
   };
   overview={mode:'two-cycle-recheck',siteId:r.siteId,summary:r.summary,
    sourceBeforeRawSha256:r.sourceBeforeRawSha256,sourceAfterRawSha256:r.sourceAfterRawSha256,
