@@ -1252,6 +1252,18 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#cms-design-preview-frame').evaluate(el=>el.style.width),'390px');
     assert.match(await graphFormFrame.locator('.cmsdg-preview-progress').innerText(),/2 \/ 2/);
     await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Закрыть'}).click();
+    await page.locator('#cms-open-page-preview').click();
+    await page.locator('#cms-page-preview[open]').waitFor();
+    const workFormCanvas=page.frameLocator('#cms-page-preview-frame');
+    await page.locator('.cms-page-preview-modes [data-mode="desktop"]').click();
+    await workFormCanvas.locator('.cmsdg-n-graph-browser-lead-slot').click();
+    assert.equal(await page.locator('#cms-work-graph-node').inputValue(),'graph-browser-lead-slot');
+    await page.locator('#cms-work-graph-panel [data-work-graph-field="form:gap"]').fill('26');
+    await page.locator('#cms-work-graph-panel [data-work-graph-field="form:gap"]').dispatchEvent('change');
+    const workFormChanged=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages[1]
+      .sections.find(section=>section.id==='section-graph-preview-ui');
+    assert.equal(workFormChanged.designGraph.nodes[0].children[1].formAppearance?.gap,26,
+      'Full-page workbench edits the actual typed Graph form appearance');
 
     // Real native Chromium interaction, without adding a custom public runtime.
     const graphHost=require('../sdk/design-graph.cjs');

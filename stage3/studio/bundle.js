@@ -5117,7 +5117,31 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           input.disabled=!canWrite();
           input.addEventListener('change',()=>{
             const val=input.value;
-            if(['fontSize','padding','gap','color','background','textAlign','widthPx','heightPx',
+            if(key.startsWith('form:')){
+              editGraphWork(node=>{
+                if(node.type!=='form-slot')throw Error('Внешний вид формы доступен только для form-slot');
+                const field=key.slice(5),layerKey=mode==='tablet'?'formAppearanceTablet':
+                  mode==='mobile'?'formAppearanceMobile':'formAppearance';
+                if(!val.trim()){
+                  if(node[layerKey])delete node[layerKey][field];
+                  if(node[layerKey]&&!Object.keys(node[layerKey]).length)delete node[layerKey];
+                  return;
+                }
+                const bounds={gap:[0,64],inputRadius:[0,48],inputPadding:[4,32],
+                  buttonRadius:[0,48],buttonPadding:[6,32]};
+                let value=val.trim();
+                if(Object.hasOwn(bounds,field)){
+                  const raw=Number(value),[min,max]=bounds[field];
+                  if(!Number.isInteger(raw)||raw<min||raw>max)throw Error('Введите число '+min+'–'+max+' px');
+                  value=raw;
+                }else if(field==='labelWeight'){
+                  value=Number(value);
+                  if(![400,500,600,700].includes(value))throw Error('Допустимая насыщенность: 400 / 500 / 600 / 700');
+                }else if(!/^#[0-9a-f]{6}$/i.test(value)&&
+                  !/^@[a-z][a-z0-9-]{1,39}$/.test(value))throw Error('Цвет: #112233 либо @accent');
+                (node[layerKey]||(node[layerKey]={}))[field]=value;
+              });
+            }else             if(['fontSize','padding','gap','color','background','textAlign','widthPx','heightPx',
               'minWidth','maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','borderStyle',
               'filterPreset','shadow','objectPositionX','objectPositionY','translateX','translateY','gridTracks','gridAutoRowsPx','display','gridColumnStart','gridColumnSpan','gridRowStart','gridRowSpan','justifySelf'].includes(key)){
               editGraphWork(node=>{
@@ -5167,6 +5191,21 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(current){
           if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item','popup'].includes(current.type))
             property('Текст', 'text',current.text);
+          if(current.type==='form-slot'){
+            const layerKey=mode==='tablet'?'formAppearanceTablet':mode==='mobile'?'formAppearanceMobile':'formAppearance';
+            const layer=current[layerKey]||{};
+            const help=document.createElement('p');help.className='cms-work-hint';
+            help.textContent='Оформление реальной формы · '+(mode==='desktop'?'ПК':mode==='tablet'?'планшет':'телефон')+
+              '. Пустое поле — наследовать стиль.';
+            panel.append(help);
+            for(const [key,label] of [['gap','Расстояние между полями, px'],
+              ['inputRadius','Скругление поля, px'],['inputPadding','Внутренний отступ поля, px'],
+              ['buttonRadius','Скругление кнопки, px'],['buttonPadding','Отступ кнопки, px'],
+              ['labelWeight','Насыщенность подписей (400–700)'],
+              ['inputBackground','Фон полей · #hex / @token'],['borderColor','Цвет обводки · #hex / @token'],
+              ['buttonBackground','Фон кнопки · #hex / @token'],['buttonColor','Текст кнопки · #hex / @token']])
+              property(label,'form:'+key,layer[key]??'');
+          }
           if(current.type==='gallery'){
             property('Форма фотографии','photoShape',current.photoShape||'natural',
               [['natural','Исходные пропорции'],['square','Квадрат 1:1'],['landscape','Широкая 16:9'],['portrait','Вертикальная 3:4']]);
