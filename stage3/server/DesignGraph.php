@@ -587,6 +587,15 @@ final class DesignGraph
         $t=self::tokens($site['designTokens']??null);
         $assetMap=[];foreach ($site['assets'] as $asset)$assetMap[$asset['id']]=$asset;
         $scope='.cmsdg-'.$graph['id'];$rules=[];
+        $galleryTranslations=[
+            'ru'=>['Открыть фотографию','Закрыть фотографию','Предыдущая фотография','Следующая фотография','Навигация по фотографиям','Фотография'],
+            'en'=>['Open photo','Close photo','Previous photo','Next photo','Photo navigation','Photo'],
+            'pl'=>['Otwórz zdjęcie','Zamknij zdjęcie','Poprzednie zdjęcie','Następne zdjęcie','Nawigacja zdjęć','Zdjęcie'],
+            'de'=>['Foto öffnen','Foto schließen','Vorheriges Foto','Nächstes Foto','Fotonavigation','Foto'],
+            'be'=>['Адкрыць фота','Закрыць фота','Папярэдняе фота','Наступнае фота','Навігацыя па фота','Фота'],
+            'uk'=>['Відкрити фото','Закрити фото','Попереднє фото','Наступне фото','Навігація фотографіями','Фото']
+        ];
+        $gl=$galleryTranslations[$site['language']??'ru']??$galleryTranslations['ru'];
         // Only the FIRST visual image of the first section receives LCP priority.
         // Existing explicit PHP/Studio callers default to non-priority images.
         $firstImagePriorityAvailable=$aboveFold;
@@ -629,7 +638,7 @@ final class DesignGraph
             }
             return $html;
         };
-        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop,$richText,&$firstImagePriorityAvailable): string {
+        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop,$richText,$gl,&$firstImagePriorityAvailable): string {
             $selector=$scope.' .cmsdg-n-'.$n['id'];
             $usesTranslate=false;
             foreach ([$n['styles']??[],$n['responsive']['tablet']??[],$n['responsive']['mobile']??[]] as $layer) {
@@ -737,16 +746,16 @@ final class DesignGraph
                         $visual=$visit($child);
                         $id='cmsdg-lightbox-'.$child['id'];
                         $caption=empty($child['caption'])?'':'<figcaption>'.self::h($child['caption']).'</figcaption>';
-                        $trigger=empty($n['lightbox'])?$visual:'<button type="button" class="cmsdg-lightbox-trigger" popovertarget="'.$id.'" aria-label="Открыть фотографию '.($index+1).'">'.$visual.'</button>';
+                        $trigger=empty($n['lightbox'])?$visual:'<button type="button" class="cmsdg-lightbox-trigger" popovertarget="'.$id.'" aria-label="'.$gl[0].' '.($index+1).'">'.$visual.'</button>';
                         $before='cmsdg-lightbox-'.$n['children'][($index+count($n['children'])-1)%count($n['children'])]['id'];
                         $after='cmsdg-lightbox-'.$n['children'][($index+1)%count($n['children'])]['id'];
-                        $navigation='<nav class="cmsdg-gallery-nav" aria-label="Навигация по фотографиям">'.
-                            '<button type="button" popovertarget="'.$before.'" aria-label="Предыдущая фотография">←</button>'.
+                        $navigation='<nav class="cmsdg-gallery-nav" aria-label="'.$gl[4].'">'.
+                            '<button type="button" popovertarget="'.$before.'" aria-label="'.$gl[2].'">←</button>'.
                             '<span>'.($index+1).' / '.count($n['children']).'</span>'.
-                            '<button type="button" popovertarget="'.$after.'" aria-label="Следующая фотография">→</button></nav>';
+                            '<button type="button" popovertarget="'.$after.'" aria-label="'.$gl[3].'">→</button></nav>';
                         $popup='';
-                        if(!empty($n['lightbox']))$popup='<div id="'.$id.'" popover="auto" class="cmsdg-gallery-popover" role="dialog" aria-label="'.self::h($child['alt']?:'Фотография '.($index+1)).'">'.
-                            '<button type="button" class="cmsdg-gallery-close" popovertarget="'.$id.'" popovertargetaction="hide" aria-label="Закрыть фотографию">×</button>'.
+                        if(!empty($n['lightbox']))$popup='<div id="'.$id.'" popover="auto" class="cmsdg-gallery-popover" role="dialog" aria-label="'.self::h($child['alt']?:$gl[5].' '.($index+1)).'">'.
+                            '<button type="button" class="cmsdg-gallery-close" popovertarget="'.$id.'" popovertargetaction="hide" aria-label="'.$gl[1].'">×</button>'.
                             '<div class="cmsdg-gallery-expanded">'.$visual.'</div>'.$caption.$navigation.'</div>';
                         $body.='<figure class="cmsdg-gallery-item">'.$trigger.$caption.$popup.'</figure>';
                     }
