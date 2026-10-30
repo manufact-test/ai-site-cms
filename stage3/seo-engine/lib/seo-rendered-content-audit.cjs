@@ -7,6 +7,7 @@ const HTTP=require('./delivery-evidence.cjs');
 const HTML=require('./html-evidence.cjs');
 const PARITY=require('./parity.cjs');
 const CHROME=require('./seo-rendered-capture.cjs');
+const VIS=require('./seo-browser-css-visibility.cjs');
 const crypto=require('node:crypto');
 const FORMAT='manufact-seo-rendered-content-audit-v1';
 const DEVICES=['desktop','tablet','mobile'];
@@ -135,8 +136,8 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   const report={pageId:p.id,path:p.path,httpInspected:Boolean(server),
    devices:{},expectedCanonical:approvedCanonical,requiredRenderedMethods:DEVICES,
    evidenceState:'UNVERIFIED'};
-  const desired=new Set([...p.links.map(l=>l.toPath),
-   ...p.sections.filter(s=>s.cta).map(s=>byPage.get(s.cta.toPageId).path)]);
+  const ctaPaths=new Set(p.sections.filter(s=>s.cta).map(s=>byPage.get(s.cta.toPageId).path));
+  const desired=new Set([...p.links.map(l=>l.toPath),...ctaPaths]);
   const expectedH1=p.sections.find(s=>s.level===1);
   for(const device of DEVICES){
    const v=views?.captures[device],rendered=v?.method==='rendered-dom';
@@ -170,6 +171,69 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
     {blockedRequestCount:v.blockedRequests,blockedReasonCounts:v.blockedReasons});
    const current=head(v.html,expected),observedRoutes=routes(current.parsed,expected,origin,allPaths);
    const serverRoutes=routes(server.parsed,expected,origin,allPaths);
+   let cssVisibilityStatus='not-supplied',cssHiddenH1=false,cssHiddenMain=false,
+    cssHiddenCtaRoutes=0,cssCollapsedNavRoutes=0,cssHiddenSecondaryHeadings=0;
+   if(version2&&v.visibility){
+    const visual=v.visibility;
+    if(visual.status==='unavailable'){
+     cssVisibilityStatus='unavailable';
+     issue(p,device,'css-sampling-unavailable','P1',
+      'Computed CSS visibility unavailable ('+visual.reason+'); verify on a real device.');
+    }else{
+     VIS.assertObservation(visual,v.htmlSha256,desired);
+     const parsedH1=current.parsed.headings.filter(x=>x.level===1).length;
+     const parsedSecondary=current.parsed.headings.filter(x=>x.level>1).length;
+     if(parsedH1!==visual.h1.total||parsedSecondary!==visual.secondaryHeadings.total){
+      cssVisibilityStatus='unreconciled';
+      issue(p,device,'css-dom-count-mismatch','P1',
+       'CSS heading count differs from serialized DOM; visibility conclusions withheld.');
+     }else{
+      cssVisibilityStatus='observed';
+      if(visual.h1.total>0&&visual.h1.layoutVisible===0){
+       cssHiddenH1=true;
+       issue(p,device,'css-h1-not-visible','P1',
+        'Rendered H1 exists but has no CSS layout-visible box on this device.');
+      }
+      if(current.parsed.mainCount>0&&visual.main.total>0&&visual.main.layoutVisible===0){
+       cssHiddenMain=true;
+       issue(p,device,'css-main-not-visible','P1',
+        'Primary main landmark exists but has no CSS layout-visible box.');
+      }
+      if(visual.h1.visiblyExcluded>0)issue(p,device,'css-visible-h1-aria-excluded','P2',
+       'A visible H1 is aria-hidden/inert; manually inspect accessibility.');
+      if(visual.main.visiblyExcluded>0)issue(p,device,'css-visible-main-aria-excluded','P2',
+       'A visible main landmark is aria-hidden/inert; manually inspect accessibility.');
+      cssHiddenSecondaryHeadings=visual.secondaryHeadings.total-
+       visual.secondaryHeadings.layoutVisible;
+      if(cssHiddenSecondaryHeadings>0)issue(p,device,
+       visual.secondaryHeadings.layoutVisible===0?'css-all-section-headings-hidden':
+        'css-some-section-headings-hidden',
+       visual.secondaryHeadings.layoutVisible===0?'P1':'P2',
+       cssHiddenSecondaryHeadings+' of '+visual.secondaryHeadings.total+
+        ' H2–H6 headings are CSS-hidden on this device.');
+      if(visual.secondaryHeadings.visiblyExcluded>0)
+       issue(p,device,'css-visible-section-heading-aria-excluded','P2',
+        'A visible secondary heading is aria-hidden/inert; manually inspect accessibility.');
+      let excludedRoutes=0;
+      for(const r of visual.routes){
+       if(r.anchors>0&&r.layoutVisible===0){
+        if(ctaPaths.has(r.path))cssHiddenCtaRoutes++;
+        else cssCollapsedNavRoutes++;
+       }
+       if(r.visiblyExcluded>0)excludedRoutes++;
+      }
+      if(cssHiddenCtaRoutes>0)issue(p,device,'css-approved-cta-hidden','P1',
+       cssHiddenCtaRoutes+' approved CTA destination(s) have only hidden anchors.',
+       {affectedApprovedRouteCount:cssHiddenCtaRoutes});
+      if(cssCollapsedNavRoutes>0)issue(p,device,'css-planned-navigation-collapsed','P2',
+       cssCollapsedNavRoutes+' navigation route(s) are CSS-hidden by default; check menu expansion.',
+       {affectedApprovedRouteCount:cssCollapsedNavRoutes});
+      if(excludedRoutes>0)issue(p,device,'css-visible-route-aria-excluded','P2',
+       excludedRoutes+' visible internal route(s) are aria-hidden/inert.',
+       {affectedApprovedRouteCount:excludedRoutes});
+     }
+    }
+   }
    if(current.meta.status!=='parsed-head')issue(p,device,'rendered-head-incomplete','P1',
     'Rendered document head was not completely parseable; metadata parity is unknown.');
    else if(server.meta.status==='parsed-head'){
@@ -258,6 +322,8 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
     issue(p,device,'unlabelled-controls-increased','P2',
      'Rendered DOM introduced form controls without detectable static labels; browser accessibility review needed.');
    report.devices[device]={inspected:true,method:'rendered-dom',
+    cssVisibilityStatus,cssHiddenH1,cssHiddenMain,cssHiddenCtaRoutes,
+    cssCollapsedNavRoutes,cssHiddenSecondaryHeadings,
     h1Count:h1.length,mainCount:current.parsed.mainCount,
     plannedRouteCount:desired.size,observedPlannedRoutes:desired.size-missing.length,
     httpH1Count:oldH1.length,sourceInternalRoutes:serverRoutes.size,
@@ -277,6 +343,8 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   return typeof sourceBody==='string'&&v.matchesOriginalHttpBody&&
    v.serverResponseSha256===crypto.createHash('sha256').update(sourceBody,'utf8').digest('hex');
  };
+ const cssDevices=pages.flatMap(p=>DEVICES.map(d=>p.devices[d]));
+ const cssObserved=cssDevices.filter(d=>d.cssVisibilityStatus==='observed');
  const summary={plannedPages:plan.pages.length,httpInspectedPages:pages.filter(p=>p.httpInspected).length,
   fullyComparedPages:pages.filter(p=>p.evidenceState==='SOURCE-PAIR-OBSERVED').length,
   missingRenderPages:pages.filter(p=>p.evidenceState!=='SOURCE-PAIR-OBSERVED').length,
@@ -289,6 +357,13 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
     (count,d)=>count+p.captures[d].blockedReasons[k],0),0)])):null,
   browserPageErrorPairs:version2?viewports.pages.reduce((n,p)=>n+DEVICES.filter(d=>p.captures[d].pageErrors>0).length,0):null,
   browserUnsettledPairs:version2?viewports.pages.reduce((n,p)=>n+DEVICES.filter(d=>!p.captures[d].stableMarkup).length,0):null,
+  cssInspectedDevicePairs:version2?cssObserved.length:null,
+  cssUnknownOrUnusableDevicePairs:version2?plan.pages.length*3-cssObserved.length:null,
+  cssHiddenH1DevicePairs:version2?cssObserved.filter(d=>d.cssHiddenH1).length:null,
+  cssHiddenMainDevicePairs:version2?cssObserved.filter(d=>d.cssHiddenMain).length:null,
+  cssHiddenSecondaryHeadings:version2?cssObserved.reduce((n,d)=>n+d.cssHiddenSecondaryHeadings,0):null,
+  cssHiddenCtaDestinations:version2?cssObserved.reduce((n,d)=>n+d.cssHiddenCtaRoutes,0):null,
+  cssCollapsedNavDestinations:version2?cssObserved.reduce((n,d)=>n+d.cssCollapsedNavRoutes,0):null,
   P0:findings.filter(f=>f.priority==='P0').length,
   P1:findings.filter(f=>f.priority==='P1').length,
   P2:findings.filter(f=>f.priority==='P2').length};

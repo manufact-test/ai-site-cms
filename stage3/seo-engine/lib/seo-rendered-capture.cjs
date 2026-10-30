@@ -6,6 +6,7 @@
 const BP=require('./blueprint.cjs');
 const HTTP=require('./delivery-evidence.cjs');
 const PUBLIC=require('./public-https-capture.cjs');
+const VIS=require('./seo-browser-css-visibility.cjs');
 const crypto=require('node:crypto');
 const net=require('node:net');
 const FORMAT='manufact-seo-viewport-evidence-v2';
@@ -102,8 +103,9 @@ function assertV2(e,originalHttpSha=null){
     typeof d.stableMarkup!=='boolean'||
     Object.keys(d).some(k=>!['method','html','htmlSha256','requestUrl','responseUrl','status',
      'viewport','collectedAt','blockedRequests','blockedReasons','pageErrors','stableMarkup',
-     'serverResponseSha256','matchesOriginalHttpBody'].includes(k)))
+     'serverResponseSha256','matchesOriginalHttpBody','visibility'].includes(k)))
     fail('invalid or tampered v2 rendered DOM '+p.id+' '+device);
+   if(d.visibility!==undefined)VIS.assertObservation(d.visibility,d.htmlSha256);
   }
  }
  return e;
@@ -137,8 +139,12 @@ async function capture(input,{resolve=PUBLIC.address,launch,now=()=>new Date().t
   browser=await launch(verified.base,pin);
   if(!browser||typeof browser.newContext!=='function'||typeof browser.close!=='function')
    fail('Chromium adapter invalid');
+  const pathById=new Map(verified.bp.pages.map(p=>[p.id,p.path]));
   for(const spec of pages){
    const target=url(verified.base,spec.path),record={id:spec.id,path:spec.path,captures:{}};
+   const plannedPaths=[...new Set([...spec.links.map(l=>l.toPath),
+    ...spec.sections.filter(x=>x.cta).map(x=>pathById.get(x.cta.toPageId))])].sort();
+   const browserTargets=plannedPaths.map(path=>({path,href:url(verified.base,path)}));
    for(const device of DEVICES){
     let context,blockedRequests=0,pageErrors=0,allowedRequests=0;
     const blockedReasons=emptyBlocked();
@@ -197,11 +203,39 @@ async function capture(input,{resolve=PUBLIC.address,launch,now=()=>new Date().t
      }
      if(html.length<10||html.length>250000||!/<html\b/i.test(html)||!/<head\b/i.test(html))
       fail('rendered DOM missing or exceeds bounded evidence for '+spec.id+' '+device);
+     /* Computed CSS counts are bound to this DOM digest, not Google indexing.
+      * Two samples classify animated/unstable CSS as unknown.
+      */
+     let observation=null,reason=null;
+     try{
+      if(typeof page.evaluate!=='function')throw Error('Browser evaluate unavailable');
+      observation=await page.evaluate(VIS.sample,browserTargets);
+      await page.waitForTimeout(250);
+      const later=await page.evaluate(VIS.sample,browserTargets);
+      if(JSON.stringify(observation)!==JSON.stringify(later))
+       reason='css-changing-during-sampling';
+     }catch{reason='sampling-error'}
+     try{
+      const laterHtml=await page.content();
+      if(laterHtml!==html){html=laterHtml;stable=false;reason='dom-changed-during-sampling'}
+     }catch{stable=false;reason='dom-changed-during-sampling'}
+     if(!reason&&observation?.status==='unavailable')
+      reason=VIS.REASONS.includes(observation.reason)?observation.reason:'sampling-error';
+     let visibility;
+     if(!reason){
+      try{
+       visibility={method:VIS.METHOD,status:'observed',checkedAt:now(),
+        htmlSha256:sha(html),h1:observation.h1,main:observation.main,
+        secondaryHeadings:observation.secondaryHeadings,routes:observation.routes};
+       VIS.assertObservation(visibility,sha(html),plannedPaths);
+      }catch{reason='sampling-error'}
+     }
+     if(reason)visibility={method:VIS.METHOD,status:'unavailable',checkedAt:now(),reason};
      record.captures[device]={method:'rendered-dom',html,htmlSha256:sha(html),
       requestUrl:target,responseUrl:page.url(),status:response.status(),
       viewport:{width:WIDTHS[device],height:HEIGHTS[device]},
       collectedAt:now(),blockedRequests,blockedReasons,pageErrors,stableMarkup:stable,
-      serverResponseSha256,matchesOriginalHttpBody};
+      serverResponseSha256,matchesOriginalHttpBody,visibility};
     }finally{if(context)await context.close();}
    }
    evidence.pages.push(record);

@@ -25,6 +25,13 @@ function render(report){
    ' · drift: '+s.browserResponseDriftPairs+' · blocked-request pairs: '+s.browserBlockedPairs+
    ' · script-error pairs: '+s.browserPageErrorPairs+' · changing-DOM pairs: '+s.browserUnsettledPairs,
    'Denied reasons: '+Object.entries(s.browserBlockedReasonCounts).map(([k,n])=>k+'='+n).join(' · '),
+   'CSS layout: observed '+s.cssInspectedDevicePairs+'/'+(s.plannedPages*3)+
+   ' · unknown '+s.cssUnknownOrUnusableDevicePairs+' · hidden H1 '+s.cssHiddenH1DevicePairs+
+   ' · hidden main '+s.cssHiddenMainDevicePairs+
+   ' · hidden H2–H6 '+s.cssHiddenSecondaryHeadings+
+   ' · hidden CTA '+s.cssHiddenCtaDestinations+
+   ' · collapsed navigation '+s.cssCollapsedNavDestinations,
+   'Computed CSS is a bounded layout heuristic; it does not prove Google indexing or accessibility.',
   ]:[]),
   '',
   '## Coverage',
@@ -34,7 +41,7 @@ function render(report){
  ];
  for(const p of report.pages)md.push('| '+clean(p.pageId)+' | '+clean(p.path)+
   ' | '+(p.httpInspected?'observed':'unknown')+
-  ' | '+['desktop','tablet','mobile'].map(d=>p.devices[d].inspected?'rendered DOM':clean(p.devices[d].reason)).join(' | ')+' |');
+  ' | '+['desktop','tablet','mobile'].map(d=>p.devices[d].inspected?'rendered DOM'+(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?' / CSS '+clean(p.devices[d].cssVisibilityStatus||'unknown'):''):clean(p.devices[d].reason)).join(' | ')+' |');
  md.push('','## Manual investigations','','| Priority | Page | Device | Finding | Human next step |',
   '|---|---|---|---|---|');
  for(const f of report.findings)md.push('| '+f.priority+' | '+clean(f.pageId)+
@@ -63,16 +70,21 @@ function render(report){
    ...(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?[
     ['HTTP body matches',s.browserResponseMatchedPairs+'/'+(s.plannedPages*3)],
     ['Body drift',s.browserResponseDriftPairs],['Blocked request pairs',s.browserBlockedPairs],
-    ['Script error pairs',s.browserPageErrorPairs],['Unsettled DOM pairs',s.browserUnsettledPairs]]:[])].map(x=>'<div class="kpi"><b>'+esc(x[1])+'</b>'+esc(x[0])+'</div>').join('')+'</div>'+
+    ['Script error pairs',s.browserPageErrorPairs],['Unsettled DOM pairs',s.browserUnsettledPairs],
+    ['CSS observed',s.cssInspectedDevicePairs+'/'+(s.plannedPages*3)],
+    ['H1 CSS-hidden',s.cssHiddenH1DevicePairs],['Main CSS-hidden',s.cssHiddenMainDevicePairs],
+    ['H2–H6 CSS-hidden',s.cssHiddenSecondaryHeadings],
+    ['Hidden CTA routes',s.cssHiddenCtaDestinations],
+    ['Collapsed navigation',s.cssCollapsedNavDestinations]]:[])].map(x=>'<div class="kpi"><b>'+esc(x[1])+'</b>'+esc(x[0])+'</div>').join('')+'</div>'+
   '<section><h2>Evidence coverage</h2><div class="scroll"><table><thead><tr><th>Page</th><th>Route</th><th>HTTP</th><th>Desktop</th><th>Tablet</th><th>Mobile</th></tr></thead><tbody>'+
   report.pages.map(p=>'<tr><td>'+esc(p.pageId)+'</td><td>'+esc(p.path)+'</td><td>'+(p.httpInspected?'observed':'unknown')+
-   '</td>'+['desktop','tablet','mobile'].map(d=>'<td>'+esc(p.devices[d].inspected?'rendered DOM':p.devices[d].reason)+'</td>').join('')+'</tr>').join('')+
+   '</td>'+['desktop','tablet','mobile'].map(d=>'<td>'+esc(p.devices[d].inspected?'rendered DOM'+(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?' / CSS '+(p.devices[d].cssVisibilityStatus||'unknown'):''):p.devices[d].reason)+'</td>').join('')+'</tr>').join('')+
   '</tbody></table></div></section>'+
   '<section><h2>Human investigations</h2><div class="scroll"><table><thead><tr><th>Priority</th><th>Page</th><th>Device</th><th>Code</th><th>What to inspect</th></tr></thead><tbody>'+
   (report.findings.length?report.findings.map(row).join(''):'<tr><td colspan="5">No detected contradiction in supplied captures. This does not prove Google rendering or SEO acceptance.</td></tr>')+
   '</tbody></table></div></section>'+
   '<section><h2>Before pilot SEO signoff</h2><ol>'+report.manualNext.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol></section>'+
-  '<footer>Original source byte digests recorded. Private report excludes customer HTML, pricing, reviews, research and heading text. Not Google Search Console data; never automatic GO.</footer>'+
+  '<footer>CSS layout visibility is heuristic, not Google rendering, interactive menu or accessibility approval. Original source byte digests recorded. Private report excludes customer HTML, pricing, reviews, research and heading text. Not Google Search Console data; never automatic GO.</footer>'+
   '</body></html>';
  return {html,markdown:md.join('\n')};
 }

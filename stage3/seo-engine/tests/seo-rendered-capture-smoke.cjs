@@ -60,7 +60,16 @@ function adapter(drift=false,flood=false){
        return {status:()=>200,text:async()=>html(blueprint.pages.find(p=>absolute(p.path)===target))+
         (drift?'<!-- changed server response -->':'')};
       },url:()=>target,content:async()=>html(blueprint.pages.find(p=>absolute(p.path)===target)),
-      waitForTimeout:async()=>{}};
+      evaluate:async(fn,targets)=>{
+       assert.equal(typeof fn,'function');
+       const p=blueprint.pages.find(p=>absolute(p.path)===target);
+       const h1=p.sections.filter(x=>x.level===1).length;
+       const secondary=p.sections.filter(x=>x.level>1).length;
+       return {status:'observed',h1:{total:h1,layoutVisible:h1,visiblyExcluded:0},
+        main:{total:1,layoutVisible:1,visiblyExcluded:0},
+        secondaryHeadings:{total:secondary,layoutVisible:secondary,visiblyExcluded:0},
+        routes:targets.map(t=>({path:t.path,anchors:1,layoutVisible:1,visiblyExcluded:0}))};
+      },waitForTimeout:async()=>{}};
      },close:async()=>{}};
    }};
   }};
@@ -86,6 +95,8 @@ function adapter(drift=false,flood=false){
   site,siteRawSha256:hash(json(site)),capture:http,captureRawSha256:sha,
   viewports:data,viewportsRawSha256:hash(json(data)),expectedBase:origin});
  assert.equal(review.summary.P0,0);
+ assert.equal(review.summary.cssInspectedDevicePairs,blueprint.pages.length*3);
+ assert.equal(review.summary.cssHiddenH1DevicePairs,0);
  assert.equal(review.summary.fullyComparedPages,blueprint.pages.length);
  assert(review.findings.some(f=>f.code==='rendered:blocked-browser-requests'));
  assert.equal(review.originalHttpBytePinnedInRenderedCapture,true);
@@ -114,6 +125,12 @@ function adapter(drift=false,flood=false){
  assert(saturated.pages.every(p=>Object.values(p.captures).every(
   v=>v.blockedRequests>=14&&v.blockedReasons.requestBudget>=11)));
  assert.equal(saturated.pages.length,blueprint.pages.length);
+ const cssTampered=structuredClone(data);
+ cssTampered.pages[0].captures.mobile.visibility.htmlSha256='f'.repeat(64);
+ assert.throws(()=>CAP.assertV2(cssTampered,sha),/snapshot/);
+ const legacyCss=structuredClone(data);
+ for(const p of legacyCss.pages)for(const v of Object.values(p.captures))delete v.visibility;
+ assert.equal(CAP.assertV2(legacyCss,sha).pages.length,blueprint.pages.length);
  const tampered=structuredClone(data);
  tampered.pages[0].captures.desktop.html+='changed';
  assert.throws(()=>CAP.assertV2(tampered,sha),/tampered|invalid/);

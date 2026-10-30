@@ -202,6 +202,9 @@
               "minimum": 0
             }
           }
+        },
+        "visibility": {
+          "$ref": "#/$defs/cssVisibility"
         }
       }
     },
@@ -243,6 +246,143 @@
           }
         }
       }
+    },
+    "cssTally": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "layoutVisible",
+        "visiblyExcluded"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "layoutVisible": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "visiblyExcluded": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        }
+      }
+    },
+    "cssRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "anchors",
+        "layoutVisible",
+        "visiblyExcluded"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/(?:[a-z0-9-]+/)*$"
+        },
+        "anchors": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "layoutVisible": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "visiblyExcluded": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        }
+      }
+    },
+    "cssVisibility": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "status",
+            "checkedAt",
+            "htmlSha256",
+            "h1",
+            "main",
+            "secondaryHeadings",
+            "routes"
+          ],
+          "properties": {
+            "method": {
+              "const": "computed-css-layout-v1"
+            },
+            "status": {
+              "const": "observed"
+            },
+            "checkedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "htmlSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "h1": {
+              "$ref": "#/$defs/cssTally"
+            },
+            "main": {
+              "$ref": "#/$defs/cssTally"
+            },
+            "secondaryHeadings": {
+              "$ref": "#/$defs/cssTally"
+            },
+            "routes": {
+              "type": "array",
+              "maxItems": 60,
+              "items": {
+                "$ref": "#/$defs/cssRoute"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "status",
+            "checkedAt",
+            "reason"
+          ],
+          "properties": {
+            "method": {
+              "const": "computed-css-layout-v1"
+            },
+            "status": {
+              "const": "unavailable"
+            },
+            "checkedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "reason": {
+              "enum": [
+                "sampling-error",
+                "element-limit",
+                "dom-changed-during-sampling",
+                "css-changing-during-sampling"
+              ]
+            }
+          }
+        }
+      ]
     }
   }
 }

@@ -1,3 +1,7 @@
+## 31 October 2026 — source-pinned computed CSS visibility SEO QA
+
+NEW first-client SEO block: [RENDERED-VISIBILITY-QA.md](RENDERED-VISIBILITY-QA.md). Existing public Chromium capture now observes bounded CSS layout visibility for H1, H2–H6 headings, main and approved CTA/navigation anchors at desktop/tablet/mobile. Two snapshots 250 ms apart flag changing CSS as unknown. The v2 DOM artifact optionally records source-hash-bound CSS counts; old v2/v1 without CSS remains accepted and marked CSS unknown. The existing private rendered-content audit/Workspace reports P1 CSS-hidden H1/main/all H2–H6/CTAs; P2 partial secondary headings, collapsed navigation and visible aria-hidden/inert content. No text/foreign URLs in CSS metrics, no second panel, no source authenticity/Google/release claim. All edits strictly `stage3/seo-engine/**`, lead integrator owns merge/deployment. Focused smoke added but complete checkout/real Chromium not run in this restricted environment.
+
 ## 30 October 2026 — Chromium rendered-source first-client pilot collector
 
 **Delivered in SEO worker branch only:** [RENDERED-CAPTURE-PILOT.md](RENDERED-CAPTURE-PILOT.md). This extends the existing read-only HTTP-to-DOM reconciliation with an **explicitly operator-run Chromium collector**; it is not a CMS feature, a site template or a new operator dashboard.

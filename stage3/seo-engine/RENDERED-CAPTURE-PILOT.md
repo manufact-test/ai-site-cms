@@ -1,5 +1,7 @@
 # MANUFACT SEO — Safe Chromium rendered-source collection for first client pilot
 
+> **31 October 2026 — CSS visibility extension:** the same Chromium capture and existing rendered-content review now include optional source-bound computed CSS visibility for H1, H2–H6, main and approved CTA/nav anchors. No new dashboard, no Google proof, old v2 without CSS remains valid/unknown. See [RENDERED-VISIBILITY-QA.md](RENDERED-VISIBILITY-QA.md).
+
 **2026-10-30 · independent SEO worker · `feature/site-seo-engine` / `stage3/seo-engine/**` only.**
 No PR, merge, deployment, CMS mutation, Google API, browser session reuse or customer files in Git.
 
