@@ -2157,7 +2157,7 @@
             const val=input.value;
             if(['fontSize','padding','gap','color','background','textAlign','widthPx','heightPx',
               'minWidth','maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','borderStyle',
-              'filterPreset','shadow','objectPositionX','objectPositionY','translateX','translateY','gridTracks','gridAutoRowsPx','display'].includes(key)){
+              'filterPreset','shadow','objectPositionX','objectPositionY','translateX','translateY','gridTracks','gridAutoRowsPx','display','gridColumnStart','gridColumnSpan','gridRowStart','gridRowSpan','justifySelf'].includes(key)){
               editGraphWork(node=>{
                 const style=mode==='desktop'?node.styles||(node.styles={}):
                   (node.responsive||(node.responsive={}))[mode]||((node.responsive[mode]={}));
@@ -2166,7 +2166,7 @@
                   if(mode!=='desktop'&&!Object.keys(style).length)delete node.responsive[mode];
                   if(node.responsive&&!Object.keys(node.responsive).length)delete node.responsive;
                 }else if(['fontSize','padding','gap','widthPx','heightPx','minWidth',
-                  'maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','objectPositionX','objectPositionY','translateX','translateY','gridAutoRowsPx'].includes(key)){
+                  'maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','objectPositionX','objectPositionY','translateX','translateY','gridAutoRowsPx','gridColumnStart','gridColumnSpan','gridRowStart','gridRowSpan'].includes(key)){
                   style[key]=val.startsWith('@')?val.trim():Number(val);
                 }else if(key==='gridTracks'){
                   style.gridTracks=val.split(',').map(part=>Number(part.trim()));
@@ -2468,7 +2468,14 @@
             ['translateX','Смещение по X, px'],['translateY','Смещение по Y, px'],
             ['borderWidth','Толщина рамки, px']])
             appendShape(label,key,styles[key]??'');
-          appendShape('Тип рамки','borderStyle',styles.borderStyle||'',
+          if(rows.some(row=>row.node.id===current.id&&row.depth>0)){
+             for(const [key,label] of [['gridColumnStart','Сетка · колонка от'],['gridColumnSpan','Сетка · ширина в колонках'],
+               ['gridRowStart','Сетка · ряд от'],['gridRowSpan','Сетка · высота в рядах']])
+               appendShape(label+' · '+mode,key,styles[key]??'');
+             appendShape('Выравнивание в сетке · '+mode,'justifySelf',styles.justifySelf||'',
+               [['','По умолчанию'],...['start','center','end','stretch'].map(v=>[v,v])]);
+           }
+           appendShape('Тип рамки','borderStyle',styles.borderStyle||'',
             [['','Наследовать'],...['solid','dashed','dotted','double'].map(v=>[v,v])]);
           appendShape('Тень','shadow',styles.shadow||'',
             [['','Наследовать'],...['none','soft','medium','strong'].map(v=>[v,v])]);
