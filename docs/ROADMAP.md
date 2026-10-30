@@ -585,3 +585,7 @@ The SDK/PHP validators reject any page with zero visible sections on PC/tablet/m
 ### 30 October 2026 — Graph-node visibility and conversion-form coverage
 
 The three-device quality audit now resolves the typed Design Graph display/hidden cascade for visible headings, including hidden ancestors and mobile-only alternate H1. It also counts real lead-form/lead-form-flex sections at each viewport and warns when a page's forms disappear on a device. Source folder review and the offline pilot audit use the same SDK diagnostics, no extra AI subsystem. The real approved desktop/tablet/mobile mockups remain the authority for human visual approval.
+
+### 30 October 2026 — actionable all-page viewport navigation in the existing Quality panel
+
+The existing "SEO-аудит и адреса" dialog now has an expandable inventory of every real page at desktop/tablet/mobile widths: visible section, H1 and form counts, plus direct draft Inspector jumps for that page and device. The existing whole-page workbench now indicates which sections are hidden on the selected device and keeps them selectable after switching devices. This helps the owner repair a responsive approved layout without deleting sections, creating templates or adding another CMS subsystem. No main/SEO/production writes or acceptance status changes.

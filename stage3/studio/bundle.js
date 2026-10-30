@@ -3899,6 +3899,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const dialog=document.createElement('dialog');dialog.className='cms-quality-dialog';dialog.id='cms-site-report';
     const heading=document.createElement('h2');heading.textContent='Проверка перед публикацией';
     const summary=document.createElement('p');summary.id='cms-quality-summary';
+    const viewportPanel=document.createElement('details');viewportPanel.id='cms-quality-viewport-coverage';
+    const viewportTitle=document.createElement('summary');
+    viewportTitle.textContent='Все страницы · ПК / планшет / телефон';
+    const viewportRows=document.createElement('div');viewportRows.id='cms-quality-viewport-rows';
+    viewportPanel.append(viewportTitle,viewportRows);
     const findings=document.createElement('div');findings.id='cms-quality-findings';
     const subtitle=document.createElement('h3');subtitle.textContent='Старые адреса страниц (301)';
     const aliases=document.createElement('div');aliases.id='cms-redirect-list';
@@ -3928,7 +3933,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     });
     safeTitles.id='cms-seo-safe-fix';
     const close=button('Закрыть','btn',()=>dialog.close());
-    dialog.append(heading,summary,findings,subtitle,aliases,form,notes,safeTitles);
+    dialog.append(heading,summary,viewportPanel,findings,subtitle,aliases,form,notes,safeTitles);
     const redrawRepairs=createSiteLinkMediaRepair(dialog,()=>print());
     dialog.append(close);
     document.body.append(dialog);
@@ -3937,6 +3942,25 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       summary.textContent=report.pages+' страниц · '+report.indexable+' индексируемых · '+
         report.errors.length+' ошибок · '+report.warnings.length+' рекомендаций · '+
         report.redirects+' перенаправлений';
+      // Source-specific three-device map; each action selects a real authored page.
+      viewportRows.replaceChildren();
+      for(const page of session.current.pages){
+        const group=document.createElement('div');group.className='cms-quality-finding';
+        const name=document.createElement('strong');name.textContent=page.title+' · '+page.path;
+        group.append(name);
+        for(const [device,label] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
+          const row=report.deviceCoverage.find(item=>item.pageId===page.id&&item.device===device);
+          const control=button(label+' · '+(row?.sections??0)+' секц. / '+(row?.h1??0)+
+            ' H1 / '+(row?.forms??0)+' форм','btn small',()=>{
+              pageId=page.id;breakpoint=device;
+              const chosen=page.sections.find(section=>section.deviceVisibility?.[device]!==false)||page.sections[0];
+              sectionId=chosen.id;elementId=chosen.elements[0].id;draw();dialog.close();
+            });
+          control.setAttribute('aria-label','Открыть '+page.title+' · '+label+' в редакторе');
+          group.append(control);
+        }
+        viewportRows.append(group);
+      }
       const missingTitles=session.current.pages.filter(page=>!String(page.seo?.title||'').trim()).length;
       safeTitles.disabled=missingTitles===0;
       safeTitles.textContent=missingTitles?'Заполнить пустые SEO title ('+missingTitles+')':'Пустых SEO title нет';
@@ -4086,7 +4110,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     modal.addEventListener('close',()=>{previewRequest++;});
     for(const [value,name] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
       const option=button(name,'btn small',()=>{
-        mode=value;frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el===option));render();
+        mode=value;frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el===option));showWork();render();
       });
       option.dataset.mode=value;frameMode.append(option);
     }
@@ -4490,11 +4514,17 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     function showWork(){
       const page=pageForWork(),section=sectionForWork();
       workTitle.textContent=section?(manifest(section)?.label||section.component):'Выберите блок на странице';
+      const modeName={desktop:'ПК',tablet:'планшете',mobile:'телефоне'}[mode];
+      workHint.textContent=section?.deviceVisibility?.[mode]===false
+        ?'Этот блок скрыт на '+modeName+'. Выберите его в списке ниже и включите устройство, чтобы вернуть в макет.'
+        :'Нажмите на текст или карточку, чтобы выбрать поле. Двойной клик по тексту — быстрая правка.';
       workSectionPicker.replaceChildren();workElementPicker.replaceChildren();
       workActions.replaceChildren();workFields.replaceChildren();workAdd.replaceChildren();
       if(!page||!section)return;
       for(const s of page.sections){const o=document.createElement('option');o.value=s.id;
-        o.textContent=manifest(s)?.label||s.component;workSectionPicker.append(o);}
+        o.textContent=(manifest(s)?.label||s.component)+
+          (s.deviceVisibility?.[mode]===false?' · скрыто на '+modeName:'');
+        workSectionPicker.append(o);}
       workSectionPicker.value=section.id;
       const position=page.sections.indexOf(section);
       const up=workButton('↑',()=>structureWork({action:'moveSection',pageId:page.id,sectionId:section.id,delta:-1}));
