@@ -7,6 +7,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const BP=require('../lib/blueprint.cjs');
 const DIFF=require('../lib/blueprint-change-review.cjs');
 const VIEW=require('../lib/blueprint-change-view.cjs');
+const DECISIONS=require('../lib/blueprint-change-decisions.cjs');
 const POLICY=require('../lib/private-output-policy.cjs');
 const ROOT=fs.realpathSync(path.resolve(__dirname,'../../..'));
 const HELP='Usage: node stage3/seo-engine/bin/compare-seo-blueprints.cjs --before /ABS/private/OLD-blueprint-or-brief.json --after /ABS/private/NEW-blueprint-or-brief.json --out /ABS/NEW-private-diff';
@@ -59,12 +60,7 @@ function main(argv){
  const view=VIEW.render(report);
  const md=DIFF.markdown(report);
  const reportJson=JSON.stringify(report,null,2)+'\n';
- const worksheet={format:'manufact-seo-blueprint-change-decisions-v1',version:1,
-  siteId:report.siteId,beforeBlueprintSha256:report.beforeBlueprintSha256,
-  afterBlueprintSha256:report.afterBlueprintSha256,
-  actions:report.actions.map(a=>({id:a.id,priority:a.priority,decision:'pending',
-   reviewer:'',reviewedAt:null,evidenceRef:'',notes:''})),
-  releaseAuthorized:false,clientSignoffAuthenticated:false};
+ const worksheet=DECISIONS.template(report);
  const files={
   'index.html':view.html,
   'BLUEPRINT-CHANGE-IMPACT.json':reportJson,
