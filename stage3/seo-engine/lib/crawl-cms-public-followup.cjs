@@ -61,8 +61,12 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
   typeof robots.body==='string';
  const sitemapReady=sitemap&&sitemap.status===200&&sitemap.url===urlFor('/sitemap.xml')&&
   typeof sitemap.body==='string';
- let livePolicy=null,policyError=null;
- if(robotsReady&&sitemapReady){
+ let parsedRobots=null,parsedSitemap=null,livePolicy=null,policyError=null;
+ if(robotsReady){try{parsedRobots=POLICY.parseRobots(robots.body);}
+  catch(e){policyError=String(e.message).slice(0,220);}}
+ if(sitemapReady){try{parsedSitemap=POLICY.parseSitemap(sitemap.body);}
+  catch(e){policyError=String(e.message).slice(0,220);}}
+ if(parsedRobots&&parsedSitemap){
   try{livePolicy=POLICY.analyze({blueprint:bp,base:origin,
    robotsText:robots.body,sitemapXml:sitemap.body,
    agents:worklist.crawlerAgents||['Googlebot','Bingbot','*'],
@@ -70,7 +74,7 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
   catch(e){policyError=String(e.message).slice(0,220);}
  }
  const indexed=new Map(livePolicy?.pages.map(p=>[p.pageId,p])||[]);
- const candidateDirect=livePolicy?.sitemapMeta.kind==='urlset'&&
+ const candidateDirect=parsedSitemap?.kind==='urlset'&&
   worklist.crawlCoverageScope==='complete';
  if(latestRecheck){
   check(latestRecheck.format===LIFE.RECHECK&&latestRecheck.readOnly===true&&
@@ -95,16 +99,17 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
   };
   if(category==='publisher-robots-policy'&&plan){
    const agent=/for ([A-Za-z0-9_*-]+)\.$/.exec(task.detail)?.[1];
-   const decision=agent&&current?.crawlerDecisions?.find(x=>x.agent?.toLowerCase()===agent.toLowerCase());
-   if(robotsReady&&livePolicy&&decision){
+   const decision=agent&&parsedRobots?POLICY.decide(parsedRobots,agent,
+    new URL(origin).pathname+plan.path.slice(1)):null;
+   if(robotsReady&&parsedRobots&&decision){
     outcome(decision.allowed?'OBSERVED-ALIGNED-NOT-VERIFIED':'OBSERVED-CONFLICT',
      decision.allowed?'Supplied HTTP robots.txt permits the expected agent at the approved canonical URL.':
       'Supplied HTTP robots.txt STILL blocks the expected agent at the approved canonical URL.',
      'robots-agent-decision',{agent,allowed:decision.allowed,matchedRule:decision.matchedRule||null});
-   }else reason='Cannot evaluate the originally blocked crawler group without HTTP 200 robots/sitemap and exact crawler agent evidence.';
+   }else reason='Cannot evaluate the originally blocked crawler group without HTTP 200 robots body and exact crawler agent evidence.';
   }else if(category==='publisher-sitemap'&&plan){
-   if(sitemapReady&&livePolicy&&candidateDirect){
-    const visible=current?.sitemap==='observed-in-supplied-xml';
+   if(sitemapReady&&parsedSitemap&&candidateDirect){
+    const visible=parsedSitemap.records.some(x=>x.loc===urlFor(plan.path));
     outcome(visible?'OBSERVED-ALIGNED-NOT-VERIFIED':'OBSERVED-CONFLICT',
      visible?'Approved canonical is in the supplied public XML URL list.':
       'Approved canonical is STILL absent from the supplied declared-complete direct XML sitemap.',
@@ -137,7 +142,7 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
     outcome(aligned?'OBSERVED-ALIGNED-NOT-VERIFIED':'OBSERVED-CONFLICT',
      aligned?'Supplied public head metadata matches approved Blueprint field.':
       'Supplied public head metadata differs from the approved Blueprint field.',
-     'public-html-'+field,{field,expected:expected??null,observed:observed??null});
+     'public-html-'+field,{field,expected:safe(expected??''),observed:safe(observed??'')});
    }else reason='Exact page HTTP 2xx, parsed HTML and source field name needed to compare metadata.';
   }else if(category==='cms-canonical-manual'&&plan){
    if(good&&head?.status==='parsed-head'){
@@ -184,7 +189,8 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
   policy:{publicRobotsStatus:robots?.status??null,publicSitemapStatus:sitemap?.status??null,
    publicRobotsSha256:robots?.body!==undefined?sha(robots.body):null,
    publicSitemapSha256:sitemap?.body!==undefined?sha(sitemap.body):null,
-   canAnalyzeBoth:!!livePolicy,parseFailure:policyError,
+   canAnalyzeBoth:!!livePolicy,robotsParsed:!!parsedRobots,
+   sitemapParsed:!!parsedSitemap,parseFailure:policyError,
    sitemapCoverageComparable:!!candidateDirect},
   htmlCoverage:{selectedSitePages:site.pages.length,
    suppliedPages:capture.pages.length,approvedPagesCaptured:captured.size,
