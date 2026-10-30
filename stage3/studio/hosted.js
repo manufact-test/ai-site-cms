@@ -3916,17 +3916,28 @@
         const mediaBytes=media.reduce((sum,item)=>sum+item.original.size+
           item.variants.reduce((subtotal,v)=>subtotal+v.file.size,0),0);
         const minimumBackupBytes=Math.ceil((mockupBytes+mediaBytes)*4/3);
+        const sourceBindings=editor.remapImportedMedia(site,
+          new Map(site.assets.map(asset=>[asset.id,asset.id])),site.assets);
         const summary=element('p',null,'Сайт: '+site.title+' · версия: '+handoff.version+
-          ' · страниц: '+site.pages.length+' · изображений: '+site.assets.length+
+          ' · страниц: '+site.pages.length+' · медиафайлов: '+site.assets.length+
           ' · оригиналов макетов: '+mockups.length+
            ' · MP4: '+media.filter(entry=>entry.video).length+
           ' · размер медиа: '+(mockupBytes+mediaBytes).toLocaleString('ru-RU')+' байт'+
+          ' · действующих медиапривязок: '+sourceBindings.bindings+
           ' · целостность: '+(handoff.format.endsWith('-v2')?'SHA-256 подтверждена':'старый пакет v1'));
         if(minimumBackupBytes>45000000)
           summary.append(element('strong',null,
             ' · Внимание: только Base64 изображений займёт минимум '+
             Math.ceil(minimumBackupBytes/1000000)+
             ' МБ в полном бэкапе. Лимит — 64 МБ, возможен отказ экспорта.'));
+        const mediaWarning=element('p',null,sourceBindings.unusedMediaIds.length
+          ?'В исходнике есть медиа без реальных привязок: '+
+            sourceBindings.unusedMediaIds.slice(0,12).join(', ')+
+            (sourceBindings.unusedMediaIds.length>12?' и ещё '+
+              (sourceBindings.unusedMediaIds.length-12):'')+
+            '. Они сохранятся, но проверьте необходимость.'
+          :'Все исходные медиа используются в объявленных полях сайта.');
+        mediaWarning.id='server-approved-media-bindings';
         const description=element('p',null,archiveOnly?
           'Архивирование не изменит страницы, черновик или публикацию. Проверьте исходные макеты, описания и версию; записи будут доступны только владельцу CMS.':
           recovery?
@@ -4097,7 +4108,7 @@
           actions.append(acknowledgement);
         }
         actions.append(cancel,confirmButton);
-        dialog.append(heading,summary,description,pageLabel,previews,details,videoReview,actions);
+        dialog.append(heading,summary,mediaWarning,description,pageLabel,previews,details,videoReview,actions);
         document.body.append(dialog);
         const pageImageUrls=new Map();
         const showPage=async()=>{
