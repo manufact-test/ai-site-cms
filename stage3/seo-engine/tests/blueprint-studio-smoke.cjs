@@ -10,7 +10,7 @@ const second=JSON.parse(fs.readFileSync(path.join(__dirname,'../fixtures/communi
 assert.deepEqual(BP.compileBrief(STUDIO.briefFromBlueprint(second)),second);
 assert.deepEqual(STUDIO.starter('site-new-example').pages.map(x=>x.path),['/']);
 assert.throws(()=>STUDIO.starter('Invalid Site ID'),/stable site ID/);
-assert.throws(()=>STUDIO.render(STUDIO.starter('site-new-example')),/brief/);
+assert.throws(()=>STUDIO.render(STUDIO.starter('site-new-example')),/title|invalid text/);
 const html=STUDIO.render(brief);
 const draft=STUDIO.render(STUDIO.starter('site-new-example'),{allowIncomplete:true});
 for(const label of ['Add page','Add section','Add fact','Add source','Export for SEO compiler',
