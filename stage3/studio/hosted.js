@@ -3956,6 +3956,71 @@
         pageSelect.style.maxWidth='400px';
         const pageLabel=element('label','hosted-label','Страница для визуальной проверки');
         pageLabel.append(pageSelect);
+        // Source-specific editability map: only sections and controls that
+        // actually exist in this approved site's manifest. No template catalog.
+        const editorInventory=element('details','');
+        editorInventory.id='server-approved-editability';
+        editorInventory.open=true;
+        editorInventory.append(element('summary',null,'Какие поля этого сайта будут в CMS'));
+        const editorInventoryBody=element('div','');
+        editorInventory.append(editorInventoryBody);
+        const manifestById=new Map(editor.manifests().map(m=>[m.id,m]));
+        const editability=()=>{
+          const page=site.pages.find(item=>item.path===pageSelect.value);
+          editorInventoryBody.replaceChildren();
+          if(!page)return;
+          editorInventoryBody.append(element('p',null,'Страница: '+page.title+' · '+page.path+
+            '. SEO и меню этой страницы редактируются отдельно. Ниже — только использованные секции.'));
+          const list=element('ul','');
+          for(const section of page.sections){
+            const manifest=manifestById.get(section.component);
+            let content=0,style=0,behavior=0,mediaFields=0,responsive=0;
+            for(const def of manifest?.elements||[]){
+              for(const field of def.fields){
+                if(field.path.startsWith('content.'))content++;
+                if(field.path.startsWith('style.'))style++;
+                if(field.path.startsWith('behavior.'))behavior++;
+                if(field.type==='media')mediaFields++;
+                if(field.responsive)responsive++;
+              }
+            }
+            for(const field of manifest?.repeat?.fields||[]){
+              const count=(section.items||[]).length;
+              if(field.path.startsWith('content.'))content+=count;
+              if(field.path.startsWith('style.'))style+=count;
+              if(field.path.startsWith('behavior.'))behavior+=count;
+              if(field.type==='media')mediaFields+=count;
+              if(field.responsive)responsive+=count;
+            }
+            let summary;
+            if(section.designGraph){
+              let nodes=0,textNodes=0,mediaNodes=0;
+              const walk=children=>{
+                for(const node of children){
+                  nodes++;
+                  if(['heading','text','button','link','quote','gallery','table','table-cell',
+                    'list-item','disclosure','tab'].includes(node.type))textNodes++;
+                  if(['image','video'].includes(node.type)||node.backgroundMedia||node.backgroundVideo)
+                    mediaNodes++;
+                  if(node.children)walk(node.children);
+                }
+              };
+              walk(section.designGraph.nodes);
+              summary='Авторский дизайн: '+nodes+' узлов, '+textNodes+
+                ' текстовых, '+mediaNodes+' с медиа';
+            }else{
+              summary='Контент: '+content+' · оформление: '+style+
+                ' · действия: '+behavior+' · медиа: '+mediaFields+
+                ' · адаптивные поля: '+responsive;
+            }
+            const row=element('li',null,(manifest?.label||section.component)+
+              ' · '+section.id+' — '+summary);
+            list.append(row);
+          }
+          editorInventoryBody.append(list);
+          editorInventoryBody.append(element('small',null,
+            'Подсчёт по исходному site.json и объявленным полям. Это не подтверждение визуального совпадения с макетом.'));
+        };
         const previews=element('div','');
         previews.id='server-approved-prototypes';
         Object.assign(previews.style,{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:'14px'});
@@ -4108,11 +4173,13 @@
           actions.append(acknowledgement);
         }
         actions.append(cancel,confirmButton);
-        dialog.append(heading,summary,mediaWarning,description,pageLabel,previews,details,videoReview,actions);
+        dialog.append(heading,summary,mediaWarning,description,pageLabel,editorInventory,
+          previews,details,videoReview,actions);
         document.body.append(dialog);
         const pageImageUrls=new Map();
         const showPage=async()=>{
           pageSelect.disabled=true;
+          editability();
           const current=site.pages.find(page=>page.path===pageSelect.value);
           const devices=current?.path==='/'?refs:
             pageReferences[current?.id]||null;
