@@ -3648,7 +3648,7 @@
           display:['block','grid','flex','none'],
           direction:['row','column'],align:['start','center','end','stretch','between'],
           justify:['start','center','end','stretch','between'],
-          position:['static','relative','absolute'],textAlign:['left','center','right'],
+          position:['static','relative','absolute','sticky'],textAlign:['left','center','right'],
           flexWrap:['nowrap','wrap'],alignSelf:['auto','start','center','end','stretch'],
           fontFamily:['inherit','system','arial','georgia','serif','mono','site-body','site-heading'],
           objectFit:['cover','contain','fill','none'],
