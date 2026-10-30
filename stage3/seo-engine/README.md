@@ -605,3 +605,8 @@ The private [Crawl/CMS Implementation Handoff](CRAWL-CMS-HANDOFF.md) optionally 
 ### Crawl/CMS operator decisions and follow-up
 
 The [Crawl CMS task lifecycle](CRAWL-CMS-LIFECYCLE.md) extends the existing private SEO Operator Workspace with a CSP-restricted offline human Decision Desk, strict source-pinned ledger, repeated observation comparison, stable per-issue topic matching, P0 escalations and reported-complete-but-still-seen work. Previous task disappearance never automatically establishes a deployed correction. There is also a standalone `bin/recheck-crawl-cms-work.cjs` for already-saved private worklists. No new CMS/dashboard/publisher or release authorization is introduced.
+
+
+### Actual public HTTP observations of SEO fixes — no automatic GO
+
+The [Crawl Public Follow-up workflow](CRAWL-PUBLIC-FOLLOWUP.md) correlates existing approved Blueprint/Site v1 Crawl/CMS tasks against the project's already-built owner-operated read-only public HTTPS capture evidence. A private operator workspace panel and independent `bin/review-crawl-public-fixes.cjs` distinguish still-conflicting, insufficient and apparently-aligned-but-NOT-VERIFIED SEO corrections; current-source SHA256, independent delivery blockers and zero release authority are explicit. No new network collector, CMS editor, deployer, Google API or separate dashboard was created.
