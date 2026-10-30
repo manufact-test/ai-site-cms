@@ -600,3 +600,8 @@ Existing [SEO Operator Workspace](SEO-OPERATOR-WORKSPACE.md) now includes Crawl 
 ### Exact crawl findings → existing CMS worklist
 
 The private [Crawl/CMS Implementation Handoff](CRAWL-CMS-HANDOFF.md) optionally maps approved Blueprint + operator-selected Site v1 + original Crawl Policy/Indexing/Repair findings to actionable, **non-executable** P0/P1/P2 tasks for the existing CMS page SEO fields, publisher robots/sitemap/redirect operations and live Search Console checks. This is part of the **same SEO Operator Workspace**, not another CMS implementation. Site/source SHA256, missing/extra routes, metadata overrides and draft-only release boundaries are explicit.
+
+
+### Crawl/CMS operator decisions and follow-up
+
+The [Crawl CMS task lifecycle](CRAWL-CMS-LIFECYCLE.md) extends the existing private SEO Operator Workspace with a CSP-restricted offline human Decision Desk, strict source-pinned ledger, repeated observation comparison, stable per-issue topic matching, P0 escalations and reported-complete-but-still-seen work. Previous task disappearance never automatically establishes a deployed correction. There is also a standalone `bin/recheck-crawl-cms-work.cjs` for already-saved private worklists. No new CMS/dashboard/publisher or release authorization is introduced.
