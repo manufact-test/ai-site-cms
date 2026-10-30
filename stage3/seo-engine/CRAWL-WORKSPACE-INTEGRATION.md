@@ -90,3 +90,8 @@ New optional `crawl.cmsBaseline` = exact original previous `crawl-cms-worklist.j
 ## New source-bound actual-public-observation layer
 
 The crawl config optionally accepts `publicCapture`: the exact private original `manufact-seo-delivery-evidence-v1` transcript from the **existing** read-only HTTPS capture tool. It requires `cmsBlueprint` and `cmsSite`, and the current crawl policy; all site, canonical Blueprint and original file SHA256 identities are checked. The private current workspace then adds `crawl-public-followup.html`, Markdown and read-only JSON, and links the result on `crawl.html` and the main landing page. No HTML page bodies are emitted in the report; original transcript remains in a private source folder. See [CRAWL-PUBLIC-FOLLOWUP.md](CRAWL-PUBLIC-FOLLOWUP.md).
+
+
+## Actual per-client structured data analysis on supplied public HTML
+
+With the existing `crawl.publicCapture` and original `crawl.cmsBlueprint`/`crawl.cmsSite` file pair, the same crawl workspace now checks actual JSON-LD scripts against **that client's** approved `schemaCandidates`, factual claim eligibility, canonical route, nested BreadcrumbList semantics and off-site/malformed entity references. Outputs: `structured-data.html/.md/.json`; linked from crawl and operator index. No extra config keys, HTTP requests, publisher change, reusable website library or Google eligibility claims. The source SHA256 and contents remain private. See [STRUCTURED-DATA-QA.md](STRUCTURED-DATA-QA.md).
