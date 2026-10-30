@@ -676,13 +676,18 @@ final class DesignGraph
                     $url=str_replace(['\\','"','<','>'],['\\\\','\\"','\\3c ','\\3e '],$url);
                     return 'url("'.$url.'")';
                 };
-                $rules[]=$selector.'{position:relative;isolation:isolate}'.$b.
+                $basePosition=($n['styles']['position']??'relative');
+                if($basePosition==='static')$basePosition='relative';
+                $rules[]=$selector.'{position:'.$basePosition.';isolation:isolate}'.$b.
                     '{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;border-radius:inherit;'.
                     'background-image:'.$poster($v['posterAssetId']).';background-size:cover;background-repeat:no-repeat;'.
                     'background-position:'.($v['positionX']??50).'% '.($v['positionY']??50).'%}';
-                foreach(['tablet'=>900,'mobile'=>600] as $bp=>$limit)
+                foreach(['tablet'=>900,'mobile'=>600] as $bp=>$limit){
+                    $position=$n['responsive'][$bp]['position']??null;
+                    if($position!==null)$rules[]='@media(max-width:'.$limit.'px){'.$selector.'{position:'.($position==='static'?'relative':$position).'}}';
                     if(isset($v[$bp.'PosterAssetId']))
                         $rules[]='@media(max-width:'.$limit.'px){'.$b.'{background-image:'.$poster($v[$bp.'PosterAssetId']).'}}';
+                }
                 $rules[]=$b.' video{position:absolute;inset:0;width:100%!important;height:100%!important;'.
                     'max-width:none!important;object-fit:cover;object-position:'.($v['positionX']??50).'% '.
                     ($v['positionY']??50).'%;display:block}';
