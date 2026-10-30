@@ -2220,10 +2220,7 @@
               property('Колонок на телефоне','columnsMobile',current.columnsMobile??1);
             }
           }
-          if(current.type==='image'&&section.designGraph.nodes.some(function containsGallery(node){
-            return node.type==='gallery'&&node.children.some(child=>child.id===current.id)||
-              (node.children||[]).some(containsGallery);
-          }))property('Подпись фотографии','caption',current.caption||'');
+          if(current.type==='image')property('Подпись изображения','caption',current.caption||'');
           if((current.type==='button'&&!current.popupTarget)||current.type==='link')
             property('Ссылка','href',current.href);
           if(current.type==='button'){
@@ -3576,15 +3573,9 @@
             n.layout='grid';n[key]=Number(value);
           },'number'));
       }
-      if(n.type==='image'){
-        const galleryParent=graph.nodes.some(function findGallery(node){
-          return node.type==='gallery'&&(node.children||[]).some(child=>child.id===n.id)||
-            (node.children||[]).some(findGallery);
-        });
-        if(galleryParent)fields.append(ctl('Подпись фотографии (показывается под фото)',n.caption||'',value=>{
-          if(value.trim())n.caption=value;else delete n.caption;
-        }));
-      }
+      if(n.type==='image')fields.append(ctl('Подпись изображения (под фото)',n.caption||'',value=>{
+        if(value.trim())n.caption=value;else delete n.caption;
+      }));
       if(n.type==='quote')fields.append(ctl('Автор или источник цитаты',n.cite||'',value=>{n.cite=value;}));
       if(n.type==='list')fields.append(ctl('Тип списка',{initial:n.ordered?'ordered':'unordered',
         choices:[['unordered','Маркированный'],['ordered','Нумерованный']]},v=>{n.ordered=v==='ordered';},'select'));
