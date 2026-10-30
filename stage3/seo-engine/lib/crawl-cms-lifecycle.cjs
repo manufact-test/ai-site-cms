@@ -34,6 +34,7 @@ function checkWorklist(report,rawSha){
    (task.path===null||typeof task.path==='string')&&
    typeof task.detail==='string'&&task.detail.length<=900&&
    typeof task.source==='string'&&task.source.length<=120&&
+   (task.issueKey===undefined||/^crawl-topic:[0-9a-f]{24}$/.test(task.issueKey))&&
    task.automatic===false&&task.readyToImplement===false&&
    task.ownerApprovalRequired===true&&Array.isArray(task.evidenceRequired)&&
    task.evidenceRequired.length>=1&&task.evidenceRequired.length<=12,
@@ -98,12 +99,21 @@ function compare(before,beforeSha,after,afterSha,ledger=null,ledgerSha=null){
  verify(before.siteId===after.siteId&&before.base===after.base&&
   before.approvedBlueprintCanonicalSha256===after.approvedBlueprintCanonicalSha256,
   'comparison requires same client site, exact public mount and canonical approved Blueprint');
+ const comparability=x=>({
+  agents:Array.isArray(x.crawlerAgents)?x.crawlerAgents:null,
+  scope:x.crawlCoverageScope||null,
+  sitemapKind:x.sitemapSourceKind||null});
+ const sourceBefore=comparability(before),sourceAfter=comparability(after);
+ const sameCoverage=JSON.stringify(sourceBefore)===JSON.stringify(sourceAfter);
+ verify(sameCoverage,
+  'cannot compare changed crawler agents, sitemap evidence scope or sitemap XML source type');
+ const legacyCoverageUnknown=!sourceBefore.agents||!sourceBefore.scope||!sourceBefore.sitemapKind;
  const decisions=ledger?checkDecisions(before,beforeSha,ledger):new Map();
  if(ledger)verify(SHA.test(ledgerSha||''),'original decision file raw SHA256 required');
  else verify(!ledgerSha,'ledger SHA256 cannot exist without original ledger');
  const old=new Map(before.actions.map(x=>[x.taskId,x])),
   fresh=new Map(after.actions.map(x=>[x.taskId,x]));
- const persistent=[],noLongerSeen=[],newlyObserved=[],workstreamChanges=[];
+ const persistent=[],noLongerSeen=[],newlyObserved=[],changedObservation=[];
  const pRank={P0:0,P1:1,P2:2};
  const guard={};for(const s of STATUSES)guard[s]=0;
  const make=(a,state)=>{
@@ -119,25 +129,48 @@ function compare(before,beforeSha,after,afterSha,ledger=null,ledgerSha=null){
    reportedCompleteIsNotVerified:true,ownerApprovalAuthenticated:false,
    publicHostAuthenticated:false,canAutoClose:false,releaseAuthorized:false};
  };
+ const topicMap=(tasks)=>{const res=new Map();
+  for(const a of tasks)if(a.issueKey){
+   if(!res.has(a.issueKey))res.set(a.issueKey,[]);
+   res.get(a.issueKey).push(a);
+  }
+  return res;
+ };
+ const beforeTopics=topicMap(before.actions),afterTopics=topicMap(after.actions);
+ const pairedNew=new Set();
  for(const a of before.actions){
-  if(!fresh.has(a.taskId)){
-   noLongerSeen.push(make(a,'DISAPPEARED-FROM-NEW-OPERATOR-SNAPSHOT-NOT-PROVEN-FIXED'));
-  }else{
+  if(fresh.has(a.taskId)){
    persistent.push(make(a,decisions.get(a.taskId)?.status==='completed-reported'?
     'OWNER-REPORTED-COMPLETE-BUT-ISSUE-STILL-OBSERVED':'PERSISTS-IN-BOTH-OPERATOR-SNAPSHOTS'));
+   continue;
   }
+  const candidates=a.issueKey&&beforeTopics.get(a.issueKey)?.length===1&&
+   afterTopics.get(a.issueKey)?.length===1?afterTopics.get(a.issueKey):[];
+  const changed=candidates[0];
+  if(changed&&!old.has(changed.taskId)&&!pairedNew.has(changed.taskId)){
+   pairedNew.add(changed.taskId);
+   changedObservation.push({
+    ...make(a,'SAME-ISSUE-CHANGED-OBSERVATION-REQUIRES-REVIEW'),
+    taskId:changed.taskId,previousTaskId:a.taskId,issueKey:a.issueKey,
+    beforePriority:a.priority,priority:changed.priority,ownerTeam:changed.ownerTeam,
+    beforeObservation:a.detail,afterObservation:changed.detail,
+    previousHumanDecision:decisions.get(a.taskId)?.status||'unreviewed',
+    humanDecision:'unreviewed',priorDecisionTransferAllowed:false
+   });
+  }else noLongerSeen.push(make(a,'DISAPPEARED-FROM-NEW-OPERATOR-SNAPSHOT-NOT-PROVEN-FIXED'));
  }
- for(const a of after.actions)if(!old.has(a.taskId))
+ for(const a of after.actions)if(!old.has(a.taskId)&&!pairedNew.has(a.taskId))
   newlyObserved.push({...make(a,'NEW-OR-CHANGED-OBSERVATION-REQUIRES-REVIEW'),
    priorDecisionTransferAllowed:false});
  const sort=(a,b)=>pRank[a.priority]-pRank[b.priority]||
   (a.path||'').localeCompare(b.path||'')||a.taskId.localeCompare(b.taskId);
- for(const x of [persistent,noLongerSeen,newlyObserved])x.sort(sort);
+ for(const x of [persistent,noLongerSeen,newlyObserved,changedObservation])x.sort(sort);
  // Rechecks are NOT direct publish attestation. Even if every observed task disappears,
  // the absence is only in selected private input snapshots.
  const unresolvedReported=persistent.filter(a=>a.humanDecision==='completed-reported');
  const removedReported=noLongerSeen.filter(a=>a.humanDecision==='completed-reported');
  const newCritical=newlyObserved.filter(a=>a.priority==='P0');
+ const changedCritical=changedObservation.filter(a=>a.priority==='P0');
  const byPriority=s=>Object.fromEntries(PRIORITIES.map(p=>[p,s.filter(x=>x.priority===p).length]));
  return {format:RECHECK,version:1,siteId:before.siteId,base:before.base,readOnly:true,
   approvedBlueprintCanonicalSha256:before.approvedBlueprintCanonicalSha256,
@@ -151,17 +184,20 @@ function compare(before,beforeSha,after,afterSha,ledger=null,ledgerSha=null){
   privateEvidenceOnly:true,sourceAuthentication:false,
   summary:{before:before.actions.length,after:after.actions.length,
    persistent:persistent.length,noLongerSeen:noLongerSeen.length,newlyObserved:newlyObserved.length,
+   changedObservation:changedObservation.length,changedByPriority:byPriority(changedObservation),
+   changedCriticalP0:changedCritical.length,coverageComparisonComplete:!legacyCoverageUnknown,
    persistentByPriority:byPriority(persistent),noLongerSeenByPriority:byPriority(noLongerSeen),
    newByPriority:byPriority(newlyObserved),newCriticalP0:newCritical.length,
    completedReportedStillObserved:unresolvedReported.length,
    completedReportedNowAbsentUnverified:removedReported.length,
    sourceSiteBytesChanged:before.originalSiteRawSha256!==after.originalSiteRawSha256,
    hasHumanLedger:!!ledger,humanStatusesOnBefore:guard},
-  persistent,noLongerSeen,newlyObserved,workstreamChanges,
+  sourceCoverage:sourceBefore,
+  persistent,noLongerSeen,newlyObserved,changedObservation,
   mandatoryFollowUp:[
    'Re-authenticate current owner-published CMS revision and each public HTTPS response before calling any issue fixed.',
    'Compare real X-Robots-Tag, meta robots, canonical, redirects and actual served robots/sitemap XML.',
-   'Investigate new P0 immediately; previous human decision cannot be auto-transferred to new task IDs.',
+   'Investigate new OR escalated/changed P0 immediately; previous human decision cannot be auto-transferred to new task IDs.',
    'A task missing from this snapshot is NOT a verified public fix, index recovery, ranking gain or owner acceptance.',
    'Completed-reported work still observed requires immediate independent investigation; do not mark GO.',
    'Only owner/lead separately approve any CMS Save/Publish or hosting change with rollback.'
@@ -181,12 +217,14 @@ function markdown(r){
   'Before selected Site v1 SHA '+r.beforeOriginalSiteRawSha256,
   'After selected Site v1 SHA '+r.afterOriginalSiteRawSha256,'',
   'Persistent: '+r.summary.persistent+'; no longer observed (NOT verified): '+
-   r.summary.noLongerSeen+'; new/changed: '+r.summary.newlyObserved+
+   r.summary.noLongerSeen+'; new: '+r.summary.newlyObserved+
+   '; changed existing issue: '+r.summary.changedObservation+
    '; new P0: '+r.summary.newCriticalP0+
    '; owner-reported complete but STILL observed: '+r.summary.completedReportedStillObserved,''];
  for(const [label,items] of [
   ['PERSISTENT — investigate reported completion',r.persistent],
-  ['NEW OR CHANGED — no inherited approvals',r.newlyObserved],
+  ['NEW — no inherited approvals',r.newlyObserved],
+  ['SAME ISSUE BUT CHANGED DETAILS / PRIORITY — fresh decision required',r.changedObservation],
   ['NO LONGER OBSERVED — NOT verified closed',r.noLongerSeen]]){
   out.push('## '+label,'');
   for(const a of items)out.push('- **'+a.priority+'** '+safe(a.taskId)+' / '+safe(a.ownerTeam)+
