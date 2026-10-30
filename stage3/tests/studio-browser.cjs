@@ -696,7 +696,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     // Edit the existing individually approved node, rather than inserting canned styles.
     assert.equal(await page.locator('#cms-design-recipe').count(),0);
     const beforeDirectEdit=await page.evaluate(()=>window.Stage3Editor.getSite());
-    await page.locator('#cms-design-fields textarea').first().fill('Индивидуальный заголовок');
+    await page.locator('.cms-design-fields textarea').first().fill('Индивидуальный заголовок');
     assert.match(await page.locator('#cms-design-preview-frame').getAttribute('srcdoc'),/Индивидуальный заголовок/);
     assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeDirectEdit);
     await page.locator('#cms-design-undo').click();
