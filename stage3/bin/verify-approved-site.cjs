@@ -193,9 +193,13 @@ function preflight(folder){
   const approvedPrototypeBytes=byteSum(mockups),sourceAssetBytes=byteSum(sourceMedia);
   const graphs=site.pages.flatMap(p=>p.sections).filter(s=>s.designGraph).length;
   const custom=site.pages.flatMap(p=>p.sections).filter(s=>s.component==='custom-section').length;
+  // The owner sees only actual typed media references, never matching client words.
+  const identity=new Map(site.assets.map(asset=>[asset.id,asset.id]));
+  const mediaReport=contract.remapImportedMedia(site,manifests,identity,site.assets);
   return Object.freeze({siteId:site.siteId,version:handoff.version,pages:site.pages.length,
     assets:site.assets.length,approvedPrototypeBytes,sourceAssetBytes,pagePrototypeSets:perPage.length+1,
     designGraphs:graphs,customSections:custom,integrity:locked?'sha256-verified':'legacy-unlocked',
+    boundMediaFields:mediaReport.bindings,unusedMediaIds:mediaReport.unusedMediaIds,
     status:'structurally-compatible-not-visual-approval'});
 }
 function verifyRaster(bytes,mime){
