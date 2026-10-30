@@ -1830,6 +1830,10 @@ test('grid gallery captions, native lightbox and safe click-actions',()=>{
   assert.match(html,/popovertarget="cmsdg-lightbox-gallery-photo-beta"/);
   assert.match(html,/<figcaption>Проект &lt;первый&gt;<\/figcaption>/);
   assert.doesNotMatch(html,/<первый>/);
+  const english=same(site);english.language='en';
+  const enHtml=G.render(english,english.pages[0].sections.at(-1).designGraph);
+  assert.match(enHtml,/aria-label="Next photo"/);
+  assert.match(enHtml,/aria-label="Close photo"/);
   gallery.styles={position:'sticky',top:12};
   sdk.validateSite(site,manifests);
   assert.match(G.render(site,section.designGraph),/position:sticky;top:12px/);
