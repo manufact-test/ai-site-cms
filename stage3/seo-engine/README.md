@@ -590,3 +590,8 @@ After the actual operator completes the private live browser/device/form templat
 It MUST be accompanied by firstSite.summary and firstSite.postDeploy from the SAME original PHP/source and public release; exact raw SHA256 of the human report's lead contract, PHP summary and postDeploy report are compared. The workspace adds human.html with checked/pending/failed tasks and actual POST receipt counts, never an automatic GO. Offline claims remain subject to independent real TLS, screenshots, mail/Telegram delivery and client signoff.
 
 The one-command first-site integration runner supports optional search-phase keys liveAcceptanceReview and liveAcceptanceContract **together**. This permits a single later private workspace including local launch, public technical evidence, human acceptance, real indexing and Search History, only when each source identity agrees. If the human review is not available, omit both keys and proceed with observational GSC reports without fabricating acceptance.
+
+
+### Unified private Crawl & Search Delivery operations (30 October 2026)
+
+Existing [SEO Operator Workspace](SEO-OPERATOR-WORKSPACE.md) now includes Crawl Policy, regression, original reported GSC indexing correlation, proposed Crawl Repair file previews and P0/P1 manual holds **without a new cabinet**. See [CRAWL-WORKSPACE-INTEGRATION.md](CRAWL-WORKSPACE-INTEGRATION.md) for exact private config, SHA256 linkage, unapproved `DRAFT-ONLY-` output and targeted smoke. Worker changes only this subtree, lead integrates and owns real client release.
