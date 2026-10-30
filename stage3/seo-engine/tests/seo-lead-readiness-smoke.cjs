@@ -53,6 +53,30 @@ const technical=LEAD.build(normalized);
 assert.equal(technical.summary.preLaunchBlocked,0);
 assert(technical.summary.preLaunchMissing>0);
 assert.equal(technical.summary.urgency,'COLLECT-MISSING-EVIDENCE');
+/* Independent public response errors are release blockers even without a
+ * named existing crawl task conflict. Unknown task evidence is not clearance.
+ */
+const leadCrawl={...normalized.crawl,publicFollowup:{
+ summary:{conflict:0,unknown:0,alignedNotVerified:4,independentDeliveryBlockers:2},
+ suppliedPublicCaptureRawSha256:h('7')
+}};
+const deploymentRisk=LEAD.build({...normalized,crawl:leadCrawl});
+assert(deploymentRisk.gates.some(x=>x.key==='published-crawl-cms-evidence'&&
+ x.status==='BLOCKED'));
+const missingPublicTasks=LEAD.build({...normalized,crawl:{
+ ...leadCrawl,publicFollowup:{...leadCrawl.publicFollowup,summary:{
+ conflict:0,unknown:2,alignedNotVerified:3,independentDeliveryBlockers:0}}}});
+assert(missingPublicTasks.gates.some(x=>x.key==='published-crawl-cms-evidence'&&
+ x.status==='NEEDS-EVIDENCE'));
+const resolvedPublicTasks=LEAD.build({...normalized,crawl:{
+ ...leadCrawl,publicFollowup:{...leadCrawl.publicFollowup,summary:{
+ conflict:0,unknown:0,alignedNotVerified:5,independentDeliveryBlockers:0}}}});
+assert(resolvedPublicTasks.gates.some(x=>x.key==='published-crawl-cms-evidence'&&
+ x.status==='LEAD-REVIEW-REQUIRED'));
+assert(resolvedPublicTasks.gates.every(x=>x.releaseAuthorized===false));
+const indexingSha=h('8');
+assert.equal(LEAD.build({...normalized,indexingSourceSha256:indexingSha}).sourceRawSha256.indexingReport,indexingSha);
+
 assert.throws(()=>LEAD.build({...normalized,first:{...normalized.first,summary:{
  ...original,release:{...original.release,blockingGates:2}}}}),/blocker counts/);
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'manufact-seo-lead-handoff-'));
