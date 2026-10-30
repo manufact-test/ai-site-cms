@@ -135,7 +135,7 @@ function main(argv){
   if(!success)fs.rmSync(staging,{recursive:true,force:true});
  }
  process.stdout.write('MANUFACT PRIVATE WORKSPACE: '+workspace.siteId+
-  ' (launch '+workspace.overview.launchIncluded+', search '+workspace.overview.searchIncluded+', indexing '+workspace.overview.indexingIncluded+
+  ' (launch '+workspace.overview.launchIncluded+', search '+workspace.overview.searchIncluded+', indexing '+workspace.overview.indexingIncluded+', crawl '+workspace.overview.crawlIncluded+
   '); open locally '+path.join(out,'index.html')+'\n');
 }
 if(require.main===module){try{main(process.argv.slice(2));}catch(e){process.stderr.write('SEO operator workspace: '+e.message+'\n');process.exitCode=1;}}
