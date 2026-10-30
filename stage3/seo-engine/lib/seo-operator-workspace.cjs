@@ -7,14 +7,17 @@ const SEARCH=require('./search-ops-dashboard.cjs');
 const INDEX=require('./search-indexing-view.cjs');
 const HUMAN=require('./first-site-live-acceptance-view.cjs');
 const ACTIONS=require('./first-site-live-followup-view.cjs');
+const CRAWL=require('./seo-workspace-crawl-panel.cjs');
 const FORMAT='manufact-seo-operator-workspace-v1';
 const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 function build(input){
  if(!input||typeof input!=='object'||Array.isArray(input)||
-  !input.firstSite&&!input.search&&!input.indexing)throw Error('Operator workspace needs launch, search or indexing report inputs');
+  !input.firstSite&&!input.search&&!input.indexing&&!input.crawl)throw Error('Operator workspace needs launch, search, indexing or crawl inputs');
  const first=input.firstSite||null,search=input.search||null,indexing=input.indexing||null;
  const human=input.liveAcceptance||null,desk=input.operatorDesk||null;
+ const crawl=input.crawl?CRAWL.build({...input.crawl,indexing,
+  indexingReportSha256:input.crawl.indexingReportSha256||null}):null;
  if(desk&&desk.href!=='../live-acceptance-template/LIVE-ACCEPTANCE-DESK.html')
   throw Error('Unexpected private operator desk link');
  if(human&&(!first?.summary||!first.postDeploy||!human.report||!human.contract))
@@ -28,8 +31,8 @@ function build(input){
   first.summarySha,first.postDeploySha):null;
  const queue=manual?ACTIONS.render(human.report,{summary:first.summary,
   bundle:first.bundle,postDeploy:first.postDeploy}):null;
- const siteId=launch?.siteId||visibility?.summary.siteId||indexed?.summary.siteId||manual?.siteId;
- if([launch?.siteId,visibility?.summary.siteId,indexed?.summary.siteId,manual?.siteId].filter(Boolean).some(x=>x!==siteId))
+ const siteId=launch?.siteId||visibility?.summary.siteId||indexed?.summary.siteId||manual?.siteId||crawl?.siteId;
+ if([launch?.siteId,visibility?.summary.siteId,indexed?.summary.siteId,manual?.siteId,crawl?.siteId].filter(Boolean).some(x=>x!==siteId))
   throw Error('Cannot combine launch, search and indexing evidence from different customer sites');
  if(indexed&&visibility&&indexing.blueprintSha256!==search.history.blueprintSha256)
   throw Error('Search History and URL Indexing reports need the same approved Blueprint bytes');
@@ -43,6 +46,9 @@ function build(input){
   ...(visibility?[{href:'search.html',name:'Search Operations Dashboard',
    sub:'Search Console periods, private editorial tasks, page trends and optional owner-declared release follow-up',
    state:'OBSERVATIONAL SEO DATA — HUMAN REVIEW',kind:'search',counts:visibility.summary}]:[]),
+  ...(crawl?[{href:'crawl.html',name:'Crawl & Search Delivery',
+   sub:'Robots, sitemap, crawler regressions, GSC co-observations and private proposed files; SHA256-pinned manual queue',
+   state:'P0 '+crawl.counts.P0+' · P1 '+crawl.counts.P1+' · UNAPPROVED',kind:'crawl'}]:[]),
   ...(indexed?[{href:'indexing.html',name:'URL Indexing Intelligence',
    sub:'Approved Blueprint robots, operator-supplied indexed/excluded URL observations and manual indexability checks',
    state:'INDEX STATUS — OPERATOR REPORTED',kind:'indexing',counts:indexed.summary}]:[]),
@@ -62,6 +68,9 @@ function build(input){
   ...(visibility?.summary.tasks?['Have the owner/editor review '+visibility.summary.tasks+
    ' observed SEO task(s); no copy or CMS change is automatically authorized.']:[]),
   ...(indexed?.summary.actions?['Inspect '+indexed.summary.actions+' indexing anomaly or mapping prompt(s) manually in live URL Inspection.']:[]),
+  ...(crawl?['Review '+crawl.counts.P0+' P0 and '+crawl.counts.P1+
+   ' P1 crawl/search-delivery investigations, verify original SHA256 and actual HTTPS before any lead-owned change.']:[]),
+  ...(crawl?.candidate?['Never upload the DRAFT-ONLY robots/sitemap files from this private workspace; route them through separate owner and lead approval.']:[]),
   ...(queue?[queue.summary.urgent+' urgent and '+queue.summary.pending+
    ' pending specific actions: open next-actions.html to assign fixes and gather new source-bound evidence.']:[]),
   ...(manual?['Review original private human/browser/form evidence independently; operator checkmarks do not prove a real authenticated customer signoff.']:[]),
@@ -69,7 +78,7 @@ function build(input){
   ...(!launch&&visibility?['For first-site technical acceptance add the existing first-site-check summary and optional post-deploy evidence.']:[])
  ];
  const cards=sections.map(s=>'<a class="card" href="'+s.href+'"><div class="kicker">'+
-  (s.kind==='desk'?'OPERATOR ACTION':s.kind==='launch'?'LAUNCH OPERATIONS':s.kind==='indexing'?'URL INDEXING':s.kind==='human'?'HUMAN ACCEPTANCE':s.kind==='actions'?'P0 / P1 QUEUE':'POST-LAUNCH SEARCH')+'</div><h2>'+esc(s.name)+'</h2>'+
+  (s.kind==='desk'?'OPERATOR ACTION':s.kind==='crawl'?'CRAWL / SEARCH DELIVERY':s.kind==='launch'?'LAUNCH OPERATIONS':s.kind==='indexing'?'URL INDEXING':s.kind==='human'?'HUMAN ACCEPTANCE':s.kind==='actions'?'P0 / P1 QUEUE':'POST-LAUNCH SEARCH')+'</div><h2>'+esc(s.name)+'</h2>'+
   '<p>'+esc(s.sub)+'</p><span class="state">'+esc(s.state)+'</span><span class="go">Open private report →</span></a>').join('');
  const css=[
  ':root{--back:#f3f7fa;--ink:#172f45;--muted:#5c7182;--line:#dbe5eb}',
@@ -100,10 +109,16 @@ function build(input){
   '<footer>Private local report bundle · No network calls · Input hashes recorded separately · Do not upload or commit.</footer></main></body></html>';
  return {format:FORMAT,readOnly:true,siteId,homeHtml:html,launchHtml:launch?.html||null,
   searchHtml:visibility?.html||null,indexingHtml:indexed?.html||null,
+  crawlHtml:crawl?.html||null,crawlLeadMarkdown:crawl?.markdown||null,
+  crawlCandidateRobots:crawl?.candidate?input.crawl.proposedRobots:null,
+  crawlCandidateSitemap:crawl?.candidate?input.crawl.proposedSitemap:null,
+  crawlEvidence:crawl?{...crawl.sourceIdentity,overview:crawl.overview}:null,
   humanHtml:manual?.html||null,nextActionsHtml:queue?.html||null,
   overview:{nextActionsIncluded:!!queue,
    nextActionsUrgent:queue?.summary.urgent??null,nextActionsPending:queue?.summary.pending??null,
    operatorDeskIncluded:!!desk,launchIncluded:!!launch,searchIncluded:!!visibility,indexingIncluded:!!indexed,
+   crawlIncluded:!!crawl,crawlP0:crawl?.counts.P0??null,crawlP1:crawl?.counts.P1??null,
+   crawlCandidateIncluded:!!crawl?.candidate,crawlManualHolds:crawl?.candidate?.holds??null,
    humanAcceptanceIncluded:!!manual,humanAcceptanceStatus:manual?.status??null,
    indexingActionCount:indexed?.summary.actions??null,
    technicalBlockers:launch?.summary.blockingGates??null,
@@ -112,6 +127,7 @@ function build(input){
    releaseAuthorized:false,clientApprovalAuthenticated:false},
   limitations:['All modules read operator-supplied evidence only.',
    'Reports are private local HTML, NEVER customer static-site exports.',
+   'Crawl candidate files are UNAPPROVED working copies only; never deploy or upload.',
    'Manual work remains with lead; no CMS Save/Publish, PR, merge, deploy or form testing.']};
 }
 module.exports=Object.freeze({FORMAT,build});
