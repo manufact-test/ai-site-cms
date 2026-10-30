@@ -998,6 +998,7 @@ test('sealed individual site import remaps only typed media references, never cl
     src:'/assets/'+ids.get(a.id)+a.src.slice(a.src.lastIndexOf('.'))}));
   const imported=sdk.remapImportedMedia(source,manifests,ids,targets);
   assert.ok(imported.bindings>=10,'All typed media bindings are counted');
+  assert.deepEqual(imported.unusedMediaIds,[],'All declared assets have an actual binding');
   assert.equal(imported.site.pages[0].seo.ogImage,ids.get(image));
   assert.equal(imported.site.theme.fontFiles.heading,ids.get(font));
   assert.equal(imported.site.branding.logoAssetId,ids.get(image));
@@ -1014,6 +1015,14 @@ test('sealed individual site import remaps only typed media references, never cl
   assert.equal(imported.site.pages[0].seo.ogTitle,video);
   assert.equal(imported.site.pages[0].seo.ogDescription,font);
   assert.equal(JSON.stringify(source),initialBytes,'Original sealed input remains untouched');
+  const misleading=same(source);
+  misleading.assets.push({id:'asset-orphan',src:'/assets/asset-orphan.png',
+    mime:'image/png',alt:'Возможно ненужное изображение'});
+  misleading.pages[0].seo.ogDescription='asset-orphan';
+  const identity=new Map(misleading.assets.map(asset=>[asset.id,asset.id]));
+  const inspected=sdk.remapImportedMedia(misleading,manifests,identity,misleading.assets);
+  assert.deepEqual(inspected.unusedMediaIds,['asset-orphan'],
+    'A literal SEO description must not count as an image use');
   assert.equal(JSON.stringify(initial),JSON.stringify(before),'No fixture mutation');
   refuses(()=>sdk.remapImportedMedia(source,manifests,new Map([[image,ids.get(image)]]),targets),
     'Missing source media mapping fails closed');
