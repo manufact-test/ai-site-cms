@@ -69,6 +69,11 @@ assert.throws(()=>R.repair(noindexPlan,matchingSite,options),/Refusing to sugges
 const staleSite=JSON.parse(JSON.stringify(site));
 staleSite.pages[1].path='/moved-contact/';
 assert.throws(()=>R.repair(blueprint,staleSite,options),/disagrees with approved Blueprint/);
+const wrongFormat={...site,format:'forged-site'};
+assert.throws(()=>R.repair(blueprint,wrongFormat,options),/matching published Site v1/);
+const redirected=JSON.parse(JSON.stringify(site));
+redirected.redirects=[{from:'/contact/',to:'/'}];
+assert.throws(()=>R.repair(blueprint,redirected,options),/approved-canonical-route-has-published-redirect/);
 const additionalSite=JSON.parse(JSON.stringify(site));
 additionalSite.pages.push({...additionalSite.pages[1],id:'page-not-in-approved',path:'/unknown/'});
 assert.throws(()=>R.repair(blueprint,additionalSite,options),/matching published Site v1/);
