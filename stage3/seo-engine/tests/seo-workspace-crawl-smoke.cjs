@@ -76,6 +76,32 @@ assert.throws(()=>PANEL.build({...crawl,repairManifest:{
  /same approved Blueprint|repair must match/);
 assert.throws(()=>WORK.build({crawl:{...crawl,policy:{...policy,siteId:'other'}}}),
  /same approved Blueprint|original crawl policy|regression/);
+/* GSC/crawl must remain a co-observation, with EXACT same source bytes and base. */
+const indexingOriginal={format:'manufact-seo-indexing-intelligence-v1',
+ readOnly:true,siteId:policy.siteId,publicOrigin:policy.base,
+ blueprintSha256:repairManifest.sourceRawSha256.blueprint};
+const indexingRaw=JSON.stringify(indexingOriginal,null,2)+'\n';
+const correlation={format:'manufact-seo-crawl-indexing-correlation-v1',
+ readOnly:true,publicationAuthorized:false,causalExplanationEstablished:false,
+ siteId:policy.siteId,base:policy.base,approvedBlueprintSha256:policy.blueprintSha256,
+ suppliedRobotsSha256:policy.robotsSha256,suppliedSitemapSha256:policy.sitemapSha256,
+ originalBlueprintSourceSha256:indexingOriginal.blueprintSha256,
+ originalIndexingReportSha256:hash(indexingRaw),
+ actions:[{id:'review-indexable-googlebot-block:page-home',priority:'P1',path:'/',
+  reason:'Googlebot block and operator-not-indexed co-observed',
+  manualNext:'Independently check current published HTTPS and URL Inspection'}],pages:[]};
+const correlated={...crawl,indexing:indexingOriginal,
+ indexingReportSha256:hash(indexingRaw),correlation,
+ digests:{...digests,correlation:hash(JSON.stringify(correlation,null,2)+'\n')}};
+const co=PANEL.build(correlated);
+assert.equal(co.counts.P1,3);
+assert(co.html.includes('co-observed'));
+assert.throws(()=>PANEL.build({...correlated,indexingReportSha256:H('f')}),
+ /same original GSC report|exact original GSC report/);
+assert.throws(()=>PANEL.build({...correlated,indexing:{
+ ...indexingOriginal,publicOrigin:'https://elsewhere.example/'}}),
+ /same approved site and HTTPS mount/);
+
 const base=fs.mkdtempSync(path.join(os.tmpdir(),'manufact-seo-crawl-workspace-'));
 try{
  const sources={};
