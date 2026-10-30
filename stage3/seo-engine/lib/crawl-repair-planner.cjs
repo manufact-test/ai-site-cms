@@ -12,7 +12,8 @@ const XML_SAFE=/[&<>"']/g;
 const xmlEscape=s=>s.replace(XML_SAFE,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 function verifySite(blueprint,site){
  const bp=BP.checkBlueprint(blueprint);
- if(!site||site.siteId!==bp.siteId||!Array.isArray(site.pages)||
+ if(!site||site.format!=='manufact-ai-site-v1'||site.schemaVersion!==1||
+  site.siteId!==bp.siteId||!Array.isArray(site.pages)||
   site.pages.length!==bp.pages.length||site.pages.length>80)
   throw Error('Crawl repair requires same-site, matching published Site v1 page inventory');
  const byId=new Map(),routes=new Set();
@@ -35,9 +36,21 @@ function verifySite(blueprint,site){
  }
  for(const p of site.pages)if(!bp.pages.some(x=>x.id===p.id))
   differences.push({pageId:p.id,reason:'unapproved-published-route'});
+ if(site.redirects!==undefined){
+  if(!Array.isArray(site.redirects)||site.redirects.length>100)
+   throw Error('Site v1 has invalid redirect inventory');
+  const indexable=new Set(bp.pages.filter(eligible).map(p=>p.path));
+  for(const redirect of site.redirects){
+   if(!redirect||typeof redirect.from!=='string'||typeof redirect.to!=='string')
+    throw Error('Site v1 redirect inventory must contain from/to routes');
+   if(indexable.has(redirect.from))
+    differences.push({pageId:null,reason:'approved-canonical-route-has-published-redirect',
+     route:redirect.from});
+  }
+ }
  if(differences.length)
   throw Error('Published Site v1 disagrees with approved Blueprint routes, canonical or robots: '+
-   differences.slice(0,4).map(d=>d.pageId+':'+d.reason).join(', '));
+   differences.slice(0,4).map(d=>(d.pageId||d.route||'site')+':'+d.reason).join(', '));
  return {pageCount:bp.pages.length,
   inspectionOnly:true,siteV1Authenticated:false,
   sourceReconciledByPageIdentity:true,
