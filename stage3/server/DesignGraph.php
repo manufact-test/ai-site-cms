@@ -16,8 +16,8 @@ final class DesignGraph
     private const STYLES=['display','columns','direction','align','justify','gap','padding','radius',
         'color','background','fontSize','fontWeight','lineHeight','maxWidth','position',
         'top','left','opacity','borderColor','borderWidth','textAlign','order','hidden',
-        'rowGap','columnGap','paddingX','paddingY','marginTop','marginBottom','widthPercent',
-        'minHeight','gridColumnSpan','flexWrap','flexGrow','alignSelf','letterSpacing',
+        'rowGap','columnGap','paddingX','paddingY','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginBottom','widthPercent',
+        'minHeight','minHeightViewport','heightViewport','gridColumnSpan','flexWrap','flexGrow','alignSelf','letterSpacing',
         'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset','shadowFine'];
     private const ICON_PATHS=[
         'check'=>'<path d="M5 12l4 4L19 6"/>',
@@ -122,7 +122,7 @@ final class DesignGraph
             'fontWeight'=>[100,900],'lineHeight'=>[80,250],'letterSpacing'=>[-50,200],
             'maxWidth'=>[0,1920],'widthPercent'=>[1,100],
             'borderWidth'=>[0,12],'order'=>[-30,30],'opacity'=>[0,100],
-            'outlineWidth'=>[0,8],'zIndex'=>[-10,30],'widthPx'=>[1,1920],'heightPx'=>[1,1400],'minWidth'=>[0,1920],'maxHeight'=>[0,1600],'gridRowSpan'=>[1,12],'flexBasisPercent'=>[0,100],'flexShrink'=>[0,1],'objectPositionX'=>[0,100],'objectPositionY'=>[0,100],'marginTop'=>[-160,160],'marginBottom'=>[-160,160],'wordSpacing'=>[-40,100],'textIndent'=>[-100,200],'gridColumnStart'=>[1,13],'gridRowStart'=>[1,13],'translateX'=>[-600,600],'translateY'=>[-600,600],'rotateDeg'=>[-180,180],'scalePercent'=>[50,200],'backdropBlur'=>[0,32]];
+            'outlineWidth'=>[0,8],'zIndex'=>[-10,30],'widthPx'=>[1,1920],'heightPx'=>[1,1400],'minWidth'=>[0,1920],'maxHeight'=>[0,1600],'gridRowSpan'=>[1,12],'flexBasisPercent'=>[0,100],'flexShrink'=>[0,1],'objectPositionX'=>[0,100],'objectPositionY'=>[0,100],'marginTop'=>[-160,160],'marginBottom'=>[-160,160],'minHeightViewport'=>[0,120],'heightViewport'=>[1,120],'wordSpacing'=>[-40,100],'textIndent'=>[-100,200],'gridColumnStart'=>[1,13],'gridRowStart'=>[1,13],'translateX'=>[-600,600],'translateY'=>[-600,600],'rotateDeg'=>[-180,180],'scalePercent'=>[50,200],'backdropBlur'=>[0,32]];
         foreach ($style as $key=>$value) {
             if ($state)self::check(in_array($key,
                 ['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset','scalePercent'],true),
@@ -146,16 +146,17 @@ final class DesignGraph
                 continue;
             }
             if ($key==='gradient'){
-                self::keys($value,['angle','from','to','via','viaAt'],$at.'/gradient');
+                self::keys($value,['angle','from','to','via','viaAt','type','centerX','centerY','radius'],$at.'/gradient');
                 self::check(self::integer($value['angle']??null,0,360)&&isset($value['from'],$value['to'])
                     &&(array_key_exists('via',$value)===array_key_exists('viaAt',$value))
                     &&(!array_key_exists('viaAt',$value)||self::integer($value['viaAt'],1,99)),'invalid gradient');
+                self::check((!isset($value['type'])||in_array($value['type'],['linear','radial'],true))&&(!isset($value['centerX'])||self::integer($value['centerX'],0,100))&&(!isset($value['centerY'])||self::integer($value['centerY'],0,100))&&(!isset($value['radius'])||in_array($value['radius'],['closest-side','farthest-side','farthest-corner'],true))&&(($value['type']??'linear')==='radial'||!array_intersect(['centerX','centerY','radius'],array_keys($value))),'invalid gradient geometry');
                 self::resolve($value['from'],'colors',$tokens,$at.'/gradient.from');
                 self::resolve($value['to'],'colors',$tokens,$at.'/gradient.to');
                 if(array_key_exists('via',$value))self::resolve($value['via'],'colors',$tokens,$at.'/gradient.via');
                 continue;
             }
-            if (in_array($key,['gap','rowGap','columnGap','padding','paddingX','paddingY',
+            if (in_array($key,['gap','rowGap','columnGap','padding','paddingX','paddingY','paddingTop','paddingRight','paddingBottom','paddingLeft',
                 'top','left','right','bottom','minHeight'],true)){
                 self::resolve($value,'spacing',$tokens,$at.'/'.$key);continue;
             }
@@ -170,6 +171,8 @@ final class DesignGraph
         }
         self::check(!(isset($style['fontSize'])&&isset($style['fluidFont'])),$at.' competing typography controls');
         self::check(!(isset($style['widthPx'])&&isset($style['widthPercent'])),$at.' competing width units');
+        self::check(!(isset($style['minHeight'])&&isset($style['minHeightViewport'])),$at.' competing min-height');
+        self::check(!(isset($style['heightPx'])&&isset($style['heightViewport'])),$at.' competing height');
         self::check(!(isset($style['columns'])&&isset($style['gridColumnsPreset'])),$at.' competing grid template');
         self::check(!(isset($style['shadow'])&&isset($style['shadowFine'])),$at.' competing shadow controls');
     }
@@ -488,7 +491,8 @@ final class DesignGraph
                     self::resolve($value['color'],'colors',$t,$key));continue;
             }
             if($key==='gradient'){
-                $put('background-image','linear-gradient('.$value['angle'].'deg,'.
+                $prefix=($value['type']??'linear')==='radial'?'radial-gradient(circle '.($value['radius']??'farthest-corner').' at '.($value['centerX']??50).'% '.($value['centerY']??50).'%,':'linear-gradient('.$value['angle'].'deg,';
+                $put('background-image',$prefix.
                     self::resolve($value['from'],'colors',$t,$key).','.
                     (isset($value['via'])?self::resolve($value['via'],'colors',$t,$key).' '.$value['viaAt'].'%,':'').
                     self::resolve($value['to'],'colors',$t,$key).')');continue;
@@ -544,6 +548,8 @@ final class DesignGraph
                     'medium'=>'0 12px 32px #10182033','strong'=>'0 20px 56px #1018204d'][$value]);
                 continue;
             }
+            if($key==='minHeightViewport'||$key==='heightViewport'){$prop=$key==='minHeightViewport'?'min-height':'height';$put($prop,$value.'vh');$put($prop,$value.'svh');continue;}
+            if(in_array($key,['paddingTop','paddingRight','paddingBottom','paddingLeft'],true))continue;
             if(isset($pixels[$key])){$put($pixels[$key],$value.'px');continue;}
             if($key==='widthPercent'){$put('width',$value.'%');continue;}
             if($key==='letterSpacing'){$put('letter-spacing',number_format($value/10,1,'.','').'px');continue;}
@@ -555,6 +561,7 @@ final class DesignGraph
             if($key==='opacity')$put('opacity',number_format($value/100,2,'.',''));
             if($key==='borderWidth'){if(!isset($styles['borderStyle']))$put('border-style','solid');$put('border-width',$value.'px');}
         }
+        foreach(['paddingTop'=>'padding-top','paddingRight'=>'padding-right','paddingBottom'=>'padding-bottom','paddingLeft'=>'padding-left'] as $key=>$prop)if(array_key_exists($key,$styles))$put($prop,self::resolve($styles[$key],'spacing',$t,$key).'px');
         return implode(';',$out);
     }
     private static function assetUrl(array $asset,string $mount,?string $assetBasePath): string
