@@ -2282,8 +2282,6 @@
     $('server-open').disabled=state.busy||state.loading||!state.authorized||!picker.value;
     $('server-site-select').disabled=state.busy||state.loading||!state.authorized;
     $('server-logout').disabled=state.busy||!state.authorized;
-    $('new-site').disabled=state.busy||state.loading||!isOwner();
-    $('compose-site').disabled=state.busy||state.loading||!isOwner();
     $('import').disabled=state.busy||state.loading||!isOwner();
     leadsRefresh.disabled=state.busy||!state.authorized||!state.siteId||!canEdit();
     leadsFind.disabled=leadsExport.disabled=state.busy||!state.siteId||!canEdit();
@@ -3623,19 +3621,6 @@
       }
     }
   }
-  async function newSite(){
-    return safe(async()=>{
-      if(isDirty()&&!confirm('Есть несохранённые правки. Создать новый сайт без сохранения текущих?'))return;
-      const title=prompt('Название нового сайта','Новый сайт');
-      if(title===null)return;
-      const id='site-'+crypto.randomUUID().replace(/-/g,'').slice(0,20);
-      const site=editor.fromBrief(id,title.trim()||'Новый сайт');
-      const created=await api('/api/sites','POST',{site});
-      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();await loadDeliverySettings();
-      notice('Создан новый серверный сайт без макета. Ревизия #1; сайт не опубликован.');
-    });
-  }
-
   // Connect a compiled external site, not a prototype or arbitrary external HTML.
   // The three images and the human-approved specification remain in the portable folder.
   async function importApprovedFolder(uploadedFiles,archiveOnly=false){
@@ -4431,28 +4416,15 @@
       setGate(false);
       await refreshSites();
       if(state.sites.length)await openSite(state.sites[0].site_id);
-      else{editorVisible(false);notice('Вход выполнен. Создайте первый сайт.');}
+      else{editorVisible(false);notice('Вход выполнен. Подключите готовый сайт.');}
     }catch(err){info.textContent=err.message;state.authorized=false;state.principal=null;setGate(true);}
     finally{state.busy=false;submit.disabled=false;drawStatus();}
   }
   form.addEventListener('submit',signIn);
   picker.addEventListener('change',()=>safe(()=>openSite(picker.value)));
-  async function compositionTemplates(){
-    if(!state.authorized||!state.siteId||state.busy)throw Error('Откройте сайт перед использованием шаблонов');
-    return (await api('/api/sites/'+encodeURIComponent(state.siteId)+'/templates')).templates;
-  }
-  async function createComposition(site){
-    if(!state.authorized||state.busy)throw Error('Сервер занят или требуется вход');
-    state.busy=true;drawStatus();
-    try{
-      const created=await api('/api/sites','POST',{site});
-      selectSite(created);await refreshSites();await loadHistory();await loadSubmissions();await loadTemplates();await loadDeliverySettings();
-    }finally{state.busy=false;drawStatus();}
-  }
-  window.Stage3Host=Object.freeze({save,newSite,importSite,reload,drawVersions,onDraw:drawStatus,previewPage,previewUrl,videoUrl,
+  window.Stage3Host=Object.freeze({save,importSite,reload,drawVersions,onDraw:drawStatus,previewPage,previewUrl,videoUrl,
     api,safe,notice,principal:()=>state.principal,refreshSites:()=>refreshSites(),
     lock:()=>{reviewNotesByRevision.clear();state.authorized=false;state.principal=null;state.csrf=null;editorVisible(false);setGate(true);},
-    compositionTemplates,createComposition,canCompose:()=>isOwner()&&!state.busy,
     canEditStudio:()=>state.authorized&&!state.busy&&Boolean(state.siteId)&&canEdit(),
     canEditMedia:()=>state.authorized&&!state.busy&&Boolean(state.siteId)&&canEdit()&&!editor.isDirty(),
     uploadProcessed});
