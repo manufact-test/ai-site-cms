@@ -36,6 +36,7 @@ function build(data){
    same(delta)&&delta.blueprintSha256===policy.blueprintSha256&&
    delta.beforeSources?.robotsSha256===policy.robotsSha256&&
    delta.beforeSources?.sitemapSha256===policy.sitemapSha256&&
+   delta.scope===policy.scope&&JSON.stringify(delta.agents)===JSON.stringify(policy.agents)&&
    Array.isArray(delta.changes)&&Array.isArray(delta.tasks),
    'regression does not reference the supplied original crawl policy');
   check(HASH.test(hashes.regression||''),'regression bytes not pinned');
@@ -207,7 +208,8 @@ function build(data){
    canonicalBlueprintSha256:policy.blueprintSha256,
    originalBlueprintFileSha256:hashes.cmsBlueprint||manifest?.sourceRawSha256?.blueprint||
     correlation?.originalBlueprintSourceSha256||null,
-   siteSnapshotSha256:manifest?.sourceRawSha256?.site||null,
+   siteSnapshotSha256:hashes.cmsSite||manifest?.sourceRawSha256?.site||null,
+   cmsSelectedSiteFingerprint:cmsReview?.selectedSiteFingerprint||null,
    files:Object.assign({},hashes)},
   overview:{included:true,P0:counts.P0,P1:counts.P1,P2:counts.P2,
    candidateIncluded:!!candidate,manualHolds:candidate?.holds??null,
