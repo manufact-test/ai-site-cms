@@ -573,3 +573,6 @@ New `lib/seo-workspace-crawl-panel.cjs`, expanded `lib/seo-operator-workspace.cj
 ## 30 October continuation — actionable crawl problems → lead's existing CMS/publisher
 
 New `lib/crawl-cms-implementation.cjs`, `lib/crawl-cms-implementation-view.cjs`, `tests/crawl-cms-workspace-smoke.cjs` and updates to existing private Workspace modules/CLI add approved Blueprint + original operator Site v1 **source-pinned manual implementation** tasks to the current Crawl & Search Delivery panel. It now distinguishes page SEO robots/title/meta drift (existing editor), canonical limitations, publisher robots/sitemap/redirect issues, and Search Console URL Inspection. Original Blueprint/Site raw SHA256 are linked to the crawl policy and any repair manifest, errors fail closed on source mismatch, report stays private with no CMS mutation or auto-release. [CRAWL-CMS-HANDOFF.md](CRAWL-CMS-HANDOFF.md). The independent SEO worker checked V8 source composition; full Node and first customer verification remain lead-owned.
+
+
+Follow-up detail: the private crawl-to-CMS work packets now include deterministic issue IDs, implementation-owner workstreams and required independent evidence, all retaining `readyToImplement:false`. This avoids treating an observed robots block as an editable CMS page meta field, or a reported Search Console issue as verified Google causation.
