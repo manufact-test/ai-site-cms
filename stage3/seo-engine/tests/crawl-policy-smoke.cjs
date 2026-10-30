@@ -64,6 +64,12 @@ const child=POLICY.analyze({blueprint,base,robotsText:robots,sitemapXml:index});
 assert.equal(child.sitemapMeta.kind,'index');
 assert(!child.findings.some(x=>x.code==='sitemap:missing-canonical-indexable'));
 assert(child.findings.some(x=>x.code==='sitemap:children-unavailable'));
+const foreignChild=POLICY.analyze({blueprint,base,robotsText:robots,
+ sitemapXml:index.replace('https://demo.example/child.xml','https://elsewhere.example/child.xml')});
+assert(foreignChild.findings.some(x=>x.code==='sitemap:child-other-host'));
+const commented=xml.replace('<url><loc>https://demo.example/contact/</loc></url>',
+ '<!-- <url><loc>https://invalid.example/hidden/</loc></url> -->');
+assert.equal(POLICY.parseSitemap(commented).records.length,1);
 const mounted='https://demo.example/published/site-industrial-demo/';
 const mountedXml=xml.replaceAll('https://demo.example/','https://demo.example/published/site-industrial-demo/');
 const onMount=POLICY.analyze({blueprint,base:mounted,robotsText:robots,sitemapXml:mountedXml});
