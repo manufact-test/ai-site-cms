@@ -2175,7 +2175,7 @@
               else if(key==='caption'){if(val.trim())node.caption=val;else delete node.caption;}
               else if(key==='layout'){
                 node.layout=val;
-                if(val==='grid')node.scrollControls=false;
+                if(val==='grid'){node.scrollControls=false;for(const field of ['visibleDesktop','visibleTablet','visibleMobile'])delete node[field];}
                 if(val!=='grid')for(const k of ['columnsDesktop','columnsTablet','columnsMobile'])delete node[k];
               }else if(key==='scrollControls'){
                 if(val==='true'&&node.layout==='grid')throw Error('Стрелки доступны только в горизонтальной ленте');
@@ -2183,6 +2183,8 @@
               }else if(key==='lightbox'){
                 if(val==='true'&&node.children.some(child=>child.href))throw Error('Для увеличения удалите ссылки из изображений');
                 node.lightbox=val==='true';
+              }else if(['visibleDesktop','visibleTablet','visibleMobile'].includes(key)){
+                if(val.trim())node[key]=Number(val);else delete node[key];
               }else if(['columnsDesktop','columnsTablet','columnsMobile'].includes(key)){
                 node.layout='grid';if(val.trim())node[key]=Number(val);else delete node[key];
               }
@@ -2207,6 +2209,7 @@
               [['natural','Исходные'],['square','Квадрат 1:1'],['landscape','Широкая 16:9'],['portrait','Вертикальная 3:4']]);
             property('Режим фотогалереи','layout',current.layout||'scroll',
               [['scroll','Лента со свайпом'],['grid','Адаптивная сетка']]);
+            if(current.layout!=='grid')for(const [field,label] of [['visibleDesktop','Карточек · ПК'],['visibleTablet','Карточек · планшет'],['visibleMobile','Карточек · телефон']])property(label,field,current[field]??1);
             property('Стрелки в ленте','scrollControls',String(!!current.scrollControls),
               [['false','Не показывать'],['true','Показывать переходы']]);
             property('Увеличивать фотографии','lightbox',String(!!current.lightbox),
@@ -3550,8 +3553,9 @@
             choices:[['natural','Оригинальные'],['square','Квадрат 1:1'],['landscape','Широкие 16:9'],['portrait','Вертикальные 3:4']]},value=>{n[field]=value;},'select'));
         fields.append(ctl('Расположение фотографий',{initial:n.layout||'scroll',
           choices:[['scroll','Горизонтальная лента · свайп'],['grid','Сетка · ПК / планшет / телефон']]},value=>{
-            n.layout=value;if(value==='grid')n.scrollControls=false;if(value!=='grid')for(const key of ['columnsDesktop','columnsTablet','columnsMobile'])delete n[key];
+            n.layout=value;if(value==='grid'){n.scrollControls=false;for(const field of ['visibleDesktop','visibleTablet','visibleMobile'])delete n[field];}if(value!=='grid')for(const key of ['columnsDesktop','columnsTablet','columnsMobile'])delete n[key];
           },'select'));
+        if(n.layout!=='grid')for(const [field,label,limit] of [['visibleDesktop','Карточек · ПК',6],['visibleTablet','Карточек · планшет',4],['visibleMobile','Карточек · телефон',2]])fields.append(ctl(label,String(n[field]??1),v=>{n[field]=Math.max(1,Math.min(limit,Number(v)||1));},'number'));
         fields.append(ctl('Стрелки перехода в горизонтальной ленте',{initial:n.scrollControls?'true':'false',
           choices:[['false','Нет'],['true','Да · без JavaScript']]},value=>{
             if(value==='true'&&n.layout==='grid'){notice('Стрелки предназначены для ленты, выберите горизонтальную галерею.',true);return;}
