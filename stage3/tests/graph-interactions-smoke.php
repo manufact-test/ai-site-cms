@@ -227,6 +227,17 @@ graphTest(str_contains($geomHtml,'min-height:90vh;min-height:90svh')&&
     str_contains($geomHtml,'padding-top:12px')&&
     str_contains($geomHtml,'radial-gradient(circle closest-side at 25% 70%'),
     'PHP renderer must preserve authored viewport and radial geometry');
+$figureSite=$site;
+$figureSite['assets'][]=['id'=>'figure-asset-ci','src'=>'/assets/figure-asset-ci.png','alt'=>'Plan','mime'=>'image/png'];
+$figureSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'figure-standalone-ci','type'=>'image','assetId'=>'figure-asset-ci',
+    'alt'=>'Plan','caption'=>'Plan <safe> & annotated','href'=>'/contact/','styles'=>[]
+];
+$validator->validate($figureSite);
+$figureHtml=PublicRenderer::html($figureSite,'/');
+graphTest(str_contains($figureHtml,'<figure class="cmsdg-image-figure">')&&
+    str_contains($figureHtml,'<figcaption>Plan &lt;safe&gt; &amp; annotated</figcaption>')&&
+    str_contains($figureHtml,'href="/contact/"'),'PHP standalone captioned linked figure preserves escaped content');
 $gallerySite=$site;
 $gallerySite['assets'][]=['id'=>'asset-photo-alpha','src'=>'/assets/asset-photo-alpha.png',
     'alt'=>'Фасад','mime'=>'image/png'];
