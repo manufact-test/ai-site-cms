@@ -141,6 +141,9 @@ final class Api
         if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){
             http_response_code(304);exit;
         }
+        // Pin exact encoded representation size before PHP closes its loopback socket.
+        // An unframed gzip response may otherwise be treated as truncated by HTTP clients.
+        header('Content-Length: '.strlen($bytes));
         echo $bytes;exit;
     }
 
