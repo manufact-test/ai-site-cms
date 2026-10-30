@@ -207,7 +207,7 @@ final class DesignGraph
         $count=0;$popups=[];$triggers=[];
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,&$popups,&$triggers,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
                 &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'],true),
@@ -294,13 +294,14 @@ final class DesignGraph
             self::check(($type==='list'||!array_key_exists('ordered',$node))&&($type!=='list'||!array_key_exists('ordered',$node)||is_bool($node['ordered'])),'invalid ordered-list flag');
             self::check(($type!=='list-item'||$parentType==='list')&&($parentType!=='list'||$type==='list-item'),'invalid list hierarchy');
             self::check(($type!=='tab'||$parentType==='tabs')&&($parentType!=='tabs'||$type==='tab'),'invalid tabs hierarchy');
-            self::check($type==='gallery'||!array_intersect(['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile','scrollControls'],array_keys($node)),'gallery setting on another node');
+            self::check($type==='gallery'||!array_intersect(['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile'],array_keys($node)),'gallery setting on another node');
             if(array_key_exists('caption',$node))self::check($type==='image'&&$parentType==='gallery'&&is_string($node['caption'])&&strlen($node['caption'])<=240&&preg_match('/[\\x00-\\x1f]/',$node['caption'])!==1,'invalid photo caption');
             if($type==='gallery'){
                 foreach(['photoShape','photoShapeTablet','photoShapeMobile'] as $shapeKey)
                     self::check(!array_key_exists($shapeKey,$node)||in_array($node[$shapeKey],['natural','square','landscape','portrait'],true),'invalid gallery photo shape');
                 self::check(!isset($node['layout'])||in_array($node['layout'],['scroll','grid'],true),'invalid gallery layout');
                 self::check(!array_key_exists('scrollControls',$node)||is_bool($node['scrollControls'])&&(! $node['scrollControls']||($node['layout']??'scroll')==='scroll'),'scroll navigation requires scroll gallery');
+                foreach(['visibleDesktop'=>6,'visibleTablet'=>4,'visibleMobile'=>2] as $k=>$max)if(array_key_exists($k,$node))self::check(($node['layout']??'scroll')!=='grid'&&self::integer($node[$k],1,$max),'invalid visible gallery cards');
                 self::check(!array_key_exists('lightbox',$node)||is_bool($node['lightbox']),'invalid gallery lightbox');
                 if(array_intersect(['columnsDesktop','columnsTablet','columnsMobile'],array_keys($node)))
                     self::check(($node['layout']??'scroll')==='grid','gallery columns require grid');
@@ -748,7 +749,7 @@ final class DesignGraph
                     $grid=($n['layout']??'scroll')==='grid';
                     $vars=$grid?' style="--cmsdg-gallery-columns:'.($n['columnsDesktop']??3).
                         ';--cmsdg-gallery-tablet:'.($n['columnsTablet']??2).
-                        ';--cmsdg-gallery-mobile:'.($n['columnsMobile']??1).'"':'';
+                        ';--cmsdg-gallery-mobile:'.($n['columnsMobile']??1).'"':(array_intersect(['visibleDesktop','visibleTablet','visibleMobile'],array_keys($n))?' style="--cmsdg-visible-desktop:'.($n['visibleDesktop']??1).';--cmsdg-visible-tablet:'.($n['visibleTablet']??1).';--cmsdg-visible-mobile:'.($n['visibleMobile']??1).'"':'');
                     $body='';
                     foreach($n['children'] as $index=>$child){
                         $visual=$visit($child);
@@ -872,6 +873,9 @@ final class DesignGraph
             .$scope.' .cmsdg-table th{font-weight:700;background:#f2f5f9}'
             .$scope.' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'
             .$scope.' .cmsdg-gallery>.cmsdg-gallery-item{flex:0 0 min(82%,420px);scroll-snap-align:start;min-width:0;max-width:100%;margin:0;border-radius:10px;overflow:hidden}'
+            .$scope.' .cmsdg-gallery[style*="--cmsdg-visible-desktop"]>.cmsdg-gallery-item{flex-basis:calc((100% - (var(--cmsdg-visible-desktop) - 1)*16px)/var(--cmsdg-visible-desktop));max-width:100%}'
+            .'@media(max-width:900px){'.$scope.' .cmsdg-gallery[style*="--cmsdg-visible-desktop"]>.cmsdg-gallery-item{flex-basis:calc((100% - (var(--cmsdg-visible-tablet) - 1)*16px)/var(--cmsdg-visible-tablet))}}'
+            .'@media(max-width:600px){'.$scope.' .cmsdg-gallery[style*="--cmsdg-visible-desktop"]>.cmsdg-gallery-item{flex-basis:calc((100% - (var(--cmsdg-visible-mobile) - 1)*16px)/var(--cmsdg-visible-mobile))}}'
             .$scope.' .cmsdg-gallery-item img{display:block;width:100%;height:auto;object-fit:cover;border-radius:inherit}'
             .$scope.' .cmsdg-gallery-shape-square>.cmsdg-gallery-item img{aspect-ratio:1/1}'
             .$scope.' .cmsdg-gallery-shape-landscape>.cmsdg-gallery-item img{aspect-ratio:16/9}'
