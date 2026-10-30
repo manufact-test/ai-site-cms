@@ -128,6 +128,10 @@ function parseSitemap(xml){
   records.push({loc:value});
  }
  if(!records.length)throw Error('Sitemap XML has no URL records');
+ const opens=[...xml.matchAll(new RegExp('<(?:[\\w-]+:)?'+element+'\\b[^>]*>','gi'))].length;
+ if(opens!==records.length||
+  !(index?/<\\/sitemapindex\s*>\s*$/i:/<\\/urlset\s*>\s*$/i).test(xml))
+  throw Error('Sitemap has incomplete records or an unclosed document root');
  return {kind:index?'index':'urlset',records};
 }
 function mapped(base,raw){
@@ -150,7 +154,7 @@ function analyze({blueprint,base,robotsText,sitemapXml,agents=AGENTS,scope='comp
  const byPath=new Map(plan.pages.map(p=>[p.path,p])),events=[],tasks=new Map();
  const key=new Set(),order={P0:0,P1:1,P2:2};
  function finding(code,priority,pageId,path,message,meta={}){
-  const id=[code,pageId||'site',path||''].join(':');if(key.has(id))return;
+  const id=[code,pageId||'site',path||'',meta.agent||''].join(':');if(key.has(id))return;
   key.add(id);events.push({id,code,priority,pageId:pageId||null,path:path||null,
    message,publicVerified:false,automatic:false,...meta});
  }
