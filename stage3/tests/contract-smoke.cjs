@@ -1807,6 +1807,25 @@ test('editable icon catalog stays first-party, bounded, semantic and PHP-compati
   sdk.validateSite(site,manifests);
 });
 
+test('individual image figure captions retain accessible links and reject unsafe content',()=>{
+  const G=require('../sdk/design-graph.cjs'),site=same(initial);
+  site.assets.push({id:'photo-figure-ci',src:'/assets/photo-figure-ci.png',alt:'Floor plan',mime:'image/png'});
+  const section=sdk.sectionFrom(reg.get('custom-section'),'section-figure-ci');
+  const image={id:'figure-photo-ci',type:'image',assetId:'photo-figure-ci',alt:'Floor plan',
+    href:'/contact/',caption:'Caption <safe> & clear',styles:{}};
+  section.designGraph={version:1,id:'figure-graph-ci',nodes:[image]};
+  site.pages[0].sections.push(section);
+  sdk.validateSite(site,manifests);
+  const html=G.render(site,section.designGraph);
+  assert.match(html,/<figure class="cmsdg-image-figure">/);
+  assert.match(html,/<figcaption>Caption &lt;safe&gt; &amp; clear<\/figcaption>/);
+  assert.match(html,/href="\/contact\/"/);
+  assert.doesNotMatch(html,/<safe>/);
+  image.caption='<script>\n</script>';refuses(()=>sdk.validateSite(site,manifests));
+  image.caption='Caption okay';
+  sdk.validateSite(site,manifests);
+});
+
 test('grid gallery captions, native lightbox and safe click-actions',()=>{
   const G=require('../sdk/design-graph.cjs'),site=same(initial);
   site.assets.push(
