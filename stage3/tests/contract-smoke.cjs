@@ -1828,6 +1828,13 @@ test('grid gallery captions, native lightbox and safe click-actions',()=>{
   assert.match(html,/cmsdg-gallery-mobile-portrait/);
   gallery.photoShapeMobile='url(javascript:alert(1))';refuses(()=>sdk.validateSite(site,manifests));
   gallery.photoShapeMobile='portrait';
+  gallery.scrollControls=true;refuses(()=>sdk.validateSite(site,manifests));
+  gallery.layout='scroll';delete gallery.columnsDesktop;delete gallery.columnsTablet;delete gallery.columnsMobile;
+  sdk.validateSite(site,manifests);
+  const scrollHtml=G.render(site,section.designGraph);
+  assert.match(scrollHtml,/cmsdg-gallery-scroll-nav/);
+  assert.match(scrollHtml,/href="#cmsdg-photo-gallery-photo-beta"/);
+  gallery.scrollControls='yes';refuses(()=>sdk.validateSite(site,manifests));
   gallery.photoShape='javascript:bad';refuses(()=>sdk.validateSite(site,manifests));
   gallery.photoShape='square';
   assert.match(html,/--cmsdg-gallery-columns:4;--cmsdg-gallery-tablet:2;--cmsdg-gallery-mobile:1/);
