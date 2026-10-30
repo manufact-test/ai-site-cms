@@ -364,15 +364,7 @@ graphTest(substr_count($publishedForm,'<form class="lead-form"')===1
     &&str_contains($publishedForm,'action="/forms/site-industrial-demo/section-graph-lead"')
     &&str_contains($publishedForm,'name="_token"')
     &&str_contains($publishedForm,'name="consent"'),
-    'A typed Graph form slot renders the existing real secure PHP form once '.json_encode([
-      'formCount'=>substr_count($publishedForm,'<form class="lead-form"'),
-      'slot'=>str_contains($publishedForm,'class="cmsdg-n-graph-live-form-slot cmsdg-form-slot"'),
-      'action'=>str_contains($publishedForm,'action="/forms/site-industrial-demo/section-graph-lead"'),
-      'token'=>str_contains($publishedForm,'name="_token"'),
-      'consent'=>str_contains($publishedForm,'name="consent"'),
-      'graphStart'=>str_contains($publishedForm,'cmsdg-graph-live-lead'),
-      'slotSnippet'=>substr($publishedForm,(int)strrpos($publishedForm,'cmsdg-n-graph-live-form-slot'),145),
-    ]));
+    'A typed Graph form slot renders the existing real secure PHP form once');
 graphTest(str_contains($publishedForm,'--cmsdg-form-gap:20px')
     &&str_contains($publishedForm,'--cmsdg-form-input-radius:15px')
     &&str_contains($publishedForm,'--cmsdg-form-button-bg:#0a5bff')

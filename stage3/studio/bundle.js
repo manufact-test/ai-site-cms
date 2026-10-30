@@ -8771,9 +8771,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         '<small>Кнопка демонстрационная: данные не отправляются.</small></section>';
     }else content='<section><h2>Незарегистрированный шаблон</h2></section>';
     // Typed composition overrides only rendering: original component fields survive.
-    if(block.designGraph)content=DESIGN_GRAPH.render(session.current,block.designGraph,'',
-      assetId=>previewImageUrl(assetId),block.sectionId,
-      assetId=>HOSTED?window.Stage3Host?.videoUrl?.(assetId):null);
+    if(block.designGraph){
+      const authoredSection=session.current.pages.flatMap(page=>page.sections)
+        .find(section=>section.id===block.sectionId);
+      content=DESIGN_GRAPH.render(session.current,block.designGraph,'',
+        assetId=>previewImageUrl(assetId),block.sectionId,
+        assetId=>HOSTED?window.Stage3Host?.videoUrl?.(assetId):null,authoredSection);
+    }
     const appearance=block.appearance||C.DEFAULT_APPEARANCE;
     const skin='cms-surface-'+appearance.surface+' cms-spacing-'+appearance.spacing+' cms-align-'+appearance.align+
       (appearance.width?' cms-width-'+appearance.width:'')+

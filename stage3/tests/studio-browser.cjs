@@ -1256,6 +1256,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-page-preview[open]').waitFor();
     const workFormCanvas=page.frameLocator('#cms-page-preview-frame');
     await page.locator('.cms-page-preview-modes [data-mode="desktop"]').click();
+    await workFormCanvas.getByText('Направление проекта').waitFor();
+    assert.equal(await workFormCanvas.locator('.cmsdg-form-slot form').count(),0,
+      'Page-wide authored form preview must stay inert while showing the actual fields');
     await workFormCanvas.locator('.cmsdg-n-graph-browser-lead-slot').click();
     assert.equal(await page.locator('#cms-work-graph-node').inputValue(),'graph-browser-lead-slot');
     await page.locator('#cms-work-graph-panel [data-work-graph-field="form:gap"]').fill('26');

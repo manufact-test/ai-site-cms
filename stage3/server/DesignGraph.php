@@ -871,7 +871,7 @@ final class DesignGraph
                         $rules[]=$width===null?$selector.'{'.$css.'}':
                             '@media(max-width:'.$width.'px){'.$selector.'{'.$css.'}}';
                     }
-                    return '<div class="'.$cls.' cmsdg-form-slot>'.
+                    return '<div class="'.$cls.' cmsdg-form-slot">'.
                         ($formMarkup??'<p>Форма заявки: проверьте поля в серверном предпросмотре.</p>').'</div>';
                 case 'divider':return '<hr class="'.$cls.'">';
                 case 'icon':
