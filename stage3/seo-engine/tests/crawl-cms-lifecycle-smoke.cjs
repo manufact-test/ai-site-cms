@@ -56,6 +56,21 @@ const same=LIFE.compare(before,beforeSHA,before,beforeSHA);
 assert.equal(same.summary.persistent,before.actions.length);
 assert.equal(same.summary.noLongerSeen,0);
 assert.equal(same.summary.newlyObserved,0);
+/* A changed value for the same issue topic is NOT a resolved problem or inherited approval. */
+const changedSite=JSON.parse(JSON.stringify(beforeSite));
+changedSite.pages.find(x=>x.id==='page-contact').seo.robots='noindex,nofollow';
+const changedReport=report(changedSite),changedSHA=sha(json(changedReport));
+const changed=LIFE.compare(before,beforeSHA,changedReport,changedSHA,ledger,sha(ledgerText));
+assert(changed.summary.changedObservation>=1);
+assert(changed.changedObservation.some(x=>x.beforeObservation.includes('noindex')&&
+ x.afterObservation.includes('noindex,nofollow')&&
+ x.priorDecisionTransferAllowed===false&&x.humanDecision==='unreviewed'));
+assert.equal(changed.summary.coverageComparisonComplete,true);
+assert.throws(()=>LIFE.compare(before,beforeSHA,{...after,crawlCoverageScope:'sample'},afterSHA),
+ /changed crawler agents|coverage/i);
+const legacy={...before,crawlerAgents:undefined,crawlCoverageScope:undefined,sitemapSourceKind:undefined};
+const unknown=LIFE.compare(legacy,beforeSHA,after,afterSHA);
+assert.equal(unknown.summary.coverageComparisonComplete,false);
 const view=VIEW.render(r);
 assert(view.html.includes('default-src &#39;none&#39;'));
 assert(view.markdown.includes('NOT verified'));
