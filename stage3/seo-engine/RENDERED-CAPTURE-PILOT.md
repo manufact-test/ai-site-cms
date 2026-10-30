@@ -38,6 +38,8 @@ The existing standalone `review-rendered-content.cjs --viewports` and existing W
 
 ## Explicit operator command
 
+**First run offline preflight** by adding `--mode preflight` to the exact same command below (and optionally `--page-ids`). It validates original private source files, exact allowed mount/selected IDs, destination policy and installed browser binary/Playwright loader **without DNS, launching Chromium, writing an output directory or making HTTP requests**. It does not test whether the OS sandbox can launch or attest the real public host. Remove the mode switch or use `--mode capture` only after reviewing the preflight result and approving the live public GET observation.
+
 ```bash
 node stage3/seo-engine/bin/capture-rendered-public.cjs \
   --blueprint /ABS/private/approved-blueprint.json \
@@ -46,6 +48,12 @@ node stage3/seo-engine/bin/capture-rendered-public.cjs \
   --origin https://approved-real-host.example/published/SITE-ID/ \
   --out /ABS/private/NEW-RENDERED-CAPTURE
 ```
+
+### Bounded first-page pilot (optional)
+
+For a cautious first client trial, append `--page-ids page-home` (or `--page-ids page-home,page-contact`) using **real IDs already in the approved Blueprint**. This reduces the live run to 3 browser snapshots per selected page rather than running every page on the first attempt. At most **eight unique approved IDs** may be selected per command. Do not supply page URLs here; only IDs from the verified Blueprint are accepted. Selected navigation guard and the output contain only these pages; the receipt reports selected and total approved page counts plus `partialPilotCapture:true`.
+
+The existing reconciler still evaluates the **entire** Blueprint. Pages not selected are explicitly **uninspected**; partial pilot evidence must never be mistaken for full launch acceptance. Omit `--page-ids` when ready to capture all approved pages; all other safety limits still apply.
 
 Set `STAGE3_CHROME=/ABS/path/to/chromium` or append `--chrome /ABS/path/to/chrome` if not installed in the supported system paths. Replace every example with an actually approved host; example/test hosts are deliberately not accepted. Only operator-supplied URLs from the current approved pages are navigated. Each device/page is limited to 80 allowed same-mount GET/HEAD requests; excess requests are aborted and counted as a report warning. Browser JS can still trigger application-defined side effects via GET on misdesigned sites, so this is a bounded operator-approved observation, not a guarantee of zero server-side effects. This command **does** issue real public GET requests and executes site JavaScript, so do not run it against a client without explicit operational authorization. It does not submit forms, make HTTP POSTs, publish anything or call Google.
 

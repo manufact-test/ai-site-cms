@@ -97,6 +97,19 @@ function adapter(drift=false,flood=false){
  assert(staleReview.findings.some(f=>f.code==='rendered:browser-http-body-drift'));
  assert.equal(staleReview.summary.browserResponseMatchedPairs,0);
  assert.equal(staleReview.summary.browserResponseDriftPairs,blueprint.pages.length*3);
+ const single=await CAP.capture(input,{...adapter(),pageIds:[blueprint.pages[0].id]});
+ assert.equal(single.pages.length,1);
+ assert.equal(single.pages[0].id,blueprint.pages[0].id);
+ const singleReport=QA.analyze({blueprint,blueprintRawSha256:hash(json(blueprint)),
+  site,siteRawSha256:hash(json(site)),capture:http,captureRawSha256:sha,
+  viewports:single,viewportsRawSha256:hash(json(single)),expectedBase:origin});
+ assert.equal(singleReport.summary.plannedPages,blueprint.pages.length);
+ assert.equal(singleReport.summary.fullyComparedPages,1);
+ assert.equal(singleReport.summary.browserResponseMatchedPairs,3);
+ assert.equal(singleReport.summary.browserResponseDriftPairs,0);
+ assert.throws(()=>CAP.selectPages(CAP.verify(input),['not-approved-id']),/approved Blueprint/);
+ assert.throws(()=>CAP.selectPages(CAP.verify(input),
+  [blueprint.pages[0].id,blueprint.pages[0].id]),/distinct approved/);
  const saturated=await CAP.capture(input,adapter(false,true));
  assert(saturated.pages.every(p=>Object.values(p.captures).every(
   v=>v.blockedRequests>=14&&v.blockedReasons.requestBudget>=11)));
@@ -118,6 +131,19 @@ function adapter(drift=false,flood=false){
   const put=(name,x)=>{const p=path.join(dir,name);fs.writeFileSync(p,json(x));return p;};
   const bpPath=put('blueprint.json',blueprint),sitePath=put('site.json',site),
    httpPath=put('http.json',http),out=path.join(dir,'captured');
+  const offlineOut=path.join(dir,'offline-preflight');
+  const offline=await CLI.main(['--blueprint',bpPath,'--site',sitePath,
+   '--public-http',httpPath,'--origin',origin,'--out',offlineOut,
+   '--page-ids',blueprint.pages[0].id,'--mode','preflight'],{
+   resolve:()=>{throw Error('preflight must not resolve DNS')},
+   launch:()=>{throw Error('preflight must not open browser')}
+  });
+  assert.equal(offline.preflight,true);
+  assert.equal(offline.pages,1);
+  assert.equal(fs.existsSync(offlineOut),false);
+  assert.throws(()=>CLI.flags(['--blueprint',bpPath,'--site',sitePath,
+   '--public-http',httpPath,'--origin',origin,'--out',offlineOut,
+   '--mode','publish']),/Mode must be/);
   const result=await CLI.main(['--blueprint',bpPath,'--site',sitePath,
    '--public-http',httpPath,'--origin',origin,'--out',out],adapter());
   assert.equal(result.pages,blueprint.pages.length);
@@ -126,6 +152,15 @@ function adapter(drift=false,flood=false){
   const receipt=JSON.parse(fs.readFileSync(path.join(out,'RENDERED-CAPTURE-RECEIPT.json')));
   assert.equal(receipt.renderedCaptureSha256,hash(raw));
   assert.equal(receipt.releaseAuthorized,false);
+  assert.equal(receipt.partialPilotCapture,false);
+  const partial=await CLI.main(['--blueprint',bpPath,'--site',sitePath,
+   '--public-http',httpPath,'--origin',origin,'--out',path.join(dir,'partial'),
+   '--page-ids',blueprint.pages[0].id],adapter());
+  assert.equal(partial.pages,1);
+  assert.equal(partial.approvedPages,blueprint.pages.length);
+  const partialReceipt=JSON.parse(fs.readFileSync(path.join(dir,'partial',
+   'RENDERED-CAPTURE-RECEIPT.json'),'utf8'));
+  assert.equal(partialReceipt.partialPilotCapture,true);
   await assert.rejects(()=>CLI.main(['--blueprint',bpPath,'--site',sitePath,
    '--public-http',httpPath,'--origin',origin,'--out',out],adapter()),/already exists/);
  }finally{fs.rmSync(dir,{recursive:true,force:true});}

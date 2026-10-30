@@ -108,13 +108,23 @@ function assertV2(e,originalHttpSha=null){
  }
  return e;
 }
-async function capture(input,{resolve=PUBLIC.address,launch,now=()=>new Date().toISOString()}={}){
- const verified=verify(input);
+function selectPages(verified,pageIds=null){
+ if(pageIds===null)return verified.bp.pages;
+ if(!Array.isArray(pageIds)||pageIds.length<1||pageIds.length>8||
+  new Set(pageIds).size!==pageIds.length||
+  pageIds.some(id=>typeof id!=='string'||!verified.bp.pages.some(p=>p.id===id)))
+  fail('pilot page selection must contain 1-8 distinct approved Blueprint IDs');
+ const selected=new Set(pageIds);
+ return verified.bp.pages.filter(p=>selected.has(p.id));
+}
+async function capture(input,{resolve=PUBLIC.address,launch,now=()=>new Date().toISOString(),
+ pageIds=null}={}){
+ const verified=verify(input),pages=selectPages(verified,pageIds);
  if(typeof launch!=='function'||typeof resolve!=='function')fail('browser adapter required');
  const pin=await resolve(verified.base.hostname);
  if(!pin||net.isIP(pin.address)!==4||pin.family!==4||!PUBLIC.isPublicIp(pin.address))
   fail('only single pinned public IPv4 DNS address supported for browser capture');
- const requested=new Set([...verified.wanted.values()].map(p=>url(verified.base,p)));
+ const requested=new Set(pages.map(p=>url(verified.base,p.path)));
  const originalHttpById=new Map(input.http.pages.map(p=>[p.id,p]));
  const evidence={format:FORMAT,siteId:verified.bp.siteId,origin:verified.origin,
   capturedAt:now(),publicCaptureRawSha256:input.httpRawSha256,
@@ -127,7 +137,7 @@ async function capture(input,{resolve=PUBLIC.address,launch,now=()=>new Date().t
   browser=await launch(verified.base,pin);
   if(!browser||typeof browser.newContext!=='function'||typeof browser.close!=='function')
    fail('Chromium adapter invalid');
-  for(const spec of verified.bp.pages){
+  for(const spec of pages){
    const target=url(verified.base,spec.path),record={id:spec.id,path:spec.path,captures:{}};
    for(const device of DEVICES){
     let context,blockedRequests=0,pageErrors=0,allowedRequests=0;
@@ -216,4 +226,4 @@ function defaultLauncher(chromePath){
    '--disable-features=UseDnsHttpsSvcb,UseDnsHttps',
    '--host-resolver-rules=MAP '+base.hostname+' '+pin.address+', EXCLUDE localhost']});
 }
-module.exports=Object.freeze({FORMAT,WIDTHS,HEIGHTS,DEVICES,MAX_REQUESTS_PER_VIEW,BLOCK_REASONS,verify,assertV2,capture,defaultLauncher});
+module.exports=Object.freeze({FORMAT,WIDTHS,HEIGHTS,DEVICES,MAX_REQUESTS_PER_VIEW,BLOCK_REASONS,verify,selectPages,assertV2,capture,defaultLauncher});

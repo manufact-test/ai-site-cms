@@ -8,6 +8,10 @@
 - `lib/seo-rendered-content-audit.cjs`: backward-compatible v1/v2 intake. For v2, a changed browser main response or unsettled DOM fails closed to P1/uninspected; existing private static HTML/Markdown report now shows browser source match, drift, blocked-request, JS error and unstable DOM counts.
 - `tests/seo-rendered-capture-smoke.cjs`: focused offline Node smoke with mocked browser, no network. The checkout test and a real authorized Chromium/site pilot **still require execution**; this note does not claim they passed.
 
+Offline first-site preflight: pass `--mode preflight` with all source flags to validate approved sources, mount, selected IDs, browser loader and private target without DNS, Chromium launch, writing output, HTTP requests or publishing; this does **not** verify runtime sandbox or real host.
+
+Optional first-page pilot: CLI `--page-ids` selects 1–8 approved Blueprint IDs. The receipt labels partial coverage and the existing audit marks all unselected pages uninspected; never interpret a subset as full SEO acceptance.
+
 Operator flow: existing `capture-public-https.cjs` → new `capture-rendered-public.cjs` → existing `review-rendered-content.cjs` or existing Operator Workspace `crawl.renderedCapture`. These are source observations only: no Google rendering, owner source revision, approval, publish/deploy or release signoff is authenticated. All original DOM stays outside Git; main developer is the only integrator.
 
 ## 30 October 2026 — Rendered Content / HTTP-to-DOM SEO Reconciliation (independent worker)

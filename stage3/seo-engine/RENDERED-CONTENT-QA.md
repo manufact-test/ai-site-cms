@@ -2,7 +2,7 @@
 
 Independent SEO worker · 2026-10-30 · branch `feature/site-seo-engine` · strictly `stage3/seo-engine/**`.
 
-> **2026-10-30 v2 update:** Manual viewport v1 evidence remains supported, and the new opt-in Chromium `bin/capture-rendered-public.cjs` can create `manufact-seo-viewport-evidence-v2`. For full prerequisites, operator consent, pinned main-response HTML checks, per-device request budgets and restrictions, see [RENDERED-CAPTURE-PILOT.md](RENDERED-CAPTURE-PILOT.md). The report now includes v2 source-body-match/drift, browser block, JavaScript error and DOM-stability counts. No automatic release GO.
+> **2026-10-30 v2 update:** Manual viewport v1 evidence remains supported, and the new opt-in Chromium `bin/capture-rendered-public.cjs` can create `manufact-seo-viewport-evidence-v2`. For full prerequisites, operator consent, pinned main-response HTML checks, per-device request budgets and restrictions, see [RENDERED-CAPTURE-PILOT.md](RENDERED-CAPTURE-PILOT.md). The report now includes v2 source-body-match/drift, browser block, JavaScript error and DOM-stability counts. Optional v2 `--page-ids` subset pilots still mark every unselected Blueprint page as uninspected. No automatic release GO.
 
 ## Practical pilot gap
 
