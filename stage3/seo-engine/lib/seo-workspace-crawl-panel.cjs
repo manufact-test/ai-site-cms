@@ -8,6 +8,8 @@ const CMS_VIEW=require('./crawl-cms-implementation-view.cjs');
 const CYCLE=require('./crawl-cms-lifecycle.cjs');
 const CYCLE_VIEW=require('./crawl-cms-recheck-view.cjs');
 const CYCLE_DESK=require('./crawl-cms-decision-desk.cjs');
+const PUBLIC_FOLLOWUP=require('./crawl-cms-public-followup.cjs');
+const PUBLIC_VIEW=require('./crawl-cms-public-followup-view.cjs');
 const HASH=/^[0-9a-f]{64}$/;
 const hex=s=>crypto.createHash('sha256').update(s).digest('hex');
 const escape=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -135,6 +137,19 @@ function build(data){
    cmsRecheckView=CYCLE_VIEW.render(cmsRecheck);
   }
  }
+ let publicFollowup=null,publicFollowupView=null;
+ if(data.publicCapture!==undefined){
+  check(cmsReview&&HASH.test(hashes.publicCapture||''),
+   'source-pinned public capture requires exact original current Blueprint and Site v1');
+  const worklistJson=JSON.stringify(cmsReview,null,2)+'\n';
+  publicFollowup=PUBLIC_FOLLOWUP.review({worklist:cmsReview,worklistSha256:hex(worklistJson),
+   blueprint:data.cmsBlueprint,blueprintRawSha256:hashes.cmsBlueprint,
+   site:data.cmsSite,siteRawSha256:hashes.cmsSite,
+   capture:data.publicCapture,captureRawSha256:hashes.publicCapture,
+   latestRecheck:cmsRecheck||null,
+   latestRecheckRawSha256:cmsRecheck?hex(JSON.stringify(cmsRecheck,null,2)+'\n'):null});
+  publicFollowupView=PUBLIC_VIEW.render(publicFollowup);
+ }
  const items=[],ids=new Set();
  function add(source,id,priority,path,message,manual,agent){
   check(priorities.includes(priority),'invalid manual action priority');
@@ -192,6 +207,7 @@ function build(data){
    '<p>Manual holds: '+repair.manualHolds.length+'; explicit Allow suggestions: '+repair.appliedSuggestions.length+
    '; original Site v1 revision independently authenticated: NO.</p></section>';
  }
+ const publicLink=publicFollowupView?'<section><h2>Observed public HTTPS after SEO work</h2><p><a href="crawl-public-followup.html">Open public observation follow-up</a> · <a href="crawl-public-followup.md">Lead Markdown</a> · <a href="crawl-public-followup.json">Read-only source record</a></p><p>Still conflicting: '+publicFollowup.summary.conflict+' · Aligned, NOT verified: '+publicFollowup.summary.alignedNotVerified+' · Unknown: '+publicFollowup.summary.unknown+' · Independent delivery errors: '+publicFollowup.summary.independentDeliveryBlockers+'.</p><p>This is an operator-supplied transcript, not authenticated Google indexation or owner approval.</p></section>':'';
  const cmsLink=cmsView?'<section><h2>CMS / publisher implementation mapping</h2><p><a href="crawl-cms.html">Open source-bound CMS and publisher implementation worklist</a> · <a href="crawl-cms-worklist.md">Lead Markdown</a> · <a href="crawl-cms-worklist.json">Private JSON</a> · <a href="crawl-cms-decisions-TEMPLATE.json">NEW-cycle human decision template</a> · <a href="crawl-cms-decisions.html">Private offline Decision Desk</a>'+
   (cmsRecheckView?' · <a href="crawl-cms-recheck.html">Compare old vs current tasks</a> · <a href="crawl-cms-recheck.md">Lead recheck summary</a>':'')+'</p><p>Source-drift pages: '+cmsReview.summary.driftPages+' · Extra pages: '+cmsReview.summary.unapprovedExtraPages+' · Manual implementation actions: '+cmsReview.summary.totalManualActions+'. No CMS Save or publishing is authorized.</p></section>':'';
  const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;"><title>MANUFACT — Private Crawl Operations</title><style>'+css+'</style></head><body><main><header><div>MANUFACT · PRIVATE SEO OPERATOR WORKSPACE</div><h1>Search delivery &amp; crawl intelligence</h1><p>Site '+escape(policy.siteId)+' · '+escape(policy.base)+'</p><p>Original-source observations, not authenticated crawler traffic or Google URL Inspection.</p></header>'+
@@ -199,7 +215,7 @@ function build(data){
   '<p><a href="crawl-lead-worklist.md">Open private lead worklist</a></p><p>Regression '+(delta?'supplied':'not supplied')+' · GSC correlation '+(correlation?'supplied':'not supplied')+
   ' · candidate '+(candidate?'private draft only':'not supplied')+'</p><div class="scroll"><table><thead><tr><th>Priority</th><th>Source</th><th>Route / bot</th><th>Observation</th><th>Next manual check</th></tr></thead><tbody>'+
   (rows||'<tr><td colspan="5">No triggers in supplied input. This does NOT prove the public site is ready.</td></tr>')+
-  '</tbody></table></div></section>'+cmsLink+propose+
+  '</tbody></table></div></section>'+cmsLink+publicLink+propose+
   '<section><h2>Source fingerprints</h2><p>All original report bytes are pinned in the private workspace manifest. A matching hash is source consistency, not public-host authentication.</p><div class="scroll"><table><tbody>'+provenanceHtml+'</tbody></table></div></section>'+
   '<section><h2>Mandatory lead checks</h2><ol><li>Confirm approved site ID, Blueprint and current CMS revision with the owner.</li>'+
   '<li>Verify actual served HTTPS robots/sitemap, HTTP redirects, canonical and X-Robots-Tag before changes.</li>'+
@@ -223,6 +239,7 @@ function build(data){
   'No autonomous fixes, no release GO, no Google proof.',''].join('\n');
  return {siteId:policy.siteId,base:policy.base,blueprintSha256:policy.blueprintSha256,
   html,markdown:md,candidate,cmsReview,cmsView,cmsTemplate,cmsDecisionDeskHtml,cmsRecheck,cmsRecheckView,
+  publicFollowup,publicFollowupView,
   counts,sourceIdentity:{policyRobotsSha256:policy.robotsSha256,
    policySitemapSha256:policy.sitemapSha256,
    canonicalBlueprintSha256:policy.blueprintSha256,
@@ -240,6 +257,10 @@ function build(data){
    cmsLifecyclePersistent:cmsRecheck?.summary.persistent??null,
    cmsLifecycleNewP0:cmsRecheck?.summary.newCriticalP0??null,
    cmsLifecycleCompletedStillObserved:cmsRecheck?.summary.completedReportedStillObserved??null,
+   publicFollowupIncluded:!!publicFollowup,
+   publicFollowupConflict:publicFollowup?.summary.conflict??null,
+   publicFollowupUnknown:publicFollowup?.summary.unknown??null,
+   publicFollowupAlignedNotVerified:publicFollowup?.summary.alignedNotVerified??null,
    originalSiteAuthenticated:false,releaseAuthorized:false},
   limitations:limits};
 }
