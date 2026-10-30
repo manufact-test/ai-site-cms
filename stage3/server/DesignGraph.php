@@ -295,7 +295,7 @@ final class DesignGraph
             self::check(($type!=='list-item'||$parentType==='list')&&($parentType!=='list'||$type==='list-item'),'invalid list hierarchy');
             self::check(($type!=='tab'||$parentType==='tabs')&&($parentType!=='tabs'||$type==='tab'),'invalid tabs hierarchy');
             self::check($type==='gallery'||!array_intersect(['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile'],array_keys($node)),'gallery setting on another node');
-            if(array_key_exists('caption',$node))self::check($type==='image'&&$parentType==='gallery'&&is_string($node['caption'])&&strlen($node['caption'])<=240&&preg_match('/[\\x00-\\x1f]/',$node['caption'])!==1,'invalid photo caption');
+            if(array_key_exists('caption',$node))self::check($type==='image'&&is_string($node['caption'])&&strlen($node['caption'])<=240&&preg_match('/[\\x00-\\x1f]/',$node['caption'])!==1,'invalid photo caption');
             if($type==='gallery'){
                 foreach(['photoShape','photoShapeTablet','photoShapeMobile'] as $shapeKey)
                     self::check(!array_key_exists($shapeKey,$node)||in_array($node[$shapeKey],['natural','square','landscape','portrait'],true),'invalid gallery photo shape');
@@ -642,7 +642,7 @@ final class DesignGraph
             }
             return $html;
         };
-        $visit=function (array $n) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop,$richText,$gl,&$firstImagePriorityAvailable): string {
+        $visit=function (array $n,?string $parentType=null) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop,$richText,$gl,&$firstImagePriorityAvailable): string {
             $selector=$scope.' .cmsdg-n-'.$n['id'];
             $usesTranslate=false;
             foreach ([$n['styles']??[],$n['responsive']['tablet']??[],$n['responsive']['mobile']??[]] as $layer) {
@@ -752,7 +752,7 @@ final class DesignGraph
                         ';--cmsdg-gallery-mobile:'.($n['columnsMobile']??1).'"':(array_intersect(['visibleDesktop','visibleTablet','visibleMobile'],array_keys($n))?' style="--cmsdg-visible-desktop:'.($n['visibleDesktop']??1).';--cmsdg-visible-tablet:'.($n['visibleTablet']??1).';--cmsdg-visible-mobile:'.($n['visibleMobile']??1).'"':'');
                     $body='';
                     foreach($n['children'] as $index=>$child){
-                        $visual=$visit($child);
+                        $visual=$visit($child,'gallery');
                         $id='cmsdg-lightbox-'.$child['id'];
                         $caption=empty($child['caption'])?'':'<figcaption>'.self::h($child['caption']).'</figcaption>';
                         $trigger=empty($n['lightbox'])?$visual:'<button type="button" class="cmsdg-lightbox-trigger" popovertarget="'.$id.'" aria-label="'.$gl[0].' '.($index+1).'">'.$visual.'</button>';
@@ -854,10 +854,13 @@ final class DesignGraph
                         }
                         $img='<picture class="cmsdg-picture">'.$sources.$img.'</picture>';
                     }
-                    if(empty($n['href']))return $img;
-                    $href=str_starts_with($n['href'],'/')?rtrim($mount,'/').$n['href']:$n['href'];
-                    return '<a class="cmsdg-image-action" href="'.self::h($href).'"'.
-                        (str_starts_with($href,'https://')?' rel="noopener noreferrer"':'').'>'.$img.'</a>';
+                    $visual=$img;
+                    if(!empty($n['href'])){
+                        $href=str_starts_with($n['href'],'/')?rtrim($mount,'/').$n['href']:$n['href'];
+                        $visual='<a class="cmsdg-image-action" href="'.self::h($href).'"'.
+                            (str_starts_with($href,'https://')?' rel="noopener noreferrer"':'').'>'.$img.'</a>';
+                    }
+                    return !empty($n['caption'])&&$parentType!=='gallery'?'<figure class="cmsdg-image-figure">'.$visual.'<figcaption>'.self::h($n['caption']).'</figcaption></figure>':$visual;
             }
             return '';
         };
@@ -904,6 +907,8 @@ final class DesignGraph
             .$scope.' .cmsdg-picture img{max-width:100%;height:auto}'
             .$scope.' .cmsdg-image-action{display:inline-block;max-width:100%}'
             .$scope.' .cmsdg-image-action img{display:block}'
+            .$scope.' .cmsdg-image-figure{margin:0;min-width:0;max-width:100%}'
+            .$scope.' .cmsdg-image-figure figcaption{padding:8px 0;line-height:1.45;overflow-wrap:anywhere}'
             .$scope.' .cmsdg-popup{box-sizing:border-box;position:fixed;inset:0;margin:auto;min-width:0;max-width:min(680px,calc(100vw - 32px));max-height:min(85dvh,900px);overflow:auto;background:#fff;color:#182b3d;border:1px solid #ccd8e4;border-radius:18px;padding:28px;box-shadow:0 20px 65px #0c193b55}'
             .$scope.' .cmsdg-popup:not(:popover-open){display:none!important}'
             .$scope.' .cmsdg-popup::backdrop{background:#08172c99}'
