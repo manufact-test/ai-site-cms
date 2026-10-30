@@ -1,0 +1,922 @@
+{
+  "version": 1,
+  "id": "graph-patterns-php",
+  "nodes": [
+    {
+      "id": "fixture-pattern-node-16",
+      "type": "container",
+      "styles": {
+        "display": "grid",
+        "gap": 24,
+        "maxWidth": 1280,
+        "paddingX": 36,
+        "paddingY": 48,
+        "gridTracks": [
+          1,
+          1,
+          1
+        ],
+        "background": "#f7f9fc"
+      },
+      "responsive": {
+        "tablet": {
+          "gridTracks": [
+            1,
+            1
+          ]
+        },
+        "mobile": {
+          "columns": 1,
+          "paddingX": 16,
+          "paddingY": 24
+        }
+      },
+      "semanticTag": "section",
+      "ariaLabel": "Услуги",
+      "children": [
+        {
+          "id": "fixture-pattern-node-5",
+          "type": "container",
+          "styles": {
+            "display": "flex",
+            "direction": "column",
+            "gap": 14,
+            "padding": 24,
+            "background": "#ffffff",
+            "radius": 20,
+            "borderColor": "#dce4ed",
+            "borderWidth": 1,
+            "shadow": "soft",
+            "minHeight": 220,
+            "justify": "between"
+          },
+          "responsive": {
+            "mobile": {
+              "padding": 16
+            }
+          },
+          "semanticTag": "article",
+          "children": [
+            {
+              "id": "fixture-pattern-node-1",
+              "type": "icon",
+              "styles": {
+                "color": "#245bd6"
+              },
+              "icon": "sparkles",
+              "alt": "",
+              "iconSize": 32
+            },
+            {
+              "id": "fixture-pattern-node-2",
+              "type": "heading",
+              "styles": {
+                "fontSize": 24,
+                "lineHeight": 120
+              },
+              "text": "Проектирование",
+              "level": 3
+            },
+            {
+              "id": "fixture-pattern-node-3",
+              "type": "text",
+              "styles": {
+                "fontSize": 16,
+                "lineHeight": 155,
+                "color": "#475569"
+              },
+              "text": "Разрабатываем индивидуальную концепцию и структуру."
+            },
+            {
+              "id": "fixture-pattern-node-4",
+              "type": "button",
+              "styles": {
+                "display": "block",
+                "paddingX": 20,
+                "paddingY": 14,
+                "radius": 16,
+                "textAlign": "center",
+                "fontWeight": 700,
+                "background": "#245bd6",
+                "color": "#ffffff",
+                "marginTop": 12
+              },
+              "text": "Обсудить услугу",
+              "href": "/",
+              "transition": {
+                "duration": 200,
+                "easing": "ease-out"
+              },
+              "states": {
+                "hover": {
+                  "scalePercent": 103,
+                  "background": "#183f9b"
+                },
+                "focus": {
+                  "outlineColor": "#245bd6",
+                  "outlineWidth": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "fixture-pattern-node-10",
+          "type": "container",
+          "styles": {
+            "display": "flex",
+            "direction": "column",
+            "gap": 14,
+            "padding": 24,
+            "background": "#ffffff",
+            "radius": 20,
+            "borderColor": "#dce4ed",
+            "borderWidth": 1,
+            "shadow": "soft",
+            "minHeight": 220,
+            "justify": "between"
+          },
+          "responsive": {
+            "mobile": {
+              "padding": 16
+            }
+          },
+          "semanticTag": "article",
+          "children": [
+            {
+              "id": "fixture-pattern-node-6",
+              "type": "icon",
+              "styles": {
+                "color": "#245bd6"
+              },
+              "icon": "shield",
+              "alt": "",
+              "iconSize": 32
+            },
+            {
+              "id": "fixture-pattern-node-7",
+              "type": "heading",
+              "styles": {
+                "fontSize": 24,
+                "lineHeight": 120
+              },
+              "text": "Разработка",
+              "level": 3
+            },
+            {
+              "id": "fixture-pattern-node-8",
+              "type": "text",
+              "styles": {
+                "fontSize": 16,
+                "lineHeight": 155,
+                "color": "#475569"
+              },
+              "text": "Создаём решение с вниманием к каждой детали."
+            },
+            {
+              "id": "fixture-pattern-node-9",
+              "type": "button",
+              "styles": {
+                "display": "block",
+                "paddingX": 20,
+                "paddingY": 14,
+                "radius": 16,
+                "textAlign": "center",
+                "fontWeight": 700,
+                "background": "#245bd6",
+                "color": "#ffffff",
+                "marginTop": 12
+              },
+              "text": "Обсудить услугу",
+              "href": "/",
+              "transition": {
+                "duration": 200,
+                "easing": "ease-out"
+              },
+              "states": {
+                "hover": {
+                  "scalePercent": 103,
+                  "background": "#183f9b"
+                },
+                "focus": {
+                  "outlineColor": "#245bd6",
+                  "outlineWidth": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "fixture-pattern-node-15",
+          "type": "container",
+          "styles": {
+            "display": "flex",
+            "direction": "column",
+            "gap": 14,
+            "padding": 24,
+            "background": "#ffffff",
+            "radius": 20,
+            "borderColor": "#dce4ed",
+            "borderWidth": 1,
+            "shadow": "soft",
+            "minHeight": 220,
+            "justify": "between"
+          },
+          "responsive": {
+            "mobile": {
+              "padding": 16
+            }
+          },
+          "semanticTag": "article",
+          "children": [
+            {
+              "id": "fixture-pattern-node-11",
+              "type": "icon",
+              "styles": {
+                "color": "#245bd6"
+              },
+              "icon": "arrow",
+              "alt": "",
+              "iconSize": 32
+            },
+            {
+              "id": "fixture-pattern-node-12",
+              "type": "heading",
+              "styles": {
+                "fontSize": 24,
+                "lineHeight": 120
+              },
+              "text": "Сопровождение",
+              "level": 3
+            },
+            {
+              "id": "fixture-pattern-node-13",
+              "type": "text",
+              "styles": {
+                "fontSize": 16,
+                "lineHeight": 155,
+                "color": "#475569"
+              },
+              "text": "Помогаем развивать проект после запуска."
+            },
+            {
+              "id": "fixture-pattern-node-14",
+              "type": "button",
+              "styles": {
+                "display": "block",
+                "paddingX": 20,
+                "paddingY": 14,
+                "radius": 16,
+                "textAlign": "center",
+                "fontWeight": 700,
+                "background": "#245bd6",
+                "color": "#ffffff",
+                "marginTop": 12
+              },
+              "text": "Обсудить услугу",
+              "href": "/",
+              "transition": {
+                "duration": 200,
+                "easing": "ease-out"
+              },
+              "states": {
+                "hover": {
+                  "scalePercent": 103,
+                  "background": "#183f9b"
+                },
+                "focus": {
+                  "outlineColor": "#245bd6",
+                  "outlineWidth": 3
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-pattern-node-48",
+      "type": "container",
+      "styles": {
+        "display": "grid",
+        "gap": 24,
+        "maxWidth": 1280,
+        "paddingX": 36,
+        "paddingY": 48,
+        "gridTracks": [
+          1,
+          1,
+          1
+        ],
+        "background": "#f6f8fc"
+      },
+      "responsive": {
+        "tablet": {
+          "gridTracks": [
+            1,
+            1
+          ],
+          "paddingX": 20
+        },
+        "mobile": {
+          "columns": 1,
+          "paddingX": 16,
+          "paddingY": 24
+        }
+      },
+      "semanticTag": "section",
+      "ariaLabel": "Пакеты услуг",
+      "children": [
+        {
+          "id": "fixture-pattern-node-17",
+          "type": "heading",
+          "styles": {
+            "fontSize": 36,
+            "gridColumnSpan": 3,
+            "textWrap": "balance"
+          },
+          "text": "Выберите формат сотрудничества",
+          "level": 2,
+          "responsive": {
+            "tablet": {
+              "gridColumnSpan": 2
+            },
+            "mobile": {
+              "gridColumnSpan": 1
+            }
+          }
+        },
+        {
+          "id": "fixture-pattern-node-27",
+          "type": "container",
+          "styles": {
+            "display": "flex",
+            "direction": "column",
+            "gap": 14,
+            "padding": 24,
+            "background": "#ffffff",
+            "radius": 20,
+            "borderColor": "#dce4ed",
+            "borderWidth": 1,
+            "shadow": "soft",
+            "minHeight": 240,
+            "justify": "between"
+          },
+          "responsive": {
+            "mobile": {
+              "padding": 16
+            }
+          },
+          "semanticTag": "article",
+          "children": [
+            {
+              "id": "fixture-pattern-node-18",
+              "type": "text",
+              "styles": {
+                "fontSize": 12,
+                "fontWeight": 700,
+                "letterSpacing": 10,
+                "color": "#245bd6"
+              },
+              "text": "ФОРМАТ СОТРУДНИЧЕСТВА"
+            },
+            {
+              "id": "fixture-pattern-node-19",
+              "type": "heading",
+              "styles": {
+                "fontSize": 27
+              },
+              "text": "Старт",
+              "level": 3
+            },
+            {
+              "id": "fixture-pattern-node-20",
+              "type": "text",
+              "styles": {
+                "fontSize": 20,
+                "fontWeight": 700
+              },
+              "text": "Стоимость по запросу"
+            },
+            {
+              "id": "fixture-pattern-node-21",
+              "type": "text",
+              "styles": {
+                "fontSize": 15,
+                "color": "#475569",
+                "lineHeight": 145
+              },
+              "text": "Для небольших индивидуальных задач"
+            },
+            {
+              "id": "fixture-pattern-node-25",
+              "type": "list",
+              "styles": {},
+              "ordered": false,
+              "children": [
+                {
+                  "id": "fixture-pattern-node-22",
+                  "type": "list-item",
+                  "styles": {
+                    "lineHeight": 145
+                  },
+                  "text": "Проработка структуры"
+                },
+                {
+                  "id": "fixture-pattern-node-23",
+                  "type": "list-item",
+                  "styles": {
+                    "lineHeight": 145
+                  },
+                  "text": "Авторская компоновка"
+                },
+                {
+                  "id": "fixture-pattern-node-24",
+                  "type": "list-item",
+                  "styles": {
+                    "lineHeight": 145
+                  },
+                  "text": "Базовая поддержка"
+                }
+              ]
+            },
+            {
+              "id": "fixture-pattern-node-26",
+              "type": "button",
+              "styles": {
+                "display": "block",
+                "paddingX": 20,
+                "paddingY": 14,
+                "radius": 16,
+                "textAlign": "center",
+                "fontWeight": 700,
+                "background": "#245bd6",
+                "color": "#ffffff",
+                "marginTop": 12
+              },
+              "text": "Запросить предложение",
+              "href": "/",
+              "transition": {
+                "duration": 200,
+                "easing": "ease-out"
+              },
+              "states": {
+                "hover": {
+                  "scalePercent": 103,
+                  "background": "#183f9b"
+                },
+                "focus": {
+                  "outlineColor": "#245bd6",
+                  "outlineWidth": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "fixture-pattern-node-37",
+          "type": "container",
+          "styles": {
+            "display": "flex",
+            "direction": "column",
+            "gap": 14,
+            "padding": 24,
+            "background": "#ffffff",
+            "radius": 20,
+            "borderColor": "#245bd6",
+            "borderWidth": 1,
+            "shadow": "soft",
+            "minHeight": 240,
+            "justify": "between"
+          },
+          "responsive": {
+            "mobile": {
+              "padding": 16
+            }
+          },
+          "semanticTag": "article",
+          "children": [
+            {
+              "id": "fixture-pattern-node-28",
+              "type": "text",
+              "styles": {
+                "fontSize": 12,
+                "fontWeight": 700,
+                "letterSpacing": 10,
+                "color": "#245bd6"
+              },
+              "text": "ПОПУЛЯРНЫЙ ВАРИАНТ"
+            },
+            {
+              "id": "fixture-pattern-node-29",
+              "type": "heading",
+              "styles": {
+                "fontSize": 27
+              },
+              "text": "Развитие",
+              "level": 3
+            },
+            {
+              "id": "fixture-pattern-node-30",
+              "type": "text",
+              "styles": {
+                "fontSize": 20,
+                "fontWeight": 700
+              },
+              "text": "Стоимость по запросу"
+            },
+            {
+              "id": "fixture-pattern-node-31",
+              "type": "text",
+              "styles": {
+                "fontSize": 15,
+                "color": "#475569",
+                "lineHeight": 145
+              },
+              "text": "Для проектов с расширенными возможностями"
+            },
+            {
+              "id": "fixture-pattern-node-35",
+              "type": "list",
+              "styles": {},
+              "ordered": false,
+              "children": [
+                {
+                  "id": "fixture-pattern-node-32",
+                  "type": "list-item",
+                  "styles": {
+                    "lineHeight": 145
+                  },
+                  "text": "Адаптивный дизайн"
+                },
+                {
+                  "id": "fixture-pattern-node-33",
+                  "type": "list-item",
+                  "styles": {
+                    "lineHeight": 145
+                  },
+                  "text": "Интерактивные элементы"
+                },
+                {
+                  "id": "fixture-pattern-node-34",
+                  "type": "list-item",
+                  "styles": {
+                    "lineHeight": 145
+                  },
+                  "text": "Публикация и сопровождение"
+                }
+              ]
+            },
+            {
+              "id": "fixture-pattern-node-36",
+              "type": "button",
+              "styles": {
+                "display": "block",
+                "paddingX": 20,
+                "paddingY": 14,
+                "radius": 16,
+                "textAlign": "center",
+                "fontWeight": 700,
+                "background": "#245bd6",
+                "color": "#ffffff",
+                "marginTop": 12
+              },
+              "text": "Запросить предложение",
+              "href": "/",
+              "transition": {
+                "duration": 200,
+                "easing": "ease-out"
+              },
+              "states": {
+                "hover": {
+                  "scalePercent": 103,
+                  "background": "#183f9b"
+                },
+                "focus": {
+                  "outlineColor": "#245bd6",
+                  "outlineWidth": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "fixture-pattern-node-47",
+          "type": "container",
+          "styles": {
+            "display": "flex",
+            "direction": "column",
+            "gap": 14,
+            "padding": 24,
+            "background": "#ffffff",
+            "radius": 20,
+            "borderColor": "#dce4ed",
+            "borderWidth": 1,
+            "shadow": "soft",
+            "minHeight": 240,
+            "justify": "between"
+          },
+          "responsive": {
+            "mobile": {
+              "padding": 16
+            }
+          },
+          "semanticTag": "article",
+          "children": [
+            {
+              "id": "fixture-pattern-node-38",
+              "type": "text",
+              "styles": {
+                "fontSize": 12,
+                "fontWeight": 700,
+                "letterSpacing": 10,
+                "color": "#245bd6"
+              },
+              "text": "ФОРМАТ СОТРУДНИЧЕСТВА"
+            },
+            {
+              "id": "fixture-pattern-node-39",
+              "type": "heading",
+              "styles": {
+                "fontSize": 27
+              },
+              "text": "Индивидуальный",
+              "level": 3
+            },
+            {
+              "id": "fixture-pattern-node-40",
+              "type": "text",
+              "styles": {
+                "fontSize": 20,
+                "fontWeight": 700
+              },
+              "text": "Стоимость по запросу"
+            },
+            {
+              "id": "fixture-pattern-node-41",
+              "type": "text",
+              "styles": {
+                "fontSize": 15,
+                "color": "#475569",
+                "lineHeight": 145
+              },
+              "text": "Для сложных проектов без шаблонных ограничений"
+            },
+            {
+              "id": "fixture-pattern-node-45",
+              "type": "list",
+              "styles": {},
+              "ordered": false,
+              "children": [
+                {
+                  "id": "fixture-pattern-node-42",
+                  "type": "list-item",
+                  "styles": {
+                    "lineHeight": 145
+                  },
+                  "text": "Сложные композиции"
+                },
+                {
+                  "id": "fixture-pattern-node-43",
+                  "type": "list-item",
+                  "styles": {
+                    "lineHeight": 145
+                  },
+                  "text": "Интеграции"
+                },
+                {
+                  "id": "fixture-pattern-node-44",
+                  "type": "list-item",
+                  "styles": {
+                    "lineHeight": 145
+                  },
+                  "text": "План развития"
+                }
+              ]
+            },
+            {
+              "id": "fixture-pattern-node-46",
+              "type": "button",
+              "styles": {
+                "display": "block",
+                "paddingX": 20,
+                "paddingY": 14,
+                "radius": 16,
+                "textAlign": "center",
+                "fontWeight": 700,
+                "background": "#245bd6",
+                "color": "#ffffff",
+                "marginTop": 12
+              },
+              "text": "Запросить предложение",
+              "href": "/",
+              "transition": {
+                "duration": 200,
+                "easing": "ease-out"
+              },
+              "states": {
+                "hover": {
+                  "scalePercent": 103,
+                  "background": "#183f9b"
+                },
+                "focus": {
+                  "outlineColor": "#245bd6",
+                  "outlineWidth": 3
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixture-pattern-node-61",
+      "type": "container",
+      "styles": {
+        "display": "grid",
+        "gap": 24,
+        "maxWidth": 1280,
+        "paddingX": 36,
+        "paddingY": 48,
+        "gridTracks": [
+          2,
+          3
+        ],
+        "background": "#f8f9fc"
+      },
+      "responsive": {
+        "tablet": {
+          "gridTracks": [
+            1,
+            2
+          ]
+        },
+        "mobile": {
+          "columns": 1,
+          "paddingX": 16,
+          "paddingY": 24
+        }
+      },
+      "semanticTag": "section",
+      "ariaLabel": "Вопросы и ответы",
+      "children": [
+        {
+          "id": "fixture-pattern-node-60",
+          "type": "container",
+          "styles": {
+            "display": "flex",
+            "direction": "column",
+            "gap": 18
+          },
+          "children": [
+            {
+              "id": "fixture-pattern-node-56",
+              "type": "text",
+              "styles": {
+                "fontSize": 13,
+                "fontWeight": 700,
+                "letterSpacing": 10,
+                "color": "#245bd6"
+              },
+              "text": "ВОПРОСЫ И ОТВЕТЫ"
+            },
+            {
+              "id": "fixture-pattern-node-57",
+              "type": "heading",
+              "styles": {
+                "fontSize": 36,
+                "lineHeight": 115
+              },
+              "text": "Всё важное — без лишних переходов",
+              "level": 2
+            },
+            {
+              "id": "fixture-pattern-node-58",
+              "type": "text",
+              "styles": {
+                "fontSize": 17,
+                "lineHeight": 155,
+                "color": "#475569"
+              },
+              "text": "В этой колонке — авторский акцент. Рядом — раскрывающиеся ответы без дополнительного JavaScript."
+            },
+            {
+              "id": "fixture-pattern-node-59",
+              "type": "button",
+              "styles": {
+                "display": "block",
+                "paddingX": 20,
+                "paddingY": 14,
+                "radius": 16,
+                "textAlign": "center",
+                "fontWeight": 700,
+                "background": "#245bd6",
+                "color": "#ffffff",
+                "alignSelf": "start"
+              },
+              "text": "Связаться с нами",
+              "href": "/",
+              "transition": {
+                "duration": 200,
+                "easing": "ease-out"
+              },
+              "states": {
+                "hover": {
+                  "scalePercent": 103,
+                  "background": "#183f9b"
+                },
+                "focus": {
+                  "outlineColor": "#245bd6",
+                  "outlineWidth": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "fixture-pattern-node-55",
+          "type": "container",
+          "styles": {
+            "display": "flex",
+            "direction": "column",
+            "gap": 12
+          },
+          "children": [
+            {
+              "id": "fixture-pattern-node-50",
+              "type": "disclosure",
+              "styles": {
+                "padding": 18,
+                "background": "#ffffff",
+                "borderWidth": 1,
+                "borderColor": "#dce4ed",
+                "radius": 14
+              },
+              "text": "Как устроена работа?",
+              "children": [
+                {
+                  "id": "fixture-pattern-node-49",
+                  "type": "text",
+                  "styles": {
+                    "fontSize": 15,
+                    "lineHeight": 155,
+                    "color": "#475569"
+                  },
+                  "text": "Сначала согласуем содержание и макет, затем собираем индивидуальную композицию."
+                }
+              ]
+            },
+            {
+              "id": "fixture-pattern-node-52",
+              "type": "disclosure",
+              "styles": {
+                "padding": 18,
+                "background": "#ffffff",
+                "borderWidth": 1,
+                "borderColor": "#dce4ed",
+                "radius": 14
+              },
+              "text": "Можно ли настроить адаптивность?",
+              "children": [
+                {
+                  "id": "fixture-pattern-node-51",
+                  "type": "text",
+                  "styles": {
+                    "fontSize": 15,
+                    "lineHeight": 155,
+                    "color": "#475569"
+                  },
+                  "text": "Да. Расположение и стили редактируются отдельно для каждого устройства."
+                }
+              ]
+            },
+            {
+              "id": "fixture-pattern-node-54",
+              "type": "disclosure",
+              "styles": {
+                "padding": 18,
+                "background": "#ffffff",
+                "borderWidth": 1,
+                "borderColor": "#dce4ed",
+                "radius": 14
+              },
+              "text": "Как обновлять сайт?",
+              "children": [
+                {
+                  "id": "fixture-pattern-node-53",
+                  "type": "text",
+                  "styles": {
+                    "fontSize": 15,
+                    "lineHeight": 155,
+                    "color": "#475569"
+                  },
+                  "text": "Содержимое редактируется в Studio и публикуется после проверки черновика."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
