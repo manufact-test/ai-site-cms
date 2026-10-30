@@ -101,3 +101,8 @@ This workflow additionally checks existing public-capture integrity observations
 ## Whole-first-client lead readiness connection
 
 The public HTTPS task evidence can now be considered alongside original first-site PHP/static technical gates, human browser/form receipts, publisher source revision and the Search Console postlaunch plan in the SAME private operator `lead-readiness.html`. A public HTTPS deliverability blocker is considered an explicit prelaunch `BLOCKED`, even when no known crawl task individually conflicts; an unknown task evidence count is `NEEDS-EVIDENCE`. This avoids a premature first client GO. See [FIRST-CLIENT-LEAD-READINESS.md](FIRST-CLIENT-LEAD-READINESS.md). The lead remains the only CMS/publication integrator.
+
+
+## Same original HTTPS capture — per-site schema semantics
+
+The same **operator-supplied original public HTTP** JSON file used to detect task-level crawl fix outcomes now powers `seo-structured-data-audit.cjs`, when a same-source approved Blueprint and Site v1 are present. This complements (does not repeat) original public-static head equality checks with actual semantic concerns: JSON-LD syntax, approved candidates, owner fact confirmation, URL/host/canonical scope, BreadcrumbList positions and high-risk review/offer/price/address claims. Separate `structured-data.html/.md/.json` is emitted in the existing offline Workspace and included in lead readiness and output integrity. This is NOT a second public crawler, CMS editor, site template library or rich-result guarantee. Full guide: [STRUCTURED-DATA-QA.md](STRUCTURED-DATA-QA.md).
