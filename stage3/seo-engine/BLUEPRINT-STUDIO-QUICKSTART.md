@@ -24,6 +24,10 @@ node stage3/seo-engine/bin/seo-blueprint-studio.cjs \
 
 The compiled Blueprint input must pass the original canonical `checkBlueprint` contract and is converted losslessly back into its editable original brief fields. The original input SHA256 is stored in the **private** `STUDIO-MANIFEST.json`. The output folder is new, created atomically with local file permissions, outside the repository. Public HTML, deployment assets and CMS files are never touched.
 
+## Live comparison with a previous approved SEO plan
+
+Within the open offline editor, use **Load previous private Blueprint/brief** to select an original same-site v1 source; the Draft vs previous SEO Blueprint panel updates while you change the page plan. It shows planned route moves, additions/removals, meta/canonical/robots, sections, contextual links and positioning. It does not store or export the baseline with the current draft. It never verifies source SHA256 or actual 301s. After exporting the revised brief run the authoritative separate compare-seo-blueprints.cjs command with the TWO original source files and then the offline Decision Desk/strict Node review. The Clear comparison button leaves your current draft intact.
+
 ## Live architecture intelligence while editing
 
 The Studio's **Architecture intelligence** panel continuously reconstructs explicit planned contextual links and CTAs into a local site map. It shows counts of planned indexed pages, pages lacking direct indexed inbound links, pages unreachable from home through the planned edges, and proposed links. For each page it displays the planned robots directive, canonical, incoming and outgoing edges. It flags duplicate declared primary intent/topics or titles, canonical references targeting noindex pages/chains, and unconfirmed owner facts used by Schema.org proposals. No content is fetched or published. **A warning about a missing planned edge is not a claim that the real website lacks header/footer navigation or cannot be crawled.** The official Node `review-architecture` is still mandatory.
@@ -47,6 +51,7 @@ node stage3/seo-engine/bin/seo-blueprint.cjs review-architecture \
 node stage3/seo-engine/tests/blueprint-studio-smoke.cjs
 node stage3/seo-engine/tests/blueprint-studio-cli-smoke.cjs
 node stage3/seo-engine/tests/blueprint-studio-browser-smoke.cjs
+node stage3/seo-engine/tests/blueprint-studio-baseline-smoke.cjs
 ```
 
 The first test checks source-accurate canonical conversions, HTML/script CSP and source escaping. The second runs actual local Node CLI creation/import against private temporary inputs and verifies non-overwrite, no-checkout imports and cleanup. A third test drives the exported offline HTML with a minimal DOM to check a live page-count/link-plan preview, adding a page, incomplete-state rejection and safe draft export. These are **offline** tests; they are not a claim that a real client site or live hosting has been validated.

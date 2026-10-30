@@ -1,3 +1,7 @@
+## 30 October 2026 — instant baseline preview inside Blueprint Studio
+
+The offline SEO authoring GUI now optionally imports a previous same-site v1 brief or compiled Blueprint and continuously previews moved/added/removed page IDs, changed SEO head/canonical/robots, section/CTA outlines and contextual links. This is an explicitly **unverified browser preview**, not a source SHA256 check, redirect implementation, public crawl or owner approval. The original draft/export behavior is retained; clearing comparison never modifies the active brief. Use the strict separate bin/compare-seo-blueprints.cjs command and Decision Desk after export. A standalone blueprint-studio-baseline-smoke.cjs checks same-site import and live draft changes.
+
 ## 30 October 2026 — Blueprint Change Intelligence and offline decision desk
 
 New feature: bin/compare-seo-blueprints.cjs compares canonical Blueprint v1 plans or original v1 briefs including Blueprint Studio exports. It derives stable-ID route, meta, canonical, robots, inherited contextual-link URL, schema fact, architecture, and editorial changes, plus future 301/200 probes and P0/P1/P2 tasks. Private atomic output includes HTML, JSON, Markdown, source SHA256 manifest and offline CSP-restricted DECISION-DESK.html. bin/review-blueprint-decisions.cjs rederives every action from the two original files and checks exact source hashes and user decisions. No checkbox grants deployment or authenticated owner signoff. See BLUEPRINT-CHANGE-REVIEW.md. Only CMS lead integrates worker subtree.

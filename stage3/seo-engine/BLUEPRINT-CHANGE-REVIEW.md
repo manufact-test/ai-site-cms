@@ -2,6 +2,8 @@
 
 Compares two owner/operator-supplied Blueprint v1 plans before a CMS implementation and turns the differences into a private SEO migration review. Source inputs can be canonical manufact-seo-blueprint-v1 files or original manufact-seo-brief-v1 exports (including finished Blueprint Studio exports). Both are normalized using the authoritative existing compiler. No customer source input is written to Git.
 
+**Blueprint Studio connection:** Operators can import the previous same-site v1 Blueprint or brief directly into the offline Studio to see a live provisional old/new comparison while editing. That browser preview cannot authenticate source hashes. Always use the authoritative two-input compare command below after exporting the final Studio brief.
+
 ## 1. Compare the old and new SEO plan
 
 Save the approved previous and proposed new sources OUTSIDE GitHub. In a checkout containing the integrated SEO worker files:
