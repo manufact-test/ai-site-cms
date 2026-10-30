@@ -44,7 +44,7 @@ assert(POLICY.decide(POLICY.parseRobots('User-agent: *\nDisallow: /files/private
 const unrelated=POLICY.parseRobots('User-agent: Bingbot\nDisallow: /\nUser-agent: Googlebot\nAllow: /\n');
 assert(POLICY.decide(unrelated,'Googlebot','/').allowed);
 assert(!POLICY.decide(unrelated,'Bingbot','/').allowed);
-assert.throws(()=>POLICY.parseRobots('User-agent: Googlebot\nDisallow: /'+'x'.repeat(2050)),/invalid-robots-path|Too many/);
+assert.throws(()=>POLICY.parseRobots('User-agent: Googlebot\nDisallow: /'+'x'.repeat(2050)),/exceeds safe maximum/);
 // Explicit partial sitemap cannot prove a missing route.
 const sample=POLICY.analyze({blueprint,base,robotsText:robots,
  sitemapXml:xml.replace('<url><loc>https://demo.example/contact/</loc></url>',''),scope:'sample'});
