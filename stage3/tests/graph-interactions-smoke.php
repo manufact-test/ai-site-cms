@@ -254,6 +254,11 @@ graphTest(str_contains($galleryHtml,'cmsdg-gallery-grid')&&
     str_contains($galleryHtml,'<figcaption>Проект &lt;первый&gt;</figcaption>')&&
     !str_contains($galleryHtml,'<первый>'),
     'PHP renders real gallery with safe captions and native lightbox');
+$englishGallery=$gallerySite;$englishGallery['language']='en';
+$englishGalleryHtml=PublicRenderer::html($englishGallery,'/');
+graphTest(str_contains($englishGalleryHtml,'aria-label="Next photo"')&&
+    str_contains($englishGalleryHtml,'aria-label="Close photo"'),
+    'Published gallery controls follow the site language');
 $badGallery=$gallerySite;
 $last=count($badGallery['pages'][0]['sections'][2]['designGraph']['nodes'])-1;
 $badGallery['pages'][0]['sections'][2]['designGraph']['nodes'][$last]['children'][0]['href']='/';
