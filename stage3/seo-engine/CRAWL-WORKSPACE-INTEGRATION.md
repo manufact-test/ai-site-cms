@@ -75,3 +75,8 @@ The new smoke creates a private crawl-only workspace using real Node and tempora
 3. Have the operator collect original private robots, sitemap, approved Blueprint and independently authenticated Site v1 from the real client. Generate policy, optional regression/index correlation, optional repair.
 4. Build this unified private workspace; review `crawl.html` and `crawl-lead-worklist.md` with owner and verify evidence source SHA and actual current public host. P0/P1 and manual holds are **investigations**, not automatic fixes.
 5. Only lead/owner decides whether any proposed file is appropriate and carries an approved correction into the separate publisher; no automatic GO, CI acceptance or release is created here.
+
+
+## 30 October continuation — original Blueprint + Site v1 implementation mapping
+
+The original `crawl` workspace configuration optionally accepts `cmsBlueprint` **and** `cmsSite` together (both absolute private JSON paths). It revalidates canonical Blueprint bytes and original selected Site v1, preserves the exact original SHA256 in the shared manifest, and produces `crawl-cms.html`, `crawl-cms-worklist.md` and `crawl-cms-worklist.json` in the **same** workspace. The integrated crawl page links directly to this manual editor/publisher/GSC task breakdown. Errors on site/source/candidate drift fail closed. No CMS mutation, current-revision authentication or release authorization. Complete usage and focused Node test: [CRAWL-CMS-HANDOFF.md](CRAWL-CMS-HANDOFF.md).
