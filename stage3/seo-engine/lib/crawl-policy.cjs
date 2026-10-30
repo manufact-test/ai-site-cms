@@ -38,7 +38,8 @@ function parseRobots(source){
    if(!group){warnings.push({line:i+1,reason:'orphan-robots-rule'});continue;}
    rulesStarted=true;
    if(!value)continue;
-   if(!value.startsWith('/')||value.length>2048){
+   if(value.length>2048)throw Error('Robots path exceeds safe maximum length at line '+(i+1));
+   if(!value.startsWith('/')){
     warnings.push({line:i+1,reason:'invalid-robots-path'});continue;
    }
    group.rules.push({kind:key,pattern:value,line:i+1});
