@@ -21,9 +21,10 @@ function render(report){
  '.tag{font-size:11px;padding:3px 7px;border:1px solid #dce6ed;border-radius:7px;background:#f0f6f9}',
  'a{color:#177c7b}@media(max-width:740px){main{padding:12px}header,section{padding:16px}table{min-width:750px}}'
  ].join('');
- const tasks=report.actions.map((x,i)=>'<tr><td><b>'+esc(x.priority)+'</b></td><td>'+esc(x.category)+'</td><td><code>'+esc(x.path||'site')+
+ const tasks=report.actions.map((x,i)=>'<tr><td><b>'+esc(x.priority)+'</b></td><td>'+esc(x.category)+'<p class="meta">'+esc(x.ownerTeam)+'</p><code>'+esc(x.taskId)+'</code></td><td><code>'+esc(x.path||'site')+
   '</code><p class="meta">'+esc(x.pageId||'—')+'</p></td><td>'+esc(x.detail)+
-  '<p class="meta">Evidence: '+esc(x.source)+'</p></td><td>'+esc(x.leadAction)+'</td></tr>').join('');
+  '<p class="meta">Evidence: '+esc(x.source)+'</p></td><td>'+esc(x.leadAction)+
+  '<p class="meta">Required verification:</p><ul>'+x.evidenceRequired.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul></td></tr>').join('');
  const fields=report.pages.map(p=>{
   const site=p.currentSite;
   return '<tr><td><code>'+esc(p.pageId)+'</code></td><td><code>'+esc(p.path)+'</code></td>'+
