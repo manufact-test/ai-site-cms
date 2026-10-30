@@ -6,8 +6,11 @@ const assert=require('node:assert/strict');
 // A disposable test server is restarted repeatedly while many probes inspect only
 // response headers. Drain clone bodies before returning to prevent an unfinished
 // undici parser being reused after the loopback socket closes.
+let lastHttpProbe='none',httpProbeCount=0;
+process.on('uncaughtException',error=>{console.error('HTTP E2E uncaught after '+httpProbeCount+' probes, last='+lastHttpProbe);console.error(error);process.exitCode=1;});
 const nativeFetch=globalThis.fetch.bind(globalThis);
 globalThis.fetch=async (...args)=>{
+  lastHttpProbe=String(args[1]?.method||'GET')+' '+String(args[0]);httpProbeCount++;
   const response=await nativeFetch(...args);
   if(response.body===null)return response;
   const bytes=await response.arrayBuffer();
