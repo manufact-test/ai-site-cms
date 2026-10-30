@@ -2172,6 +2172,16 @@
               });
             }else editGraphWork(node=>{
               if(key==='href'&&!val&&node.type==='image')delete node.href;
+              else if(key==='caption'){if(val.trim())node.caption=val;else delete node.caption;}
+              else if(key==='layout'){
+                node.layout=val;
+                if(val!=='grid')for(const k of ['columnsDesktop','columnsTablet','columnsMobile'])delete node[k];
+              }else if(key==='lightbox'){
+                if(val==='true'&&node.children.some(child=>child.href))throw Error('Для увеличения удалите ссылки из изображений');
+                node.lightbox=val==='true';
+              }else if(['columnsDesktop','columnsTablet','columnsMobile'].includes(key)){
+                node.layout='grid';if(val.trim())node[key]=Number(val);else delete node[key];
+              }
               else if(key==='iconSize'){
                 if(!val.trim())delete node.iconSize;
                 else node.iconSize=Number(val);
@@ -2184,6 +2194,21 @@
         if(current){
           if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item','popup'].includes(current.type))
             property('Текст', 'text',current.text);
+          if(current.type==='gallery'){
+            property('Режим фотогалереи','layout',current.layout||'scroll',
+              [['scroll','Лента со свайпом'],['grid','Адаптивная сетка']]);
+            property('Увеличивать фотографии','lightbox',String(!!current.lightbox),
+              [['false','Без увеличения'],['true','Открывать крупно']]);
+            if(current.layout==='grid'){
+              property('Колонок на ПК','columnsDesktop',current.columnsDesktop??3);
+              property('Колонок на планшете','columnsTablet',current.columnsTablet??2);
+              property('Колонок на телефоне','columnsMobile',current.columnsMobile??1);
+            }
+          }
+          if(current.type==='image'&&section.designGraph.nodes.some(function containsGallery(node){
+            return node.type==='gallery'&&node.children.some(child=>child.id===current.id)||
+              (node.children||[]).some(containsGallery);
+          }))property('Подпись фотографии','caption',current.caption||'');
           if((current.type==='button'&&!current.popupTarget)||current.type==='link')
             property('Ссылка','href',current.href);
           if(current.type==='button'){
@@ -3502,6 +3527,35 @@
           editor.append(add,clear);
         }
         fields.append(editor);
+      }
+      if(n.type==='gallery'){
+        fields.append(ctl('Расположение фотографий',{initial:n.layout||'scroll',
+          choices:[['scroll','Горизонтальная лента · свайп'],['grid','Сетка · ПК / планшет / телефон']]},value=>{
+            n.layout=value;if(value!=='grid')for(const key of ['columnsDesktop','columnsTablet','columnsMobile'])delete n[key];
+          },'select'));
+        fields.append(ctl('Открывать фотографии крупно',{initial:n.lightbox?'true':'false',
+          choices:[['false','Нет · только галерея'],['true','Да · нативное окно']]},value=>{
+            if(value==='true'&&n.children.some(child=>child.href)){
+              notice('Для включения увеличения сначала удалите ссылки из фотографий.',true);return;
+            }
+            n.lightbox=value==='true';
+          },'select'));
+        for(const [key,label,defaultValue] of [
+          ['columnsDesktop','Количество колонок · ПК',3],
+          ['columnsTablet','Количество колонок · планшет',2],
+          ['columnsMobile','Количество колонок · телефон',1]])
+          fields.append(ctl(label,String(n[key]??defaultValue),value=>{
+            n.layout='grid';n[key]=Number(value);
+          },'number'));
+      }
+      if(n.type==='image'){
+        const galleryParent=graph.nodes.some(function findGallery(node){
+          return node.type==='gallery'&&(node.children||[]).some(child=>child.id===n.id)||
+            (node.children||[]).some(findGallery);
+        });
+        if(galleryParent)fields.append(ctl('Подпись фотографии (показывается под фото)',n.caption||'',value=>{
+          if(value.trim())n.caption=value;else delete n.caption;
+        }));
       }
       if(n.type==='quote')fields.append(ctl('Автор или источник цитаты',n.cite||'',value=>{n.cite=value;}));
       if(n.type==='list')fields.append(ctl('Тип списка',{initial:n.ordered?'ordered':'unordered',
