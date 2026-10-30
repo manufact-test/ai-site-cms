@@ -13,7 +13,7 @@ const insist=(x,s)=>{if(!x)fail(s)};
 const safe=x=>String(x??'').replace(/[\x00-\x1f\x7f<>|]/g,' ').trim().slice(0,250);
 const id=s=>'lead-check:'+crypto.createHash('sha256').update(s).digest('hex').slice(0,24);
 function build({siteId,first=null,launch=null,search=null,visibility=null,
- indexing=null,indexed=null,crawl=null,human=null,manual=null,queue=null}={}){
+ indexing=null,indexed=null,indexingSourceSha256=null,crawl=null,human=null,manual=null,queue=null}={}){
  insist(typeof siteId==='string'&&/^[a-z][a-z0-9-]{2,79}$/.test(siteId),
   'canonical customer siteId required');
  insist((!first||first.summary?.siteId===siteId)&&
@@ -35,12 +35,10 @@ function build({siteId,first=null,launch=null,search=null,visibility=null,
   crawlerPolicy:crawl?.sourceIdentity?.files?.policy||null,
   currentPublicHttp:crawl?.sourceIdentity?.files?.publicCapture||null,
   ownerHumanLeadContract:human?.contractSha||null,
-  indexingReport:crawl?.sourceIdentity?.files?.indexingReport||
-   (indexing?'provided separately / exact source not pinned at this view':null)
+  indexingReport:indexingSourceSha256||crawl?.sourceIdentity?.files?.indexingReport||null
  };
  for(const [name,x] of Object.entries(sources))
-  insist(x===null||name==='indexingReport'&&x==='provided separately / exact source not pinned at this view'||
-   SHA.test(x),'invalid SHA256 for '+name);
+  insist(x===null||SHA.test(x),'invalid SHA256 for '+name);
  const rows=[];
  const push=(key,phase,priority,status,team,label,detail,nextEvidence,dependencies=[],sourceSha=null,extra={})=>{
   insist(!rows.some(x=>x.key===key)&&VALID.includes(status)&&['P0','P1','P2'].includes(priority)&&
