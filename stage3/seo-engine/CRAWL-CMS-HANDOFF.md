@@ -84,3 +84,8 @@ The new smoke uses the existing real `industrial.blueprint.json` fixture with sy
 4. Operator builds **the same existing SEO Operator Workspace** and reviews the added CMS/publisher worklist.
 5. Lead selects manual fixes in the existing CMS/publisher implementation workflow **only after owner approval**. Independently verify live HTTPS, redirects, canonical, X-Robots-Tag, on-page meta and actual Search Console URL Inspection. Rollback remains available.
 6. No automatic Save/Publish, PR, merge, deployment, Google indexing request or automatic acceptance.
+
+
+## Stable work tracking and evidence checklist
+
+Each JSON/Markdown action now has a deterministic `crawl-cms:<sha256-prefix>` task ID, a specific `ownerTeam` (`CMS_EDITOR`, `PUBLISHER_LEAD`, `SEO_OPERATOR`, or `OWNER_AND_LEAD`), `evidenceRequired[]`, `ownerApprovalRequired:true`, and `readyToImplement:false`. The worklist groups practical responsibility, not automatic release authorization. IDs are stable for the **same original-source observed issue**; changed issue detail or approved source naturally produces a new ID, and the operator must not assume unrelated releases have the same task. The private HTML shows the ID, responsible team and mandatory original proof next to each action.
