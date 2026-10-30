@@ -970,7 +970,7 @@ test('sealed individual site import remaps only typed media references, never cl
     {id:font,src:'/assets/'+font+'.woff2',mime:'font/woff2',alt:'Фирменный шрифт'}
   ];
   source.branding={logoAssetId:image,faviconAssetId:image};
-  source.theme={...source.theme,fontFiles:{body:font,heading:font}};
+  source.theme={...sdk.DEFAULT_THEME,fontFiles:{body:font,heading:font}};
   source.pages[0].seo={title:'Авторская страница',description:image,robots:'index',
     ogTitle:video,ogDescription:font,ogImage:image};
   source.pages[0].sections[0].elements[0].values['content.text']=image;
