@@ -14,6 +14,7 @@ assert.throws(()=>STUDIO.render(STUDIO.starter('site-new-example')),/title|inval
 const html=STUDIO.render(brief);
 const draft=STUDIO.render(STUDIO.starter('site-new-example'),{allowIncomplete:true});
 for(const label of ['Add page','Add section','Add fact','Add source','Export for SEO compiler',
+ 'Architecture intelligence','Orphan plan','Explicit edges',
  'Save editable draft','Import private draft','Canonical page path','Structured data candidates'])
  assert(html.includes(label),'Missing UI control: '+label);
 assert(html.includes('connect-src &#39;none&#39;'));

@@ -1,3 +1,7 @@
+### 30 October 2026 — Blueprint Studio live architecture and focused browser smoke
+
+The new local SEO Blueprint Studio now previews approved contextual link/CTA graph, inbound/reachability from home, proposed canonicals, overlapping primary topic/intent/title, and unsupported schema claim dependencies as the operator edits. It distinguishes **planned architecture** from real deployed crawlability. The private editor requires no CMS changes and exports a v1 source brief for the existing unchanged Node compiler. Added `blueprint-studio-browser-smoke.cjs` to exercise editing and export restrictions in a minimal DOM. See [BLUEPRINT-STUDIO-QUICKSTART.md](BLUEPRINT-STUDIO-QUICKSTART.md). The lead still owns integration, real customer data and publication.
+
 ## 30 October 2026 — Blueprint Studio (SEO authoring GUI)
 
 New private offline `bin/seo-blueprint-studio.cjs` and `lib/blueprint-studio.cjs` allow operators to author a full SEO Brief from a new site ID, an existing raw v1 brief or canonical compiled Blueprint v1. It covers owner facts, research, per-page SEO metadata, section hierarchy, CTA/internal-link architecture, schema candidates and responsive outlines, with drafts, structural feedback, and export to the **unchanged authoritative Node SEO compiler**. HTML is self-contained, CSP hash-restricted, no network. Source SHA256 and private manifests remain outside Git. See [BLUEPRINT-STUDIO-QUICKSTART.md](BLUEPRINT-STUDIO-QUICKSTART.md). This is a product feature, not client acceptance or deployment; only the CMS lead integrates it.
