@@ -1493,7 +1493,34 @@ function inspectSite(raw,regInput){
   const charCount=value=>Array.from(String(value||'')).length;
   const genericAlt=/^(?:image|photo|picture|graphic|video|фото|изображение|картинка|рисунок|видео)(?:\s+\d+)?$/i;
   const titleGroups=new Map(),descriptionGroups=new Map();
-  const imageUses=new Set(),deviceCoverage=[];
+  const imageUses=new Set(),deviceCoverage=[],graphVisibleCache=new Map();
+  // Resolve desktop -> tablet -> mobile display cascade and hidden parents.
+  const graphVisibleNodes=(section,device)=>{
+    const key=section.id+'|'+device;
+    if(graphVisibleCache.has(key))return graphVisibleCache.get(key);
+    const visibleIds=new Set();
+    const visit=(nodes,parentVisible)=>{
+      for(const node of nodes||[]){
+        let display='block';
+        const layers=[node.styles||{}];
+        if(device!=='desktop')layers.push(node.responsive?.tablet||{});
+        if(device==='mobile')layers.push(node.responsive?.mobile||{});
+        for(const layer of layers)for(const [prop,value] of Object.entries(layer)){
+          if(prop==='display')display=value;
+          if(prop==='hidden'&&value===true)display='none';
+        }
+        const visible=parentVisible&&display!=='none';
+        if(visible)visibleIds.add(node.id);
+        if(node.children)visit(node.children,visible);
+      }
+    };
+    visit(section.designGraph?.nodes||[],true);
+    graphVisibleCache.set(key,visibleIds);
+    return visibleIds;
+  };
+  const graphHasVisibility=nodes=>(nodes||[]).some(node=>
+    [node.styles,node.responsive?.tablet,node.responsive?.mobile].some(layer=>
+      layer&&(layer.hidden===true||layer.display==='none'))||graphHasVisibility(node.children));
   let indexable=0;
   const pushHeading=(page,section,headings,level,label,nodeId=null)=>{
     const value=typeof label==='string'?label.trim():'';
@@ -1603,15 +1630,28 @@ function inspectSite(raw,regInput){
       }
     }
     const h1s=headings.filter(item=>item.level===1);
+    const sectionById=new Map(page.sections.map(section=>[section.id,section]));
+    const hasVisibilitySettings=page.sections.some(section=>section.deviceVisibility||
+      (section.designGraph&&graphHasVisibility(section.designGraph.nodes)));
+    const totalForms=page.sections.filter(section=>
+      ['lead-form','lead-form-flex'].includes(section.component)).length;
     for(const device of BREAKPOINTS){
       const visibleSections=page.sections.filter(section=>section.deviceVisibility?.[device]!==false);
-      const available=new Set(visibleSections.map(section=>section.id));
-      const deviceHeadings=headings.filter(item=>available.has(item.sectionId));
+      const deviceHeadings=headings.filter(item=>{
+        const section=sectionById.get(item.sectionId);
+        return section&&section.deviceVisibility?.[device]!==false&&
+          (!section.designGraph||!item.nodeId||graphVisibleNodes(section,device).has(item.nodeId));
+      });
       const h1Count=deviceHeadings.filter(item=>item.level===1).length;
-      deviceCoverage.push({pageId:page.id,path:page.path,device,sections:visibleSections.length,h1:h1Count});
-      // The baseline audit below remains unchanged for legacy sites.
-      // These extras are emitted only when a real per-device section switch exists.
-      if(!page.sections.some(section=>section.deviceVisibility))continue;
+      const formCount=visibleSections.filter(section=>
+        ['lead-form','lead-form-flex'].includes(section.component)).length;
+      deviceCoverage.push({pageId:page.id,path:page.path,device,sections:visibleSections.length,
+        h1:h1Count,forms:formCount});
+      if(totalForms>0&&formCount===0)
+        warnings.push(add('device-missing-form',page,page.path,
+          'На '+device+' все формы этой страницы скрыты.',{device}));
+      // New warnings only for layouts actually using device/Graph visibility.
+      if(!hasVisibilitySettings)continue;
       if(h1Count===0)warnings.push(add('device-missing-h1',page,page.path,
         'Нет видимого H1 на '+device+' после скрытия секций.',{device}));
       if(h1Count>1)warnings.push(add('device-multiple-h1',page,page.path,

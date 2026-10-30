@@ -3980,11 +3980,11 @@
             const data=sourceAudit.deviceCoverage.find(entry=>entry.pageId===page.id&&entry.device===device);
             const name={desktop:'Компьютер',tablet:'Планшет',mobile:'Телефон'}[device];
             viewport.append(element('p',null,name+': '+(data?.sections??0)+
-              ' видимых секций · '+(data?.h1??0)+' H1'+
+              ' видимых секций · '+(data?.h1??0)+' H1 · '+(data?.forms??0)+' форм'+
               (!data?.h1?' · проверьте заголовок':'')));
           }
           const problems=sourceAudit.warnings.filter(w=>w.pageId===page.id&&
-            ['device-missing-h1','device-multiple-h1','device-h1-position','hidden-anchor-device'].includes(w.kind));
+            ['device-missing-h1','device-multiple-h1','device-h1-position','hidden-anchor-device','device-missing-form'].includes(w.kind));
           if(problems.length){
             const attention=element('ul','');
             for(const finding of problems.slice(0,12))attention.append(element('li',null,

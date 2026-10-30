@@ -54,17 +54,17 @@ function run(folder){
   for(const p of site.pages)
     rows.push('| '+md(p.path)+' | '+md(p.title)+' | '+md(p.seo?.title||'MISSING')+
       ' | '+md(p.seo?.description||'MISSING')+' | '+p.sections.length+' |');
-  rows.push('','## Authored content and H1 at each viewport','','| Page | Desktop · sections/H1 | Tablet · sections/H1 | Mobile · sections/H1 |',
+  rows.push('','## Authored content and H1 at each viewport','','| Page | Desktop · sections/H1/forms | Tablet · sections/H1/forms | Mobile · sections/H1/forms |',
     '| --- | ---: | ---: | ---: |');
   for(const page of site.pages){
     const count=device=>{
       const row=viewportAudit.deviceCoverage.find(item=>item.pageId===page.id&&item.device===device);
-      return (row?.sections??0)+' / '+(row?.h1??0);
+      return (row?.sections??0)+' / '+(row?.h1??0)+' / '+(row?.forms??0);
     };
     rows.push('| '+md(page.path)+' | '+count('desktop')+' | '+count('tablet')+' | '+count('mobile')+' |');
   }
   const deviceWarnings=viewportAudit.warnings.filter(item=>
-    ['device-missing-h1','device-multiple-h1','device-h1-position','hidden-anchor-device'].includes(item.kind));
+    ['device-missing-h1','device-multiple-h1','device-h1-position','hidden-anchor-device','device-missing-form'].includes(item.kind));
   rows.push('','Device-specific SEO and anchor observations: '+deviceWarnings.length);
   for(const finding of deviceWarnings.slice(0,50))
     rows.push('- '+md(finding.path)+' · '+md(finding.device)+' · '+md(finding.message));

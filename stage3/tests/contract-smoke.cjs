@@ -73,9 +73,7 @@ test('viewport audit rejects blank mobile pages and flags hidden headings and an
   assert.ok(report.warnings.some(w=>w.kind==='device-missing-h1'&&w.device==='mobile'&&w.pageId===home.id));
   assert.ok(!report.warnings.some(w=>w.kind==='device-missing-h1'&&w.device==='desktop'&&w.pageId===home.id));
   // Real internal anchor exists but its visible source cannot reach its hidden target.
-  const action=second.elements.flatMap(el=>Object.entries(el.values)).find(([,value])=>typeof value==='string'&&value.startsWith('/'));
-  if(action)action[0]; // Links are tested below on a separately authored Graph node.
-  const DG=require('../sdk/design-graph.cjs');
+  // Links are tested below on a separately authored Graph node.
   second.designGraph={version:1,id:'graph-visible-anchor',nodes:[
     {id:'graph-link-hidden-target',type:'link',text:'Открыть блок',href:'/#'+first.id,styles:{}}
   ]};
@@ -87,6 +85,30 @@ test('viewport audit rejects blank mobile pages and flags hidden headings and an
   assert.ok(!clean.warnings.some(w=>w.kind==='hidden-anchor-device'));
   assert.ok(!clean.warnings.some(w=>w.kind==='device-missing-h1'&&w.pageId===home.id));
   assert.ok(!sdk.inspectSite(initial,manifests).warnings.some(w=>w.kind.startsWith('device-')));
+});
+test('responsive Graph headings and hidden mobile lead forms use effective visibility',()=>{
+  const site=same(initial),page=site.pages[0],hero=page.sections[0];
+  hero.designGraph={version:1,id:'graph-responsive-seo',nodes:[
+    {id:'graph-desktop-heading',type:'heading',level:1,text:'Desktop heading',
+      styles:{},responsive:{mobile:{hidden:true}}},
+    {id:'graph-mobile-heading',type:'heading',level:1,text:'Mobile heading',
+      styles:{hidden:true},responsive:{mobile:{display:'block'}}}
+  ]};
+  const form=sdk.sectionFrom(manifests.find(m=>m.id==='lead-form'),'section-viewport-form');
+  form.deviceVisibility={mobile:false};page.sections.push(form);
+  const healthy=sdk.inspectSite(site,manifests);
+  const mobile=healthy.deviceCoverage.find(v=>v.pageId===page.id&&v.device==='mobile');
+  const desktop=healthy.deviceCoverage.find(v=>v.pageId===page.id&&v.device==='desktop');
+  assert.equal(mobile.h1,1,'Mobile H1 reflects responsive Graph visibility');
+  assert.equal(desktop.h1,1,'Desktop excludes mobile-only heading');
+  assert.equal(mobile.forms,0);assert.equal(desktop.forms,1);
+  assert.ok(healthy.warnings.some(w=>w.kind==='device-missing-form'&&w.device==='mobile'));
+  assert.ok(!healthy.warnings.some(w=>w.kind==='device-missing-h1'&&w.pageId===page.id));
+  const broken=same(site);delete broken.pages[0].sections[0].designGraph.nodes[1].responsive;
+  assert.equal(sdk.inspectSite(broken,manifests).deviceCoverage.find(v=>
+    v.pageId===page.id&&v.device==='mobile').h1,0);
+  assert.ok(sdk.inspectSite(broken,manifests).warnings.some(w=>
+    w.kind==='device-missing-h1'&&w.pageId===page.id&&w.device==='mobile'));
 });
 test('responsive editorial grids and semantic composition safety',()=>{
   const G=require('../sdk/design-graph.cjs'),site=same(initial);
@@ -1776,7 +1798,7 @@ test('read-only approved folder preflight accepts a custom external design and r
     assert.equal(seal(folder,'rev-2',{confirmedApproved:true,replace:true}).version,'rev-2');
     const audit=require('../bin/audit-approved-site.cjs').run(folder);
     assert.match(audit.report,/Authored content and H1 at each viewport/);
-    assert.match(audit.report,/Desktop · sections\/H1/);
+    assert.match(audit.report,/Desktop · sections\/H1\/forms/);
     assert.equal(audit.summary.integrity,'sha256-verified');
     assert.match(audit.report,/Desktop \(1280px\)/);
     assert.match(audit.report,/Tablet \(768px\)/);

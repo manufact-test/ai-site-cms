@@ -581,3 +581,7 @@ An existing externally authored section can opt into a closed `deviceVisibility`
 ### 30 October 2026 — viewport-safe client site validation and approval evidence
 
 The SDK/PHP validators reject any page with zero visible sections on PC/tablet/mobile. Existing whole-page quality audit provides deterministic page/device visible-section and H1 counts and warnings for hidden H1, duplicated visible H1 and hidden anchor targets. The owner-only approved-folder review shows the same data for the selected original page, while the offline pilot audit emits a three-device matrix, not a fake client acceptance certificate. This checks whole-section visibility only, not nested Graph node styling. Main/SEO/prod untouched; original 135 MUST tally and owner acceptance unchanged.
+
+### 30 October 2026 — Graph-node visibility and conversion-form coverage
+
+The three-device quality audit now resolves the typed Design Graph display/hidden cascade for visible headings, including hidden ancestors and mobile-only alternate H1. It also counts real lead-form/lead-form-flex sections at each viewport and warns when a page's forms disappear on a device. Source folder review and the offline pilot audit use the same SDK diagnostics, no extra AI subsystem. The real approved desktop/tablet/mobile mockups remain the authority for human visual approval.
