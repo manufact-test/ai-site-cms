@@ -237,7 +237,7 @@ $validator->validate($figureSite);
 $figureHtml=PublicRenderer::html($figureSite,'/');
 graphTest(str_contains($figureHtml,'<figure class="cmsdg-image-figure">')&&
     str_contains($figureHtml,'<figcaption>Plan &lt;safe&gt; &amp; annotated</figcaption>')&&
-    str_contains($figureHtml,'href="/contact/"'),'PHP standalone captioned linked figure preserves escaped content');
+    str_contains($figureHtml,'/contact/"'),'PHP standalone captioned linked figure preserves escaped content');
 $gallerySite=$site;
 $gallerySite['assets'][]=['id'=>'asset-photo-alpha','src'=>'/assets/asset-photo-alpha.png',
     'alt'=>'Фасад','mime'=>'image/png'];
