@@ -108,7 +108,7 @@ function editor(){
  'use strict';
  const $=id=>document.getElementById(id),clone=x=>JSON.parse(JSON.stringify(x));
  const initial=JSON.parse($('source-json').textContent);
- let data=clone(initial);
+ let data=clone(initial),expanded=new Set();
  const idPattern=/^[a-z][a-z0-9-]{2,79}$/,pathPattern=/^\/(?:[a-z0-9-]+\/)*$/;
  const all=x=>Array.isArray(x)?x:[];
  const choices={
@@ -156,8 +156,10 @@ function editor(){
   append(h,node('h3',title));d.append(h);parent.append(d);
   return {box:d,head:h,fields:append(d,node('div',undefined,'fields')).children[1]};
  }
- function card(parent,title,sub){
+ function card(parent,title,sub,key){
   const d=node('details',undefined,'card'),summary=node('summary',title+' · '+sub);
+  d.open=expanded.has(key);
+  d.addEventListener('toggle',()=>{if(d.open)expanded.add(key);else expanded.delete(key)});
   d.append(summary);parent.append(d);return d;
  }
  function rerender(){draw();check();}
@@ -182,7 +184,7 @@ function editor(){
    field(n.fields,'Source type',r,'kind',{options:choices.research});
   });
   data.pages.forEach((p,i)=>{
-   const item=card($('pages'),p.name||p.id,p.path);
+   const item=card($('pages'),p.name||p.id,p.path,'page:'+i);
    const head=append(item,node('div',undefined,'row-actions'));
    if(p.path!=='/')head.append(button('Delete page',()=>drop(data.pages,i),'danger'));
    const grid=append(item,node('div',undefined,'fields'));
@@ -462,7 +464,7 @@ function editor(){
    if(file.size>2000000)throw Error('File exceeds 2 MB');
    const draft=JSON.parse(await file.text());
    if(!usable(draft))throw Error('Wrong site ID, unsupported or unsafe draft shape');
-   data=clone(draft);draw();check();
+   data=clone(draft);expanded=new Set();draw();check();
    $('message').textContent='Private draft restored for this site.';
   }catch(error){$('message').textContent='Import rejected: '+error.message;}
   e.target.value='';
@@ -477,6 +479,7 @@ function editor(){
   data.pages.push({id:'',path:'',name:'',intent:{type:'informational',need:'',topics:[]},
    seo:{title:'',description:'',robots:'index'},sections:[{id:'',heading:'',level:1,why:'',points:[]}],
    links:[],schemaCandidates:[],responsive:{desktop:'',tablet:'',mobile:''}});
+  expanded.add('page:'+(data.pages.length-1));
   rerender();
  });
  draw();check();
