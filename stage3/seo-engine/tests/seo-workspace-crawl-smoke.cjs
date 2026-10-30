@@ -12,7 +12,7 @@ const hash=v=>crypto.createHash('sha256').update(v).digest('hex');
 const H=c=>c.repeat(64);
 const policy={format:'manufact-seo-crawl-policy-v1',readOnly:true,
  publicationAuthorized:false,publicHostAuthenticated:false,
- siteId:'site-demo',base:'https://example.org/',blueprintSha256:H('a'),
+ siteId:'site-demo',base:'https://example.org/',agents:['Googlebot','Bingbot','*'],scope:'complete',blueprintSha256:H('a'),
  robotsSha256:H('b'),sitemapSha256:H('c'),pages:[],
  findings:[{id:'blocked-home',priority:'P0',path:'/',agent:'Googlebot',
   message:'Original <script> blocked by robot',manualNext:'Check published HTTPS'}],
@@ -23,6 +23,7 @@ const robotsSha=hash(robots),sitemapSha=hash(sitemap);
 const delta={format:'manufact-seo-crawl-policy-delta-v1',readOnly:true,
  publicationAuthorized:false,publicHostAuthenticated:false,
  siteId:policy.siteId,base:policy.base,blueprintSha256:policy.blueprintSha256,
+ agents:policy.agents,scope:policy.scope,
  beforeSources:{robotsSha256:policy.robotsSha256,sitemapSha256:policy.sitemapSha256},
  afterSources:{robotsSha256:robotsSha,sitemapSha256:sitemapSha},
  changes:[{id:'robots:home:Googlebot',priority:'P1',kind:'robots-access-restored',
