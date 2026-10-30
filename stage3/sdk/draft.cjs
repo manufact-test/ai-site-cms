@@ -87,6 +87,21 @@ function edit(raw,manifests,{pageId,sectionId,elementId,path,value,breakpoint=nu
   return {format:SESSION,revision:session.revision+1,base:copy(session.base),
     current:candidate,undo:[...session.undo,copy(session.current)].slice(-MAX_UNDO),redo:[]};
 }
+function inheritBreakpoint(raw,manifests,{pageId,sectionId,elementId,path,breakpoint,expectedRevision}){
+  const s=verifySession(raw,manifests);
+  if(expectedRevision!==s.revision)throw Error('Draft changed: refuse stale editor update');
+  if(!['tablet','mobile'].includes(breakpoint))throw Error('Only tablet/mobile overrides can inherit');
+  const control=C.controls(s.current,manifests,pageId,sectionId,elementId)
+    .find(item=>item.path===path);
+  if(!control||!control.responsive)throw Error('Property has no declared responsive override');
+  if(!Object.prototype.hasOwnProperty.call(control.value,breakpoint))return copy(s);
+  const candidate=copy(s.current),element=select(candidate,pageId,sectionId,elementId).element;
+  delete element.values[path][breakpoint];
+  syncSharedSite(candidate,s.current);
+  C.validateSite(candidate,manifests);
+  return {format:SESSION,revision:s.revision+1,base:copy(s.base),current:candidate,
+    undo:[...s.undo,copy(s.current)].slice(-MAX_UNDO),redo:[]};
+}
 function undo(raw,manifests){
   const s=verifySession(raw,manifests);
   if(!s.undo.length)return copy(s);
@@ -565,4 +580,4 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
     formSteps:copy(section.formSteps||[]),
     elements,items,notPublished:true,hasExecutableHtml:false};
 }
-module.exports=Object.freeze({begin,edit,undo,redo,changes,structure,replaceSite,blockPreview,syncSharedSite,copyLinkedBody});
+module.exports=Object.freeze({begin,edit,inheritBreakpoint,undo,redo,changes,structure,replaceSite,blockPreview,syncSharedSite,copyLinkedBody});

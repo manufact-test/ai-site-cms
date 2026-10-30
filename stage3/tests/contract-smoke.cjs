@@ -1006,6 +1006,46 @@ test('responsive patch and typed control limitations',()=>{
 });
 
 
+test('CMS device field overrides can return to inherited values without affecting authored source',()=>{
+  const D=require('../sdk/draft.cjs');
+  const source=JSON.stringify(initial);
+  let d=D.begin(initial,manifests);
+  const target={pageId:'page-home',sectionId:'section-hero',elementId:'section-hero-heading',
+    path:'style.fontSize'};
+  const font=()=>d.current.pages[0].sections[0].elements[0].values['style.fontSize'];
+  assert.equal(font().desktop,'48px');
+  assert.equal(font().mobile,'32px');
+  d=D.inheritBreakpoint(d,manifests,{...target,breakpoint:'mobile',expectedRevision:d.revision});
+  assert.equal(Object.hasOwn(font(),'mobile'),false);
+  assert.equal(D.blockPreview(d,manifests,'page-home','section-hero','mobile')
+    .elements[0].props.style.fontSize,'48px');
+  const revision=d.revision;
+  d=D.inheritBreakpoint(d,manifests,{...target,breakpoint:'mobile',expectedRevision:d.revision});
+  assert.equal(d.revision,revision,'absent override changes nothing');
+  d=D.edit(d,manifests,{...target,breakpoint:'tablet',value:'42px',expectedRevision:d.revision});
+  assert.equal(D.blockPreview(d,manifests,'page-home','section-hero','mobile')
+    .elements[0].props.style.fontSize,'42px');
+  d=D.edit(d,manifests,{...target,breakpoint:'mobile',value:'36px',expectedRevision:d.revision});
+  d=D.inheritBreakpoint(d,manifests,{...target,breakpoint:'mobile',expectedRevision:d.revision});
+  assert.equal(D.blockPreview(d,manifests,'page-home','section-hero','mobile')
+    .elements[0].props.style.fontSize,'42px');
+  const last=d.revision;
+  d=D.undo(d,manifests);
+  assert.equal(d.revision,last+1);
+  assert.equal(font().mobile,'36px');
+  d=D.redo(d,manifests);
+  assert.equal(Object.hasOwn(font(),'mobile'),false);
+  assert.equal(JSON.stringify(initial),source,'approved site payload never mutated');
+  refuses(()=>D.inheritBreakpoint(d,manifests,{...target,breakpoint:'desktop',expectedRevision:d.revision}),
+    'desktop is the required base');
+  refuses(()=>D.inheritBreakpoint(d,manifests,{...target,path:'content.text',breakpoint:'mobile',expectedRevision:d.revision}),
+    'nonresponsive field rejects inheritance');
+  refuses(()=>D.inheritBreakpoint(d,manifests,{...target,path:'style.invalidField',breakpoint:'mobile',expectedRevision:d.revision}),
+    'field must be declared by site manifest');
+  refuses(()=>D.inheritBreakpoint(d,manifests,{...target,breakpoint:'tablet',expectedRevision:d.revision-1}),
+    'stale editor rejects reset');
+});
+
 test('structure: pages, sections, stable IDs, undo, redo and closed rules',()=>{
   const initialBytes=JSON.stringify(initial);
   const step=(session,command)=>draft.structure(session,manifests,{...command,expectedRevision:session.revision});

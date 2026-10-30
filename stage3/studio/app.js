@@ -5475,14 +5475,19 @@
       label.className='field-label';label.textContent=field.label;
       const id='field-'+field.path.replace('.','-');label.htmlFor=id;
       const line=document.createElement('div');line.className='field-path';
-      line.textContent=field.path+(field.responsive?' · '+breakpoint:'');
+      const overridden=field.responsive&&Object.prototype.hasOwnProperty.call(field.value,breakpoint);
+      const inheritedFrom=breakpoint==='mobile'&&Object.prototype.hasOwnProperty.call(field.value,'tablet')
+        ?'планшета':'ПК';
+      line.textContent=field.path+(field.responsive?
+        ' · '+breakpoint+(breakpoint==='desktop'?' · базовое значение':
+          overridden?' · своё значение':' · наследуется от '+inheritedFrom):'');
       const error=document.createElement('p');error.className='field-path';error.setAttribute('role','alert');
       let control;
       const initial=field.responsive?C.effectiveValue(field.value,breakpoint):field.value;
       if(field.type==='media'){
         control=document.createElement('select');
         const blank=document.createElement('option');blank.value='';blank.textContent='Без изображения';control.append(blank);
-        session.current.assets.forEach(asset=>{
+        session.current.assets.filter(asset=>asset.mime.startsWith('image/')).forEach(asset=>{
           const opt=document.createElement('option');opt.value=asset.id;
           opt.textContent=(asset.alt||asset.id)+' · '+asset.mime;
           control.append(opt);
@@ -5508,7 +5513,25 @@
       control.addEventListener(event,()=>{
         applyEdit(field,field.type==='boolean'?control.checked:control.value,control,error);
       });
-      wrap.append(label,control,line,error);box.append(wrap);
+      wrap.append(label,control,line,error);
+      if(field.responsive&&breakpoint!=='desktop'&&overridden){
+        const clear=button('↶ Наследовать от '+inheritedFrom,'btn small',()=>{
+          try{
+            const before=session.revision;
+            session=D.inheritBreakpoint(session,manifests,{
+              pageId,sectionId,elementId,path:field.path,breakpoint,expectedRevision:before
+            });
+            if(session.revision!==before){
+              drawHeader();drawElements();drawFields();drawPreview();
+              notice('Локальная настройка снята. Значение наследуется от другого устройства. Undo доступен.');
+            }
+          }catch(error){notice('Не удалось восстановить наследование: '+error.message,true);}
+        });
+        clear.dataset.editorWrite='true';
+        clear.id='cms-field-inherit-'+field.path.replace(/[^a-zA-Z0-9_-]/g,'-');
+        wrap.append(clear);
+      }
+      box.append(wrap);
     }
   }
   function stylesFor(block){
