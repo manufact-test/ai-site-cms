@@ -82,6 +82,7 @@ assert.equal(workspace.overview.crawlCmsImplementationIncluded,true);
 assert(workspace.crawlCmsHtml.includes('Site v1'));
 assert(workspace.crawlCmsJson.includes('manufact-seo-crawl-cms-implementation-v1'));
 assert(workspace.crawlCmsMarkdown.includes('publisher worklist'));
+assert(workspace.crawlCmsDecisionDeskHtml.includes('script-src &#39;sha256-'));
 assert.equal(workspace.overview.releaseAuthorized,false);
 /* CLI uses real private original input files; no report is inside checkout. */
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'manufact-crawl-cms-'));
@@ -100,7 +101,7 @@ try{
  const out=path.join(temp,'new-workspace');
  CLI.main(['--config',file,'--out',out]);
  for(const name of ['index.html','crawl.html','crawl-cms.html','crawl-cms-worklist.md',
-  'crawl-cms-worklist.json','workspace-manifest.json']){
+  'crawl-cms-worklist.json','crawl-cms-decisions.html','crawl-cms-decisions-TEMPLATE.json','workspace-manifest.json']){
   assert(fs.existsSync(path.join(out,name)),name+' absent');
  }
  const manifest=JSON.parse(fs.readFileSync(path.join(out,'workspace-manifest.json'),'utf8'));
