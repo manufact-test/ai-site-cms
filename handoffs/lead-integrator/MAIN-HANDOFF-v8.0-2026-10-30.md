@@ -43,3 +43,8 @@
 - Respect privacy, branch segregation and build reproducibility.
 
 **Next chat is the NEW chief developer and sole integrator. Start by verifying live GitHub state, then execute a substantial feature block rather than re-stating this handoff.**
+
+## Final-approach correction and verified CI
+- The 30 Oct final image-figure work is implemented, with JS/PHP parity and the isolated smoke tests green on SHA `aad8597103ccbfb0c455142b8b39f713417e5376` in run https://github.com/manufact-test/ai-site-cms/actions/runs/41053303999. This is a known verified **pre-documentation** checkpoint; always use a fresh branch HEAD and new workflow after any subsequent edit.
+- The early E2E failures were real: gzip content for large `/bundle.js` was truncated. The test now diagnoses the last HTTP probe and uses the independent native Node HTTP parser for the Studio bundle. `stage3/server/Api.php` limits **application-level** gzip to first-party static assets <=65536 bytes; larger assets send identity with explicit Content-Length and variant-sensitive ETags. This avoids the truncated PHP gzip response while preserving full test coverage. Deployment HTTP server compression is independent.
+- The full browser and PHP HTTP checks remain mandatory; do not remove this coverage or re-enable large-asset PHP gzip without cross-browser/gzip integrity tests.
