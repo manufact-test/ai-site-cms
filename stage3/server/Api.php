@@ -125,7 +125,7 @@ final class Api
         $gzip=extension_loaded('zlib')&&!filter_var((string)ini_get('zlib.output_compression'),FILTER_VALIDATE_BOOLEAN)
             &&preg_match('/(?:^|,)\s*gzip(?:\s*;\s*q=([01](?:\.\d+)?))?(?=,|$)/i',$encoding,$m)===1
             &&(!isset($m[1])||(float)$m[1]>0);
-        if($gzip&&strlen($bytes)>1024){
+        if($gzip&&strlen($bytes)>1024&&strlen($bytes)<=65536){
             $compressed=gzencode($bytes,6);
             if(is_string($compressed)&&strlen($compressed)<strlen($bytes)){
                 $bytes=$compressed;
