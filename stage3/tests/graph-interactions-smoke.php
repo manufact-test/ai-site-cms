@@ -260,9 +260,11 @@ $scrollGallery=$gallerySite;
 $scrollIndex=count($scrollGallery['pages'][0]['sections'][2]['designGraph']['nodes'])-1;
 $scrollNode=&$scrollGallery['pages'][0]['sections'][2]['designGraph']['nodes'][$scrollIndex];
 $scrollNode['layout']='scroll';$scrollNode['scrollControls']=true;
+$scrollNode['visibleDesktop']=4;$scrollNode['visibleTablet']=2;$scrollNode['visibleMobile']=1;
 unset($scrollNode['columnsDesktop'],$scrollNode['columnsTablet'],$scrollNode['columnsMobile']);
 $validator->validate($scrollGallery);
 $scrollHtml=PublicRenderer::html($scrollGallery,'/');
+graphTest(str_contains($scrollHtml,'--cmsdg-visible-desktop:4;--cmsdg-visible-tablet:2;--cmsdg-visible-mobile:1'),'PHP responsive carousel card count');
 graphTest(str_contains($scrollHtml,'cmsdg-gallery-scroll-nav')&&
     str_contains($scrollHtml,'href="#cmsdg-photo-gallery-photo-beta"'),
     'PHP gallery emits native no-JavaScript photo navigation');
