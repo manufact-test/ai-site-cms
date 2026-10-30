@@ -2197,6 +2197,10 @@
           if(current.type==='gallery'){
             property('Форма фотографии','photoShape',current.photoShape||'natural',
               [['natural','Исходные пропорции'],['square','Квадрат 1:1'],['landscape','Широкая 16:9'],['portrait','Вертикальная 3:4']]);
+            property('Форма на планшете','photoShapeTablet',current.photoShapeTablet||current.photoShape||'natural',
+              [['natural','Исходные'],['square','Квадрат 1:1'],['landscape','Широкая 16:9'],['portrait','Вертикальная 3:4']]);
+            property('Форма на телефоне','photoShapeMobile',current.photoShapeMobile||current.photoShapeTablet||current.photoShape||'natural',
+              [['natural','Исходные'],['square','Квадрат 1:1'],['landscape','Широкая 16:9'],['portrait','Вертикальная 3:4']]);
             property('Режим фотогалереи','layout',current.layout||'scroll',
               [['scroll','Лента со свайпом'],['grid','Адаптивная сетка']]);
             property('Увеличивать фотографии','lightbox',String(!!current.lightbox),
@@ -3535,6 +3539,9 @@
           choices:[['natural','Оригинальные'],['square','Квадрат 1:1'],['landscape','Широкие 16:9'],['portrait','Вертикальные 3:4']]},value=>{
             n.photoShape=value;
           },'select'));
+        for(const [field,label] of [['photoShapeTablet','Пропорции · планшет'],['photoShapeMobile','Пропорции · телефон']])
+          fields.append(ctl(label,{initial:n[field]||n.photoShape||'natural',
+            choices:[['natural','Оригинальные'],['square','Квадрат 1:1'],['landscape','Широкие 16:9'],['portrait','Вертикальные 3:4']]},value=>{n[field]=value;},'select'));
         fields.append(ctl('Расположение фотографий',{initial:n.layout||'scroll',
           choices:[['scroll','Горизонтальная лента · свайп'],['grid','Сетка · ПК / планшет / телефон']]},value=>{
             n.layout=value;if(value!=='grid')for(const key of ['columnsDesktop','columnsTablet','columnsMobile'])delete n[key];
