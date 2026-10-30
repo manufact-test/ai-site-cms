@@ -27,9 +27,12 @@ function input(file,max){
 }
 function readConfiguration(source){
  if(source?.format!==CONFIG||typeof source!=='object'||Array.isArray(source)||
-   Object.keys(source).some(k=>!['format','firstSite','search','indexing','liveAcceptance'].includes(k))||
+   Object.keys(source).some(k=>!['format','firstSite','search','indexing','liveAcceptance','operatorDesk'].includes(k))||
    !source.firstSite&&!source.search&&!source.indexing)
   throw Error('Private workspace configuration needs firstSite or search inputs');
+ if(source.operatorDesk&&(Object.keys(source.operatorDesk).length!==1||
+  source.operatorDesk.href!=='../live-acceptance-template/LIVE-ACCEPTANCE-DESK.html'))
+  throw Error('Unexpected private operator desk path');
  const shapes={firstSite:['summary','bundle','postDeploy','operatorReview'],
   search:['history','decisions','releases'],liveAcceptance:['report','contract']};
  if(source.indexing&&(!source.indexing.report||Object.keys(source.indexing).some(k=>k!=='report')||
@@ -74,9 +77,15 @@ function main(argv){
  const indexing=collect('indexing',{report:4500000});
  const human=collect('liveAcceptance',{report:2500000,contract:2500000});
  if(human)human.contractSha=digests.liveAcceptance.contract;
- const workspace=WORK.build({firstSite:first,search,indexing:indexing?.report||null,
-  liveAcceptance:human});
  const out=PRIVATE.privateOutput(args.out);
+ if(config.operatorDesk){
+  const target=path.resolve(out,config.operatorDesk.href),st=fs.lstatSync(target);
+  if(st.isSymbolicLink()||!st.isFile()||st.size<1000||st.size>2500000||
+   path.dirname(target)!==path.resolve(path.dirname(out),'live-acceptance-template'))
+   throw Error('Private operator desk was not generated in this session');
+ }
+ const workspace=WORK.build({firstSite:first,search,indexing:indexing?.report||null,
+  liveAcceptance:human,operatorDesk:config.operatorDesk||null});
  fs.mkdirSync(out,{mode:0o700,recursive:false});
  function write(name,content){
   const fd=fs.openSync(path.join(out,name),'wx',0o600);

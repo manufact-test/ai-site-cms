@@ -6,7 +6,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const SHA=/^[a-f0-9]{64}$/;
 const MAX_JSON=36000000,MAX_ZIP=190000000,CHUNK=1024*1024;
 function files(config){
- if(!config||!config.inputs||!['local','public','public-capture','search'].includes(config.phase))
+ if(!config||!config.inputs||!['local','public','public-capture','search','human-review'].includes(config.phase))
   throw Error('Source pinning requires a validated first-site phase');
  const o=config.inputs,x={};
  const push=(key,file)=>{if(file)x[key]=file};

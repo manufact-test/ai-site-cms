@@ -1,3 +1,18 @@
+## 30 October 2026 — integrated human-review phase
+
+The main first-site session runner now includes `human-review` after `public` or `public-capture`. The public operator workspace links directly to the generated private offline `LIVE-ACCEPTANCE-DESK.html`. After manually observing real browser/device and authorized POST/delivery, export a private filled JSON and invoke the same runner with the source candidate, original postDeploy, original lead relay contract and filled evidence. The runner rechecks the public ZIP/source pins, invokes the strict reviewer, creates next-action files and an HTML `human.html` workspace, then seals output SHA256 in the new session. No auto-approval, client POST, merge or deploy.
+
+```json
+{"format":"manufact-seo-first-site-integration-session-config-v1","phase":"human-review","inputs":{"candidate":"/ABS/private/local/candidate","postDeploy":"/ABS/private/public/post-deploy/post-deploy-summary.json","contract":"/ABS/private/public/lead-relay/INTEGRATION-CONTRACT.json","filled":"/ABS/private/filled-live-acceptance.json"}}
+```
+
+```bash
+node stage3/seo-engine/bin/run-first-site-integration.cjs --config /ABS/private/human-review.json --out /ABS/private/NEW-human --preflight-only
+node stage3/seo-engine/bin/run-first-site-integration.cjs --config /ABS/private/human-review.json --out /ABS/private/NEW-human
+```
+
+Private results: `live-acceptance-review/`, `operator-workspace/index.html`, `operator-workspace/human.html`, `INTEGRATION-SESSION.json`. The lead must independently authenticate evidence and signoff; operator attestation is not GO.
+
 ## Final worker handoff update — 29 October 2026
 
 **New actual client-acceptance functionality:** The original local PHP audit `seo-report/bundle.json -> localPhpForms.pages` now controls the mandatory number of **real form POST receipts per public page**, not just a site-wide total. The private human acceptance template pins the PHP bundle SHA256, identifies form expectations per route and rejects receipts on pages where no form was observed, duplicated route+form IDs, and excess receipts. The private `human.html` workspace displays each source-bound page's actual confirmed/expected receipt count and refuses manipulated totals. An all-pass operator attestation still does **not** prove real client signature or grant deployment authorization.

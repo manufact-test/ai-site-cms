@@ -1,3 +1,18 @@
+## 30 October 2026 — integrated human-review phase
+
+The main first-site session runner now includes `human-review` after `public` or `public-capture`. The public operator workspace links directly to the generated private offline `LIVE-ACCEPTANCE-DESK.html`. After manually observing real browser/device and authorized POST/delivery, export a private filled JSON and invoke the same runner with the source candidate, original postDeploy, original lead relay contract and filled evidence. The runner rechecks the public ZIP/source pins, invokes the strict reviewer, creates next-action files and an HTML `human.html` workspace, then seals output SHA256 in the new session. No auto-approval, client POST, merge or deploy.
+
+```json
+{"format":"manufact-seo-first-site-integration-session-config-v1","phase":"human-review","inputs":{"candidate":"/ABS/private/local/candidate","postDeploy":"/ABS/private/public/post-deploy/post-deploy-summary.json","contract":"/ABS/private/public/lead-relay/INTEGRATION-CONTRACT.json","filled":"/ABS/private/filled-live-acceptance.json"}}
+```
+
+```bash
+node stage3/seo-engine/bin/run-first-site-integration.cjs --config /ABS/private/human-review.json --out /ABS/private/NEW-human --preflight-only
+node stage3/seo-engine/bin/run-first-site-integration.cjs --config /ABS/private/human-review.json --out /ABS/private/NEW-human
+```
+
+Private results: `live-acceptance-review/`, `operator-workspace/index.html`, `operator-workspace/human.html`, `INTEGRATION-SESSION.json`. The lead must independently authenticate evidence and signoff; operator attestation is not GO.
+
 ## 30 October 2026 — one cohesive first-client human acceptance workflow
 
 **Current SEO worker branch delivers an operator-usable first-site acceptance loop**: local PHP form sections are recorded by actual `page`+`sectionId`, a v2 live acceptance template generates a private offline responsive `LIVE-ACCEPTANCE-DESK.html`, and operators can fill browser/device/manual checks and separate real POST versus destination delivery receipts without hand-editing JSON. Download the private filled JSON and run the original strict `first-site-live-acceptance.cjs review`; this produces `live-acceptance-review.json`, `live-acceptance-review.md`, and source-specific `LIVE-ACCEPTANCE-NEXT-ACTIONS.json/.md`. The private SEO operator workspace's `human.html` shows each unresolved browser/manual task and form. Failed forms with **no actual POST** are correctly recorded as failure without invented submission evidence. No automated POST, actual browser verification, authenticated client approval or GO.

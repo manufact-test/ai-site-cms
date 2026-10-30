@@ -14,7 +14,8 @@ const PHASES=Object.freeze({
  'public-capture':{required:['candidate','approvedSite','publishedSite','staticExport','origin'],
   optional:['ownerEditReview','previousPublicHttp','previousPublicMediaDigests']},
  search:{required:['candidate','postDeploy','blueprint'],
-  optional:['indexing','searchHistory','liveAcceptanceReview','liveAcceptanceContract']}
+  optional:['indexing','searchHistory','liveAcceptanceReview','liveAcceptanceContract']},
+ 'human-review':{required:['candidate','postDeploy','contract','filled'],optional:[]}
 });
 const PREP_KEYS={approvedSite:'approved-site',publishedSite:'published-site',
  blueprint:'blueprint',origin:'origin',staticExport:'static-export',provider:'provider',
@@ -75,6 +76,8 @@ function validate(value){
   assert(!o.previousPublicMediaDigests||o.previousPublicHttp,
    'previous media SHA256 receipts require matching previous HTTPS capture');
  }
+ if(value.phase==='human-review')assert(new Set(Object.values(o)).size===4,
+  'Human review requires four distinct private sources');
  if(value.phase==='search'){
   assert(o.indexing||o.searchHistory,'Search follow-up needs a genuine indexing or history report');
   assert(Boolean(o.liveAcceptanceReview)===Boolean(o.liveAcceptanceContract),
@@ -128,6 +131,15 @@ function steps(config,root){
      '--out',path.join(root,'operator-workspace')]}
   ]);
  }
+ if(c.phase==='human-review')return Object.freeze([
+  {key:'live-acceptance-review',cli:'first-site-live-acceptance.cjs',
+   argv:['review','--candidate',inps.candidate,'--contract',inps.contract,
+    '--post-deploy',inps.postDeploy,'--filled',inps.filled,
+    '--out',path.join(root,'live-acceptance-review')]},
+  {key:'workspace',cli:'build-seo-operator-workspace.cjs',
+   argv:['--config',path.join(root,'workspace-config.json'),
+    '--out',path.join(root,'operator-workspace')]}
+ ]);
  return Object.freeze([
   {key:'relay',cli:'build-first-site-lead-relay.cjs',
    argv:flags({...inps,out:path.join(root,'lead-relay')},{...RELAY_KEYS,out:'out'})},
@@ -142,25 +154,35 @@ function summary(config,outputs){
  const expected=c.phase==='local'?['prepare','relay','acceptance-template','workspace']:
   c.phase==='public'?['verify','relay','live-acceptance-template','workspace']:
   c.phase==='public-capture'?['capture','verify','relay','live-acceptance-template','workspace']:
-  ['relay','workspace'];
+  c.phase==='human-review'?['live-acceptance-review','workspace']:['relay','workspace'];
  assert(expected.every(k=>outputs[k]&&typeof outputs[k]==='object'),
   'stage results are incomplete');
+ const source=outputs.relay||outputs['live-acceptance-review'];
  const result={format:'manufact-seo-first-site-integration-session-v1',version:1,
-  phase:c.phase,readOnly:true,siteId:outputs.relay.siteId,
+  phase:c.phase,readOnly:true,siteId:source.siteId,
   localCandidatePrepared:c.phase==='local',
   publicVerificationSupplied:['public','public-capture'].includes(c.phase),
   liveHttpsCapturePerformed:c.phase==='public-capture',
   searchFollowupSupplied:c.phase==='search',
   candidateDisposition:outputs.prepare?.status||null,
   postDeployDisposition:outputs.verify?.status||null,
-  integrationDisposition:outputs.relay.stage||null,
-  integrationReportRelativePath:'lead-relay/INTEGRATION-CONTRACT.json',
-  instructionsRelativePath:'lead-relay/LEAD-NEXT-ACTIONS.md',
+  integrationDisposition:outputs.relay?.stage||
+   (c.phase==='human-review'?'HUMAN-REVIEW-RECORDED-OWNER-SIGNOFF-REQUIRED':null),
+  humanAcceptanceReviewCreated:c.phase==='human-review',
+  humanAcceptanceReviewStatus:outputs['live-acceptance-review']?.status||null,
+  integrationReportRelativePath:c.phase==='human-review'?null:'lead-relay/INTEGRATION-CONTRACT.json',
+  instructionsRelativePath:c.phase==='human-review'?
+   'live-acceptance-review/LIVE-ACCEPTANCE-NEXT-ACTIONS.md':'lead-relay/LEAD-NEXT-ACTIONS.md',
   privateOperatorWorkspaceRelativeFile:'operator-workspace/index.html',
   humanAcceptanceTemplateCreated:c.phase==='local',
   liveAcceptanceTemplateCreated:['public','public-capture'].includes(c.phase),
   ...(['public','public-capture'].includes(c.phase)?{liveAcceptanceTemplateRelativeFile:
-   'live-acceptance-template/live-acceptance-template.json'}:{}),
+   'live-acceptance-template/live-acceptance-template.json',
+   liveAcceptanceDeskRelativeFile:'live-acceptance-template/LIVE-ACCEPTANCE-DESK.html'}:{}),
+  ...(c.phase==='human-review'?{liveAcceptanceReviewRelativeFile:
+   'live-acceptance-review/live-acceptance-review.json',
+   liveAcceptanceNextActionsRelativeFile:
+   'live-acceptance-review/LIVE-ACCEPTANCE-NEXT-ACTIONS.json'}:{}),
   ...(c.phase==='local'?{humanAcceptanceTemplateRelativeFile:
    'human-acceptance-template/first-site-operator-template.json'}:{}),
   ...(c.phase==='local'?{candidateRelativeDir:'candidate'}:{}),
@@ -188,6 +210,12 @@ function summary(config,outputs){
  }
  if(outputs.prepare)assert(outputs.prepare.siteId===result.siteId,
   'candidate and lead relay site IDs conflict');
+ if(outputs.workspace)assert(outputs.workspace.siteId===result.siteId,
+  'workspace site differs from reviewed source');
+ if(outputs['live-acceptance-review'])assert(
+  outputs['live-acceptance-review'].siteId===result.siteId&&
+  outputs['live-acceptance-review'].action==='review',
+  'human review site/action differs from original');
  if(outputs.verify)assert(outputs.verify.siteId===result.siteId,
   'post-deploy and lead relay site IDs conflict');
  return Object.freeze(result);
@@ -209,7 +237,9 @@ function markdown(session,source=null){
    'Approved Site v2 source SHA256: '+s(source.sealedApprovedSourceSha256),
    'Official static manifest SHA256: '+s(source.officialStaticManifestSha256),
    'Published CMS version: '+s(source.publishedVersion),'');
- }else lines.push('No current owner-authenticated revision in search phase; rely on exact saved release ZIP / post-deploy report hashes.','');
+ }else lines.push(session.phase==='human-review'?
+  'Human review reuses original pinned candidate and lead contract; no new owner authentication.':
+  'No current owner-authenticated revision in search phase; rely on exact saved release ZIP / post-deploy report hashes.','');
  lines.push('## Stage products','');
  if(session.candidateRelativeDir)lines.push('- Candidate: '+session.candidateRelativeDir);
  if(session.capturedPublicHttpRelativeFile){
@@ -221,7 +251,11 @@ function markdown(session,source=null){
   lines.push('- Unfilled local manual acceptance: '+session.humanAcceptanceTemplateRelativeFile);
  if(session.liveAcceptanceTemplateRelativeFile)
   lines.push('- Unfilled real browser/device/form acceptance: '+session.liveAcceptanceTemplateRelativeFile);
- lines.push('- Exact source/ZIP release relay: '+session.integrationReportRelativePath,
+ if(session.liveAcceptanceDeskRelativeFile)lines.push('- Open private editor: '+session.liveAcceptanceDeskRelativeFile);
+ if(session.liveAcceptanceReviewRelativeFile)lines.push('- Reviewed operator observations: '+session.liveAcceptanceReviewRelativeFile,
+  '- Specific next actions: '+session.liveAcceptanceNextActionsRelativeFile);
+ lines.push('- Exact source/ZIP release relay: '+
+  (session.integrationReportRelativePath||'original source contract supplied in private config'),
   '- Lead next actions: '+session.instructionsRelativePath,
   '- Private operator HTML dashboard: '+session.privateOperatorWorkspaceRelativeFile,
   '', 'Stages: '+session.verifiedStages.map(s).join(' → '),
@@ -237,6 +271,7 @@ function markdown(session,source=null){
  if(session.phase==='local')lines.push('Lead: review PHP/static blockers and the original owner source, preview verified public-only ZIP, then approve or reject before any deployment.');
  else if(session.phase==='public'||session.phase==='public-capture')
   lines.push('Lead: independently authenticate the public host and release, inspect failed HTTP/media checks, fill the page/device/form template using actual browser and authorized delivery receipts.');
+ else if(session.phase==='human-review')lines.push('Lead: inspect human.html and specific next actions, then verify receipts and secure separate owner signoff; NEVER automatic GO.');
  else lines.push('SEO operator: inspect real GSC indexing/search observations and ask the owner to approve any CMS implementation packet; missing URLs are UNKNOWN.');
  lines.push('','**This is an operator evidence index, NEVER permission to deploy.**','');
  return lines.join('\n');

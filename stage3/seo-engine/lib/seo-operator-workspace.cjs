@@ -13,7 +13,9 @@ function build(input){
  if(!input||typeof input!=='object'||Array.isArray(input)||
   !input.firstSite&&!input.search&&!input.indexing)throw Error('Operator workspace needs launch, search or indexing report inputs');
  const first=input.firstSite||null,search=input.search||null,indexing=input.indexing||null;
- const human=input.liveAcceptance||null;
+ const human=input.liveAcceptance||null,desk=input.operatorDesk||null;
+ if(desk&&desk.href!=='../live-acceptance-template/LIVE-ACCEPTANCE-DESK.html')
+  throw Error('Unexpected private operator desk link');
  if(human&&(!first?.summary||!first.postDeploy||!human.report||!human.contract))
   throw Error('Human acceptance needs a first-site source, public post-deploy report and exact original lead contract');
  if(first&&!first.summary||search&&!search.history)throw Error('Operator workspace input missing report source');
@@ -29,6 +31,9 @@ function build(input){
  if(indexed&&visibility&&indexing.blueprintSha256!==search.history.blueprintSha256)
   throw Error('Search History and URL Indexing reports need the same approved Blueprint bytes');
  const sections=[
+  ...(desk?[{href:desk.href,name:'Fill browser and form acceptance',
+   sub:'Private offline operator editor, then run human-review session with exported JSON',
+   state:'MANUAL ACTION REQUIRED',kind:'desk'}]:[]),
   ...(launch?[{href:'launch.html',name:'First Site Launch Cockpit',
    sub:'First-release technical blockers, PHP/static evidence, public HTTPS observations and mandatory human checks',
    state:launch.disposition,kind:'launch',counts:launch.summary}]:[]),
@@ -43,6 +48,7 @@ function build(input){
    state:manual.status,kind:'human',counts:manual.summary}]:[])
  ];
  const next=[
+  ...(desk?['Open the private editor card, inspect real browser and authorized POST/delivery, export JSON and run human-review.']:[]),
   ...(launch?.summary.blockingGates?['Resolve '+launch.summary.blockingGates+
    ' original first-site technical gate(s) using the real PHP/CMS and first-site-check runbook.']:[]),
   ...(launch&&!first.postDeploy?['Only the lead may publish the site; then collect actual public HTTPS/media evidence and run post-deploy verification.']:[]),
@@ -55,7 +61,7 @@ function build(input){
   ...(!launch&&visibility?['For first-site technical acceptance add the existing first-site-check summary and optional post-deploy evidence.']:[])
  ];
  const cards=sections.map(s=>'<a class="card" href="'+s.href+'"><div class="kicker">'+
-  (s.kind==='launch'?'LAUNCH OPERATIONS':s.kind==='indexing'?'URL INDEXING':s.kind==='human'?'HUMAN ACCEPTANCE':'POST-LAUNCH SEARCH')+'</div><h2>'+esc(s.name)+'</h2>'+
+  (s.kind==='desk'?'OPERATOR ACTION':s.kind==='launch'?'LAUNCH OPERATIONS':s.kind==='indexing'?'URL INDEXING':s.kind==='human'?'HUMAN ACCEPTANCE':'POST-LAUNCH SEARCH')+'</div><h2>'+esc(s.name)+'</h2>'+
   '<p>'+esc(s.sub)+'</p><span class="state">'+esc(s.state)+'</span><span class="go">Open private report →</span></a>').join('');
  const css=[
  ':root{--back:#f3f7fa;--ink:#172f45;--muted:#5c7182;--line:#dbe5eb}',
@@ -87,7 +93,7 @@ function build(input){
  return {format:FORMAT,readOnly:true,siteId,homeHtml:html,launchHtml:launch?.html||null,
   searchHtml:visibility?.html||null,indexingHtml:indexed?.html||null,
   humanHtml:manual?.html||null,
-  overview:{launchIncluded:!!launch,searchIncluded:!!visibility,indexingIncluded:!!indexed,
+  overview:{operatorDeskIncluded:!!desk,launchIncluded:!!launch,searchIncluded:!!visibility,indexingIncluded:!!indexed,
    humanAcceptanceIncluded:!!manual,humanAcceptanceStatus:manual?.status??null,
    indexingActionCount:indexed?.summary.actions??null,
    technicalBlockers:launch?.summary.blockingGates??null,

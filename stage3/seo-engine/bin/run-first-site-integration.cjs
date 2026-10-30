@@ -105,7 +105,7 @@ function preflight(config,output){
  }
  if(c.phase!=='local'){
   candidate=CANDIDATE.inspect(c.inputs.candidate,source);
-  if(c.phase==='search'){
+  if(c.phase==='search'||c.phase==='human-review'){
    const file=c.inputs.postDeploy,st=fs.lstatSync(file);
    if(st.isSymbolicLink()||!st.isFile()||st.size<10||st.size>2500000)
     throw Error('Search follow-up needs a bounded private post-deploy report file');
@@ -139,6 +139,19 @@ async function main(argv){
  let success=false;
  try{
   const operations={
+   'live-acceptance-review':argv=>{
+    const info=LIVE.main(argv),folder=path.join(root,'live-acceptance-review');
+    const body=fs.readFileSync(path.join(folder,'live-acceptance-review.json'));
+    const actions=fs.readFileSync(path.join(folder,'LIVE-ACCEPTANCE-NEXT-ACTIONS.json'));
+    const report=JSON.parse(body),next=JSON.parse(actions);
+    if(info.action!=='review'||report.siteId!==info.siteId||
+       report.sourceContractSha256!==sha(fs.readFileSync(read.config.inputs.contract))||
+       report.releaseAuthorized!==false||next.releaseAuthorized!==false||
+       next.siteId!==report.siteId)
+     throw Error('Reviewed human evidence does not match exact source and lead contract');
+    return {siteId:info.siteId,action:'review',status:report.status,
+     reportSha256:sha(body),nextActionsSha256:sha(actions)};
+   },
    prepare:PREP.main,capture:CAPTURE.main,verify:VERIFY.main,relay:RELAY.main,
    'acceptance-template':argv=>{
     ACCEPT.main(argv);
@@ -165,11 +178,16 @@ async function main(argv){
       bundle:path.join(candidate,'seo-report','bundle.json'),
       ...(['public','public-capture'].includes(read.config.phase)?
        {postDeploy:path.join(root,'post-deploy','post-deploy-summary.json')}:
-       read.config.phase==='search'?{postDeploy:inps.postDeploy}:{})},
+       ['search','human-review'].includes(read.config.phase)?{postDeploy:inps.postDeploy}:{})},
      ...(read.config.phase==='search'&&inps.searchHistory?
       {search:{history:inps.searchHistory}}:{}),
      ...(read.config.phase==='search'&&inps.indexing?
       {indexing:{report:inps.indexing}}:{}),
+     ...(read.config.phase==='human-review'?{liveAcceptance:{
+      report:path.join(root,'live-acceptance-review','live-acceptance-review.json'),
+      contract:inps.contract}}:{}),
+     ...(['public','public-capture'].includes(read.config.phase)?
+      {operatorDesk:{href:'../live-acceptance-template/LIVE-ACCEPTANCE-DESK.html'}}:{}),
      ...(read.config.phase==='search'&&inps.liveAcceptanceReview?
       {liveAcceptance:{report:inps.liveAcceptanceReview,contract:inps.liveAcceptanceContract}}:{})};
     fs.writeFileSync(path.join(root,'workspace-config.json'),JSON.stringify(src,null,2)+'\n',
@@ -177,7 +195,9 @@ async function main(argv){
     WORKSPACE.main(argv);
     const manifest=fs.readFileSync(path.join(root,'operator-workspace','workspace-manifest.json'));
     const v=JSON.parse(manifest.toString('utf8'));
-    if(v.siteId!==results.relay.siteId||v.releaseAuthorized!==false)
+    const expected=results.relay||results['live-acceptance-review'];
+    if(v.siteId!==expected.siteId||v.releaseAuthorized!==false||
+       read.config.phase==='human-review'&&v.overview?.humanAcceptanceIncluded!==true)
      throw Error('Private operator workspace refers to another client site or release');
     return {siteId:v.siteId,workspaceManifestSha256:sha(manifest)};
    }
@@ -190,10 +210,14 @@ async function main(argv){
   if(finalConfig.sha256!==startSha)
    throw Error('Private session config changed during stage execution; discard all stages');
   PIN.unchanged(sourcePin,PIN.capture(read.config));
-  const relayFile=fs.readFileSync(path.join(root,'lead-relay','INTEGRATION-CONTRACT.json'));
+  const relayFile=fs.readFileSync(read.config.phase==='human-review'?
+   read.config.inputs.contract:path.join(root,'lead-relay','INTEGRATION-CONTRACT.json'));
   const verifiedOutputs={
    relaySha256:sha(relayFile),
    workspaceManifestSha256:results.workspace.workspaceManifestSha256,
+   ...(results['live-acceptance-review']?{
+    liveAcceptanceReviewSha256:results['live-acceptance-review'].reportSha256,
+    liveAcceptanceNextActionsSha256:results['live-acceptance-review'].nextActionsSha256}:{}),
    ...(results['acceptance-template']?
     {humanAcceptanceTemplateSha256:results['acceptance-template'].templateSha256}:{}),
    ...(results['live-acceptance-template']?

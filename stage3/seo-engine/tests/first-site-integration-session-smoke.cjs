@@ -85,4 +85,15 @@ assert.equal(PLAN.validate({...f,inputs:{...f.inputs,
  liveAcceptanceReview:'/tmp/review.json',liveAcceptanceContract:'/tmp/relay.json'}}).phase,'search');
 assert.throws(()=>PLAN.validate({...f,inputs:{candidate,postDeploy:'/tmp/post.json',
  blueprint:'/tmp/blueprint.json'}}),/genuine indexing or history/);
+const review={format:PLAN.FORMAT,phase:'human-review',inputs:{candidate,
+ postDeploy:'/tmp/post.json',contract:'/tmp/relay.json',filled:'/tmp/filled.json'}};
+assert.deepEqual(PLAN.steps(review,home).map(x=>x.key),['live-acceptance-review','workspace']);
+const human=PLAN.summary(review,{root:home,
+ 'live-acceptance-review':{siteId:'my-site',action:'review',status:'HUMAN-EVIDENCE-INCOMPLETE'},
+ workspace:{siteId:'my-site'}});
+assert.equal(human.humanAcceptanceReviewCreated,true);
+assert.equal(human.sitePublicationAuthorized,false);
+assert(human.liveAcceptanceNextActionsRelativeFile.endsWith('.json'));
+assert(PLAN.markdown(human).includes('specific next actions'));
+assert.throws(()=>PLAN.validate({...review,inputs:{...review.inputs,filled:review.inputs.contract}}),/four distinct/);
 console.log('first-site integration session plan smoke PASS (pure local planning only)');
