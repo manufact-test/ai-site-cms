@@ -1818,6 +1818,34 @@
               }
             }
           }
+        },
+        "layout": {
+          "enum": [
+            "scroll",
+            "grid"
+          ]
+        },
+        "columnsDesktop": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "columnsTablet": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "columnsMobile": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "lightbox": {
+          "type": "boolean"
+        },
+        "caption": {
+          "type": "string",
+          "maxLength": 240
         }
       }
     },
