@@ -144,6 +144,9 @@ function main(argv){
   if(workspace.crawlPublicFollowupHtml)write('crawl-public-followup.html',workspace.crawlPublicFollowupHtml);
   if(workspace.crawlPublicFollowupMarkdown)write('crawl-public-followup.md',workspace.crawlPublicFollowupMarkdown);
   if(workspace.crawlPublicFollowupJson)write('crawl-public-followup.json',workspace.crawlPublicFollowupJson);
+  if(workspace.structuredDataHtml)write('structured-data.html',workspace.structuredDataHtml);
+  if(workspace.structuredDataMarkdown)write('structured-data.md',workspace.structuredDataMarkdown);
+  if(workspace.structuredDataJson)write('structured-data.json',workspace.structuredDataJson);
   if(workspace.crawlCandidateRobots!==null)write('DRAFT-ONLY-robots.txt',workspace.crawlCandidateRobots);
   if(workspace.crawlCandidateSitemap!==null)write('DRAFT-ONLY-sitemap.xml',workspace.crawlCandidateSitemap);
   if(workspace.humanHtml)write('human.html',workspace.humanHtml);
