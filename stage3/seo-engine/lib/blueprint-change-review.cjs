@@ -14,7 +14,13 @@ const pageLinks=p=>[
  ...p.sections.filter(s=>s.cta).map(s=>({kind:'cta',targetId:s.cta.toPageId,
   anchor:s.cta.label,sectionId:s.id,why:s.cta.purpose}))
 ];
-const edgeKey=e=>[e.kind,e.targetId,e.sectionId||''].join(':');
+const edgeKey=e=>[e.kind,e.targetId,e.sectionId||'',e.anchor,e.why].join(':');
+const edgeInventory=edges=>{
+ const seen=new Map();return new Map(edges.map(e=>{
+  const key=edgeKey(e),count=seen.get(key)||0;seen.set(key,count+1);
+  return [key+'#'+count,e];
+ }));
+};
 const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const short=x=>String(x??'').replace(/[\x00-\x1f|<>]/g,' ').slice(0,240);
@@ -57,6 +63,13 @@ function compare(beforeRaw,afterRaw){
    'Site-wide positioning or locale changed',
    'Review whether all approved pages still match the intended audience and language.',
    'Owner-confirmed positioning and language review');
+ }
+ if(!one(before.research,after.research)){
+  put('research-references-changed','P2',null,null,null,
+   'Source research references changed; citations do not independently authenticate claims.');
+  task('site:research','P2','SEO editor',null,'Research references revised',
+   'Review provenance and relevance of added/removed sources before editorial approval.',
+   'Documented source review and owner/editor acceptance');
  }
  const allIds=[...new Set([...oldPages.keys(),...newPages.keys()])].sort();
  for(const id of allIds){
@@ -121,6 +134,13 @@ function compare(beforeRaw,afterRaw){
     'Confirm factual, language and page-intent consistency; inspect actual HTML after CMS implementation.',
     'Owner-approved SEO metadata and rendered title/description/OG check');
   }
+  if(prev.name!==next.name){
+   put('page-label-changed','P1',id,prev.path,next.path,
+    'Planned page display name changed; inspect visible labels, breadcrumbs and header navigation.');
+   task('page:'+id+':label','P1','Content editor + CMS lead',id,
+    'Owner-approved page display name differs','Check visible menu labels and breadcrumbs in actual site.',
+    'Approved naming and verified navigation UI');
+  }
   if(!one(prev.intent,next.intent)){
    put('intent-changed','P1',id,prev.path,next.path,
     'Planned visitor intent or primary topics changed; confirm distinct audience need.',
@@ -149,14 +169,15 @@ function compare(beforeRaw,afterRaw){
     'Confirm actual interactive behavior on desktop, tablet and mobile before signoff.',
     'Real viewport review notes for published page');
   }
-  const oldEdges=new Map(pageLinks(prev).map(x=>[edgeKey(x),x]));
-  const newEdges=new Map(pageLinks(next).map(x=>[edgeKey(x),x]));
+  const oldEdges=edgeInventory(pageLinks(prev));
+  const newEdges=edgeInventory(pageLinks(next));
   const edgeAdded=[...newEdges.keys()].filter(k=>!oldEdges.has(k));
   const edgeRemoved=[...oldEdges.keys()].filter(k=>!newEdges.has(k));
-  const edgeUpdated=[...newEdges.keys()].filter(k=>oldEdges.has(k)&&!one(oldEdges.get(k),newEdges.get(k)));
+  const edgeUpdated=[]; // Different label/purpose is a removed and newly approved edge.
   // A Blueprint recompilation changes target toPath automatically when the destination moves.
-  const inheritedMoved=[...newEdges.values()].filter(e=>
-   oldEdges.has(edgeKey(e))&&oldPages.get(e.targetId)?.path!==newPages.get(e.targetId)?.path);
+  const inheritedMoved=[...newEdges].filter(([key,e])=>
+   oldEdges.has(key)&&oldPages.get(e.targetId)?.path!==newPages.get(e.targetId)?.path)
+   .map(([,edge])=>edge);
   if(edgeAdded.length||edgeRemoved.length||edgeUpdated.length||inheritedMoved.length){
    put('contextual-edges-changed','P1',id,prev.path,next.path,
     'Approved contextual routes/CTA targets or their resolved destination URLs changed; actual Site v1 links are UNKNOWN.',
@@ -208,7 +229,7 @@ function compare(beforeRaw,afterRaw){
   const loss=!!a&&a.status==='confirmed'&&(!b||b.status!=='confirmed');
   const refs=after.pages.flatMap(p=>p.schemaCandidates.filter(c=>c.factIds.includes(id))
    .map(c=>({pageId:p.id,path:p.path,type:c.type})));
-  put('fact-evidence-changed',loss?'P0':'P1',null,null,null,
+  put('fact-evidence-changed',loss&&refs.length?'P0':'P1',null,null,null,
    'Declared fact evidence changed; assertions must be independently verified by the owner.',
    {factId:id,oldStatus:a?.status||'absent',newStatus:b?.status||'absent',
     affectedSchemaCandidates:refs});
@@ -235,7 +256,7 @@ function compare(beforeRaw,afterRaw){
   const links=pageLinks(p);
   if(links.some(e=>changedPages.has(e.targetId)))affected.add(p.id);
  }
- for(const id of changedPages)affected.add(id);
+ for(const id of changedPages)if(newPages.has(id))affected.add(id);
  actions.sort((a,b)=>priorities[a.priority]-priorities[b.priority]||
   a.id.localeCompare(b.id));
  changes.sort((a,b)=>priorities[a.priority]-priorities[b.priority]||
