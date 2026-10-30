@@ -1,3 +1,7 @@
+## Follow-up: produce a private correction candidate
+
+The read-only policy and regression modules above now feed into [CRAWL-REPAIR-WORKFLOW.md](CRAWL-REPAIR-WORKFLOW.md): produce a **private** candidate sitemap from indexable canonical approved Blueprint routes, and optionally add exact `Allow` suggestions only to existing unambiguous named-agent groups after explicit page selection. This adds an actual lead handoff artifact, not a publisher or an automatic repair. The owner-published Site v1 page/robots/canonical inventory must match the Blueprint; all ambiguous shared/wildcard robots groups remain manual review. See full commands, SHA256 and review limitations there.
+
 # MANUFACT SEO — Crawl Policy Intelligence and Regression
 
 **Owner:** independent SEO worker (`feature/site-seo-engine`, scope `stage3/seo-engine/**`). This is a substantial **offline technical SEO capability** for the lead to use during first-client and later site launches. It never changes CMS content, creates hosting rules, posts to an API, or confirms Google indexing.
