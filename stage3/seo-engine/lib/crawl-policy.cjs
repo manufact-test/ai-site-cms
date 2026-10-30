@@ -130,7 +130,7 @@ function parseSitemap(xml){
  if(!records.length)throw Error('Sitemap XML has no URL records');
  const opens=[...xml.matchAll(new RegExp('<(?:[\\w-]+:)?'+element+'\\b[^>]*>','gi'))].length;
  if(opens!==records.length||
-  !(index?/<\\/sitemapindex\s*>\s*$/i:/<\\/urlset\s*>\s*$/i).test(xml))
+  !(index?/<\/sitemapindex\s*>\s*$/i:/<\/urlset\s*>\s*$/i).test(xml))
   throw Error('Sitemap has incomplete records or an unclosed document root');
  return {kind:index?'index':'urlset',records};
 }
