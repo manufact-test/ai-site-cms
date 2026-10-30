@@ -176,7 +176,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;const popups=new Set(),triggers=[];
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(own(node,'popupTarget')){
@@ -263,13 +263,14 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
     if(node.type==='quote'&&own(node,'cite')&&
       (typeof node.cite!=='string'||node.cite.length>160||/[\x00-\x1f]/.test(node.cite)))
       fail(node.id,'invalid quote attribution');
-    if(node.type!=='gallery'&&['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile','scrollControls'].some(k=>own(node,k)))fail(node.id,'gallery settings on other node');
+    if(node.type!=='gallery'&&['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile'].some(k=>own(node,k)))fail(node.id,'gallery settings on other node');
     if(own(node,'caption')&&(node.type!=='image'||parentType!=='gallery'||typeof node.caption!=='string'||node.caption.length>240||/[\x00-\x1f]/.test(node.caption)))fail(node.id,'invalid gallery photo caption');
     if(node.type==='gallery'){
       for(const key of ['photoShape','photoShapeTablet','photoShapeMobile'])
         if(own(node,key)&&!['natural','square','landscape','portrait'].includes(node[key]))fail(node.id,'invalid gallery photo shape');
       if(own(node,'layout')&&!['scroll','grid'].includes(node.layout))fail(node.id,'invalid gallery layout');
       if(own(node,'scrollControls')&&(typeof node.scrollControls!=='boolean'||node.scrollControls&&node.layout==='grid'))fail(node.id,'scroll navigation requires scroll gallery');
+      for(const [k,max] of [['visibleDesktop',6],['visibleTablet',4],['visibleMobile',2]])if(own(node,k)&&(node.layout==='grid'||!number(node[k],1,max)))fail(node.id,'invalid visible gallery cards');
       if(own(node,'lightbox')&&typeof node.lightbox!=='boolean')fail(node.id,'invalid gallery lightbox');
       if(['columnsDesktop','columnsTablet','columnsMobile'].some(k=>own(node,k))&&node.layout!=='grid')fail(node.id,'columns require grid gallery');
       for(const [key,min,max] of [['columnsDesktop',1,6],['columnsTablet',1,4],['columnsMobile',1,2]])
@@ -722,7 +723,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     if(n.type==='list')return '<'+(n.ordered?'ol':'ul')+' class="'+cls+' cmsdg-list">'+n.children.map(visit).join('')+'</'+(n.ordered?'ol':'ul')+'>';
     if(n.type==='list-item')return '<li class="'+cls+'">'+attr(n.text)+'</li>';
     if(n.type==='gallery'){
-      const grid=n.layout==='grid',variables=grid?' style="--cmsdg-gallery-columns:'+ (n.columnsDesktop??3)+';--cmsdg-gallery-tablet:'+ (n.columnsTablet??2)+';--cmsdg-gallery-mobile:'+ (n.columnsMobile??1)+'"':'';
+      const grid=n.layout==='grid',variables=grid?' style="--cmsdg-gallery-columns:'+ (n.columnsDesktop??3)+';--cmsdg-gallery-tablet:'+ (n.columnsTablet??2)+';--cmsdg-gallery-mobile:'+ (n.columnsMobile??1)+'"':(['visibleDesktop','visibleTablet','visibleMobile'].some(k=>own(n,k))?' style="--cmsdg-visible-desktop:'+(n.visibleDesktop??1)+';--cmsdg-visible-tablet:'+(n.visibleTablet??1)+';--cmsdg-visible-mobile:'+(n.visibleMobile??1)+'"':'');
       const content=n.children.map((child,index)=>{
         const image=visit(child);
         const id='cmsdg-lightbox-'+child.id;
@@ -824,6 +825,9 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     scope+' .cmsdg-table th{font-weight:700;background:#f2f5f9}'+
     scope+' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'+
     scope+' .cmsdg-gallery>.cmsdg-gallery-item{flex:0 0 min(82%,420px);scroll-snap-align:start;min-width:0;max-width:100%;margin:0;border-radius:10px;overflow:hidden}'+
+    scope+' .cmsdg-gallery[style*="--cmsdg-visible-desktop"]>.cmsdg-gallery-item{flex-basis:calc((100% - (var(--cmsdg-visible-desktop) - 1)*16px)/var(--cmsdg-visible-desktop));max-width:100%}'+
+    '@media(max-width:900px){'+scope+' .cmsdg-gallery[style*="--cmsdg-visible-desktop"]>.cmsdg-gallery-item{flex-basis:calc((100% - (var(--cmsdg-visible-tablet) - 1)*16px)/var(--cmsdg-visible-tablet))}}'+
+    '@media(max-width:600px){'+scope+' .cmsdg-gallery[style*="--cmsdg-visible-desktop"]>.cmsdg-gallery-item{flex-basis:calc((100% - (var(--cmsdg-visible-mobile) - 1)*16px)/var(--cmsdg-visible-mobile))}}'+
     scope+' .cmsdg-gallery-item img{display:block;width:100%;height:auto;object-fit:cover;border-radius:inherit}'+
     scope+' .cmsdg-gallery-shape-square>.cmsdg-gallery-item img{aspect-ratio:1/1}'+
     scope+' .cmsdg-gallery-shape-landscape>.cmsdg-gallery-item img{aspect-ratio:16/9}'+
