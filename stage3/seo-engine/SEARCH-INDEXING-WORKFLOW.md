@@ -1,3 +1,7 @@
+### Companion: original robots/sitemap policy and regressions
+
+Use [CRAWL-POLICY-WORKFLOW.md](CRAWL-POLICY-WORKFLOW.md) before interpreting GSC index reports: the offline crawl policy modules can check robots rule precedence for Googlebot/Bingbot and sitemap completeness or compare before/after policy sets. This is *operator-supplied evidence only*, not authenticated URL Inspection; never use a declared robots allow/deny alone to assert actual Google indexing. The GSC indexing workflow below remains separate.
+
 # MANUFACT SEO — Private Search Indexing Intelligence
 
 **Scope:** independent SEO worker, stage3/seo-engine/** only. No Google authentication, CMS mutation, PR, merge or deploy. This offline operator workflow covers **URL indexing evidence**, not live Google indexation certification.

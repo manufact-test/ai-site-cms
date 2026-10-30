@@ -1,3 +1,7 @@
+## 30 October 2026 — crawler-specific robots and sitemap regression intelligence
+
+New standalone private `review-crawl-policy.cjs` and `compare-crawl-policy.cjs` compare authenticating **source hashes**, not actual public host observations, against the unchanged canonical SEO Blueprint v1. They derive Googlebot/Bingbot/wildcard `Allow`/`Disallow` decisions per approved URL, sitemap URL-set inclusion, safe unexpanded sitemap-index coverage and P0/P1/P2 human investigations. The second CLI compares original before/after file sets, flags newly blocked canonical URLs and missing sitemap entries, outputs atomic local HTML/JSON/Markdown and never changes CMS or hosting. See [CRAWL-POLICY-WORKFLOW.md](CRAWL-POLICY-WORKFLOW.md). **Only the CMS lead integrates the SEO subtree, verifies deployed HTTPS bytes and runs full Node CI.**
+
 ## 30 October 2026 — instant baseline preview inside Blueprint Studio
 
 The offline SEO authoring GUI now optionally imports a previous same-site v1 brief or compiled Blueprint and continuously previews moved/added/removed page IDs, changed SEO head/canonical/robots, section/CTA outlines and contextual links. This is an explicitly **unverified browser preview**, not a source SHA256 check, redirect implementation, public crawl or owner approval. The original draft/export behavior is retained; clearing comparison never modifies the active brief. Use the strict separate bin/compare-seo-blueprints.cjs command and Decision Desk after export. A standalone blueprint-studio-baseline-smoke.cjs checks same-site import and live draft changes.
