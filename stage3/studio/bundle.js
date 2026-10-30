@@ -6271,6 +6271,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           if(!v.trim()){delete style[key];return;}
           if(['color','background','borderColor','outlineColor'].includes(key)){style[key]=v.trim();return;}
           if(key==='fontSize')delete style.fluidFont;
+          if(key==='minHeightViewport')delete style.minHeight;
+          if(key==='minHeight')delete style.minHeightViewport;
+          if(key==='heightViewport')delete style.heightPx;
+          if(key==='heightPx')delete style.heightViewport;
           if(key==='shadow')delete style.shadowFine;
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
