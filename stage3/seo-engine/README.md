@@ -595,3 +595,8 @@ The one-command first-site integration runner supports optional search-phase key
 ### Unified private Crawl & Search Delivery operations (30 October 2026)
 
 Existing [SEO Operator Workspace](SEO-OPERATOR-WORKSPACE.md) now includes Crawl Policy, regression, original reported GSC indexing correlation, proposed Crawl Repair file previews and P0/P1 manual holds **without a new cabinet**. See [CRAWL-WORKSPACE-INTEGRATION.md](CRAWL-WORKSPACE-INTEGRATION.md) for exact private config, SHA256 linkage, unapproved `DRAFT-ONLY-` output and targeted smoke. Worker changes only this subtree, lead integrates and owns real client release.
+
+
+### Exact crawl findings → existing CMS worklist
+
+The private [Crawl/CMS Implementation Handoff](CRAWL-CMS-HANDOFF.md) optionally maps approved Blueprint + operator-selected Site v1 + original Crawl Policy/Indexing/Repair findings to actionable, **non-executable** P0/P1/P2 tasks for the existing CMS page SEO fields, publisher robots/sitemap/redirect operations and live Search Console checks. This is part of the **same SEO Operator Workspace**, not another CMS implementation. Site/source SHA256, missing/extra routes, metadata overrides and draft-only release boundaries are explicit.
