@@ -12,7 +12,6 @@ const CLAIMS=new Set(['aggregateRating','review','offers','price','priceCurrency
  'availability','lowPrice','highPrice','ratingValue','ratingCount','reviewCount','geo',
  'address','telephone','openingHours','openingHoursSpecification','award','sameAs',
  'hasCredential','foundingDate','employee','numberOfEmployees']);
-const RISK_FIELDS=['@id','url','mainEntityOfPage','item','itemListElement','about','isPartOf'];
 const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 const assert=(v,m)=>{if(!v)throw Error('Structured data source: '+m)};
 const clip=x=>String(x??'').replace(/[\x00-\x1f\x7f<>|]/g,' ').trim().slice(0,170);
@@ -101,8 +100,13 @@ function review({blueprint,blueprintRawSha256,site,siteRawSha256,
  if(expectedBase!==null)assert(expectedBase===capture.origin,'approved exact crawl mount differs from capture');
  DELIVERY.assertEvidence(capture);
  const byId=new Map(bp.pages.map(p=>[p.id,p]));
- assert(site.pages.every(p=>p&&byId.has(p.id)&&byId.get(p.id).path===p.path)||
-  site.pages.some(p=>!byId.has(p.id)),'placeholder');
+ const siteIds=new Set(),sitePaths=new Set();
+ for(const p of site.pages){
+  assert(p&&typeof p.id==='string'&&typeof p.path==='string'&&
+   !siteIds.has(p.id)&&!sitePaths.has(p.path),
+   'original Site v1 has duplicate or malformed page identity');
+  siteIds.add(p.id);sitePaths.add(p.path);
+ }
  const knownPaths=new Set(bp.pages.map(p=>p.path));
  const observed=new Set(),reports=[],findings=[],holds=[];
  const add=(page,code,priority,field,detail,extra={})=>{
@@ -140,6 +144,16 @@ function review({blueprint,blueprintRawSha256,site,siteRawSha256,
    const s=scripts[i];
    if(s.error){parseErrors++;add(page,s.error,'P1','script',
     'Supplied JSON-LD script #'+(i+1)+' cannot be parsed safely.');continue}
+   const contextObjects=Array.isArray(s.value)?s.value:s.value?[s.value]:[];
+   if(!contextObjects.some(x=>x&&typeof x==='object'&&x['@context']!==undefined)){
+    add(page,'missing-jsonld-context','P1','@context',
+     'JSON-LD document lacks an explicit root schema.org context.');
+   }else if(!contextObjects.some(x=>x&&typeof x==='object'&&
+    arr(x['@context']).some(ctx=>ctx==='https://schema.org'||ctx==='http://schema.org'||
+     ctx&&typeof ctx==='object'&&ctx['@vocab']==='https://schema.org/'))){
+    add(page,'unrecognized-jsonld-context','P1','@context',
+     'JSON-LD context does not identify a recognized schema.org vocabulary.');
+   }
    let nodes;
    try{nodes=extract(s.value)}catch{parseErrors++;
     add(page,'invalid-schema-graph','P1','@graph',
