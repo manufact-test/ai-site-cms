@@ -96,3 +96,8 @@ The new Node smoke uses the real compiled `industrial.blueprint.json` fixture, o
 ## Two critical fail-closed public capture gates
 
 This workflow additionally checks existing public-capture integrity observations: (1) a `rootRecheck.matched:false` mixed-deployment window forces **all** task results to `INSUFFICIENT-EVIDENCE`, never optimistic alignment; (2) a negative-route probe returning anything other than 404/410 prevents an optimistic HTTP 200 clearance for an approved route previously shadowed by a redirect. Both appear as separate independent delivery blockers through the existing `DELIVERY.review` contract. The focused smoke covers both unsafe source scenarios with original-source SHA256, rather than claiming them as verified repairs.
+
+
+## Whole-first-client lead readiness connection
+
+The public HTTPS task evidence can now be considered alongside original first-site PHP/static technical gates, human browser/form receipts, publisher source revision and the Search Console postlaunch plan in the SAME private operator `lead-readiness.html`. A public HTTPS deliverability blocker is considered an explicit prelaunch `BLOCKED`, even when no known crawl task individually conflicts; an unknown task evidence count is `NEEDS-EVIDENCE`. This avoids a premature first client GO. See [FIRST-CLIENT-LEAD-READINESS.md](FIRST-CLIENT-LEAD-READINESS.md). The lead remains the only CMS/publication integrator.
