@@ -47,7 +47,7 @@ const anotherBase=POLICY.analyze({blueprint,base:'https://staging.example/',
 assert.throws(()=>DIFF.compare(old,anotherBase),/same-site/);
 const different=JSON.parse(JSON.stringify(brief));
 different.pages[1].seo.title='Updated';
-const newPlan=POLICY.analyze({blueprint:BP.compileBrief(different),base,robotsText:broken,sitemapXml});
+const newPlan=POLICY.analyze({blueprint:BP.compileBrief(different),base,robotsText:broken,sitemapXml:sitemap});
 assert.throws(()=>DIFF.compare(old,newPlan),/same-Blueprint/);
 const index='<?xml version="1.0"?><sitemapindex><sitemap><loc>https://demo.example/children.xml</loc></sitemap></sitemapindex>';
 const indexShift=DIFF.compare(old,mk(stable,index));

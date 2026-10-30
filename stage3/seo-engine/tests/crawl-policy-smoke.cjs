@@ -73,5 +73,5 @@ assert.throws(()=>POLICY.parseSitemap(xml.replace('https://demo.example/contact/
 assert.throws(()=>POLICY.parseSitemap(xml.replace('<urlset ','<!DOCTYPE x [<!ENTITY a "bad">]><urlset ')),/unsafe/i);
 assert.throws(()=>POLICY.parseSitemap(xml.replace('https://demo.example/contact/','&bad;')),/Unknown XML entity/);
 assert.throws(()=>POLICY.analyze({blueprint,base:'http://demo.example/',robotsText:robots,sitemapXml:xml}),/HTTPS/);
-assert.throws(()=>POLICY.analyze({blueprint:{...blueprint,siteId:'wrong'},base,robotsText:robots,sitemapXml:xml}),/noncanonical|modified|brief/);
+assert.throws(()=>POLICY.analyze({blueprint:{...blueprint,version:2},base,robotsText:robots,sitemapXml:xml}),/unsupported/);
 console.log('Crawl policy: specific bot rules, wildcard, sitemap scope, mount and XML security smoke PASS.');
