@@ -39,6 +39,27 @@ test('optional site header is safe, page-ID linked and editable',()=>{
   sdk.validateSite(deleted.current,manifests);
 });
 
+test('responsive editorial grids and semantic composition safety',()=>{
+  const G=require('../sdk/design-graph.cjs'),site=same(initial);
+  const section=sdk.sectionFrom(manifests.find(m=>m.id==='custom-section'),'section-editorial');
+  section.designGraph={version:1,id:'graph-editorial',nodes:[{
+    id:'editorial-card',type:'container',semanticTag:'article',ariaLabel:'Case & <study>',
+    styles:{display:'grid',gridTracks:[2,3,1],gridAutoRowsPx:96,gap:20},
+    responsive:{tablet:{gridTracks:[1,2]},mobile:{columns:1}},
+    children:[{id:'editorial-heading',type:'heading',level:2,text:'Our process',styles:{gridColumnStart:1,gridColumnSpan:2,gridRowStart:1,gridRowSpan:2}},
+      {id:'editorial-copy',type:'text',text:'Detail',styles:{gridColumnStart:3}}]
+  }]};site.pages[0].sections=[section];sdk.validateSite(site,manifests);
+  const html=G.render(site,section.designGraph);
+  assert.match(html,/<article class="cmsdg-n-editorial-card" aria-label="Case &amp; &lt;study&gt;">/);
+  assert.match(html,/grid-template-columns:minmax\(0,2fr\) minmax\(0,3fr\) minmax\(0,1fr\)/);
+  assert.match(html,/grid-auto-rows:minmax\(96px,auto\)/);
+  assert.match(html,/minmax\(0,1fr\) minmax\(0,2fr\)/);
+  assert.match(html,/grid-column:1 \/ span 2/);assert.match(html,/grid-row:1 \/ span 2/);
+  for(const fn of [n=>{n.styles.gridTracks=[1,'2'];},n=>{n.styles.gridTracks=[1];},n=>{n.styles.columns=3;},n=>{n.semanticTag='script';},n=>{n.ariaLabel='\u0000';},n=>{n.styles.gridAutoRowsPx=9999;}]){
+    const invalid=same(site);fn(invalid.pages[0].sections[0].designGraph.nodes[0]);
+    refuses(()=>sdk.validateSite(invalid,manifests),'invalid editorial properties');
+  }
+});
 test('semantic formatted inline heading fragments are safe and copyable',()=>{
   const G=require('../sdk/design-graph.cjs'),site=same(initial);
   const section=sdk.sectionFrom(manifests.find(m=>m.id==='custom-section'),'section-rich-words');

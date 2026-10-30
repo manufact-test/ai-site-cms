@@ -293,4 +293,27 @@ $last=count($badGallery['pages'][0]['sections'][2]['designGraph']['nodes'])-1;
 $badGallery['pages'][0]['sections'][2]['designGraph']['nodes'][$last]['children'][0]['href']='/';
 try{$validator->validate($badGallery);throw new RuntimeException('Conflicting lightbox link accepted');}
 catch(InvalidArgumentException $expected){}
+$editorialSite=$site;
+$editorialSite['pages'][0]['sections'][2]['designGraph']=['version'=>1,'id'=>'editorial-php-graph','nodes'=>[
+ ['id'=>'editorial-php-card','type'=>'container','semanticTag'=>'article','ariaLabel'=>'Client <case> & delivery',
+  'styles'=>['display'=>'grid','gridTracks'=>[2,3,1],'gridAutoRowsPx'=>96,'gap'=>20],
+  'responsive'=>['tablet'=>['gridTracks'=>[1,2]],'mobile'=>['columns'=>1]],
+  'children'=>[
+   ['id'=>'editorial-php-heading','type'=>'heading','text'=>'Результаты','level'=>2,'styles'=>['gridColumnStart'=>1,'gridColumnSpan'=>2,'gridRowStart'=>1,'gridRowSpan'=>2]],
+   ['id'=>'editorial-php-copy','type'=>'text','text'=>'Описание','styles'=>[]]
+  ]]]
+];
+$validator->validate($editorialSite);
+$editorialHtml=PublicRenderer::html($editorialSite,'/');
+graphTest(str_contains($editorialHtml,'<article class="cmsdg-n-editorial-php-card" aria-label="Client &lt;case&gt; &amp; delivery">'),'PHP semantic container and escaping');
+graphTest(str_contains($editorialHtml,'grid-template-columns:minmax(0,2fr) minmax(0,3fr) minmax(0,1fr)')&&
+ str_contains($editorialHtml,'grid-auto-rows:minmax(96px,auto)')&&
+ str_contains($editorialHtml,'grid-column:1 / span 2')&&
+ str_contains($editorialHtml,'grid-row:1 / span 2'),'PHP weighted grid geometry');
+foreach(['gridTracks'=>[1,'bad'],'gridAutoRowsPx'=>9999] as $key=>$value){
+ $invalid=$editorialSite;$invalid['pages'][0]['sections'][2]['designGraph']['nodes'][0]['styles'][$key]=$value;
+ try{$validator->validate($invalid);throw new RuntimeException('Bad editorial setting accepted');}catch(InvalidArgumentException $expected){}
+}
+$invalid=$editorialSite;$invalid['pages'][0]['sections'][2]['designGraph']['nodes'][0]['semanticTag']='script';
+try{$validator->validate($invalid);throw new RuntimeException('Bad semantic tag accepted');}catch(InvalidArgumentException $expected){}
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";

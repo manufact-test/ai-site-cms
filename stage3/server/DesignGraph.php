@@ -18,7 +18,7 @@ final class DesignGraph
         'top','left','opacity','borderColor','borderWidth','textAlign','order','hidden',
         'rowGap','columnGap','paddingX','paddingY','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginBottom','widthPercent',
         'minHeight','minHeightViewport','heightViewport','gridColumnSpan','flexWrap','flexGrow','alignSelf','letterSpacing',
-        'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset','shadowFine'];
+        'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset','shadowFine','gridTracks','gridAutoRowsPx'];
     private const ICON_PATHS=[
         'check'=>'<path d="M5 12l4 4L19 6"/>',
         'arrow'=>'<path d="M5 12h14m-6-6 6 6-6 6"/>',
@@ -122,7 +122,7 @@ final class DesignGraph
             'fontWeight'=>[100,900],'lineHeight'=>[80,250],'letterSpacing'=>[-50,200],
             'maxWidth'=>[0,1920],'widthPercent'=>[1,100],
             'borderWidth'=>[0,12],'order'=>[-30,30],'opacity'=>[0,100],
-            'outlineWidth'=>[0,8],'zIndex'=>[-10,30],'widthPx'=>[1,1920],'heightPx'=>[1,1400],'minWidth'=>[0,1920],'maxHeight'=>[0,1600],'gridRowSpan'=>[1,12],'flexBasisPercent'=>[0,100],'flexShrink'=>[0,1],'objectPositionX'=>[0,100],'objectPositionY'=>[0,100],'marginTop'=>[-160,160],'marginBottom'=>[-160,160],'minHeightViewport'=>[0,120],'heightViewport'=>[1,120],'wordSpacing'=>[-40,100],'textIndent'=>[-100,200],'gridColumnStart'=>[1,13],'gridRowStart'=>[1,13],'translateX'=>[-600,600],'translateY'=>[-600,600],'rotateDeg'=>[-180,180],'scalePercent'=>[50,200],'backdropBlur'=>[0,32]];
+            'outlineWidth'=>[0,8],'zIndex'=>[-10,30],'widthPx'=>[1,1920],'heightPx'=>[1,1400],'minWidth'=>[0,1920],'maxHeight'=>[0,1600],'gridRowSpan'=>[1,12],'flexBasisPercent'=>[0,100],'flexShrink'=>[0,1],'objectPositionX'=>[0,100],'objectPositionY'=>[0,100],'marginTop'=>[-160,160],'marginBottom'=>[-160,160],'minHeightViewport'=>[0,120],'heightViewport'=>[1,120],'wordSpacing'=>[-40,100],'textIndent'=>[-100,200],'gridColumnStart'=>[1,13],'gridRowStart'=>[1,13],'translateX'=>[-600,600],'translateY'=>[-600,600],'rotateDeg'=>[-180,180],'scalePercent'=>[50,200],'backdropBlur'=>[0,32],'gridAutoRowsPx'=>[24,600]];
         foreach ($style as $key=>$value) {
             if ($state)self::check(in_array($key,
                 ['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset','scalePercent'],true),
@@ -173,7 +173,7 @@ final class DesignGraph
         self::check(!(isset($style['widthPx'])&&isset($style['widthPercent'])),$at.' competing width units');
         self::check(!(isset($style['minHeight'])&&isset($style['minHeightViewport'])),$at.' competing min-height');
         self::check(!(isset($style['heightPx'])&&isset($style['heightViewport'])),$at.' competing height');
-        self::check(!(isset($style['columns'])&&isset($style['gridColumnsPreset'])),$at.' competing grid template');
+        self::check(count(array_intersect(['columns','gridColumnsPreset','gridTracks'],array_keys($style)))<=1,$at.' competing grid template');
         self::check(!(isset($style['shadow'])&&isset($style['shadowFine'])),$at.' competing shadow controls');
     }
     private static function motion(mixed $motion,string $at): void
@@ -207,12 +207,14 @@ final class DesignGraph
         $count=0;$popups=[];$triggers=[];
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,&$popups,&$triggers,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile','semanticTag','ariaLabel'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
                 &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'],true),
                 'invalid or duplicate node');
             $ids[$id]=true;
+            if(array_key_exists('semanticTag',$node))self::check($type==='container'&&in_array($node['semanticTag'],['div','article','section','aside'],true),'invalid semantic container tag');
+            if(array_key_exists('ariaLabel',$node))self::check($type==='container'&&($node['semanticTag']??'div')!=='div'&&is_string($node['ariaLabel'])&&trim($node['ariaLabel'])!==''&&mb_strlen($node['ariaLabel'],'UTF-8')<=120&&preg_match('/[\x00-\x1f]/',$node['ariaLabel'])!==1,'invalid container accessible name');
             if(array_key_exists('popupTarget',$node)){
                 self::check($type==='button'&&!array_key_exists('href',$node)&&
                     is_string($node['popupTarget'])&&preg_match(self::IDENT,$node['popupTarget'])===1,
@@ -491,6 +493,11 @@ final class DesignGraph
             'radius'=>'border-radius','fontSize'=>'font-size','minHeight'=>'min-height',
             'top'=>'top','left'=>'left','right'=>'right','bottom'=>'bottom','widthPx'=>'width','heightPx'=>'height','minWidth'=>'min-width','maxHeight'=>'max-height'];
         foreach($styles as $key=>$value){
+            if($key==='gridTracks'){
+                self::check(is_array($value)&&array_is_list($value)&&count($value)>=2&&count($value)<=6&&
+                    !array_filter($value,static fn($n)=>!self::integer($n,1,12)),$at.' invalid weighted grid tracks');
+                continue;
+            }
             if($key==='fluidFont'){
                 $slope=($value['max']-$value['min'])*100/880;
                 $intercept=$value['min']-$slope*3.2;
@@ -523,6 +530,8 @@ final class DesignGraph
             }
             if($key==='hidden'){if($value)$put('display','none');continue;}
             if($key==='columns'){$put('grid-template-columns','repeat('.$value.',minmax(0,1fr))');continue;}
+            if($key==='gridTracks'){$put('grid-template-columns',implode(' ',array_map(static fn($w)=>'minmax(0,'.$w.'fr)',$value)));continue;}
+            if($key==='gridAutoRowsPx'){$put('grid-auto-rows','minmax('.$value.'px,auto)');continue;}
             if($key==='gridColumnsPreset'){$put('grid-template-columns',['sidebar-left'=>'minmax(0,1fr) minmax(0,2fr)','sidebar-right'=>'minmax(0,2fr) minmax(0,1fr)','wide-center'=>'minmax(0,1fr) minmax(0,3fr) minmax(0,1fr)','editorial'=>'minmax(0,2fr) minmax(0,3fr) minmax(0,2fr)'][$value]);continue;}
             if($key==='gridColumnStart'||$key==='gridRowStart'){$put($key==='gridColumnStart'?'grid-column-start':'grid-row-start',$value);continue;}
             if($key==='translateX'||$key==='translateY'){$put($key==='translateX'?'--cmsdg-tx':'--cmsdg-ty',$value.'px');continue;}
@@ -575,6 +584,8 @@ final class DesignGraph
             if($key==='opacity')$put('opacity',number_format($value/100,2,'.',''));
             if($key==='borderWidth'){if(!isset($styles['borderStyle']))$put('border-style','solid');$put('border-width',$value.'px');}
         }
+        if(isset($styles['gridColumnStart'],$styles['gridColumnSpan']))$put('grid-column',$styles['gridColumnStart'].' / span '.$styles['gridColumnSpan']);
+        if(isset($styles['gridRowStart'],$styles['gridRowSpan']))$put('grid-row',$styles['gridRowStart'].' / span '.$styles['gridRowSpan']);
         foreach(['paddingTop'=>'padding-top','paddingRight'=>'padding-right','paddingBottom'=>'padding-bottom','paddingLeft'=>'padding-left'] as $key=>$prop)if(array_key_exists($key,$styles))$put($prop,self::resolve($styles[$key],'spacing',$t,$key).'px');
         return implode(';',$out);
     }
@@ -738,7 +749,8 @@ final class DesignGraph
                             '<video autoplay muted loop playsinline preload="none" poster="'.$poster.'">'.
                             '<source src="'.$url.'" type="video/mp4"></video></div>';
                     }
-                    return '<div class="'.$cls.'">'.$backdrop.$body.'</div>';
+                    $tag=$n['semanticTag']??'div';
+                    return '<'.$tag.' class="'.$cls.'"'.(!empty($n['ariaLabel'])?' aria-label="'.self::h($n['ariaLabel']).'"':'').'>'.$backdrop.$body.'</'.$tag.'>';
                 case 'list':
                     $body='';foreach($n['children'] as $child)$body.=$visit($child);
                     $tag=!empty($n['ordered'])?'ol':'ul';

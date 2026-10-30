@@ -2157,7 +2157,7 @@
             const val=input.value;
             if(['fontSize','padding','gap','color','background','textAlign','widthPx','heightPx',
               'minWidth','maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','borderStyle',
-              'filterPreset','shadow','objectPositionX','objectPositionY','translateX','translateY'].includes(key)){
+              'filterPreset','shadow','objectPositionX','objectPositionY','translateX','translateY','gridTracks','gridAutoRowsPx','display'].includes(key)){
               editGraphWork(node=>{
                 const style=mode==='desktop'?node.styles||(node.styles={}):
                   (node.responsive||(node.responsive={}))[mode]||((node.responsive[mode]={}));
@@ -2166,13 +2166,18 @@
                   if(mode!=='desktop'&&!Object.keys(style).length)delete node.responsive[mode];
                   if(node.responsive&&!Object.keys(node.responsive).length)delete node.responsive;
                 }else if(['fontSize','padding','gap','widthPx','heightPx','minWidth',
-                  'maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','objectPositionX','objectPositionY','translateX','translateY'].includes(key)){
+                  'maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','objectPositionX','objectPositionY','translateX','translateY','gridAutoRowsPx'].includes(key)){
                   style[key]=val.startsWith('@')?val.trim():Number(val);
+                }else if(key==='gridTracks'){
+                  style.gridTracks=val.split(',').map(part=>Number(part.trim()));
+                  delete style.columns;delete style.gridColumnsPreset;
                 }else{if(key==='shadow')delete style.shadowFine;style[key]=val.trim();}
               });
             }else editGraphWork(node=>{
               if(key==='href'&&!val&&node.type==='image')delete node.href;
               else if(key==='caption'){if(val.trim())node.caption=val;else delete node.caption;}
+               else if(key==='semanticTag'){node.semanticTag=val;if(val==='div')delete node.ariaLabel;}
+               else if(key==='ariaLabel'){if(val.trim())node.ariaLabel=val;else delete node.ariaLabel;}
               else if(key==='layout'){
                 node.layout=val;
                 if(val==='grid'){node.scrollControls=false;for(const field of ['visibleDesktop','visibleTablet','visibleMobile'])delete node[field];}
@@ -2220,7 +2225,16 @@
               property('Колонок на телефоне','columnsMobile',current.columnsMobile??1);
             }
           }
-          if(current.type==='image')property('Подпись изображения','caption',current.caption||'');
+          if(current.type==='container'){
+             property('Семантика блока','semanticTag',current.semanticTag||'div',[
+               ['div','Декоративная группа'],['section','Раздел'],['article','Статья / карточка'],['aside','Дополнительная область']]);
+             if(current.semanticTag&&current.semanticTag!=='div')property('Название области','ariaLabel',current.ariaLabel||'');
+             const layer=mode==='desktop'?current.styles||{}:current.responsive?.[mode]||{};
+             property('Режим компоновки','display',layer.display||'',[['','По умолчанию'],['grid','Сетка'],['flex','Flex'],['block','Обычный блок']]);
+             property('Доли колонок · 2,3,1','gridTracks',Array.isArray(layer.gridTracks)?layer.gridTracks.join(','):'');
+             property('Минимальная высота ряда, px','gridAutoRowsPx',layer.gridAutoRowsPx??'');
+           }
+           if(current.type==='image')property('Подпись изображения','caption',current.caption||'');
           if((current.type==='button'&&!current.popupTarget)||current.type==='link')
             property('Ссылка','href',current.href);
           if(current.type==='button'){
@@ -3540,6 +3554,14 @@
         }
         fields.append(editor);
       }
+      if(n.type==='container'){
+        fields.append(ctl('Семантика блока',{initial:n.semanticTag||'div',choices:[['div','Декоративная группа'],['section','Раздел'],['article','Статья / карточка'],['aside','Дополнительная область']]},value=>{
+          n.semanticTag=value;if(value==='div')delete n.ariaLabel;
+        },'select'));
+        fields.append(ctl('Название семантической области',n.ariaLabel||'',value=>{
+          if(value.trim())n.ariaLabel=value;else delete n.ariaLabel;
+        }));
+      }
       if(n.type==='gallery'){
         fields.append(ctl('Пропорции миниатюр',{initial:n.photoShape||'natural',
           choices:[['natural','Оригинальные'],['square','Квадрат 1:1'],['landscape','Широкие 16:9'],['portrait','Вертикальные 3:4']]},value=>{
@@ -3659,8 +3681,14 @@
       }
       const styleFields=make('div',undefined,'cms-design-fields');root.append(styleFields);
       const style=editStyle(n),limited=['hover','focus','active'].includes(mode);
+      if(!limited)styleFields.append(ctl('Доли колонок Grid: 2,3,1 (2–6 колонок)',
+        Array.isArray(style.gridTracks)?style.gridTracks.join(','):'',value=>{
+          if(!value.trim()){delete style.gridTracks;return;}
+          style.gridTracks=value.split(',').map(part=>Number(part.trim()));
+          delete style.columns;delete style.gridColumnsPreset;
+        }));
       for(const key of DESIGN_GRAPH.STYLE_KEYS){
-        if(key==='fluidFont'||key==='shadowFine')continue;
+        if(key==='fluidFont'||key==='shadowFine'||key==='gridTracks')continue;
         if(limited&&!['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset','scalePercent'].includes(key))continue;
         if(key==='gradient')continue;
         const values={
@@ -3694,7 +3722,10 @@
         if(values[key]){
           const options=[['','По умолчанию'],...values[key].map(x=>[x,x])];
           styleFields.append(ctl(key,{initial:value,choices:options},v=>{
-            if(!v)delete style[key];else style[key]=key==='hidden'?v==='true':v;
+            if(!v)delete style[key];else{
+              if(key==='gridColumnsPreset'){delete style.columns;delete style.gridTracks;}
+              style[key]=key==='hidden'?v==='true':v;
+            }
           },'select'));
         }else styleFields.append(ctl(key,value,v=>{
           if(!v.trim()){delete style[key];return;}
@@ -3705,6 +3736,7 @@
           if(key==='heightViewport')delete style.heightPx;
           if(key==='heightPx')delete style.heightViewport;
           if(key==='shadow')delete style.shadowFine;
+          if(key==='columns'){delete style.gridColumnsPreset;delete style.gridTracks;}
           style[key]=v.startsWith('@')?v.trim():Number(v);
         }));
       }
