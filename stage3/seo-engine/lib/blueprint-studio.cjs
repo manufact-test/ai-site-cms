@@ -131,6 +131,7 @@ function editor(){
   const change=()=>{
    if(opt.lines)obj[key]=e.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
    else if(opt.number)obj[key]=Number(e.value);
+   else if(opt.optional&&!e.value.trim())delete obj[key];
    else obj[key]=e.value;
    check();
   };
@@ -162,7 +163,7 @@ function editor(){
    field(n.fields,'Fact ID',f,'id');field(n.fields,'Claim / exact owner evidence',f,'claim',{full:true});
    field(n.fields,'Verification status',f,'status',{options:choices.status});
    field(n.fields,'Origin',f,'origin',{options:choices.origin});
-   field(n.fields,'HTTPS source (optional)',f,'source',{full:true});
+   field(n.fields,'HTTPS source (optional)',f,'source',{full:true,optional:true});
   });
   data.research.forEach((r,i)=>{
    const n=nest($('research'),'Research '+(i+1));n.head.append(button('Remove',()=>drop(data.research,i),'danger'));
@@ -182,9 +183,9 @@ function editor(){
    field(grid,'SEO title',p.seo,'title',{full:true});
    field(grid,'Meta description',p.seo,'description',{full:true});
    field(grid,'Robots directive',p.seo,'robots',{options:choices.robots});
-   field(grid,'Canonical page path (optional)',p.seo,'canonicalPath');
-   field(grid,'OG title (optional)',p.seo,'ogTitle');
-   field(grid,'OG description (optional)',p.seo,'ogDescription',{full:true});
+   field(grid,'Canonical page path (optional)',p.seo,'canonicalPath',{optional:true});
+   field(grid,'OG title (optional)',p.seo,'ogTitle',{optional:true});
+   field(grid,'OG description (optional)',p.seo,'ogDescription',{full:true,optional:true});
    const sections=nest(item,'Sections / headings');
    sections.head.append(button('Add section',()=>{
     p.sections.push({id:'',heading:'',level:2,why:'',points:[]});rerender();
@@ -215,7 +216,7 @@ function editor(){
      field(n.fields,'CTA purpose',s.cta,'purpose',{full:true});
      n.head.append(button('Remove CTA',()=>{delete s.cta;rerender()},'danger'));
     }else n.head.append(button('Add CTA',()=>{s.cta={label:'',toPageId:'',purpose:''};rerender()}));
-    field(n.fields,'Interaction notes (optional)',s,'interaction',{full:true});
+    field(n.fields,'Interaction notes (optional)',s,'interaction',{full:true,optional:true});
    });
    const links=nest(item,'Contextual internal links');
    links.head.append(button('Add internal link',()=>{
@@ -243,7 +244,7 @@ function editor(){
   });
  }
  function problems(){
-  const issues=[],add=(id,msg)=>issues.push(id+': '+msg),ids=new Set(),paths=new Set(),factIds=new Set();
+  const issues=[],add=(id,msg)=>issues.push(id+': '+msg),ids=new Set(),pageIds=new Set(),paths=new Set(),factIds=new Set();
   const text=(v,n=1,max=700)=>typeof v==='string'&&v.trim().length>=n&&v.length<=max&&
    !/[\x00-\x1f]/.test(v)&&!/<\s*\/?\s*[a-z][^>]*>/i.test(v);
   if(!idPattern.test(data.siteId||''))add('siteId','Use lowercase stable ID (3–80 characters)');
@@ -264,7 +265,7 @@ function editor(){
   }
   for(const pg of all(data.pages)){
    if(!idPattern.test(pg.id||'')||ids.has(pg.id))add('page','Invalid or duplicate page ID');
-   ids.add(pg.id);
+   ids.add(pg.id);pageIds.add(pg.id);
    if(!pathPattern.test(pg.path||'')||paths.has(pg.path))add('page '+pg.id,'Invalid/duplicate trailing-slash route');
    paths.add(pg.path);
    if(!text(pg.name)||!text(pg.intent?.need)||!all(pg.intent?.topics).length||
@@ -272,10 +273,15 @@ function editor(){
    if(!text(pg.seo?.title)||!text(pg.seo?.description))add('page '+pg.id,'Title and description required');
    let h1=0;
    if(!all(pg.sections).length)add('page '+pg.id,'At least one section required');
+   if(pg.sections.length>40)add('page '+pg.id,'Maximum 40 sections');
+   if(pg.links.length>80)add('page '+pg.id,'Maximum 80 internal links');
+   if(pg.schemaCandidates.length>12)add('page '+pg.id,'Maximum 12 schema candidates');
    for(const s of all(pg.sections)){
     if(!idPattern.test(s.id||'')||ids.has(s.id))add('section','Invalid or reused section ID');
     ids.add(s.id);if(s.level===1)h1++;
-    if(!text(s.heading)||!text(s.why)||!all(s.points).length)add('section '+s.id,'Heading, purpose and points required');
+    if(!text(s.heading)||!text(s.why)||!all(s.points).length||s.points.length>15)
+     add('section '+s.id,'Heading, purpose and 1–15 points required');
+    if(s.cta&&(!text(s.cta.label)||!text(s.cta.purpose)))add('section '+s.id,'CTA label and purpose required');
     if(s.media&&(!text(s.media.why)||s.media.purpose==='informative'&&!text(s.media.alt)||
       s.media.purpose==='decorative'&&s.media.alt!==''))
      add('section '+s.id,'Media purpose, alt and reason must agree');
@@ -287,12 +293,12 @@ function editor(){
   if(!paths.has('/'))add('pages','Home / route required');
   for(const p of all(data.pages)){
    if(p.seo.canonicalPath&&!paths.has(p.seo.canonicalPath))add('page '+p.id,'Canonical path missing from page map');
-   for(const link of all(p.links))if(!ids.has(link.toPageId)||!text(link.anchor)||!text(link.why))
+   for(const link of all(p.links))if(!pageIds.has(link.toPageId)||!text(link.anchor)||!text(link.why))
     add('page '+p.id,'Internal link target ID / anchor / purpose missing');
-   for(const s of all(p.sections))if(s.cta&&(!ids.has(s.cta.toPageId)||!text(s.cta.label)||!text(s.cta.purpose)))
+   for(const s of all(p.sections))if(s.cta&&(!pageIds.has(s.cta.toPageId)||!text(s.cta.label)||!text(s.cta.purpose)))
     add('section '+s.id,'CTA target or text missing');
-   for(const c of all(p.schemaCandidates))if(!all(c.factIds).length||
-    all(c.factIds).some(id=>!factIds.has(id))||!text(c.why))
+   for(const c of all(p.schemaCandidates))if(!choices.schema.includes(c.type)||!all(c.factIds).length||
+    c.factIds.length>20||all(c.factIds).some(id=>!factIds.has(id))||!text(c.why))
     add('page '+p.id,'Schema fact ID reference or why missing');
   }
   return issues.slice(0,120);
@@ -316,9 +322,18 @@ function editor(){
    Array.isArray(candidate.pages)&&candidate.pages.length>0&&candidate.pages.length<=80&&
    Array.isArray(candidate.facts)&&candidate.facts.length<=100&&
    Array.isArray(candidate.research)&&candidate.research.length<=60&&
+   candidate.facts.every(f=>f&&typeof f==='object'&&!Array.isArray(f))&&
+   candidate.research.every(r=>r&&typeof r==='object'&&!Array.isArray(r))&&
    candidate.pages.every(p=>p&&typeof p==='object'&&
-    p.intent&&p.seo&&p.responsive&&Array.isArray(p.sections)&&p.sections.length>0&&
-    Array.isArray(p.links)&&Array.isArray(p.schemaCandidates));
+    p.intent&&typeof p.intent==='object'&&Array.isArray(p.intent.topics)&&
+    p.seo&&typeof p.seo==='object'&&p.responsive&&typeof p.responsive==='object'&&
+    Array.isArray(p.sections)&&p.sections.length>0&&p.sections.length<=40&&
+    p.sections.every(s=>s&&typeof s==='object'&&!Array.isArray(s)&&
+     Array.isArray(s.points)&&(!s.cta||typeof s.cta==='object')&&
+     (!s.media||typeof s.media==='object'))&&
+    Array.isArray(p.links)&&p.links.every(l=>l&&typeof l==='object')&&
+    Array.isArray(p.schemaCandidates)&&p.schemaCandidates.every(c=>c&&typeof c==='object'&&Array.isArray(c.factIds)));
+
  }
  function download(prefix){
   const name=prefix+'-'+data.siteId+'.json',content=JSON.stringify(data,null,2)+'\n';
