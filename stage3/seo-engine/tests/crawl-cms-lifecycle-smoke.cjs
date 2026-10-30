@@ -75,6 +75,9 @@ const crawl={policy,cmsBlueprint:bp,cmsSite:afterSite,
 const ws=WORK.build({crawl});
 assert(ws.crawlCmsRecheckHtml&&ws.crawlCmsRecheckJson);
 assert(ws.crawlCmsDecisionsTemplate.includes('"unreviewed"'));
+assert(ws.crawlCmsDecisionDeskHtml.includes('script-src &#39;sha256-'));
+assert(ws.crawlCmsDecisionDeskHtml.includes('Validate and export ledger'));
+assert(!ws.crawlCmsDecisionDeskHtml.includes('fetch('));
 assert.equal(ws.overview.crawlCmsReportedCompleteStillObserved,1);
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'manufact-crawl-cms-cycle-'));
 try{
@@ -83,6 +86,7 @@ try{
   decisions=write('decisions.json',ledgerText);
  const templateOut=path.join(tmp,'template');
  CLI.main(['--worklist',old,'--out',templateOut]);
+ assert(fs.existsSync(path.join(templateOut,'crawl-cms-decisions.html')));
  const generated=JSON.parse(fs.readFileSync(path.join(templateOut,'crawl-cms-decisions-TEMPLATE.json')));
  assert.equal(generated.sourceWorklistRawSha256,beforeSHA);
  assert(generated.decisions.every(d=>d.status==='unreviewed'));
@@ -90,7 +94,7 @@ try{
  const cycleOut=path.join(tmp,'cycle');
  CLI.main(['--before',old,'--after',newer,'--decisions',decisions,'--out',cycleOut]);
  for(const n of ['crawl-cms-recheck.html','crawl-cms-recheck.json','crawl-cms-recheck.md',
-  'crawl-cms-next-decisions-TEMPLATE.json','PRIVATE-SOURCE-MANIFEST.json'])
+  'crawl-cms-next-decisions-TEMPLATE.json','crawl-cms-next-decisions.html','PRIVATE-SOURCE-MANIFEST.json'])
   assert(fs.existsSync(path.join(cycleOut,n)),n);
  const saved=JSON.parse(fs.readFileSync(path.join(cycleOut,'crawl-cms-recheck.json')));
  assert.equal(saved.summary.completedReportedStillObserved,1);
