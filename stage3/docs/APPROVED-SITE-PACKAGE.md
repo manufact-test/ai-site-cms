@@ -927,3 +927,8 @@ For pinned visual compositions, typed `styles.position` and responsive layers no
 For the actual approved-v2 client handoff, compare gallery crops, accessible captions, grid columns, click/keyboard behavior and sticky position to the original reference on **all three devices**. Green CI is implementation evidence, not real customer approval.
 
 **Six-language public controls:** the built-in lightbox and gallery navigation accessibility labels automatically follow the immutable released `site.language` (`ru`, `en`, `pl`, `de`, `be`, `uk`). Photo captions, alt descriptions and approved copy are never auto-translated. PHP and the Studio JS preview render corresponding labels; both validation paths still prohibit unsafe markup, links+lightbox collisions and unbound media.
+
+
+## 30 October 2026 — authored gallery thumbnail proportions
+
+Typed Design Graph galleries now accept an optional `photoShape` (`natural`, `square`, `landscape`, `portrait`), allowing approved portfolio photography to retain natural dimensions or use consistent 1:1, 16:9 or 3:4 thumbnail crops. The selected shape applies to gallery thumbnails only; expanded lightbox images preserve original proportions and `object-fit: contain`. The existing Studio Graph quick workbench edits the same draft property, with undo/save/publish isolation. The JS and PHP validators reject arbitrary values and foreign-node use. This is a visual-fidelity feature, not license to change source files, and needs comparison with the actual approved desktop/tablet/mobile client mockups. No status/acceptance promotion; no SEO-worker/main/production change.

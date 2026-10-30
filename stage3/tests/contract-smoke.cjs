@@ -1814,7 +1814,7 @@ test('grid gallery captions, native lightbox and safe click-actions',()=>{
     {id:'asset-photo-beta',src:'/assets/asset-photo-beta.png',alt:'Фотография интерьера',mime:'image/png'});
   const section=sdk.sectionFrom(reg.get('custom-section'),'section-gallery-full');
   const gallery={id:'gallery-portfolio',type:'gallery',text:'Реальные проекты <портфолио>',
-    layout:'grid',columnsDesktop:4,columnsTablet:2,columnsMobile:1,lightbox:true,
+    layout:'grid',columnsDesktop:4,columnsTablet:2,columnsMobile:1,lightbox:true,photoShape:'square',
     children:[
       {id:'gallery-photo-alpha',type:'image',assetId:'asset-photo-alpha',alt:'Фасад',caption:'Проект <первый>',styles:{}},
       {id:'gallery-photo-beta',type:'image',assetId:'asset-photo-beta',alt:'Интерьер',caption:'Интерьер & свет',styles:{}}
@@ -1823,6 +1823,9 @@ test('grid gallery captions, native lightbox and safe click-actions',()=>{
   site.pages[0].sections.push(section);sdk.validateSite(site,manifests);
   const html=G.render(site,section.designGraph);
   assert.match(html,/cmsdg-gallery-grid/);
+  assert.match(html,/cmsdg-gallery-shape-square/);
+  gallery.photoShape='javascript:bad';refuses(()=>sdk.validateSite(site,manifests));
+  gallery.photoShape='square';
   assert.match(html,/--cmsdg-gallery-columns:4;--cmsdg-gallery-tablet:2;--cmsdg-gallery-mobile:1/);
   assert.match(html,/popovertarget="cmsdg-lightbox-gallery-photo-alpha"/);
   assert.match(html,/role="dialog" aria-label="Фасад"/);
