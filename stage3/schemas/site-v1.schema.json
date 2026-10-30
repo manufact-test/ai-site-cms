@@ -887,7 +887,8 @@
           "enum": [
             "static",
             "relative",
-            "absolute"
+            "absolute",
+            "sticky"
           ]
         },
         "top": {
