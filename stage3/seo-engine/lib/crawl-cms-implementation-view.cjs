@@ -52,7 +52,7 @@ function render(report){
   '<p><span class="badge">P0 '+report.summary.priorities.P0+' · P1 '+report.summary.priorities.P1+' · P2 '+report.summary.priorities.P2+'</span></p>'+
   '<p>This is an implementation planning view of operator-supplied files, NOT an authenticated current CMS or Google status.</p></header>'+
   '<section><h2>Prioritized owner / CMS lead work</h2>'+
-  '<p><a href="crawl-cms-worklist.md">Open private Markdown worklist</a> · <a href="crawl-cms-worklist.json">Read-only JSON work packets</a></p>'+
+  '<p><a href="crawl-cms-worklist.md">Open private Markdown worklist</a> · <a href="crawl-cms-worklist.json">Read-only JSON work packets</a> · <a href="crawl-cms-decisions.html">Fill offline human Decision Desk</a> · <a href="crawl-cms-decisions-TEMPLATE.json">Download fresh decision template</a></p>'+
   '<div class="scroll"><table><thead><tr><th>Priority</th><th>System</th><th>Approved route</th><th>Observed issue</th><th>Next human action</th></tr></thead><tbody>'+
   (tasks||'<tr><td colspan="5">No findings triggered. This is not an approval to publish.</td></tr>')+
   '</tbody></table></div></section>'+
