@@ -43,6 +43,9 @@ assert(POLICY.decide(POLICY.parseRobots('User-agent: *\nDisallow: /files/private
  'Googlebot','/files/private/archive').allowed,'Dollar-end anchor cannot match subdirectories');
 const unrelated=POLICY.parseRobots('User-agent: Bingbot\nDisallow: /\nUser-agent: Googlebot\nAllow: /\n');
 assert(POLICY.decide(unrelated,'Googlebot','/').allowed);
+const unicodeBot=POLICY.parseRobots('User-agent: *\nDisallow: /caf%C3%A9/\n');
+assert(!POLICY.decide(unicodeBot,'Googlebot','/café/').allowed,
+ 'Unicode UTF-8 path and encoded robots rule must compare equivalently');
 assert(!POLICY.decide(unrelated,'Bingbot','/').allowed);
 assert.throws(()=>POLICY.parseRobots('User-agent: Googlebot\nDisallow: /'+'x'.repeat(2050)),/exceeds safe maximum/);
 // Explicit partial sitemap cannot prove a missing route.
@@ -68,6 +71,11 @@ assert.equal(onMount.summary.canonicalIndexable,2);
 assert(!onMount.findings.some(x=>x.code==='sitemap:unapproved-url'));
 const encoded='<?xml version="1.0"?><urlset><url><loc>https://demo.example/?x=1&amp;y=2</loc></url></urlset>';
 assert.equal(POLICY.parseSitemap(encoded).records.length,1);
+const dates='<?xml version="1.0"?><urlset><url><loc>https://demo.example/</loc><lastmod>2026-10-30</lastmod></url></urlset>';
+assert.equal(POLICY.parseSitemap(dates).records[0].lastmod,'2026-10-30');
+assert.throws(()=>POLICY.parseSitemap(dates.replace('2026-10-30','2026-02-30')),/lastmod calendar/);
+const ns='<?xml version="1.0"?><m:urlset xmlns:m="https://www.sitemaps.org/schemas/sitemap/0.9"><m:url><m:loc>https://demo.example/</m:loc></m:url></m:urlset>';
+assert.equal(POLICY.parseSitemap(ns).records.length,1);
 assert.throws(()=>POLICY.parseSitemap(xml.replace('</urlset>','')),/unclosed|incomplete/);
 assert.throws(()=>POLICY.parseSitemap(xml.replace('https://demo.example/contact/','https://demo.example/')),/Duplicate/);
 assert.throws(()=>POLICY.parseSitemap(xml.replace('<urlset ','<!DOCTYPE x [<!ENTITY a "bad">]><urlset ')),/unsafe/i);
