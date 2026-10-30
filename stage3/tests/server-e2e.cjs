@@ -3,6 +3,16 @@
 // Tests multi-page CMS drafts, credentials, CSRF, stale edits, restore,
 // explicit publishing, visitor isolation, HTML escaping and process restart.
 const assert=require('node:assert/strict');
+// A disposable test server is restarted repeatedly while many probes inspect only
+// response headers. Drain clone bodies before returning to prevent an unfinished
+// undici parser being reused after the loopback socket closes.
+const nativeFetch=globalThis.fetch.bind(globalThis);
+globalThis.fetch=async (...args)=>{
+  const response=await nativeFetch(...args);
+  if(response.body===null)return response;
+  const bytes=await response.arrayBuffer();
+  return new Response(bytes,{status:response.status,statusText:response.statusText,headers:response.headers});
+};
 const {spawn,spawnSync}=require('node:child_process');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),net=require('node:net');
 const root=path.resolve(__dirname,'../..');
