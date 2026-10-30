@@ -27,6 +27,11 @@ try{
  assert.equal(manifest.actualNetworkRequests,0);
  assert.equal(manifest.releaseAuthorized,false);
  assert(fs.readFileSync(path.join(dir,'index.html'),'utf8').includes('P0'));
+ assert(fs.readFileSync(path.join(dir,'index.html'),'utf8').includes('DECISION-DESK.html'));
+ const localDesk=fs.readFileSync(path.join(dir,'DECISION-DESK.html'),'utf8');
+ assert(localDesk.includes('Blueprint Decision Desk'));
+ assert(localDesk.includes('connect-src &#39;none&#39;'));
+ assert(manifest.decisionEditorSha256);
  const decisionsFile=path.join(root,'decisions.json');
  const worksheet=JSON.parse(fs.readFileSync(path.join(dir,'DECISION-WORKSHEET.json')));
  fs.writeFileSync(decisionsFile,JSON.stringify(worksheet));

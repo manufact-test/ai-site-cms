@@ -51,6 +51,10 @@ node stage3/seo-engine/tests/blueprint-studio-browser-smoke.cjs
 
 The first test checks source-accurate canonical conversions, HTML/script CSP and source escaping. The second runs actual local Node CLI creation/import against private temporary inputs and verifies non-overwrite, no-checkout imports and cleanup. A third test drives the exported offline HTML with a minimal DOM to check a live page-count/link-plan preview, adding a page, incomplete-state rejection and safe draft export. These are **offline** tests; they are not a claim that a real client site or live hosting has been validated.
 
+## Compare prior SEO plans with a new Studio export
+
+After exporting a new Studio brief, run bin/compare-seo-blueprints.cjs against the previous approved Blueprint/brief. Both original compiled Blueprint v1 and raw v1 brief are supported. The new private HTML report contains an offline DECISION-DESK.html for the owner/SEO lead. A second exact-source decision reviewer records status without authenticating client approval. See BLUEPRINT-CHANGE-REVIEW.md. These tools never update Site v1 or create actual 301s.
+
 ## Boundaries
 
 - One primary language per `manufact-seo-brief-v1`; hreflang/localized variants require a separately approved v2 contract, not guessed locale URLs.

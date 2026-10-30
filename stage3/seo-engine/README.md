@@ -1,3 +1,7 @@
+## 30 October 2026 — Blueprint Change Intelligence and offline decision desk
+
+New feature: bin/compare-seo-blueprints.cjs compares canonical Blueprint v1 plans or original v1 briefs including Blueprint Studio exports. It derives stable-ID route, meta, canonical, robots, inherited contextual-link URL, schema fact, architecture, and editorial changes, plus future 301/200 probes and P0/P1/P2 tasks. Private atomic output includes HTML, JSON, Markdown, source SHA256 manifest and offline CSP-restricted DECISION-DESK.html. bin/review-blueprint-decisions.cjs rederives every action from the two original files and checks exact source hashes and user decisions. No checkbox grants deployment or authenticated owner signoff. See BLUEPRINT-CHANGE-REVIEW.md. Only CMS lead integrates worker subtree.
+
 ### 30 October 2026 — Blueprint Studio live architecture and focused browser smoke
 
 The new local SEO Blueprint Studio now previews approved contextual link/CTA graph, inbound/reachability from home, proposed canonicals, overlapping primary topic/intent/title, and unsupported schema claim dependencies as the operator edits. It distinguishes **planned architecture** from real deployed crawlability. The private editor requires no CMS changes and exports a v1 source brief for the existing unchanged Node compiler. Added `blueprint-studio-browser-smoke.cjs` to exercise editing and export restrictions in a minimal DOM. See [BLUEPRINT-STUDIO-QUICKSTART.md](BLUEPRINT-STUDIO-QUICKSTART.md). The lead still owns integration, real customer data and publication.
