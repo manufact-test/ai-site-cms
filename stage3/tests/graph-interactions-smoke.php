@@ -213,4 +213,18 @@ $badRich['pages'][0]['sections'][2]['designGraph']['nodes'][count($richSite['pag
 try{$validator->validate($badRich);throw new RuntimeException('Unsafe rich fragment accepted');}
 catch(InvalidArgumentException $expected){}
 
+$geomSite=$site;
+$geomSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+  'id'=>'geometry-hero','type'=>'container',
+  'styles'=>['display'=>'grid','padding'=>40,'paddingTop'=>12,
+    'minHeightViewport'=>90,'gradient'=>['type'=>'radial','angle'=>0,
+    'from'=>'#112233','to'=>'#ffffff','centerX'=>25,'centerY'=>70,'radius'=>'closest-side']],
+  'responsive'=>['mobile'=>['minHeightViewport'=>75,'paddingRight'=>8]],
+  'children'=>[['id'=>'geometry-heading','type'=>'heading','level'=>2,'text'=>'Адаптивная композиция']]];
+$validator->validate($geomSite);
+$geomHtml=PublicRenderer::html($geomSite,'/');
+graphTest(str_contains($geomHtml,'min-height:90vh;min-height:90svh')&&
+    str_contains($geomHtml,'padding-top:12px')&&
+    str_contains($geomHtml,'radial-gradient(circle closest-side at 25% 70%'),
+    'PHP renderer must preserve authored viewport and radial geometry');
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";
