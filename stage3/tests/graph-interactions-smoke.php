@@ -241,11 +241,16 @@ $gallerySite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
       ['id'=>'gallery-photo-beta','type'=>'image','assetId'=>'asset-photo-beta',
         'alt'=>'Интерьер','caption'=>'Уют & свет','styles'=>[]]
     ]];
+$gallerySite['pages'][0]['sections'][2]['designGraph']['nodes'][
+    count($gallerySite['pages'][0]['sections'][2]['designGraph']['nodes'])-1]['styles']=['position'=>'sticky','top'=>12];
 $validator->validate($gallerySite);
 $galleryHtml=PublicRenderer::html($gallerySite,'/');
 graphTest(str_contains($galleryHtml,'cmsdg-gallery-grid')&&
+    str_contains($galleryHtml,'position:sticky;top:12px')&&
     str_contains($galleryHtml,'--cmsdg-gallery-columns:4;--cmsdg-gallery-tablet:2;--cmsdg-gallery-mobile:1')&&
     str_contains($galleryHtml,'popovertarget="cmsdg-lightbox-gallery-photo-alpha"')&&
+    str_contains($galleryHtml,'aria-label="Следующая фотография"')&&
+    str_contains($galleryHtml,'popovertarget="cmsdg-lightbox-gallery-photo-beta"')&&
     str_contains($galleryHtml,'<figcaption>Проект &lt;первый&gt;</figcaption>')&&
     !str_contains($galleryHtml,'<первый>'),
     'PHP renders real gallery with safe captions and native lightbox');
