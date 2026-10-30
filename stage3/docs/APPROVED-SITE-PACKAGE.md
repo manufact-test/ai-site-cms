@@ -952,3 +952,8 @@ Individual horizontally scrolling galleries can now opt into `visibleDesktop` (1
 ### 30 October 2026 — standalone authored image figures
 
 Typed Design Graph `image.caption` now works on standalone pictures as well as gallery photos. The JS and PHP renderers produce semantic `<figure class="cmsdg-image-figure">` + escaped `<figcaption>` for standalone images, preserving responsive `<picture>` variants and safe optional image links. Inside galleries, the existing outer gallery `<figure>` owns captions; no nested duplicate figures are emitted. Both Studio modes expose caption editing for any image. Regression coverage added for linked standalone figures, HTML escaping, and rejecting control characters. No arbitrary custom HTML enabled; owner visual comparison with real approved site remains pending. This is an engineering candidate, not owner acceptance.
+
+
+### Lead-integrator transition reference (30 October 2026)
+
+The complete next-chat startup and boundary checklist is saved at `handoffs/lead-integrator/MAIN-HANDOFF-v8.0-2026-10-30.md`. Its SHA is informational: always resolve current branch HEAD from GitHub on startup. Before acceptance, match both CI jobs to exact HEAD and compare each real approved desktop/tablet/mobile reference rather than reusing synthetic checks.
