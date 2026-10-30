@@ -589,3 +589,7 @@ The three-device quality audit now resolves the typed Design Graph display/hidde
 ### 30 October 2026 — actionable all-page viewport navigation in the existing Quality panel
 
 The existing "SEO-аудит и адреса" dialog now has an expandable inventory of every real page at desktop/tablet/mobile widths: visible section, H1 and form counts, plus direct draft Inspector jumps for that page and device. The existing whole-page workbench now indicates which sections are hidden on the selected device and keeps them selectable after switching devices. This helps the owner repair a responsive approved layout without deleting sections, creating templates or adding another CMS subsystem. No main/SEO/production writes or acceptance status changes.
+
+### 30 October 2026 — device-specific quality findings lead to the real editable target
+
+Quality findings for a mobile/tablet/desktop hidden anchor now retain the target page ID and section ID, rather than opening the source page and leaving the owner hunting for the missing destination. Lost form warnings focus the actual authored form section; missing device H1 warnings focus the original heading section/Graph node if one exists. The existing Quality panel applies the relevant breakpoint before navigating. All actions use the current draft Inspector and separate Save/Publish; no new publishing route, database or template library. Browser acceptance checks the three-device overview's real mobile navigation.

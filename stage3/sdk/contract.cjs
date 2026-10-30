@@ -545,7 +545,7 @@ function inspectSite(raw,regInput){
       if(target)for(const device of BREAKPOINTS)
         if(target.deviceVisibility?.[device]===false&&source?.deviceVisibility?.[device]!==false)
           warnings.push(add('hidden-anchor-device',page,href,
-            'Ссылка ведёт к скрытой на '+device+' секции.',{...extra,device,targetSectionId:hash}));
+            'Ссылка ведёт к скрытой на '+device+' секции.',{...extra,device,targetSectionId:hash,targetPageId:targetPage.id}));
     }
   };
   const checkMedia=(assetId,page,section,elementId)=>{
@@ -648,13 +648,16 @@ function inspectSite(raw,regInput){
         h1:h1Count,forms:formCount});
       if(totalForms>0&&formCount===0)
         warnings.push(add('device-missing-form',page,page.path,
-          'На '+device+' все формы этой страницы скрыты.',{device}));
+          'На '+device+' все формы этой страницы скрыты.',{device,sectionId:page.sections.find(section=>
+            ['lead-form','lead-form-flex'].includes(section.component))?.id}));
       // New warnings only for layouts actually using device/Graph visibility.
       if(!hasVisibilitySettings)continue;
       if(h1Count===0)warnings.push(add('device-missing-h1',page,page.path,
-        'Нет видимого H1 на '+device+' после скрытия секций.',{device}));
+        'Нет видимого H1 на '+device+' после скрытия секций.',{device,
+          sectionId:h1s[0]?.sectionId,nodeId:h1s[0]?.nodeId}));
       if(h1Count>1)warnings.push(add('device-multiple-h1',page,page.path,
-        'На '+device+' видны '+h1Count+' заголовка H1.',{device}));
+        'На '+device+' видны '+h1Count+' заголовка H1.',{device,
+          sectionId:deviceHeadings.find(item=>item.level===1)?.sectionId}));
       if(deviceHeadings.length&&deviceHeadings[0].level!==1&&h1Count)
         warnings.push(add('device-h1-position',page,page.path,
           'На '+device+' первый видимый заголовок не H1.',{device}));

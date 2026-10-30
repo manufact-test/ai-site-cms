@@ -1220,7 +1220,8 @@
           if(issue.pageId){
             const isSeo=issue.kind.startsWith('seo-')||issue.kind.startsWith('duplicate-seo-');
             const isAltFix=['missing-alt','generic-alt'].includes(issue.kind)&&!!issue.assetId;
-            const jump=button(isSeo?'Открыть SEO':isAltFix?'Исправить ALT':issue.nodeId?'Открыть композицию':issue.assetId?'Перейти к изображению':'Открыть страницу',
+            const isHiddenTarget=issue.kind==='hidden-anchor-device'&&!!issue.targetSectionId;
+            const jump=button(isSeo?'Открыть SEO':isAltFix?'Исправить ALT':isHiddenTarget?'Открыть целевую секцию':issue.nodeId?'Открыть композицию':issue.assetId?'Перейти к изображению':'Открыть страницу',
               'btn small',()=>{
                 if(isAltFix){
                   const asset=session.current.assets.find(item=>item.id===issue.assetId);
@@ -1230,14 +1231,15 @@
                   if(!alt.trim()){notice('ALT оставлен пустым. Укажите реальное содержание изображения или отмените правку.',true);return;}
                   structural({action:'renameAsset',assetId:asset.id,alt:alt.trim()});print();return;
                 }
-                const page=session.current.pages.find(item=>item.id===issue.pageId);
+                const page=session.current.pages.find(item=>item.id===(isHiddenTarget?issue.targetPageId:issue.pageId));
                 if(!page)return;
-                pageId=page.id;
-                const selected=issue.sectionId?page.sections.find(item=>item.id===issue.sectionId):page.sections[0];
+                pageId=page.id;if(issue.device&&C.BREAKPOINTS.includes(issue.device))breakpoint=issue.device;
+                const sectionFocus=isHiddenTarget?issue.targetSectionId:issue.sectionId;
+                const selected=sectionFocus?page.sections.find(item=>item.id===sectionFocus):page.sections[0];
                 sectionId=selected?.id||page.sections[0].id;
                 elementId=issue.elementId&&selected?.elements.concat(selected.items||[]).some(item=>item.id===issue.elementId)
                   ?issue.elementId:(selected?.elements[0]?.id||'');
-                pendingGraphAuditFocus=issue.nodeId&&selected?.designGraph
+                pendingGraphAuditFocus=!isHiddenTarget&&issue.nodeId&&selected?.designGraph
                   ?{pageId:page.id,sectionId:selected.id,nodeId:issue.nodeId,kind:issue.kind,message:issue.message}
                   :null;
                 draw();dialog.close();

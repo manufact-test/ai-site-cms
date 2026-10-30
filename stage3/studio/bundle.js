@@ -1546,7 +1546,7 @@ function inspectSite(raw,regInput){
       if(target)for(const device of BREAKPOINTS)
         if(target.deviceVisibility?.[device]===false&&source?.deviceVisibility?.[device]!==false)
           warnings.push(add('hidden-anchor-device',page,href,
-            'Ссылка ведёт к скрытой на '+device+' секции.',{...extra,device,targetSectionId:hash}));
+            'Ссылка ведёт к скрытой на '+device+' секции.',{...extra,device,targetSectionId:hash,targetPageId:targetPage.id}));
     }
   };
   const checkMedia=(assetId,page,section,elementId)=>{
@@ -1649,13 +1649,16 @@ function inspectSite(raw,regInput){
         h1:h1Count,forms:formCount});
       if(totalForms>0&&formCount===0)
         warnings.push(add('device-missing-form',page,page.path,
-          'На '+device+' все формы этой страницы скрыты.',{device}));
+          'На '+device+' все формы этой страницы скрыты.',{device,sectionId:page.sections.find(section=>
+            ['lead-form','lead-form-flex'].includes(section.component))?.id}));
       // New warnings only for layouts actually using device/Graph visibility.
       if(!hasVisibilitySettings)continue;
       if(h1Count===0)warnings.push(add('device-missing-h1',page,page.path,
-        'Нет видимого H1 на '+device+' после скрытия секций.',{device}));
+        'Нет видимого H1 на '+device+' после скрытия секций.',{device,
+          sectionId:h1s[0]?.sectionId,nodeId:h1s[0]?.nodeId}));
       if(h1Count>1)warnings.push(add('device-multiple-h1',page,page.path,
-        'На '+device+' видны '+h1Count+' заголовка H1.',{device}));
+        'На '+device+' видны '+h1Count+' заголовка H1.',{device,
+          sectionId:deviceHeadings.find(item=>item.level===1)?.sectionId}));
       if(deviceHeadings.length&&deviceHeadings[0].level!==1&&h1Count)
         warnings.push(add('device-h1-position',page,page.path,
           'На '+device+' первый видимый заголовок не H1.',{device}));
@@ -3977,7 +3980,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           if(issue.pageId){
             const isSeo=issue.kind.startsWith('seo-')||issue.kind.startsWith('duplicate-seo-');
             const isAltFix=['missing-alt','generic-alt'].includes(issue.kind)&&!!issue.assetId;
-            const jump=button(isSeo?'Открыть SEO':isAltFix?'Исправить ALT':issue.nodeId?'Открыть композицию':issue.assetId?'Перейти к изображению':'Открыть страницу',
+            const isHiddenTarget=issue.kind==='hidden-anchor-device'&&!!issue.targetSectionId;
+            const jump=button(isSeo?'Открыть SEO':isAltFix?'Исправить ALT':isHiddenTarget?'Открыть целевую секцию':issue.nodeId?'Открыть композицию':issue.assetId?'Перейти к изображению':'Открыть страницу',
               'btn small',()=>{
                 if(isAltFix){
                   const asset=session.current.assets.find(item=>item.id===issue.assetId);
@@ -3987,14 +3991,15 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                   if(!alt.trim()){notice('ALT оставлен пустым. Укажите реальное содержание изображения или отмените правку.',true);return;}
                   structural({action:'renameAsset',assetId:asset.id,alt:alt.trim()});print();return;
                 }
-                const page=session.current.pages.find(item=>item.id===issue.pageId);
+                const page=session.current.pages.find(item=>item.id===(isHiddenTarget?issue.targetPageId:issue.pageId));
                 if(!page)return;
-                pageId=page.id;
-                const selected=issue.sectionId?page.sections.find(item=>item.id===issue.sectionId):page.sections[0];
+                pageId=page.id;if(issue.device&&C.BREAKPOINTS.includes(issue.device))breakpoint=issue.device;
+                const sectionFocus=isHiddenTarget?issue.targetSectionId:issue.sectionId;
+                const selected=sectionFocus?page.sections.find(item=>item.id===sectionFocus):page.sections[0];
                 sectionId=selected?.id||page.sections[0].id;
                 elementId=issue.elementId&&selected?.elements.concat(selected.items||[]).some(item=>item.id===issue.elementId)
                   ?issue.elementId:(selected?.elements[0]?.id||'');
-                pendingGraphAuditFocus=issue.nodeId&&selected?.designGraph
+                pendingGraphAuditFocus=!isHiddenTarget&&issue.nodeId&&selected?.designGraph
                   ?{pageId:page.id,sectionId:selected.id,nodeId:issue.nodeId,kind:issue.kind,message:issue.message}
                   :null;
                 draw();dialog.close();

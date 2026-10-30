@@ -727,6 +727,16 @@ async function execute(){
   // Full URL alias workflow: operator reviews site, saves and explicitly
   // publishes an alias. Public pages redirect with true 301, not draft.
   await page.locator('#cms-quality-open').click();
+  const deviceOverview=page.locator('#cms-quality-viewport-coverage');
+  assert.equal(await deviceOverview.count(),1);
+  await deviceOverview.locator('summary').click();
+  const mobileDeviceLink=deviceOverview.locator('button[aria-label*="Телефон"]').first();
+  assert.match(await mobileDeviceLink.innerText(),/H1.*форм/);
+  await mobileDeviceLink.click();
+  assert.equal(await page.locator('#cms-site-report').isVisible(),false);
+  assert.ok(await page.locator('.device[data-bp="mobile"]').evaluate(el=>el.classList.contains('active')),
+    'Device coverage jumps directly to the existing mobile Inspector');
+  await page.locator('#cms-quality-open').click();
   await page.locator('#cms-redirect-from').fill('/old-gallery/');
   await page.locator('#cms-redirect-target').selectOption('/');
   await page.locator('#cms-redirect-form button[type=submit]').click();

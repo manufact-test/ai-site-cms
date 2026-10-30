@@ -78,7 +78,8 @@ test('viewport audit rejects blank mobile pages and flags hidden headings and an
     {id:'graph-link-hidden-target',type:'link',text:'Открыть блок',href:'/#'+first.id,styles:{}}
   ]};
   const checked=sdk.inspectSite(site,manifests);
-  assert.ok(checked.warnings.some(w=>w.kind==='hidden-anchor-device'&&w.device==='mobile'&&w.targetSectionId===first.id));
+  assert.ok(checked.warnings.some(w=>w.kind==='hidden-anchor-device'&&w.device==='mobile'&&w.targetSectionId===first.id
+    &&w.targetPageId===home.id));
   const fixed=same(site);
   delete fixed.pages[0].sections[0].deviceVisibility;
   const clean=sdk.inspectSite(fixed,manifests);
@@ -102,7 +103,7 @@ test('responsive Graph headings and hidden mobile lead forms use effective visib
   assert.equal(mobile.h1,1,'Mobile H1 reflects responsive Graph visibility');
   assert.equal(desktop.h1,1,'Desktop excludes mobile-only heading');
   assert.equal(mobile.forms,0);assert.equal(desktop.forms,1);
-  assert.ok(healthy.warnings.some(w=>w.kind==='device-missing-form'&&w.device==='mobile'));
+  assert.ok(healthy.warnings.some(w=>w.kind==='device-missing-form'&&w.device==='mobile'&&w.sectionId===form.id));
   assert.ok(!healthy.warnings.some(w=>w.kind==='device-missing-h1'&&w.pageId===page.id));
   const broken=same(site);delete broken.pages[0].sections[0].designGraph.nodes[1].responsive;
   assert.equal(sdk.inspectSite(broken,manifests).deviceCoverage.find(v=>
