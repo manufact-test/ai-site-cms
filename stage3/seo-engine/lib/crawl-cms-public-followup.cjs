@@ -84,6 +84,9 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
    latestRecheck.sourceAfterRawSha256===worklistSha256,
    'optional prior/current task recheck must reference THIS exact current worklist');
  }else check(!latestRecheckRawSha256,'unexpected recheck digest without report');
+ const captureWindowDrift=capture.rootRecheck?.matched===false;
+ const soft404Unreliable=!!capture.negativeProbe&&
+  ![404,410].includes(capture.negativeProbe.status);
  const tasks=[],summary={total:worklist.actions.length,
   alignedNotVerified:0,conflict:0,unknown:0,byPriority:{P0:0,P1:0,P2:0}};
  for(const task of worklist.actions){
@@ -161,6 +164,16 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
   }else if(category==='candidate-manual-hold'){
    reason='Owner privacy and crawler policy ambiguities require independent review; never discharge manual holds via an HTTP transcript.';
   }
+  if(captureWindowDrift){
+   state='INSUFFICIENT-EVIDENCE';code='mixed-public-capture-window';
+   observation=null;
+   reason='The supplied public root changed during capture; do not correlate this mixed deployment window to any SEO fix.';
+  }else if(category==='publisher-redirect-collision'&&soft404Unreliable&&
+   state==='OBSERVED-ALIGNED-NOT-VERIFIED'){
+   state='INSUFFICIENT-EVIDENCE';code='soft404-canonical-200-unreliable';
+   observation=null;
+   reason='The nonexistent-route probe did not return 404/410; HTTP 200 is not reliable proof of a real canonical page.';
+  }
   summary.byPriority[task.priority]++;
   summary[state==='OBSERVED-CONFLICT'?'conflict':
    state==='OBSERVED-ALIGNED-NOT-VERIFIED'?'alignedNotVerified':'unknown']++;
@@ -194,6 +207,8 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
   htmlCoverage:{selectedSitePages:site.pages.length,
    suppliedPages:capture.pages.length,approvedPagesCaptured:captured.size,
    rootRecheckStable:capture.rootRecheck?.matched??null,
+   sourceCaptureWindowReliable:!captureWindowDrift,
+   absentPageProbeReliable:!soft404Unreliable,
    siteCaptureSiteIdMatched:true},
   summary:{...summary,independentDeliveryBlockers:blockers.length,
    publicPolicyAnalyzable:!!livePolicy},
@@ -202,6 +217,7 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
    'HTTP transcript is an operator-supplied recording; a source hash never authenticates its origin or the currently deployed CMS revision.',
    'OBSERVED-ALIGNED-NOT-VERIFIED means the supplied bytes look aligned; NEVER treat it as a verified fix, Google indexation or task closure.',
    'Missing HTML, failed policy parsing, sitemap-index/partial scope and unobserved pages remain insufficient evidence, not a positive result.',
+   'A drifted public root capture window makes EVERY task assessment insufficient; a soft-404 probe invalidates optimistic HTTP 200 redirect-collision conclusions.',
    'No public observation validates private CMS source, human approval, form delivery, current SEO performance or ranking gain.',
    'Actual HTTPS origin, privacy intent and owner/canonical revision must be checked separately by the lead.'
   ],
