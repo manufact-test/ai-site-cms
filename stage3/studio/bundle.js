@@ -6773,6 +6773,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                 if(node.type==='quote'&&node.cite)
                   add(page,'graph',null,'cite',node.cite,
                     'Дизайн-композиция · автор цитаты · '+node.id,section,{id:node.id});
+                if(node.type==='image'&&node.caption)
+                  add(page,'graph',null,'caption',node.caption,
+                    'Дизайн-композиция · подпись фотографии · '+node.id,section,{id:node.id});
                 if(node.children)walk(node.children);
               }
             };
@@ -6863,7 +6866,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                 return null;
               };
               target=find(sec.designGraph.nodes);
-              if(!target||!['heading','text','button','link','quote','table','table-cell','gallery','list-item','disclosure','tab'].includes(target.type))
+              if(!target||!['heading','text','button','link','quote','table','table-cell','gallery','list-item','disclosure','tab','image'].includes(target.type))
                 throw Error('Элемент композиции больше не существует');
             }else{
               if(sec.designGraph)throw Error('Показан другой источник содержимого');
