@@ -41,13 +41,13 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
   byId.set(page.id,page);paths.add(page.path);
  }
  const bpById=new Map(bp.pages.map(p=>[p.id,p]));
- const captured=new Map(),capturedRoutes=new Set();
+ const captured=new Map();
  for(const row of capture.pages){
   if(!bpById.has(row.id))continue;
   const expected=bpById.get(row.id);
   if(row.path!==expected.path)continue;
   if(captured.has(row.id))throw Error('Crawl/CMS public follow-up: duplicate captured approved page');
-  captured.set(row.id,row);capturedRoutes.add(row.path);
+  captured.set(row.id,row);
  }
  const origin=worklist.base;
  const urlFor=route=>new URL(new URL(origin).pathname+route.slice(1),new URL(origin).origin).href;
@@ -92,7 +92,6 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
   const plan=bpById.get(task.pageId),page=plan&&captured.get(plan.id);
   const head=page&&HEADS.get(plan.id);
   const good=page&&goodCapture(page);
-  const current=indexed.get(plan?.id);
   const category=task.category;
   const outcome=(status,message,field,detail)=>{
    state=status;reason=message;code=field;observation=detail??null;
@@ -122,7 +121,7 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
     outcome(ok?'OBSERVED-ALIGNED-NOT-VERIFIED':'OBSERVED-CONFLICT',
      ok?'Supplied public response at approved canonical path is HTTP 200 without a redirect.':
        'Supplied response at approved canonical path is not stable HTTP 200.',
-     'canonical-direct-response',{status:row.status,responseUrl:row.responseUrl});
+     'canonical-direct-response',{status:row.status,responseUrl:safe(row.responseUrl)});
    }else reason='The approved redirect-shadowed canonical URL was not included in the public HTTP transcript.';
   }else if(category==='cms-seo-robots'&&plan){
    if(good&&head?.status==='parsed-head'){
@@ -153,7 +152,7 @@ function review({worklist,worklistSha256,blueprint,blueprintRawSha256,
     outcome(canonical===target?'OBSERVED-ALIGNED-NOT-VERIFIED':'OBSERVED-CONFLICT',
      canonical===target?'Supplied public canonical resolves to approved target.':
       'Supplied public canonical is absent or differs from approved target.',
-     'public-canonical',{expected:target,observed:canonical});
+     'public-canonical',{expected:target,observed:safe(canonical)});
    }else reason='Exact approved path 2xx with parsed public HTML canonical required.';
   }else if(category.startsWith('cms-')){
    reason='Site v1 inventory/route differences require authenticated CMS revision; public GET cannot prove the editor source is corrected.';
