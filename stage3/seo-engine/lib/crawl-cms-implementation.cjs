@@ -187,7 +187,36 @@ function build(source){
   const key=[item.priority,item.category,item.pageId||'',item.path||'',item.detail].join('|');
   if(!dedupe.has(key))dedupe.set(key,item);
  }
- const actions=[...dedupe.values()],counts={
+ const classify=category=>{
+  if(category.startsWith('cms-'))return 'CMS_EDITOR';
+  if(category.startsWith('publisher-'))return 'PUBLISHER_LEAD';
+  if(category.startsWith('search-console-'))return 'SEO_OPERATOR';
+  return 'OWNER_AND_LEAD';
+ };
+ const required=team=>team==='CMS_EDITOR'?
+  ['Authenticated current CMS Site v1 revision','Approved Blueprint page ID/path and saved field overrides',
+   'Lead-reviewed page SEO field before/after and owner decision']:
+  team==='PUBLISHER_LEAD'?
+  ['Authenticated HTTPS robots/sitemap/redirect bytes','Current publisher source revision and exact host/mount',
+   'Owner privacy/indexing decision, rollback and post-release HTTP check']:
+  team==='SEO_OPERATOR'?
+  ['Operator export date/scope/property','Independent actual Google URL Inspection',
+   'Current live HTTP canonical, robots and X-Robots-Tag']:
+  ['Owner approval, exact page identity and original source bytes','Independent lead review of current public host'];
+ const actions=[...dedupe.values()].map(a=>{
+  const ownerTeam=classify(a.category);
+  return {...a,
+   taskId:'crawl-cms:'+sha([a.priority,a.category,a.pageId||'',
+    a.path||'',a.source,a.detail].join('|')).slice(0,24),
+   ownerTeam,
+   evidenceRequired:required(ownerTeam),
+   sourceSiteVersionAuthenticated:false,
+   ownerApprovalRequired:true,
+   readyToImplement:false};
+ });
+ const workstreamCounts=Object.fromEntries(['CMS_EDITOR','PUBLISHER_LEAD','SEO_OPERATOR','OWNER_AND_LEAD']
+  .map(k=>[k,actions.filter(a=>a.ownerTeam===k).length]));
+ const counts={
   P0:actions.filter(a=>a.priority==='P0').length,
   P1:actions.filter(a=>a.priority==='P1').length,
   P2:actions.filter(a=>a.priority==='P2').length};
@@ -202,7 +231,8 @@ function build(source){
   pages:packets,missingPages:missing,extraPages:extra,redirectCollisions:conflicts,
   actions,summary:{approvedPages:bp.pages.length,sourcePages:site.pages.length,
    driftPages:packets.filter(p=>p.driftFields.length).length,unapprovedExtraPages:extra.length,
-   redirectCollisions:conflicts.length,totalManualActions:actions.length,priorities:counts},
+   redirectCollisions:conflicts.length,totalManualActions:actions.length,priorities:counts,
+   workstreams:workstreamCounts},
   releaseAuthorized:false,automaticApplication:false,
   limitations:[
    'All source inputs are owner/operator selected; matching hashes do not authenticate the currently published CMS revision.',
@@ -224,9 +254,15 @@ function markdown(r){
   'P0 '+r.summary.priorities.P0+' / P1 '+r.summary.priorities.P1+
    ' / P2 '+r.summary.priorities.P2,'',
   '## Prioritized MANUAL implementation tasks',''];
- for(const a of r.actions)out.push('- **'+a.priority+'** ['+safe(a.category)+'] '+
-  safe(a.path||'site')+' / '+safe(a.pageId||'—')+' — '+safe(a.detail)+
-  ' | Lead: '+safe(a.leadAction));
+ for(const a of r.actions){
+  out.push('### '+a.priority+' / '+a.taskId+' / '+safe(a.ownerTeam),'',
+   'Page '+safe(a.pageId||'—')+' · Route '+safe(a.path||'site')+' · '+safe(a.category),
+   'Observed: '+safe(a.detail),
+   'Manual next action: '+safe(a.leadAction),
+   'Required source evidence:');
+  for(const evidence of a.evidenceRequired)out.push('- '+safe(evidence));
+  out.push('Owner approval REQUIRED; current site/authenticated release NOT established.','');
+ }
  if(!r.actions.length)out.push('- No triggered manual tasks in these inputs. Real host and client approval remain REQUIRED.');
  out.push('','## Exact approved/current Site v1 route and field comparison','',
   '| Approved page ID | Approved route | Selected Site v1 route | SEO drift |', '|---|---|---|---|');
