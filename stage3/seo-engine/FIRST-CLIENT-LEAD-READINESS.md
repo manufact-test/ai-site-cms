@@ -8,7 +8,7 @@ The existing single SEO Operator Workspace has independent first-site launch tec
 
 This pass adds:
 
-- `lib/seo-lead-readiness.cjs` — **11 deterministic lead-only gates** across prelaunch and postlaunch, with P0/P1/P2 priority, ownership, recorded source SHA256, dependencies, explicit missing evidence and next manual checks.
+- `lib/seo-lead-readiness.cjs` — **12 deterministic lead-only gates** across prelaunch and postlaunch, with P0/P1/P2 priority, ownership, recorded source SHA256, dependencies, explicit missing evidence and next manual checks.
 - `lib/seo-lead-readiness-view.cjs` — an offline, no-script, strict CSP HTML view, with private Markdown and JSON equivalents.
 - `lib/seo-private-lead-integrity.cjs` — an **unsigned source-bounded SHA256 inventory** of every generated output in the same private workspace, with exact allowed filenames and directory/symlink/length checks.
 - `bin/verify-seo-lead-packet.cjs` — read-only independent audit of a saved workspace against its original `LEAD-PACKET-INTEGRITY.json`.
@@ -43,7 +43,7 @@ If only Crawl Policy is supplied, the lead readiness will truthfully report unav
 
 ## Lead gate matrix
 
-The 11 gates cover:
+The 12 gates cover:
 
 1. Original approved source provenance and current authenticated CMS owner revision — CMS lead.
 2. Local first-site PHP/static release blockers — CMS lead.
@@ -94,3 +94,8 @@ node stage3/seo-engine/tests/crawl-cms-public-followup-smoke.cjs
 ## Sole integrator boundary
 
 The independent worker creates no PR, release, migration, integration branch or client environment modification. The main developer decides when to import SEO-owned files, runs the focused real Node smokes, independently verifies customer host and approved CMS source, and explicitly authorizes any CMS/robots/sitemap change with rollback. All private worklists and original source documents remain outside Git.
+
+
+## Extended first-client gate — actual schema.org assertions
+
+The unified lead readiness now includes a **12th deterministic manual gate**, `structured-data-owner-claims`. It is `BLOCKED` if an operator-supplied public page publishes a `schemaCandidates` type relying on unconfirmed owner facts (P0); it remains `NEEDS-EVIDENCE` for missing original public HTML pages or absent audit; otherwise `LEAD-REVIEW-REQUIRED`. It is never automatically GO. The existing lead packet integrity receipt includes `structured-data.html/.md/.json` when the exact private public transcript is supplied. All former statements describing 11 gates should now be read as **12 gates** (this 12th was added after the original first-client readiness pass). See [STRUCTURED-DATA-QA.md](STRUCTURED-DATA-QA.md) for source details and standalone CLI.
