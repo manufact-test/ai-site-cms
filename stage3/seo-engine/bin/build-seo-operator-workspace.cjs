@@ -4,6 +4,7 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const WORK=require('../lib/seo-operator-workspace.cjs');
 const PRIVATE=require('../lib/private-output-policy.cjs');
+const PACKET=require('../lib/seo-private-lead-integrity.cjs');
 const HELP='Usage: node stage3/seo-engine/bin/build-seo-operator-workspace.cjs --config /ABS/private/seo-workspace-config.json --out /ABS/NEW-PRIVATE-DIR';
 const CONFIG='manufact-seo-operator-workspace-config-v1';
 const ROOT=path.resolve(__dirname,'../../..');
@@ -113,11 +114,17 @@ function main(argv){
   liveAcceptance:human,operatorDesk:config.operatorDesk||null,crawl});
  const parent=fs.realpathSync(path.dirname(out));
  const staging=fs.mkdtempSync(path.join(parent,'.seo-workspace-incomplete-'));
+ const generated={};
  let success=false;
  try{
-  const write=(name,content)=>fs.writeFileSync(path.join(staging,name),content,
-   {flag:'wx',mode:0o600});
+  const write=(name,content)=>{
+   fs.writeFileSync(path.join(staging,name),content,{flag:'wx',mode:0o600});
+   generated[name]=content;
+  };
   write('index.html',workspace.homeHtml);
+  write('lead-readiness.html',workspace.leadReadinessHtml);
+  write('lead-readiness.md',workspace.leadReadinessMarkdown);
+  write('lead-readiness.json',workspace.leadReadinessJson);
   if(workspace.launchHtml)write('launch.html',workspace.launchHtml);
   if(workspace.searchHtml)write('search.html',workspace.searchHtml);
   if(workspace.indexingHtml)write('indexing.html',workspace.indexingHtml);
@@ -147,6 +154,10 @@ function main(argv){
    releaseAuthorized:false,limitations:workspace.limitations},null,2)+'\n');
   write('PRIVATE-README.txt',
    'Private local SEO operator workspace. No actual CMS/Google connection, release approval or deploy. NEVER publish, upload or commit these reports.\n');
+  const manifest=PACKET.build({generated,siteId:workspace.siteId,
+   configSha256:configFile.sha256,inputSHA256:digests});
+  fs.writeFileSync(path.join(staging,'LEAD-PACKET-INTEGRITY.json'),
+   JSON.stringify(manifest,null,2)+'\n',{flag:'wx',mode:0o600});
   // Never publish a dashboard assembled from source files that changed mid-render.
   for(const source of pinned)
    if(input(source.path,source.max,source.kind||'json').sha256!==source.sha256)
