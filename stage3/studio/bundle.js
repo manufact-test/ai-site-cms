@@ -179,7 +179,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;const popups=new Set(),triggers=[];
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(own(node,'popupTarget')){
@@ -266,12 +266,13 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
     if(node.type==='quote'&&own(node,'cite')&&
       (typeof node.cite!=='string'||node.cite.length>160||/[\x00-\x1f]/.test(node.cite)))
       fail(node.id,'invalid quote attribution');
-    if(node.type!=='gallery'&&['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile'].some(k=>own(node,k)))fail(node.id,'gallery settings on other node');
+    if(node.type!=='gallery'&&['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile','scrollControls'].some(k=>own(node,k)))fail(node.id,'gallery settings on other node');
     if(own(node,'caption')&&(node.type!=='image'||parentType!=='gallery'||typeof node.caption!=='string'||node.caption.length>240||/[\x00-\x1f]/.test(node.caption)))fail(node.id,'invalid gallery photo caption');
     if(node.type==='gallery'){
       for(const key of ['photoShape','photoShapeTablet','photoShapeMobile'])
         if(own(node,key)&&!['natural','square','landscape','portrait'].includes(node[key]))fail(node.id,'invalid gallery photo shape');
       if(own(node,'layout')&&!['scroll','grid'].includes(node.layout))fail(node.id,'invalid gallery layout');
+      if(own(node,'scrollControls')&&(typeof node.scrollControls!=='boolean'||node.scrollControls&&node.layout==='grid'))fail(node.id,'scroll navigation requires scroll gallery');
       if(own(node,'lightbox')&&typeof node.lightbox!=='boolean')fail(node.id,'invalid gallery lightbox');
       if(['columnsDesktop','columnsTablet','columnsMobile'].some(k=>own(node,k))&&node.layout!=='grid')fail(node.id,'columns require grid gallery');
       for(const [key,min,max] of [['columnsDesktop',1,6],['columnsTablet',1,4],['columnsMobile',1,2]])
@@ -739,7 +740,10 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
         const popup=n.lightbox?'<div id="'+id+'" popover="auto" class="cmsdg-gallery-popover" role="dialog" aria-label="'+attr(child.alt||gl[5]+' '+(index+1))+'">'+
           '<button type="button" class="cmsdg-gallery-close" popovertarget="'+id+'" popovertargetaction="hide" aria-label="'+gl[1]+'">×</button>'+
           '<div class="cmsdg-gallery-expanded">'+image+'</div>'+caption+navigation+'</div>':'';
-        return '<figure class="cmsdg-gallery-item">'+trigger+caption+popup+'</figure>';
+        const prev=n.children[(index+n.children.length-1)%n.children.length].id;
+        const next=n.children[(index+1)%n.children.length].id;
+        const scrollNav=n.scrollControls&&n.children.length>1?'<nav class="cmsdg-gallery-scroll-nav" aria-label="'+gl[4]+'"><a href="#cmsdg-photo-'+prev+'" aria-label="'+gl[2]+'">←</a><span>'+(index+1)+' / '+n.children.length+'</span><a href="#cmsdg-photo-'+next+'" aria-label="'+gl[3]+'">→</a></nav>':'';
+        return '<figure class="cmsdg-gallery-item" id="cmsdg-photo-'+child.id+'">'+trigger+caption+scrollNav+popup+'</figure>';
       }).join('');
       return '<div class="'+cls+' cmsdg-gallery'+(grid?' cmsdg-gallery-grid':'')+' cmsdg-gallery-shape-'+(n.photoShape||'natural')+' cmsdg-gallery-tablet-'+(n.photoShapeTablet||n.photoShape||'natural')+' cmsdg-gallery-mobile-'+(n.photoShapeMobile||n.photoShapeTablet||n.photoShape||'natural')+'" role="region" aria-roledescription="gallery" aria-label="'+attr(n.text)+'" tabindex="0"'+variables+'>'+content+'</div>';
     }
@@ -829,6 +833,9 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     scope+' .cmsdg-gallery-shape-portrait>.cmsdg-gallery-item img{aspect-ratio:3/4}'+
     scope+' .cmsdg-gallery-expanded img{aspect-ratio:auto!important;object-fit:contain!important}'+
     scope+' .cmsdg-gallery-item figcaption{padding:8px 4px;line-height:1.45;font-size:.9em;overflow-wrap:anywhere}'+
+    scope+' .cmsdg-gallery-scroll-nav{display:flex;gap:12px;align-items:center;justify-content:center;padding:8px}'+
+    scope+' .cmsdg-gallery-scroll-nav a{display:grid;place-items:center;min-width:40px;min-height:40px;border:1px solid currentColor;border-radius:8px;text-decoration:none}'+
+    scope+' .cmsdg-gallery-scroll-nav a:focus-visible{outline:3px solid currentColor;outline-offset:3px}'+
     scope+' .cmsdg-gallery-grid{display:grid;grid-template-columns:repeat(var(--cmsdg-gallery-columns,3),minmax(0,1fr));overflow:visible;scroll-snap-type:none}'+
     scope+' .cmsdg-gallery-grid>.cmsdg-gallery-item{flex:none}'+
     '@media(max-width:900px){'+scope+' .cmsdg-gallery-grid{grid-template-columns:repeat(var(--cmsdg-gallery-tablet,2),minmax(0,1fr))}'+scope+' .cmsdg-gallery-tablet-natural>.cmsdg-gallery-item img{aspect-ratio:auto}'+scope+' .cmsdg-gallery-tablet-square>.cmsdg-gallery-item img{aspect-ratio:1/1}'+scope+' .cmsdg-gallery-tablet-landscape>.cmsdg-gallery-item img{aspect-ratio:16/9}'+scope+' .cmsdg-gallery-tablet-portrait>.cmsdg-gallery-item img{aspect-ratio:3/4}}'+
@@ -4879,7 +4886,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
               else if(key==='caption'){if(val.trim())node.caption=val;else delete node.caption;}
               else if(key==='layout'){
                 node.layout=val;
+                if(val==='grid')node.scrollControls=false;
                 if(val!=='grid')for(const k of ['columnsDesktop','columnsTablet','columnsMobile'])delete node[k];
+              }else if(key==='scrollControls'){
+                if(val==='true'&&node.layout==='grid')throw Error('Стрелки доступны только в горизонтальной ленте');
+                node.scrollControls=val==='true';
               }else if(key==='lightbox'){
                 if(val==='true'&&node.children.some(child=>child.href))throw Error('Для увеличения удалите ссылки из изображений');
                 node.lightbox=val==='true';
@@ -4907,6 +4918,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
               [['natural','Исходные'],['square','Квадрат 1:1'],['landscape','Широкая 16:9'],['portrait','Вертикальная 3:4']]);
             property('Режим фотогалереи','layout',current.layout||'scroll',
               [['scroll','Лента со свайпом'],['grid','Адаптивная сетка']]);
+            property('Стрелки в ленте','scrollControls',String(!!current.scrollControls),
+              [['false','Не показывать'],['true','Показывать переходы']]);
             property('Увеличивать фотографии','lightbox',String(!!current.lightbox),
               [['false','Без увеличения'],['true','Открывать крупно']]);
             if(current.layout==='grid'){
@@ -6248,7 +6261,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             choices:[['natural','Оригинальные'],['square','Квадрат 1:1'],['landscape','Широкие 16:9'],['portrait','Вертикальные 3:4']]},value=>{n[field]=value;},'select'));
         fields.append(ctl('Расположение фотографий',{initial:n.layout||'scroll',
           choices:[['scroll','Горизонтальная лента · свайп'],['grid','Сетка · ПК / планшет / телефон']]},value=>{
-            n.layout=value;if(value!=='grid')for(const key of ['columnsDesktop','columnsTablet','columnsMobile'])delete n[key];
+            n.layout=value;if(value==='grid')n.scrollControls=false;if(value!=='grid')for(const key of ['columnsDesktop','columnsTablet','columnsMobile'])delete n[key];
+          },'select'));
+        fields.append(ctl('Стрелки перехода в горизонтальной ленте',{initial:n.scrollControls?'true':'false',
+          choices:[['false','Нет'],['true','Да · без JavaScript']]},value=>{
+            if(value==='true'&&n.layout==='grid'){notice('Стрелки предназначены для ленты, выберите горизонтальную галерею.',true);return;}
+            n.scrollControls=value==='true';
           },'select'));
         fields.append(ctl('Открывать фотографии крупно',{initial:n.lightbox?'true':'false',
           choices:[['false','Нет · только галерея'],['true','Да · нативное окно']]},value=>{
