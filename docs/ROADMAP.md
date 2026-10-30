@@ -532,3 +532,8 @@ Evidence: additive JS contract scenario, real PHP renderer smoke scenario and un
 ## 30 October 2026 — authored gallery thumbnail proportions
 
 Typed Design Graph galleries now accept an optional `photoShape` (`natural`, `square`, `landscape`, `portrait`), allowing approved portfolio photography to retain natural dimensions or use consistent 1:1, 16:9 or 3:4 thumbnail crops. The selected shape applies to gallery thumbnails only; expanded lightbox images preserve original proportions and `object-fit: contain`. The existing Studio Graph quick workbench edits the same draft property, with undo/save/publish isolation. The JS and PHP validators reject arbitrary values and foreign-node use. This is a visual-fidelity feature, not license to change source files, and needs comparison with the actual approved desktop/tablet/mobile client mockups. No status/acceptance promotion; no SEO-worker/main/production change.
+
+
+### 30 Oct 2026 — responsive individual gallery shapes
+
+Approved-site typed galleries now accept optional `photoShapeTablet` and `photoShapeMobile` alongside `photoShape` (`natural|square|landscape|portrait`). The JS contract and PHP visitor independently reject unknown shapes and foreign-node usage. Both the quick workbench and full graph editor let the owner choose independent desktop/tablet/mobile crops; CSS applies tablet at <=900px and mobile at <=600px while keeping the original images and full-resolution lightbox proportions. Absence of new device fields preserves backward compatibility. Owner visual approval of the real three-device design is still required. No change in 135 MUST engineering counts or ownerAccepted=0, and no production, SEO worker or main changes.
