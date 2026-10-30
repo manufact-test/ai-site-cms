@@ -1012,3 +1012,31 @@ The existing Design Graph `form-slot` now renders an **inert** but content-accur
 The existing full-page Workbench also edits these options on the selected real Graph node, preserving the same draft/Undo behavior as the advanced Inspector. Design Graph offers bounded, typed, optional `formAppearance`, `formAppearanceTablet` and `formAppearanceMobile` on a `form-slot` only: field gap, field radius/padding, button radius/padding, label weight, input background, border, button background and text color. Colors are declared `@colorTokens` or six-digit HEX, not arbitrary CSS. JS/PHP independently reject out-of-range values, unknown keys, or applying these overrides to non-form nodes. CSS variables are scoped to that specific Graph form; regular forms are unaffected. Public PHP renders the original signed real form with those styles while offline Studio remains safe and non-interactive. This enables more faithful adaptation to a client's approved desktop/tablet/mobile design without allowing raw HTML/CSS/JavaScript.
 
 Implementation: `stage3/sdk/design-graph.cjs`, `stage3/server/{DesignGraph,PublicRenderer}.php`, `stage3/studio/{app,bundle}.js`. Focused browser, PHP-render and contract tests are updated. Form delivery, private inbox and no silent publish rules remain unchanged. The ultimate behavioral authority is PHP Preview/Publish, and an actual client-approved 3-width mockup still has to be compared by a human. No external site/deploy/merge, and **0/135 owner-approved**; ledger classification remains unchanged. See [main handoff v8.2](../../handoffs/lead-integrator/MAIN-HANDOFF-v8.2-2026-10-30.md).
+
+#### Author-defined Graph form styling, v8.2 example
+
+Inside **one actual** `lead-form` / `lead-form-flex` section with the ordinary manifest-driven `elements` and optional `formFields`/`formSteps`, insert the following **single** Design Graph leaf in the approved `designGraph.nodes` tree. The Graph may wrap it in grids/containers/popups, but cannot create additional form instances.
+
+```json
+{
+  "id": "approved-contact-form-slot",
+  "type": "form-slot",
+  "styles": { "padding": 16, "maxWidth": 600 },
+  "formAppearance": {
+    "gap": 18,
+    "inputRadius": 12,
+    "inputPadding": 14,
+    "buttonRadius": 18,
+    "buttonPadding": 14,
+    "labelWeight": 600,
+    "inputBackground": "#ffffff",
+    "borderColor": "@muted",
+    "buttonBackground": "@accent",
+    "buttonColor": "#ffffff"
+  },
+  "formAppearanceTablet": { "gap": 14, "inputPadding": 12 },
+  "formAppearanceMobile": { "gap": 10, "buttonRadius": 12 }
+}
+```
+
+The tablet/mobile objects are **overrides**, not copies: omitted properties inherit the desktop declaration. In Studio, the selected form-slot exposes the controls in both advanced Graph Inspector and page-wide Workbench. Every setting is finite and validated by **both** JS and PHP; unsafe `style` strings, arbitrary selectors, `javascript:` color values, duplicate form slots or a `form-slot` in a generic `custom-section` fail validation. The Studio canvas provides disabled visual form fields and step selection; only PHP preview/published pages contain the real visitor form and action. Use actual approved image measurements, not assumed defaults.
