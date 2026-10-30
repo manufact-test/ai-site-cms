@@ -610,3 +610,8 @@ The [Crawl CMS task lifecycle](CRAWL-CMS-LIFECYCLE.md) extends the existing priv
 ### Actual public HTTP observations of SEO fixes — no automatic GO
 
 The [Crawl Public Follow-up workflow](CRAWL-PUBLIC-FOLLOWUP.md) correlates existing approved Blueprint/Site v1 Crawl/CMS tasks against the project's already-built owner-operated read-only public HTTPS capture evidence. A private operator workspace panel and independent `bin/review-crawl-public-fixes.cjs` distinguish still-conflicting, insufficient and apparently-aligned-but-NOT-VERIFIED SEO corrections; current-source SHA256, independent delivery blockers and zero release authority are explicit. No new network collector, CMS editor, deployer, Google API or separate dashboard was created.
+
+
+### First-client SEO lead gate matrix and private packet integrity
+
+New [FIRST-CLIENT-LEAD-READINESS.md](FIRST-CLIENT-LEAD-READINESS.md) completes the existing private SEO Operator Workspace with `lead-readiness.html/.md/.json`: 11 source-derived first-release/postlaunch gate checks, explicit `BLOCKED`, `NEEDS-EVIDENCE`, `LEAD-REVIEW-REQUIRED`, `POST-LAUNCH-DEFERRED` statuses, responsible workstreams, source SHA256, manual next steps. First client **never** gets automatic GO: absent prelaunch technical/host/browser/form sources remain absent; absent GSC/search evidence is postlaunch-deferred instead. Generated `LEAD-PACKET-INTEGRITY.json` inventories every private output SHA256, and `bin/verify-seo-lead-packet.cjs` validates exact original bytes and refuses changed, symlinked or extra files. This is **unsigned local integrity**, not public-host, owner or code-signing authentication. See the new handoff for commands and lead-only responsibilities.
