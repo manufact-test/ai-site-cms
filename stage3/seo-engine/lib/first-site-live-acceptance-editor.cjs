@@ -153,8 +153,8 @@ function render(template){
    if(t.submissionEvidenceRef&&!safe(t.submissionEvidenceRef))
     add(key,'Invalid private POST submission reference');
    if(t.state==='passed'){
-    if(!safe(t.submissionEvidenceRef))add(key,'Real POST submission reference required');
-    if(!safe(t.deliveryEvidenceRef)||t.deliveryEvidenceRef===t.submissionEvidenceRef)
+    if(!safe(t.submissionEvidenceRef,240,3))add(key,'Real POST submission reference required');
+    if(!safe(t.deliveryEvidenceRef,240,3)||t.deliveryEvidenceRef===t.submissionEvidenceRef)
      add(key,'Independent, different delivery reference required');
     if(t.deliveryChannel==='none')add(key,'Choose actual delivery channel');
     if(!validDate(t.deliveryObservedAt)||validDate(t.observedAt)&&

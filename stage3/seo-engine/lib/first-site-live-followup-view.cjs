@@ -5,11 +5,39 @@
 const FOLLOW=require('./first-site-live-followup.cjs');
 const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-function render(review){
+function render(review,context=null){
  const plan=FOLLOW.build(review);
+ let technical=null;
+ if(context){
+  const {summary,bundle,postDeploy}=context,src=summary?.release?.blockerIds,
+   blockers=bundle?.release?.blockers,publicReasons=postDeploy?.postDeployBlockingReasons;
+  if(summary?.siteId!==plan.siteId||summary.publishedVersion!==plan.publishedVersion||
+   summary.ownerPublishedSourceRevisionClaim!==plan.ownerSourceRevisionClaim||
+   summary.staticExport?.staticManifestSha256!==plan.officialStaticManifestSha256||
+   !Array.isArray(src)||!Array.isArray(blockers)||!Array.isArray(publicReasons)||
+   src.length!==blockers.length||new Set(src).size!==src.length||
+   src.slice().sort().join('\n')!==blockers.map(x=>x.gateId).sort().join('\n')||
+   postDeploy.siteId!==plan.siteId||postDeploy.publishedVersion!==plan.publishedVersion)
+   throw Error('Source technical evidence and human action queue are not the same approved release');
+  technical={php:src.map(id=>({code:id,description:
+   blockers.find(x=>x.gateId===id)?.reason||
+   blockers.find(x=>x.gateId===id)?.message||'Resolve original PHP gate.'})),
+   public:publicReasons.map(x=>({code:x.code,description:x.reason||'Resolve public HTTPS mismatch.'}))};
+ }
+ const limited=x=>esc(String(x??'').slice(0,380));
  const stats=[['Urgent fixes',plan.counts.urgent],['Pending tasks',plan.counts.pending],
   ['Browser views',plan.counts.browser],['Manual gates',plan.counts.manual],
   ['Real forms',plan.counts.form]];
+ const technicalHtml=technical?'<section class="panel"><div class="sectionhead"><h2>Original PHP and live HTTPS blockers</h2><span class="count">'+
+  (technical.php.length+technical.public.length)+'</span></div>'+
+  '<p class="muted">Exact gate identifiers and source-reported reasons, not independently authenticated live faults. Compare with <a href="launch.html">technical launch report</a> before editing.</p>'+
+  (technical.php.length?'<h3>Original PHP / static blockers</h3><ul>'+
+   technical.php.map(x=>'<li><b>'+limited(x.code)+'</b> · '+limited(x.description)+'</li>').join('')+'</ul>':'')+
+  (technical.public.length?'<h3>Published HTTPS / media blockers</h3><ul>'+
+   technical.public.map(x=>'<li><b>'+limited(x.code)+'</b> · '+limited(x.description)+'</li>').join('')+'</ul>':'')+
+  (!technical.php.length&&!technical.public.length?
+   '<p>No exact technical gate codes in this original source; operator authorization may still be missing.</p>':'')+
+  '</section>':'';
  const group=(priority,label,lead)=>'<section class="panel"><div class="sectionhead">'+
    '<h2>'+esc(label)+'</h2><span class="count">'+plan.actions.filter(x=>x.priority===priority).length+'</span></div>'+
    '<p class="muted">'+esc(lead)+'</p>'+
@@ -40,14 +68,16 @@ function render(review){
   '<div class="grid">'+stats.map(([name,value])=>
    '<div class="stat"><small>'+esc(name)+'</small><b>'+esc(value)+'</b></div>').join('')+'</div>'+
   '<p class="warning"><b>No release permission.</b> Operator checkmarks are not verified browser recordings, actual form delivery or authenticated client signoff. The lead must independently verify original private evidence.</p>'+
-  group('P0','Fix now — observed failures','Observed technical, browser, manual or form failures need correction and fresh evidence.')+
+  technicalHtml+group('P0','Fix now — observed failures','Observed technical, browser, manual or form failures need correction and fresh evidence.')+
   group('P1','Complete — missing evidence and approvals','Pending observations and final independent owner authorization remain required even after every operator claim passes.')+
   '<section class="panel"><h2>Release identity</h2><p>Official static manifest SHA256: <code>'+
     esc(plan.officialStaticManifestSha256)+'</code></p><p>Original source contract SHA256: <code>'+
     esc(plan.sourceContractSha256)+'</code></p><p>Owner/source revision claim: '+
     esc(plan.ownerSourceRevisionClaim)+'</p><p>Never copy client evidence or this private report into the public site ZIP, GitHub or shared hosting.</p></section>'+
   '</main></body></html>';
- return Object.freeze({siteId:plan.siteId,html,summary:plan.counts,
+ return Object.freeze({siteId:plan.siteId,html,summary:{...plan.counts,
+  sourcePhpGateDetails:technical?.php.length??null,
+  sourcePublicReasonDetails:technical?.public.length??null},
   releaseAuthorized:false,clientApprovalAuthenticated:false});
 }
 module.exports=Object.freeze({render});

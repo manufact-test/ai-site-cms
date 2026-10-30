@@ -59,6 +59,11 @@ assert(w.nextActionsHtml.includes('Fix now — observed failures'));
 assert(w.nextActionsHtml.includes('Independent owner authorization'));
 assert.equal(w.overview.nextActionsPending,8);
 assert.equal(w.overview.nextActionsUrgent,0);
+assert(w.nextActionsHtml.includes('Original PHP and live HTTPS blockers'));
+assert(w.nextActionsHtml.includes('technical launch report'));
+const actionView=require('../lib/first-site-live-followup-view.cjs');
+assert.throws(()=>actionView.render(report,{summary:{...summary,siteId:'wrong-site'},
+ bundle,postDeploy:post}),/same approved release/);
 assert(!w.nextActionsHtml.includes('private://'));
 
 assert(w.humanHtml.includes('Human First-Site Acceptance'));

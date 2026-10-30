@@ -26,7 +26,8 @@ function build(input){
  const indexed=indexing?INDEX.render(indexing):null;
  const manual=human?HUMAN.render(human.report,human.contract,human.contractSha,first,
   first.summarySha,first.postDeploySha):null;
- const queue=manual?ACTIONS.render(human.report):null;
+ const queue=manual?ACTIONS.render(human.report,{summary:first.summary,
+  bundle:first.bundle,postDeploy:first.postDeploy}):null;
  const siteId=launch?.siteId||visibility?.summary.siteId||indexed?.summary.siteId||manual?.siteId;
  if([launch?.siteId,visibility?.summary.siteId,indexed?.summary.siteId,manual?.siteId].filter(Boolean).some(x=>x!==siteId))
   throw Error('Cannot combine launch, search and indexing evidence from different customer sites');
