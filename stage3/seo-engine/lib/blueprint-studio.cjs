@@ -67,6 +67,11 @@ function render(brief,{allowIncomplete=false}={}){
   '.stat{background:#fff;border:1px solid var(--line);padding:12px 16px;border-radius:10px;min-width:115px}.stat b{display:block;font-size:22px}.stat small{color:var(--muted)}',
   '#problems{margin:5px 0;padding-left:22px}#problems li{margin:5px 0}#problems li.error{color:#8c342d}',
   '.notice{background:#fff8e8;border-left:4px solid #bf8b37;padding:12px 15px;border-radius:8px}',
+  '.arch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:11px;margin-top:13px}',
+  '.arch-page{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fbfdfe;overflow-wrap:anywhere}',
+  '.arch-page strong{display:block}.arch-page .route{font-size:12px;color:var(--muted)}',
+  '.chip{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;margin:8px 5px 0 0;background:#e8f4f1;color:#166d62;border-radius:40px}',
+  '.chip.warn{background:#fff0df;color:#925329}.arch-signals{padding-left:20px}.arch-signals li{margin:6px 0}',
   '@media(max-width:700px){main{padding:10px}.panel{padding:15px}header{padding:22px}.fields{grid-template-columns:1fr}.toolbar{position:static}.toolbar button,.toolbar .file{flex:1;text-align:center}}'
  ].join('');
  return '<!doctype html><html lang="en"><head><meta charset="utf-8">'+
@@ -80,7 +85,11 @@ function render(brief,{allowIncomplete=false}={}){
   '<div class="toolbar"><button id="draft" class="secondary">Save editable draft</button>'+
   '<button id="export">Export for SEO compiler</button><label class="file">Import private draft <input id="import" type="file" accept=".json,application/json"></label>'+
   '<span id="message" role="status" class="small"></span></div>'+
-  '<div id="stats" class="stats"></div>'+
+  '<div id="stats" class="stats"></div>'+ 
+  '<section class="panel"><h2>Architecture intelligence — live draft</h2>'+ 
+  '<p class="muted small">Only the explicitly planned contextual links and CTAs are counted. Navigation, live crawling, search rankings and actual indexation are unknown. This preview is not the authoritative architecture audit.</p>'+ 
+  '<div id="arch-overview" class="stats"></div><div id="arch-pages" class="arch-grid"></div>'+ 
+  '<h3>Editorial signals</h3><ol id="arch-signals" class="arch-signals"></ol></section>'+
   '<section class="panel"><h2>Source validity</h2><p class="muted small">Local checks guide editing. The original Node SEO compiler is the final validator; no SEO ranking claims or automatic publication.</p>'+
   '<ol id="problems"></ol></section>'+
   '<section class="panel"><h2>Site and audience</h2><div id="site" class="fields"></div></section>'+
@@ -303,6 +312,92 @@ function editor(){
   }
   return issues.slice(0,120);
  }
+ function architecture(){
+  const home=data.pages.find(p=>p.path==='/'),byId=new Map(data.pages.map(p=>[p.id,p])),
+   routes=new Map(data.pages.map(p=>[p.path,p])),
+   inbound=new Map(data.pages.map(p=>[p.id,0])),
+   indexedInbound=new Map(data.pages.map(p=>[p.id,0])),
+   edgeMap=new Map(),warnings=[];
+  const warning=(id,msg)=>warnings.push(id+': '+msg);
+  for(const pg of data.pages){
+   const outgoing=[...all(pg.links).map(l=>l.toPageId),
+    ...all(pg.sections).filter(s=>s.cta).map(s=>s.cta.toPageId)];
+   edgeMap.set(pg.id,outgoing);
+   outgoing.forEach(id=>{
+    if(!byId.has(id))return;
+    inbound.set(id,(inbound.get(id)||0)+1);
+    if(pg.seo.robots==='index')indexedInbound.set(id,(indexedInbound.get(id)||0)+1);
+   });
+  }
+  const reached=new Set(),queue=home?[home.id]:[];
+  for(let i=0;i<queue.length;i++){
+   const id=queue[i];if(reached.has(id))continue;
+   reached.add(id);
+   for(const target of edgeMap.get(id)||[])if(byId.has(target)&&!reached.has(target))queue.push(target);
+  }
+  const topics=new Map(),titles=new Map(),facts=new Map(data.facts.map(f=>[f.id,f]));
+  for(const pg of data.pages){
+   if(pg.seo.robots!=='index')continue;
+   const topic=(pg.intent.type+'|'+(pg.intent.topics[0]||'')).normalize('NFKC').toLowerCase().trim(),
+    title=(pg.seo.title||'').normalize('NFKC').toLowerCase().trim();
+   if(topic.endsWith('|'))continue;
+   if(topics.has(topic))warning(pg.path,
+    'Declared primary intent/topic overlaps with '+topics.get(topic)+
+    '; confirm distinct visitor needs (not proof of search cannibalization).');
+   else topics.set(topic,pg.path);
+   if(title&&titles.has(title))warning(pg.path,
+    'Planned SEO title duplicates '+titles.get(title)+'.');
+   else if(title)titles.set(title,pg.path);
+  }
+  $('arch-overview').replaceChildren();$('arch-pages').replaceChildren();$('arch-signals').replaceChildren();
+  const indexed=data.pages.filter(p=>p.seo.robots==='index');
+  for(const [name,value] of [
+   ['Indexed plan',indexed.length],['Orphan plan',indexed.filter(p=>p.path!=='/'&&!indexedInbound.get(p.id)).length],
+   ['Unreachable plan',indexed.filter(p=>p.path!=='/'&&!reached.has(p.id)).length],
+   ['Explicit edges',[...edgeMap.values()].reduce((n,list)=>n+list.length,0)]]){
+    const el=node('div',undefined,'stat');
+    append(el,node('small',name),node('b',String(value)));
+    $('arch-overview').append(el);
+  }
+  for(const pg of data.pages){
+   const el=node('article',undefined,'arch-page');
+   append(el,node('strong',pg.name||pg.id||'(unnamed page)'),
+    node('div',pg.path||'(route incomplete)','route'));
+   const status=pg.seo.robots==='index'?'planned index':'planned noindex';
+   append(el,node('span',status,'chip'));
+   if(pg.path!=='/'&&!indexedInbound.get(pg.id)){
+    append(el,node('span','No indexed inbound link','chip warn'));
+    if(pg.seo.robots==='index')warning(pg.path,
+     'No direct contextual link / CTA from an indexed page; actual navigation not included.');
+   }
+   if(pg.path!=='/'&&!reached.has(pg.id)){
+    append(el,node('span','Unreachable by planned edges','chip warn'));
+    if(pg.seo.robots==='index')warning(pg.path,
+     'Not reached from / through planned links/CTAs; verify navigation in the final site.');
+   }
+   append(el,node('div',
+    (inbound.get(pg.id)||0)+' planned incoming · '+(edgeMap.get(pg.id)||[]).length+
+    ' outgoing · canonical '+(pg.seo.canonicalPath||pg.path),'small muted'));
+   $('arch-pages').append(el);
+   const canonical=pg.seo.canonicalPath;
+   if(canonical&&routes.has(canonical)&&routes.get(canonical).seo.robots==='noindex')
+    warning(pg.path,'Canonical points to a planned noindex page '+canonical+'.');
+   if(canonical&&routes.has(canonical)&&routes.get(canonical).seo.canonicalPath&&
+    routes.get(canonical).seo.canonicalPath!==canonical)
+    warning(pg.path,'Canonical target itself points elsewhere; confirm direct canonical.');
+   for(const sc of pg.schemaCandidates){
+    const unverified=sc.factIds.filter(id=>facts.get(id)?.status!=='confirmed');
+    if(unverified.length)warning(pg.path,'Schema.org '+sc.type+
+     ' uses unconfirmed/missing fact IDs: '+unverified.join(', ')+
+     '; do not publish structured data from these claims.');
+   }
+  }
+  if(!warnings.length)$('arch-signals').append(node('li',
+   'No additional warnings in the declared link plan. This does not prove real crawlability.'));
+  else warnings.slice(0,60).forEach(w=>$('arch-signals').append(node('li',w)));
+  if(warnings.length>60)$('arch-signals').append(node('li',
+   'Additional signals omitted from this local preview.'));
+ }
  function check(){
   const issue=problems(),list=$('problems');
   list.replaceChildren();
@@ -314,6 +409,7 @@ function editor(){
    ['Issues',issue.length]].forEach(([key,val])=>{
    const item=node('div',undefined,'stat');append(item,node('small',key),node('b',String(val)));$('stats').append(item);
   });
+  architecture();
   return issue;
  }
  function usable(candidate){
