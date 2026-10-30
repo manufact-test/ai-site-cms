@@ -1826,8 +1826,13 @@ test('grid gallery captions, native lightbox and safe click-actions',()=>{
   assert.match(html,/--cmsdg-gallery-columns:4;--cmsdg-gallery-tablet:2;--cmsdg-gallery-mobile:1/);
   assert.match(html,/popovertarget="cmsdg-lightbox-gallery-photo-alpha"/);
   assert.match(html,/role="dialog" aria-label="Фасад"/);
+  assert.match(html,/aria-label="Следующая фотография"/);
+  assert.match(html,/popovertarget="cmsdg-lightbox-gallery-photo-beta"/);
   assert.match(html,/<figcaption>Проект &lt;первый&gt;<\/figcaption>/);
   assert.doesNotMatch(html,/<первый>/);
+  gallery.styles={position:'sticky',top:12};
+  sdk.validateSite(site,manifests);
+  assert.match(G.render(site,section.designGraph),/position:sticky;top:12px/);
   const linked=same(site);
   linked.pages[0].sections.at(-1).designGraph.nodes[0].children[0].href='/';
   refuses(()=>sdk.validateSite(linked,manifests),'Linked gallery images cannot also open lightbox');
