@@ -323,10 +323,15 @@ async function execute(){
   assert.equal(await page.locator('[data-approved-device="tablet"]').isVisible(),false);
   await page.locator('#server-approved-expand-desktop').click();
   assert.equal(await page.locator('[data-approved-device="tablet"]').isVisible(),true);
+  const coverage=page.locator('#server-approved-editability');
+  assert.equal(await coverage.count(),1,'Actual site editability map is visible');
+  assert.match(await coverage.innerText(),/Контент:|Авторский дизайн:/);
   const pageOptions=await page.locator('#server-approved-review-page option').count();
   assert.ok(pageOptions>=2,'Owner can preview interior page before accepting site');
   const beforePageReference=await page.locator('[data-prototype="desktop"]').getAttribute('src');
   await page.locator('#server-approved-review-page').selectOption(interiorPage.path);
+  assert.ok((await coverage.innerText()).includes(interiorPage.path),
+    'Editability inventory follows this imported page');
   await page.waitForFunction(previous=>
     document.querySelector('[data-prototype="desktop"]')?.getAttribute('src')!==previous,
     beforePageReference);
