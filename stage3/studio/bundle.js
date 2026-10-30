@@ -43,7 +43,7 @@ const TYPES=['container','heading','text','button','image','divider','icon','vid
 const STYLE_KEYS=['display','columns','direction','align','justify','gap','padding','radius',
   'color','background','fontSize','fontWeight','lineHeight','maxWidth','position','top','left',
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
-  'paddingX','paddingY','marginTop','marginBottom','widthPercent','minHeight','gridColumnSpan',
+  'paddingX','paddingY','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginBottom','widthPercent','minHeight','minHeightViewport','heightViewport','gridColumnSpan',
   'flexWrap','flexGrow','alignSelf','letterSpacing','fontFamily','objectFit','aspectRatio',
   'overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset','shadowFine'];
 const DEFAULT_TOKENS=Object.freeze({
@@ -99,7 +99,7 @@ function validateStyle(style,tokens,at,mode='base'){
   };
   const ranges={columns:[1,12],gridColumnSpan:[1,12],flexGrow:[0,6],fontWeight:[100,900],
     lineHeight:[80,250],letterSpacing:[-50,200],maxWidth:[0,1920],widthPercent:[1,100],
-    borderWidth:[0,12],order:[-30,30],opacity:[0,100],outlineWidth:[0,8],zIndex:[-10,30],widthPx:[1,1920],heightPx:[1,1400],minWidth:[0,1920],maxHeight:[0,1600],gridRowSpan:[1,12],flexBasisPercent:[0,100],flexShrink:[0,1],objectPositionX:[0,100],objectPositionY:[0,100],marginTop:[-160,160],marginBottom:[-160,160],wordSpacing:[-40,100],textIndent:[-100,200],gridColumnStart:[1,13],gridRowStart:[1,13],translateX:[-600,600],translateY:[-600,600],rotateDeg:[-180,180],scalePercent:[50,200],backdropBlur:[0,32]};
+    borderWidth:[0,12],order:[-30,30],opacity:[0,100],outlineWidth:[0,8],zIndex:[-10,30],widthPx:[1,1920],heightPx:[1,1400],minWidth:[0,1920],maxHeight:[0,1600],gridRowSpan:[1,12],flexBasisPercent:[0,100],flexShrink:[0,1],objectPositionX:[0,100],objectPositionY:[0,100],marginTop:[-160,160],marginBottom:[-160,160],minHeightViewport:[0,120],heightViewport:[1,120],wordSpacing:[-40,100],textIndent:[-100,200],gridColumnStart:[1,13],gridRowStart:[1,13],translateX:[-600,600],translateY:[-600,600],rotateDeg:[-180,180],scalePercent:[50,200],backdropBlur:[0,32]};
   for(const [key,value] of Object.entries(style)){
     if(mode==='state'&&!['color','background','borderColor','borderWidth','borderStyle','radius','opacity','gradient','outlineColor','outlineWidth','filterPreset','scalePercent'].includes(key))
       fail(at,'unsupported interaction state property');
@@ -119,13 +119,14 @@ function validateStyle(style,tokens,at,mode='base'){
       continue;
     }
     if(key==='gradient'){
-      keys(value,['angle','from','to','via','viaAt'],at+'/gradient');
+      keys(value,['angle','from','to','via','viaAt','type','centerX','centerY','radius'],at+'/gradient');
       if(!number(value.angle,0,360)||!own(value,'from')||!own(value,'to')||own(value,'via')!==own(value,'viaAt')||
         (own(value,'viaAt')&&!number(value.viaAt,1,99)))fail(at,'invalid gradient');
+      if((own(value,'type')&&!['linear','radial'].includes(value.type))||(own(value,'centerX')&&!number(value.centerX,0,100))||(own(value,'centerY')&&!number(value.centerY,0,100))||(own(value,'radius')&&!['closest-side','farthest-side','farthest-corner'].includes(value.radius))||(value.type!=='radial'&&['centerX','centerY','radius'].some(k=>own(value,k))))fail(at,'invalid gradient geometry');
       resolve(value.from,'colors',tokens,at+'/from');resolve(value.to,'colors',tokens,at+'/to');
       if(own(value,'via'))resolve(value.via,'colors',tokens,at+'/via');continue;
     }
-    if(['gap','rowGap','columnGap','padding','paddingX','paddingY','top','left','right','bottom','minHeight'].includes(key)){
+    if(['gap','rowGap','columnGap','padding','paddingX','paddingY','paddingTop','paddingRight','paddingBottom','paddingLeft','top','left','right','bottom','minHeight'].includes(key)){
       resolve(value,'spacing',tokens,at+'/'+key);continue;
     }
     if(key==='radius'||key==='fontSize'||["borderTopLeftRadius","borderTopRightRadius","borderBottomRightRadius","borderBottomLeftRadius"].includes(key)){
@@ -138,6 +139,8 @@ function validateStyle(style,tokens,at,mode='base'){
   }
   if(own(style,'fontSize')&&own(style,'fluidFont'))fail(at,'competing typography controls');
   if(own(style,'widthPx')&&own(style,'widthPercent'))fail(at,'competing width units');
+  if(own(style,'minHeight')&&own(style,'minHeightViewport'))fail(at,'competing min-height');
+  if(own(style,'heightPx')&&own(style,'heightViewport'))fail(at,'competing height');
   if(own(style,'columns')&&own(style,'gridColumnsPreset'))fail(at,'competing grid template');
   if(own(style,'shadow')&&own(style,'shadowFine'))fail(at,'competing shadow controls');
 }
@@ -508,7 +511,8 @@ function declarations(style,t){
         resolve(v.color,'colors',t,k));continue;
     }
     if(k==='gradient'){
-      put('background-image','linear-gradient('+v.angle+'deg,'+resolve(v.from,'colors',t,k)+','+(own(v,'via')?resolve(v.via,'colors',t,k)+' '+v.viaAt+'%,':'')+
+      const prefix=v.type==='radial'?'radial-gradient(circle '+(v.radius||'farthest-corner')+' at '+(v.centerX??50)+'% '+(v.centerY??50)+'%,':'linear-gradient('+v.angle+'deg,';
+      put('background-image',prefix+resolve(v.from,'colors',t,k)+','+(own(v,'via')?resolve(v.via,'colors',t,k)+' '+v.viaAt+'%,':'')+
         resolve(v.to,'colors',t,k)+')');continue;
     }
     const color=['color','background','borderColor','outlineColor'].includes(k);
@@ -551,6 +555,8 @@ function declarations(style,t){
       put('box-shadow',{none:'none',soft:'0 5px 16px #10182020',medium:'0 12px 32px #10182033',
         strong:'0 20px 56px #1018204d'}[value]);continue;
     }
+    if(k==='minHeightViewport'||k==='heightViewport'){const prop=k==='minHeightViewport'?'min-height':'height';put(prop,value+'vh');put(prop,value+'svh');continue;}
+    if(['paddingTop','paddingRight','paddingBottom','paddingLeft'].includes(k))continue;
     if(own(pixel,k)){put(pixel[k],value+'px');continue;}
     if(k==='widthPercent'){put('width',value+'%');continue;}
     if(k==='letterSpacing'){put('letter-spacing',(value/10).toFixed(1)+'px');continue;}
@@ -562,6 +568,7 @@ function declarations(style,t){
     if(k==='opacity')put('opacity',(value/100).toFixed(2));
     if(k==='borderWidth'){if(!own(style,'borderStyle'))put('border-style','solid');put('border-width',value+'px');}
   }
+  for(const [key,prop] of [['paddingTop','padding-top'],['paddingRight','padding-right'],['paddingBottom','padding-bottom'],['paddingLeft','padding-left']])if(own(style,key))put(prop,resolve(style[key],'spacing',t,key)+'px');
   return css.join(';');
 }
 function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPreview=null){
@@ -4793,7 +4800,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           input.addEventListener('change',()=>{
             const val=input.value;
             if(['fontSize','padding','gap','color','background','textAlign','widthPx','heightPx',
-              'minWidth','maxWidth','minHeight','maxHeight','borderWidth','borderStyle',
+              'minWidth','maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','borderStyle',
               'filterPreset','shadow','objectPositionX','objectPositionY','translateX','translateY'].includes(key)){
               editGraphWork(node=>{
                 const style=mode==='desktop'?node.styles||(node.styles={}):
@@ -4803,7 +4810,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                   if(mode!=='desktop'&&!Object.keys(style).length)delete node.responsive[mode];
                   if(node.responsive&&!Object.keys(node.responsive).length)delete node.responsive;
                 }else if(['fontSize','padding','gap','widthPx','heightPx','minWidth',
-                  'maxWidth','minHeight','maxHeight','borderWidth','objectPositionX','objectPositionY','translateX','translateY'].includes(key)){
+                  'maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','objectPositionX','objectPositionY','translateX','translateY'].includes(key)){
                   style[key]=val.startsWith('@')?val.trim():Number(val);
                 }else{if(key==='shadow')delete style.shadowFine;style[key]=val.trim();}
               });
@@ -6446,6 +6453,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const currentGradient=style.gradient;
       const ensureGradient=()=>style.gradient||(style.gradient={angle:135,from:'@accent',to:'@background'});
       gradientFields.append(
+        ctl('Тип градиента',{initial:currentGradient?.type||'linear',choices:[['linear','Линейный'],['radial','Радиальный']]},v=>{const g=ensureGradient();g.type=v;if(v!=='radial'){delete g.centerX;delete g.centerY;delete g.radius;}},'select'),
+        ctl('Центр X, %',String(currentGradient?.centerX??50),v=>{const g=ensureGradient();g.type='radial';g.centerX=Number(v);},'number'),
+        ctl('Центр Y, %',String(currentGradient?.centerY??50),v=>{const g=ensureGradient();g.type='radial';g.centerY=Number(v);},'number'),
+        ctl('Радиус',{initial:currentGradient?.radius||'farthest-corner',choices:[['closest-side','Ближняя сторона'],['farthest-side','Дальняя сторона'],['farthest-corner','Дальний угол']]},v=>{const g=ensureGradient();g.type='radial';g.radius=v;},'select'),
         ctl('Угол (0–360)',String(currentGradient?.angle??135),v=>{ensureGradient().angle=Number(v);},'number'),
         ctl('Цвет от (HEX или @token)',currentGradient?.from||'@accent',v=>{ensureGradient().from=v.trim();}),
         ctl('Цвет до (HEX или @token)',currentGradient?.to||'@background',v=>{ensureGradient().to=v.trim();}),
