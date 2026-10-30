@@ -108,6 +108,9 @@ try{
  assert.equal(manifest.overview.crawlCmsImplementationIncluded,true);
  assert.equal(manifest.crawlEvidence.originalBlueprintFileSha256,raw.blueprint);
  assert.equal(manifest.releaseAuthorized,false);
+ assert(fs.existsSync(path.join(out,'lead-readiness.html')));
+ assert(fs.existsSync(path.join(out,'LEAD-PACKET-INTEGRITY.json')));
+ assert.equal(manifest.overview.leadReadinessIncluded,true);
  assert.equal(manifest.inputSHA256.crawl.cmsSite,raw.site);
  const saved=JSON.parse(fs.readFileSync(path.join(out,'crawl-cms-worklist.json'),'utf8'));
  assert.equal(saved.originalSiteRawSha256,raw.site);
