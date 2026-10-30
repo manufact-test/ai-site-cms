@@ -937,3 +937,8 @@ Typed Design Graph galleries now accept an optional `photoShape` (`natural`, `sq
 ### 30 Oct 2026 — responsive individual gallery shapes
 
 Approved-site typed galleries now accept optional `photoShapeTablet` and `photoShapeMobile` alongside `photoShape` (`natural|square|landscape|portrait`). The JS contract and PHP visitor independently reject unknown shapes and foreign-node usage. Both the quick workbench and full graph editor let the owner choose independent desktop/tablet/mobile crops; CSS applies tablet at <=900px and mobile at <=600px while keeping the original images and full-resolution lightbox proportions. Absence of new device fields preserves backward compatibility. Owner visual approval of the real three-device design is still required. No change in 135 MUST engineering counts or ownerAccepted=0, and no production, SEO worker or main changes.
+
+
+### 30 October 2026 — no-JavaScript horizontal gallery navigation
+
+Typed gallery nodes now accept optional boolean `scrollControls` for horizontal `scroll` layout only (not `grid`). Both Studio editors offer the option; switching to grid disables it. The PHP and first-party JS visitor render per-photo previous/next links targeting stable photo IDs, localized accessible labels and visible keyboard focus, without external JS or third-party carousel dependencies. Existing swipe scrolling remains; each gallery image, caption, source asset, and native lightbox behavior remain independent. Two visitor validator tests cover the generated anchors and invalid types. This is functional engineering; verify the real approved client design on desktop/tablet/mobile before owner acceptance. No production, SEO-worker, main or ownerAccepted changes.
