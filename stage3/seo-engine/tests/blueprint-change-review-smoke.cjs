@@ -76,6 +76,13 @@ extra.pages.push({
 const added=DIFF.compare(original,BP.compileBrief(extra));
 assert.equal(added.summary.addedPages,1);
 assert(added.probePlan.some(p=>p.kind==='planned-page'&&p.requestPath==='/more/'));
+const chain=clone(brief);
+chain.pages[0].seo.canonicalPath='/contact/';
+chain.pages[1].seo.canonicalPath='/';
+const canonicalChain=DIFF.compare(original,BP.compileBrief(chain));
+assert(canonicalChain.introducedArchitectureFindings.some(x=>x.code==='architecture:canonical-chain'));
+assert(canonicalChain.actions.some(x=>x.id.startsWith('architecture:architecture:canonical-chain:')&&
+ x.priority==='P0'),'Canonical cycles and chains cannot be treated as cosmetic warnings');
 const fake=clone(original);fake.siteId='site-forged';
 assert.throws(()=>DIFF.compare(original,fake),/differ/);
 assert.throws(()=>DIFF.compare(original,{...planned,version:2}),/unsupported/);

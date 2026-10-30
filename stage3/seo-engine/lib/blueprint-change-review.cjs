@@ -245,7 +245,8 @@ function compare(beforeRaw,afterRaw){
  const sig=x=>[x.code,x.pageId||'',x.targetPageId||'',x.sectionId||'',x.anchor||''].join('|');
  const oldFindings=new Set(archBefore.findings.map(sig));
  const introduced=archAfter.findings.filter(f=>!oldFindings.has(sig(f)));
- for(const f of introduced)if(['warning','error'].includes(f.severity)){
+ for(const f of introduced)if(['warning','error'].includes(f.severity)||
+  f.code==='architecture:canonical-chain'){
   task('architecture:'+f.code+':'+(f.pageId||'site'),
    f.code.includes('canonical')?'P0':'P1','SEO architect + CMS lead',f.pageId,
    f.message,'Review new planned information-architecture finding; header/footer and public site are not inspected.',
