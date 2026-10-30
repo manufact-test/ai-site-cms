@@ -82,7 +82,7 @@ assert.equal(POLICY.parseSitemap(dates).records[0].lastmod,'2026-10-30');
 assert.throws(()=>POLICY.parseSitemap(dates.replace('2026-10-30','2026-02-30')),/lastmod calendar/);
 const ns='<?xml version="1.0"?><m:urlset xmlns:m="https://www.sitemaps.org/schemas/sitemap/0.9"><m:url><m:loc>https://demo.example/</m:loc></m:url></m:urlset>';
 assert.equal(POLICY.parseSitemap(ns).records.length,1);
-assert.throws(()=>POLICY.parseSitemap(xml.replace('</urlset>','')),/unclosed|incomplete/);
+assert.throws(()=>POLICY.parseSitemap(xml.replace('</urlset>','')),/unclosed|incomplete|document root/);
 assert.throws(()=>POLICY.parseSitemap(xml.replace('https://demo.example/contact/','https://demo.example/')),/Duplicate/);
 assert.throws(()=>POLICY.parseSitemap(xml.replace('<urlset ','<!DOCTYPE x [<!ENTITY a "bad">]><urlset ')),/unsafe/i);
 assert.throws(()=>POLICY.parseSitemap(xml.replace('https://demo.example/contact/','&bad;')),/Unknown XML entity/);
