@@ -96,6 +96,7 @@ function main(argv){
  if(workspace.searchHtml)write('search.html',workspace.searchHtml);
  if(workspace.indexingHtml)write('indexing.html',workspace.indexingHtml);
  if(workspace.humanHtml)write('human.html',workspace.humanHtml);
+ if(workspace.nextActionsHtml)write('next-actions.html',workspace.nextActionsHtml);
  write('workspace-manifest.json',JSON.stringify({format:workspace.format,siteId:workspace.siteId,
   readOnly:true,overview:workspace.overview,inputSHA256:digests,configSHA256:input(args.config,150000).sha256,
   releaseAuthorized:false,limitations:workspace.limitations},null,2)+'\n');

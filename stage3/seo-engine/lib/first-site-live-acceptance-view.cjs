@@ -180,7 +180,7 @@ function render(review,contract,contractSha,first,firstSha,postSha){
   '<li>The owner/lead must authenticate the original client signature, browser recordings, TLS/host and real submitted form receipts.</li>'+
   '<li>Human checkmarks cannot close original PHP/HTTPS technical blockers or authorize publishing.</li>'+
   '<li>Every changed CMS revision, official ZIP or public host requires a fresh checked release and evidence.</li>'+
-  '</ul><p>Source-bound report: '+esc(review.sourceContractSha256)+
+  '</ul><p><a href="next-actions.html">Open exact P0/P1 fixes and missing evidence →</a></p><p>Source-bound report: '+esc(review.sourceContractSha256)+
   '</p><p><a href="index.html">Back to private SEO workspace</a></p></section>'+
   '</main></body></html>';
  return Object.freeze({siteId:review.siteId,status:review.status,html,
