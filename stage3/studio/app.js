@@ -3531,6 +3531,10 @@
         fields.append(editor);
       }
       if(n.type==='gallery'){
+        fields.append(ctl('Пропорции миниатюр',{initial:n.photoShape||'natural',
+          choices:[['natural','Оригинальные'],['square','Квадрат 1:1'],['landscape','Широкие 16:9'],['portrait','Вертикальные 3:4']]},value=>{
+            n.photoShape=value;
+          },'select'));
         fields.append(ctl('Расположение фотографий',{initial:n.layout||'scroll',
           choices:[['scroll','Горизонтальная лента · свайп'],['grid','Сетка · ПК / планшет / телефон']]},value=>{
             n.layout=value;if(value!=='grid')for(const key of ['columnsDesktop','columnsTablet','columnsMobile'])delete n[key];
