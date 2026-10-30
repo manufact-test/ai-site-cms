@@ -207,6 +207,17 @@ function analyze({blueprint,base,robotsText,sitemapXml,agents=AGENTS,scope='comp
    crawlerDecisions:checks,sitemap:'not-observed',httpVerified:false};
  });
  if(sitemap.kind==='index'){
+  for(const child of sitemap.records){
+   let u;try{u=new URL(child.loc)}catch{u=null;}
+   if(!u||u.protocol!=='https:'||u.origin!==host.origin||
+    !u.pathname.startsWith(host.pathname)||u.username||u.password||u.search||u.hash){
+    finding('sitemap:child-other-host','P1',null,child.loc,
+     'Sitemap index lists a child XML outside the approved base host/mount.');
+    task('sitemap:foreign-child:'+SHA(child.loc).slice(0,16),'P1',null,
+     'Verify actual sitemap-index ownership and child source before trusting URL coverage.',
+     'Original real child sitemap bytes and owner-confirmed URL mount');
+   }
+  }
   finding('sitemap:children-unavailable','P1',null,null,
    'Sitemap index supplied without child sitemap contents; page coverage cannot be asserted',
    {childUrls:sitemap.records.map(x=>x.loc)});
