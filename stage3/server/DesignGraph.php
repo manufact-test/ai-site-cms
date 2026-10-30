@@ -130,6 +130,11 @@ final class DesignGraph
             if (in_array($key,['color','background','borderColor','outlineColor'],true)){
                 self::resolve($value,'colors',$tokens,$at.'/'.$key);continue;
             }
+            if ($key==='gridTracks'){
+                self::check(is_array($value)&&array_is_list($value)&&count($value)>=2&&count($value)<=6&&
+                    !array_filter($value,static fn($n)=>!self::integer($n,1,12)),$at.' invalid weighted grid tracks');
+                continue;
+            }
             if ($key==='fluidFont'){
                 self::keys($value,['min','max'],$at.'/fluidFont');
                 self::check(self::integer($value['min']??null,10,120)
@@ -493,11 +498,6 @@ final class DesignGraph
             'radius'=>'border-radius','fontSize'=>'font-size','minHeight'=>'min-height',
             'top'=>'top','left'=>'left','right'=>'right','bottom'=>'bottom','widthPx'=>'width','heightPx'=>'height','minWidth'=>'min-width','maxHeight'=>'max-height'];
         foreach($styles as $key=>$value){
-            if($key==='gridTracks'){
-                self::check(is_array($value)&&array_is_list($value)&&count($value)>=2&&count($value)<=6&&
-                    !array_filter($value,static fn($n)=>!self::integer($n,1,12)),$at.' invalid weighted grid tracks');
-                continue;
-            }
             if($key==='fluidFont'){
                 $slope=($value['max']-$value['min'])*100/880;
                 $intercept=$value['min']-$slope*3.2;
