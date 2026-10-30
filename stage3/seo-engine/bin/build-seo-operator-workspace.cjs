@@ -53,15 +53,18 @@ function readConfiguration(source){
 function main(argv){
  const args=flags(argv);
  if(!args){process.stdout.write(HELP+'\n');return;}
- const config=readConfiguration(input(args.config,150000).data);
- const sources={},digests={};
+ const configFile=input(args.config,150000);
+ const config=readConfiguration(configFile.data);
+ const pinned=[{path:args.config,max:150000,sha256:configFile.sha256}];
+ const digests={};
  const collect=(group,fields)=>{
   if(!config[group])return null;
   const result={};
   digests[group]={};
   for(const [field,max] of Object.entries(fields)){
    if(!config[group][field])continue;
-   const v=input(config[group][field],max);
+   const file=config[group][field],v=input(file,max);
+   pinned.push({path:file,max,sha256:v.sha256});
    result[field]=v.data;
    digests[group][field]=v.sha256;
   }
@@ -86,21 +89,34 @@ function main(argv){
  }
  const workspace=WORK.build({firstSite:first,search,indexing:indexing?.report||null,
   liveAcceptance:human,operatorDesk:config.operatorDesk||null});
- fs.mkdirSync(out,{mode:0o700,recursive:false});
- function write(name,content){
-  const fd=fs.openSync(path.join(out,name),'wx',0o600);
-  try{fs.writeFileSync(fd,content);}finally{fs.closeSync(fd);}
+ const parent=fs.realpathSync(path.dirname(out));
+ const staging=fs.mkdtempSync(path.join(parent,'.seo-workspace-incomplete-'));
+ let success=false;
+ try{
+  const write=(name,content)=>fs.writeFileSync(path.join(staging,name),content,
+   {flag:'wx',mode:0o600});
+  write('index.html',workspace.homeHtml);
+  if(workspace.launchHtml)write('launch.html',workspace.launchHtml);
+  if(workspace.searchHtml)write('search.html',workspace.searchHtml);
+  if(workspace.indexingHtml)write('indexing.html',workspace.indexingHtml);
+  if(workspace.humanHtml)write('human.html',workspace.humanHtml);
+  if(workspace.nextActionsHtml)write('next-actions.html',workspace.nextActionsHtml);
+  write('workspace-manifest.json',JSON.stringify({format:workspace.format,siteId:workspace.siteId,
+   readOnly:true,overview:workspace.overview,inputSHA256:digests,
+   configSHA256:configFile.sha256,sourceMutationRejected:true,
+   releaseAuthorized:false,limitations:workspace.limitations},null,2)+'\n');
+  write('PRIVATE-README.txt',
+   'Private local SEO operator workspace. No actual CMS/Google connection, release approval or deploy. NEVER publish, upload or commit these reports.\n');
+  // Never publish a dashboard assembled from source files that changed mid-render.
+  for(const source of pinned)
+   if(input(source.path,source.max).sha256!==source.sha256)
+    throw Error('Private workspace inputs changed during rendering; discard the entire bundle');
+  if(fs.existsSync(out))throw Error('Private workspace target appeared while staging');
+  fs.renameSync(staging,out);
+  success=true;
+ }finally{
+  if(!success)fs.rmSync(staging,{recursive:true,force:true});
  }
- write('index.html',workspace.homeHtml);
- if(workspace.launchHtml)write('launch.html',workspace.launchHtml);
- if(workspace.searchHtml)write('search.html',workspace.searchHtml);
- if(workspace.indexingHtml)write('indexing.html',workspace.indexingHtml);
- if(workspace.humanHtml)write('human.html',workspace.humanHtml);
- if(workspace.nextActionsHtml)write('next-actions.html',workspace.nextActionsHtml);
- write('workspace-manifest.json',JSON.stringify({format:workspace.format,siteId:workspace.siteId,
-  readOnly:true,overview:workspace.overview,inputSHA256:digests,configSHA256:input(args.config,150000).sha256,
-  releaseAuthorized:false,limitations:workspace.limitations},null,2)+'\n');
- write('PRIVATE-README.txt','Private local SEO operator workspace. No actual CMS/Google connection, release approval or deploy. NEVER publish, upload or commit these reports.\n');
  process.stdout.write('MANUFACT PRIVATE WORKSPACE: '+workspace.siteId+
   ' (launch '+workspace.overview.launchIncluded+', search '+workspace.overview.searchIncluded+', indexing '+workspace.overview.indexingIncluded+
   '); open locally '+path.join(out,'index.html')+'\n');

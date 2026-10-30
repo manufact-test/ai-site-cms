@@ -112,4 +112,6 @@ assert.throws(()=>CONFIG.readConfiguration({...privateConfig,
  liveAcceptance:{report:'/tmp/human.json'}}),/incomplete/);
 assert.throws(()=>CONFIG.readConfiguration({...privateConfig,
  liveAcceptance:{report:'relative.json',contract:'/tmp/relay.json'}}),/absolute/);
+assert.throws(()=>CONFIG.readConfiguration({...privateConfig,
+ operatorDesk:{href:'../../public/index.html'}}),/Unexpected private operator desk/);
 process.stdout.write('Source-pinned human acceptance in SEO workspace smoke PASS.\n');
