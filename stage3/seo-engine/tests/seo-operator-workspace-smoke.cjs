@@ -29,11 +29,17 @@ assert.equal(workspace.overview.technicalBlockers,1);
 assert.equal(workspace.overview.releaseAuthorized,false);
 assert(workspace.homeHtml.includes('launch.html'));
 assert(workspace.homeHtml.includes('search.html'));
+assert(workspace.homeHtml.includes('lead-readiness.html'));
+assert.equal(workspace.overview.leadReadinessIncluded,true);
+assert(workspace.leadReadinessJson.includes('NEEDS-EVIDENCE'));
+assert(workspace.leadReadinessHtml.includes('default-src &#39;none&#39;'));
 assert(workspace.launchHtml.includes('BLOCKED BY FIRST-SITE GATES'));
 assert(workspace.searchHtml.includes('Search Operations Dashboard'));
 assert.throws(()=>WORK.build({firstSite:{summary,summarySha:sourceSha},
  search:{history:{...history,siteId:'different-site'},historySha}}),/different customer sites/);
 const only=WORK.build({firstSite:{summary,summarySha:sourceSha}});
 assert.equal(only.overview.searchIncluded,false);
+assert.equal(only.overview.leadReadinessIncluded,true);
+assert.equal(JSON.parse(only.leadReadinessJson).releaseAuthorized,false);
 assert(!only.homeHtml.includes('search.html'));
 process.stdout.write('Unified private SEO operator workspace smoke PASS.\n');
