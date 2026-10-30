@@ -2156,7 +2156,7 @@
           input.addEventListener('change',()=>{
             const val=input.value;
             if(['fontSize','padding','gap','color','background','textAlign','widthPx','heightPx',
-              'minWidth','maxWidth','minHeight','maxHeight','borderWidth','borderStyle',
+              'minWidth','maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','borderStyle',
               'filterPreset','shadow','objectPositionX','objectPositionY','translateX','translateY'].includes(key)){
               editGraphWork(node=>{
                 const style=mode==='desktop'?node.styles||(node.styles={}):
@@ -2166,7 +2166,7 @@
                   if(mode!=='desktop'&&!Object.keys(style).length)delete node.responsive[mode];
                   if(node.responsive&&!Object.keys(node.responsive).length)delete node.responsive;
                 }else if(['fontSize','padding','gap','widthPx','heightPx','minWidth',
-                  'maxWidth','minHeight','maxHeight','borderWidth','objectPositionX','objectPositionY','translateX','translateY'].includes(key)){
+                  'maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','objectPositionX','objectPositionY','translateX','translateY'].includes(key)){
                   style[key]=val.startsWith('@')?val.trim():Number(val);
                 }else{if(key==='shadow')delete style.shadowFine;style[key]=val.trim();}
               });
@@ -3809,6 +3809,10 @@
       const currentGradient=style.gradient;
       const ensureGradient=()=>style.gradient||(style.gradient={angle:135,from:'@accent',to:'@background'});
       gradientFields.append(
+        ctl('Тип градиента',{initial:currentGradient?.type||'linear',choices:[['linear','Линейный'],['radial','Радиальный']]},v=>{const g=ensureGradient();g.type=v;if(v!=='radial'){delete g.centerX;delete g.centerY;delete g.radius;}},'select'),
+        ctl('Центр X, %',String(currentGradient?.centerX??50),v=>{const g=ensureGradient();g.type='radial';g.centerX=Number(v);},'number'),
+        ctl('Центр Y, %',String(currentGradient?.centerY??50),v=>{const g=ensureGradient();g.type='radial';g.centerY=Number(v);},'number'),
+        ctl('Радиус',{initial:currentGradient?.radius||'farthest-corner',choices:[['closest-side','Ближняя сторона'],['farthest-side','Дальняя сторона'],['farthest-corner','Дальний угол']]},v=>{const g=ensureGradient();g.type='radial';g.radius=v;},'select'),
         ctl('Угол (0–360)',String(currentGradient?.angle??135),v=>{ensureGradient().angle=Number(v);},'number'),
         ctl('Цвет от (HEX или @token)',currentGradient?.from||'@accent',v=>{ensureGradient().from=v.trim();}),
         ctl('Цвет до (HEX или @token)',currentGradient?.to||'@background',v=>{ensureGradient().to=v.trim();}),
