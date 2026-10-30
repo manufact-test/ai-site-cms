@@ -32,7 +32,7 @@
 - The QA status is engineering evidence only; the very first externally approved site still requires strict independent human screenshot/asset/layout acceptance in all viewports.
 
 ## Recommended next feature increments
-1. **Stop polishing just galleries**. Deliver richer typed custom compositions to faithfully reproduce approved bespoke client sections without raw arbitrary HTML. Work on text/media editorial compositions, responsive layout/visual geometry, nested typed content, custom card and pricing presentations; first inspect existing capability to avoid duplication.
+1. **Implement the individual-client workflow in MASTER-TZ, not a site factory.** Start from an external AI author's approved desktop/tablet/mobile designs and authored site payload; improve site-specific manifest field editing, responsive overrides, source fidelity, QA and publish/rollback. Do not create libraries of card, pricing, FAQ, page or section presets.
 2. Build end-to-end editing plus server parity, authoring UI, real visual/browser evidence, and CSS/JS validity; do not submit only validators or cosmetic checks.
 3. Prioritize the first **real externally approved sealed-v2 client site** as soon as the owner supplies it, comparing desktop/tablet/mobile and preserving every approved source asset and SEO intent. No premature owner acceptance.
 4. Keep roadmap and this handoff current as work changes; do not automatically import SEO branch while another developer owns it.
