@@ -114,9 +114,18 @@ function parseSitemap(xml){
  if(typeof xml!=='string'||Buffer.byteLength(xml)>750000||xml.length<30||
   /<!DOCTYPE|<!ENTITY|<!\[CDATA\[/i.test(xml)||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(xml))
   throw Error('Unsafe or oversized sitemap XML');
+ const uncommented=xml.replace(/<!--[\s\S]*?-->/g,'');
+ if(uncommented.includes('<!--')||uncommented.includes('-->'))
+  throw Error('Malformed XML sitemap comment');
+ xml=uncommented;
  const index=/<(?:[\w-]+:)?sitemapindex(?:\s|>)/i.test(xml),
   urlset=/<(?:[\w-]+:)?urlset(?:\s|>)/i.test(xml);
  if(index===urlset)throw Error('Sitemap must have exactly one urlset or sitemapindex root');
+ const rootTag=index?'sitemapindex':'urlset';
+ const rootOpen=new RegExp('<(?:[\\w-]+:)?'+rootTag+'(?:\\s|>)','gi');
+ const rootClose=new RegExp('<\\/(?:[\\w-]+:)?'+rootTag+'\\s*>','gi');
+ if([...xml.matchAll(rootOpen)].length!==1||[...xml.matchAll(rootClose)].length!==1)
+  throw Error('Sitemap must contain only one document root');
  const element=index?'sitemap':'url';
  const tag=new RegExp('<(?:[\\w-]+:)?'+element+'\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w-]+:)?'+element+'\\s*>','gi');
  let m;const records=[],seen=new Set();
@@ -134,9 +143,9 @@ function parseSitemap(xml){
   if(lastmod){
    if(!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2}))?$/.test(lastmod))
     throw Error('Invalid XML sitemap lastmod date format');
-   const parsed=new Date(lastmod);
-   if(!Number.isFinite(parsed.valueOf())||
-    (!lastmod.includes('T')&&parsed.toISOString().slice(0,10)!==lastmod))
+   const parsed=new Date(lastmod),calendar=new Date(lastmod.slice(0,10)+'T00:00:00Z');
+   if(!Number.isFinite(parsed.valueOf())||!Number.isFinite(calendar.valueOf())||
+    calendar.toISOString().slice(0,10)!==lastmod.slice(0,10))
     throw Error('Invalid XML sitemap lastmod calendar date');
   }
   records.push({loc:value,lastmod});
