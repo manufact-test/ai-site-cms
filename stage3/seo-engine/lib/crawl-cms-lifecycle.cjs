@@ -116,9 +116,9 @@ function compare(before,beforeSha,after,afterSha,ledger=null,ledgerSha=null){
  const persistent=[],noLongerSeen=[],newlyObserved=[],changedObservation=[];
  const pRank={P0:0,P1:1,P2:2};
  const guard={};for(const s of STATUSES)guard[s]=0;
+ for(const task of before.actions)guard[decisions.get(task.taskId)?.status||'unreviewed']++;
  const make=(a,state)=>{
   const decision=decisions.get(a.taskId),status=decision?.status||'unreviewed';
-  guard[status]++;
   return {taskId:a.taskId,pageId:a.pageId,path:a.path,
    category:a.category,priority:a.priority,ownerTeam:a.ownerTeam,
    humanDecision:status,assignedTo:decision?.assignee||null,
@@ -161,6 +161,7 @@ function compare(before,beforeSha,after,afterSha,ledger=null,ledgerSha=null){
  }
  for(const a of after.actions)if(!old.has(a.taskId)&&!pairedNew.has(a.taskId))
   newlyObserved.push({...make(a,'NEW-OR-CHANGED-OBSERVATION-REQUIRES-REVIEW'),
+   beforeObservation:null,afterObservation:a.detail,
    priorDecisionTransferAllowed:false});
  const sort=(a,b)=>pRank[a.priority]-pRank[b.priority]||
   (a.path||'').localeCompare(b.path||'')||a.taskId.localeCompare(b.taskId);
