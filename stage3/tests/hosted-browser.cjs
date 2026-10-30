@@ -46,11 +46,17 @@ async function execute(){
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
   await page.locator('#server-signin').click();
   await page.locator('#server-login').waitFor({state:'hidden'});
-  page.once('dialog',dialog=>dialog.accept('Промышленный каталог'));
-  await page.locator('#new-site').click();
+  // Synthetic independent external site payload; Studio itself has no generator.
+  assert.equal(await page.locator('#new-site').count(),0);
+  assert.equal(await page.locator('#compose-site').count(),0);
+  page.once('dialog',dialog=>dialog.accept());
+  await page.evaluate(async()=>{
+    const site=window.Stage3Editor.fromBrief('site-browser-initial','Промышленный каталог');
+    await window.Stage3Host.importSite(site);
+  });
   await page.locator('#server-status').getByText(/Черновик #1/).waitFor();
   const siteId=await page.locator('#server-site-select').inputValue();
-  assert.match(siteId,/^site-[a-z0-9]+$/);
+  assert.equal(siteId,'site-browser-initial');
   assert.equal(await page.locator('#pages .nav-entry').count(),2);
   const field=page.locator('#fields [data-field="content.text"]');
   await field.fill('Проверка серверного сайта');
@@ -489,41 +495,24 @@ async function execute(){
   assert.equal(await visitor.locator('img.showcase-photo').getAttribute('alt'),'Фото цеха');
   assert.equal(await visitor.locator('form.lead-form').count(),1);
   assert.equal((await visitor.goto(origin+'/published/'+siteId+'/')).status(),200,'Original publication intact');
-  // One full recipe path: brief -> editable structure -> inert multipage
-  // preview -> persisted draft -> edits/publish -> template reuse + Undo.
-  await page.locator('#compose-site').click();
-  await page.locator('#compose-title').fill('Рецепт компании');
-  await page.locator('#compose-task').fill('Многостраничный сайт компании с формой');
-  await page.locator('#compose-headline').fill('Заголовок из задания');
-  await page.locator('#compose-description').fill('Только подтверждённое описание');
-  await page.locator('#compose-offerings').fill('Первая услуга\nВторая услуга\nТретья услуга');
-  await page.locator('#compose-details').fill('Подтверждённый факт');
-  await page.locator('#compose-generate').click();
-  await page.locator('#compose-review:not([hidden])').waitFor();
-  assert.equal(await page.locator('#compose-page option').count(),4);
-  await page.frameLocator('#compose-preview').locator('h1').getByText('Заголовок из задания',{exact:true}).waitFor();
-  const pathInput=page.locator('#compose-plan .compose-page-plan').nth(1).locator('input').nth(1);
-  await pathInput.fill('/');
-  assert.equal(await page.locator('#compose-apply').isDisabled(),true);
-  await page.locator('#compose-refresh').click();
-  assert.match(await page.locator('#compose-error').innerText(),/path/);
-  await pathInput.fill('/offerings/');
-  await page.locator('#compose-refresh').click();
-  await page.locator('#compose-apply').click();
-  await page.locator('#composer').waitFor({state:'hidden'});
+  // A site-specific external site JSON is connected and edited; never fabricated by Studio.
+  const generatedId='site-client-authored';
+  await page.evaluate(async id=>{
+    const site=window.Stage3Editor.fromBrief(id,'Индивидуальный сайт клиента');
+    await window.Stage3Host.importSite(site);
+  },generatedId);
   await page.locator('#server-status').getByText(/Черновик #1/).waitFor();
-  const generatedId=await page.locator('#server-site-select').inputValue();
-  assert.notEqual(generatedId,siteId);
-  assert.equal(await page.locator('#pages .nav-entry').count(),4);
+  assert.equal(await page.locator('#server-site-select').inputValue(),generatedId);
+  assert.equal(await page.locator('#pages .nav-entry').count(),2);
   assert.equal((await visitor.goto(origin+'/published/'+generatedId+'/')).status(),404);
-  await page.locator('#fields [data-field="content.text"]').fill('Ручная правка созданного сайта');
+  await page.locator('#fields [data-field="content.text"]').fill('Авторский текст сайта');
   await page.locator('#fields [data-field="content.text"]').dispatchEvent('change');
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Черновик #2/).waitFor();
   await page.locator('#server-publish').click();
   await page.locator('#server-status').getByText(/Опубликовано: v1/).waitFor();
-  assert.equal((await visitor.goto(origin+'/published/'+generatedId+'/offerings/')).status(),200);
-  assert.match(await visitor.locator('main').innerText(),/Третья услуга/);
+  assert.equal((await visitor.goto(origin+'/published/'+generatedId+'/contact/')).status(),200);
+  assert.match(await visitor.locator('main').innerText(),/Свяжитесь с нами/);
   // One new Chromium vertical: owner toggles maintenance in real Studio,
   // public page returns 503, rollback resumes same immutable publication.
   await page.locator('#server-operations-open').click();
@@ -533,43 +522,26 @@ async function execute(){
   await page.locator('#server-maintenance-message').fill('Плановые работы');
   await page.locator('#server-operations-apply').click();
   await page.locator('#server-operations-status').getByText('На обслуживании').waitFor();
-  const stopped=await visitor.goto(origin+'/published/'+generatedId+'/offerings/');
+  const stopped=await visitor.goto(origin+'/published/'+generatedId+'/contact/');
   assert.equal(stopped.status(),503);
   assert.match(await visitor.locator('body').innerText(),/Плановые работы/);
   await page.locator('#server-maintenance-enabled').uncheck();
   await page.locator('#server-operations-apply').click();
   await page.locator('#server-operations-status').getByText('Работает в обычном режиме').waitFor();
   await page.locator('#server-operations-close').click();
-  assert.equal((await visitor.goto(origin+'/published/'+generatedId+'/offerings/')).status(),200);
+  assert.equal((await visitor.goto(origin+'/published/'+generatedId+'/contact/')).status(),200);
 
   await page.reload();
   await page.locator('#server-site-select').selectOption(generatedId);
   await page.locator('#server-open').click();
   await page.locator('#server-status').getByText(/Черновик #2/).waitFor();
-  assert.equal(await page.locator('#fields [data-field="content.text"]').inputValue(),'Ручная правка созданного сайта');
-  replies.push('Главный экран из рецепта');
-  await page.locator('#server-template-save').click();
-  await page.locator('#server-template-list .hosted-template').first().waitFor();
-  await page.locator('#compose-site').click();
-  await page.locator('#compose-title').fill('Пересобранная компания');
-  await page.locator('#compose-current').check();
-  await page.locator('#compose-generate').click();
-  await page.locator('#compose-review:not([hidden])').waitFor();
-  const templatePicker=page.locator('#compose-plan [aria-label="Шаблон блока"]').first();
-  await templatePicker.selectOption({label:'Главный экран из рецепта'});
-  await page.locator('#compose-refresh').click();
-  await page.frameLocator('#compose-preview').locator('h1').getByText('Ручная правка созданного сайта',{exact:true}).waitFor();
-  await page.locator('#compose-apply').click();
-  await page.locator('#composer').waitFor({state:'hidden'});
-  assert.match(await page.locator('#dirty').innerText(),/несохранённые/);
-  await page.locator('#undo').click();
-  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).title,'Рецепт компании');
-  await page.locator('#redo').click();
-  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).title,'Пересобранная компания');
+  assert.equal(await page.locator('#fields [data-field="content.text"]').inputValue(),'Авторский текст сайта');
+  await page.locator('#fields [data-field="content.text"]').fill('Следующая правка авторского сайта');
+  await page.locator('#fields [data-field="content.text"]').dispatchEvent('change');
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Черновик #3/).waitFor();
   await visitor.goto(origin+'/published/'+generatedId+'/');
-  assert.match(await visitor.title(),/Рецепт компании/,'Composition save never auto-publishes');
+  assert.match(await visitor.title(),/Индивидуальный сайт клиента/,'Draft Save never auto-publishes');
   // Genuine UI: owner sets renewal date then manually pauses/resumes CMS.
   await page.locator('#server-licenses-open').click();
   await page.locator('#server-licenses-dialog').waitFor({state:'visible'});

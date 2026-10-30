@@ -103,12 +103,10 @@ async function execute(){
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
   await page.locator('#server-signin').click();
   await page.locator('#server-login').waitFor({state:'hidden'});
-  // Import requires a selected authenticated owner workspace. This synthetic
-  // workspace is not published and is not claimed to be a customer pilot.
-  page.once('dialog',dialog=>dialog.accept('Черновик для проверки импорта'));
-  await page.locator('#new-site').click();
-  await page.locator('#server-status').getByText(/Черновик #1/).waitFor();
-  const siteId=await page.locator('#server-site-select').inputValue();
+  // Owner can import a sealed external design into the empty CMS. No generated
+  // template or generic website is necessary to initialize the owner workspace.
+  assert.equal(await page.locator('#new-site').count(),0);
+  assert.equal(await page.locator('#compose-site').count(),0);
   const visitorCtx=await browser.newContext({viewport:{width:1280,height:900}});
   const visitor=await visitorCtx.newPage();
   // FAQ deletion and server restore are explicit confirmation actions.

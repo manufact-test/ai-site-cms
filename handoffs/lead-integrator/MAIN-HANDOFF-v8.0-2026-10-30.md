@@ -52,3 +52,6 @@
 ## Product boundary confirmed, 30 Oct 2026
 
 The owner's explicit `docs/MASTER-TZ.md` outranks older tasks and examples: no ready-made site/page/section/card/pricing/FAQ composition library; sites are created by an external AI developer from approved mockups, then imported as site-specific editable manifests. The prior six starter-pattern changes were undone in a non-destructive commit `94d12f1d0d59d71cec7844c8fade035f92813c9b`. Do not reintroduce them. Current work is CMS field inheritance for existing client pages, not a starter catalog.
+
+## Mandatory product boundary update (30 Oct 2026)
+The generic site composer and canned Graph style recipes are now removed from shipped Studio as well as the six erroneous patterns. Do not reinstate them; `docs/MASTER-TZ.md` is authoritative. The independent AI author produces a finished customer-specific site from approved three-screen mockups; CMS handles manifest-bound editing, draft, publishing and rollback. Legacy SDK recipe files may remain for historical tests but MUST NOT ship as website-generation controls. E2E uses synthetic JSON site contracts to verify actual editing/publishing, not generated sites.

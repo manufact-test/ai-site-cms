@@ -185,11 +185,17 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#versions .version').count(),3);
     await page.locator('#versions .version').nth(1).click();
     assert.equal(await canvas.locator('h1').innerText(),'Новое промышленное оборудование');
-    // Round-trip JSON can be recovered in a completely different local draft.
+    // Importing a separate externally authored JSON site does not require generating a site.
+    const other=structuredClone(saved);other.siteId='site-external-staging';other.title='Другой авторский сайт';
+    assert.equal(await page.locator('#new-site').count(),0);
+    assert.equal(await page.locator('#compose-site').count(),0);
     page.once('dialog',d=>d.accept());
-    await page.locator('#new-site').click();
+    await page.locator('#import-file').setInputFiles({
+      name:'external-site.json',mimeType:'application/json',
+      buffer:Buffer.from(JSON.stringify(other),'utf8')
+    });
     assert.equal(await page.locator('#pages .nav-entry').count(),2);
-    assert.equal(await page.locator('#site-name').innerText(),'Сайт без макета');
+    assert.equal(await page.locator('#site-name').innerText(),'Другой авторский сайт');
     assert.equal(await page.locator('#fields [data-field]').count(),3);
     page.once('dialog',d=>d.accept());
     await page.locator('#import-file').setInputFiles({
@@ -687,14 +693,12 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#cms-design-breakpoint').inputValue(),'desktop');
     assert.equal(await page.locator('#cms-design-undo').isDisabled(),true);
     assert.equal(await page.locator('#cms-design-redo').isDisabled(),true);
-    // Closed first-party recipe changes live CSS, but never modifies the
-    // underlying document before Apply; its working change is undoable.
-    const beforeRecipe=await page.evaluate(()=>window.Stage3Editor.getSite());
-    await page.locator('#cms-design-recipe-choice').selectOption('hero');
-    await page.locator('#cms-design-recipe-overwrite').check();
-    await page.locator('#cms-design-recipe-apply').click();
-    assert.match(await page.locator('#cms-design-preview-frame').getAttribute('srcdoc'),/clamp\(30px/);
-    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeRecipe);
+    // Edit the existing individually approved node, rather than inserting canned styles.
+    assert.equal(await page.locator('#cms-design-recipe').count(),0);
+    const beforeDirectEdit=await page.evaluate(()=>window.Stage3Editor.getSite());
+    await page.locator('#cms-design-fields textarea').first().fill('Индивидуальный заголовок');
+    assert.match(await page.locator('#cms-design-preview-frame').getAttribute('srcdoc'),/Индивидуальный заголовок/);
+    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeDirectEdit);
     await page.locator('#cms-design-undo').click();
     assert.equal(await page.locator('#cms-design-undo').isDisabled(),true);
     await page.locator('#cms-design-breakpoint').selectOption('mobile');
