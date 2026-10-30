@@ -207,7 +207,7 @@ final class DesignGraph
         $count=0;$popups=[];$triggers=[];
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,&$popups,&$triggers,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
                 &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'],true),
@@ -294,10 +294,11 @@ final class DesignGraph
             self::check(($type==='list'||!array_key_exists('ordered',$node))&&($type!=='list'||!array_key_exists('ordered',$node)||is_bool($node['ordered'])),'invalid ordered-list flag');
             self::check(($type!=='list-item'||$parentType==='list')&&($parentType!=='list'||$type==='list-item'),'invalid list hierarchy');
             self::check(($type!=='tab'||$parentType==='tabs')&&($parentType!=='tabs'||$type==='tab'),'invalid tabs hierarchy');
-            self::check($type==='gallery'||!array_intersect(['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape'],array_keys($node)),'gallery setting on another node');
+            self::check($type==='gallery'||!array_intersect(['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile'],array_keys($node)),'gallery setting on another node');
             if(array_key_exists('caption',$node))self::check($type==='image'&&$parentType==='gallery'&&is_string($node['caption'])&&strlen($node['caption'])<=240&&preg_match('/[\\x00-\\x1f]/',$node['caption'])!==1,'invalid photo caption');
             if($type==='gallery'){
-                self::check(!isset($node['photoShape'])||in_array($node['photoShape'],['natural','square','landscape','portrait'],true),'invalid gallery photo shape');
+                foreach(['photoShape','photoShapeTablet','photoShapeMobile'] as $shapeKey)
+                    self::check(!array_key_exists($shapeKey,$node)||in_array($node[$shapeKey],['natural','square','landscape','portrait'],true),'invalid gallery photo shape');
                 self::check(!isset($node['layout'])||in_array($node['layout'],['scroll','grid'],true),'invalid gallery layout');
                 self::check(!array_key_exists('lightbox',$node)||is_bool($node['lightbox']),'invalid gallery lightbox');
                 if(array_intersect(['columnsDesktop','columnsTablet','columnsMobile'],array_keys($node)))
@@ -765,7 +766,7 @@ final class DesignGraph
                             '<div class="cmsdg-gallery-expanded">'.$visual.'</div>'.$caption.$navigation.'</div>';
                         $body.='<figure class="cmsdg-gallery-item">'.$trigger.$caption.$popup.'</figure>';
                     }
-                    return '<div class="'.$cls.' cmsdg-gallery'.($grid?' cmsdg-gallery-grid':'').' cmsdg-gallery-shape-'.($n['photoShape']??'natural').'" role="region" aria-roledescription="gallery" aria-label="'.self::h($n['text']).'" tabindex="0"'.$vars.'>'.$body.'</div>';
+                    return '<div class="'.$cls.' cmsdg-gallery'.($grid?' cmsdg-gallery-grid':'').' cmsdg-gallery-shape-'.($n['photoShape']??'natural').' cmsdg-gallery-tablet-'.($n['photoShapeTablet']??$n['photoShape']??'natural').' cmsdg-gallery-mobile-'.($n['photoShapeMobile']??$n['photoShapeTablet']??$n['photoShape']??'natural').'" role="region" aria-roledescription="gallery" aria-label="'.self::h($n['text']).'" tabindex="0"'.$vars.'>'.$body.'</div>';
                 case 'table':
                     $first=$visit($n['children'][0]);$rest='';
                     foreach(array_slice($n['children'],1) as $row)$rest.=$visit($row);
@@ -871,6 +872,8 @@ final class DesignGraph
             .$scope.' .cmsdg-gallery-shape-square>.cmsdg-gallery-item img{aspect-ratio:1/1}'
             .$scope.' .cmsdg-gallery-shape-landscape>.cmsdg-gallery-item img{aspect-ratio:16/9}'
             .$scope.' .cmsdg-gallery-shape-portrait>.cmsdg-gallery-item img{aspect-ratio:3/4}'
+            .'@media(max-width:900px){'.$scope.' .cmsdg-gallery-tablet-natural>.cmsdg-gallery-item img{aspect-ratio:auto}'.$scope.' .cmsdg-gallery-tablet-square>.cmsdg-gallery-item img{aspect-ratio:1/1}'.$scope.' .cmsdg-gallery-tablet-landscape>.cmsdg-gallery-item img{aspect-ratio:16/9}'.$scope.' .cmsdg-gallery-tablet-portrait>.cmsdg-gallery-item img{aspect-ratio:3/4}}'
+            .'@media(max-width:600px){'.$scope.' .cmsdg-gallery-mobile-natural>.cmsdg-gallery-item img{aspect-ratio:auto}'.$scope.' .cmsdg-gallery-mobile-square>.cmsdg-gallery-item img{aspect-ratio:1/1}'.$scope.' .cmsdg-gallery-mobile-landscape>.cmsdg-gallery-item img{aspect-ratio:16/9}'.$scope.' .cmsdg-gallery-mobile-portrait>.cmsdg-gallery-item img{aspect-ratio:3/4}}'
             .$scope.' .cmsdg-gallery-expanded img{aspect-ratio:auto!important;object-fit:contain!important}'
             .$scope.' .cmsdg-gallery-item figcaption{padding:8px 4px;line-height:1.45;font-size:.9em;overflow-wrap:anywhere}'
             .$scope.' .cmsdg-gallery-grid{display:grid;grid-template-columns:repeat(var(--cmsdg-gallery-columns,3),minmax(0,1fr));overflow:visible;scroll-snap-type:none}'
