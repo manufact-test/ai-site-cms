@@ -176,7 +176,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;const popups=new Set(),triggers=[];
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
     if(own(node,'popupTarget')){
@@ -263,10 +263,11 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
     if(node.type==='quote'&&own(node,'cite')&&
       (typeof node.cite!=='string'||node.cite.length>160||/[\x00-\x1f]/.test(node.cite)))
       fail(node.id,'invalid quote attribution');
-    if(node.type!=='gallery'&&['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape'].some(k=>own(node,k)))fail(node.id,'gallery settings on other node');
+    if(node.type!=='gallery'&&['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile'].some(k=>own(node,k)))fail(node.id,'gallery settings on other node');
     if(own(node,'caption')&&(node.type!=='image'||parentType!=='gallery'||typeof node.caption!=='string'||node.caption.length>240||/[\x00-\x1f]/.test(node.caption)))fail(node.id,'invalid gallery photo caption');
     if(node.type==='gallery'){
-      if(own(node,'photoShape')&&!['natural','square','landscape','portrait'].includes(node.photoShape))fail(node.id,'invalid gallery photo shape');
+      for(const key of ['photoShape','photoShapeTablet','photoShapeMobile'])
+        if(own(node,key)&&!['natural','square','landscape','portrait'].includes(node[key]))fail(node.id,'invalid gallery photo shape');
       if(own(node,'layout')&&!['scroll','grid'].includes(node.layout))fail(node.id,'invalid gallery layout');
       if(own(node,'lightbox')&&typeof node.lightbox!=='boolean')fail(node.id,'invalid gallery lightbox');
       if(['columnsDesktop','columnsTablet','columnsMobile'].some(k=>own(node,k))&&node.layout!=='grid')fail(node.id,'columns require grid gallery');
@@ -737,7 +738,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
           '<div class="cmsdg-gallery-expanded">'+image+'</div>'+caption+navigation+'</div>':'';
         return '<figure class="cmsdg-gallery-item">'+trigger+caption+popup+'</figure>';
       }).join('');
-      return '<div class="'+cls+' cmsdg-gallery'+(grid?' cmsdg-gallery-grid':'')+' cmsdg-gallery-shape-'+(n.photoShape||'natural')+'" role="region" aria-roledescription="gallery" aria-label="'+attr(n.text)+'" tabindex="0"'+variables+'>'+content+'</div>';
+      return '<div class="'+cls+' cmsdg-gallery'+(grid?' cmsdg-gallery-grid':'')+' cmsdg-gallery-shape-'+(n.photoShape||'natural')+' cmsdg-gallery-tablet-'+(n.photoShapeTablet||n.photoShape||'natural')+' cmsdg-gallery-mobile-'+(n.photoShapeMobile||n.photoShapeTablet||n.photoShape||'natural')+'" role="region" aria-roledescription="gallery" aria-label="'+attr(n.text)+'" tabindex="0"'+variables+'>'+content+'</div>';
     }
     if(n.type==='table')return '<div class="cmsdg-table-scroll" role="region" aria-label="'+attr(n.text||'Таблица')+'" tabindex="0"><table class="'+cls+' cmsdg-table">'+
       (n.text?'<caption>'+attr(n.text)+'</caption>':'')+
@@ -827,8 +828,8 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     scope+' .cmsdg-gallery-item figcaption{padding:8px 4px;line-height:1.45;font-size:.9em;overflow-wrap:anywhere}'+
     scope+' .cmsdg-gallery-grid{display:grid;grid-template-columns:repeat(var(--cmsdg-gallery-columns,3),minmax(0,1fr));overflow:visible;scroll-snap-type:none}'+
     scope+' .cmsdg-gallery-grid>.cmsdg-gallery-item{flex:none}'+
-    '@media(max-width:900px){'+scope+' .cmsdg-gallery-grid{grid-template-columns:repeat(var(--cmsdg-gallery-tablet,2),minmax(0,1fr))}}'+
-    '@media(max-width:600px){'+scope+' .cmsdg-gallery-grid{grid-template-columns:repeat(var(--cmsdg-gallery-mobile,1),minmax(0,1fr))}}'+
+    '@media(max-width:900px){'+scope+' .cmsdg-gallery-grid{grid-template-columns:repeat(var(--cmsdg-gallery-tablet,2),minmax(0,1fr))}'+scope+' .cmsdg-gallery-tablet-natural>.cmsdg-gallery-item img{aspect-ratio:auto}'+scope+' .cmsdg-gallery-tablet-square>.cmsdg-gallery-item img{aspect-ratio:1/1}'+scope+' .cmsdg-gallery-tablet-landscape>.cmsdg-gallery-item img{aspect-ratio:16/9}'+scope+' .cmsdg-gallery-tablet-portrait>.cmsdg-gallery-item img{aspect-ratio:3/4}}'+
+    '@media(max-width:600px){'+scope+' .cmsdg-gallery-grid{grid-template-columns:repeat(var(--cmsdg-gallery-mobile,1),minmax(0,1fr))}'+scope+' .cmsdg-gallery-mobile-natural>.cmsdg-gallery-item img{aspect-ratio:auto}'+scope+' .cmsdg-gallery-mobile-square>.cmsdg-gallery-item img{aspect-ratio:1/1}'+scope+' .cmsdg-gallery-mobile-landscape>.cmsdg-gallery-item img{aspect-ratio:16/9}'+scope+' .cmsdg-gallery-mobile-portrait>.cmsdg-gallery-item img{aspect-ratio:3/4}}'+
     scope+' .cmsdg-lightbox-trigger{display:block;width:100%;padding:0;border:0;background:transparent;color:inherit;cursor:zoom-in}'+
     scope+' .cmsdg-lightbox-trigger:focus-visible{outline:3px solid #1868d3;outline-offset:-3px}'+
     scope+' .cmsdg-gallery-popover{position:fixed;inset:0;margin:auto;padding:20px;max-width:min(1100px,calc(100vw - 24px));max-height:95dvh;overflow:auto;border:1px solid #c7d2e0;border-radius:14px;background:#fff;color:#182b3d;box-shadow:0 22px 70px #08172c66}'+
