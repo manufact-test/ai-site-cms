@@ -111,7 +111,8 @@ function main(argv){
    throw Error('Private operator desk was not generated in this session');
  }
  const workspace=WORK.build({firstSite:first,search,indexing:indexing?.report||null,
-  liveAcceptance:human,operatorDesk:config.operatorDesk||null,crawl});
+  liveAcceptance:human,operatorDesk:config.operatorDesk||null,crawl,
+  indexingReportSha256:digests.indexing?.report||null});
  const parent=fs.realpathSync(path.dirname(out));
  const staging=fs.mkdtempSync(path.join(parent,'.seo-workspace-incomplete-'));
  const generated={};
