@@ -576,3 +576,8 @@ New `lib/crawl-cms-implementation.cjs`, `lib/crawl-cms-implementation-view.cjs`,
 
 
 Follow-up detail: the private crawl-to-CMS work packets now include deterministic issue IDs, implementation-owner workstreams and required independent evidence, all retaining `readyToImplement:false`. This avoids treating an observed robots block as an editable CMS page meta field, or a reported Search Console issue as verified Google causation.
+
+
+## Continuation — crawl/CMS task lifecycle and independent recheck
+
+New SEO-owned `lib/crawl-cms-lifecycle.cjs`, `lib/crawl-cms-recheck-view.cjs`, `lib/crawl-cms-decision-desk.cjs`, `bin/recheck-crawl-cms-work.cjs`, `tests/crawl-cms-lifecycle-smoke.cjs`. Existing crawl panel / single Operator Workspace / private builder now generate strict source-pinned human status templates and an offline decision editor. Given `crawl.cmsBaseline` (old original JSON worklist) + optional `crawl.cmsDecisions` (human original, exact SHA), a new current Blueprint/Site/crawl report produces a safe follow-up: persistent, new, same stable issue but changed detail/priority, and missing-from-current-*not-verified* tasks. Explicit crawler agent/scope/sitemap-kind compatibility prevents misleading comparisons; legacy source fields are flagged as unknown coverage. Standalone CLI supports operator-only template and two-report comparison. No automatic authorization, owner authentication, live site or Google claim. See [CRAWL-CMS-LIFECYCLE.md](CRAWL-CMS-LIFECYCLE.md) for exact commands and limitations; lead must run focused real Node smokes and use approved owner-published Site v1/real HTTPS proof after integrating only the SEO subtree.
