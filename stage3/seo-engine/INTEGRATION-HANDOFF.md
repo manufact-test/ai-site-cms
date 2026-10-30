@@ -589,3 +589,8 @@ New SEO-owned `lib/crawl-cms-lifecycle.cjs`, `lib/crawl-cms-recheck-view.cjs`, `
 
 
 **Additional fail-closed evidence gates:** mixed root HTTP capture windows invalidate ALL optimistic per-task public observations; a failed negative-route soft-404 probe invalidates optimistic canonical HTTP-200 redirect clearance. Both are tested in `tests/crawl-cms-public-followup-smoke.cjs`. No automatic release or task closure.
+
+
+## First client lead-only SEO readiness and private packet integrity — next pass
+
+Added `lib/seo-lead-readiness.cjs`, `lib/seo-lead-readiness-view.cjs`, `lib/seo-private-lead-integrity.cjs`, `bin/verify-seo-lead-packet.cjs` and focused `tests/seo-lead-readiness-smoke.cjs`. The **existing** `lib/seo-operator-workspace.cjs` and `bin/build-seo-operator-workspace.cjs` now create `lead-readiness.html/.md/.json`, based on original local PHP/static, public postdeploy, human acceptance/form queue, crawl policy/CMS/HTTPS fix evidence and optional Search Console; every source absence remains explicit. An unsigned `LEAD-PACKET-INTEGRITY.json` pins exact private output bytes and source file SHA256; standalone read-only verifier refuses tampering, symlinks, extra files, filename drift and mismatched sources. **No new CMS or second workspace, no runtime/CI/workflow changes, no publication or owner-signoff authentication**. Missing GSC is `POST-LAUNCH-DEFERRED`, not a prelaunch failure. Independent public-delivery errors BLOCK; unknown public observations still require evidence. See [FIRST-CLIENT-LEAD-READINESS.md](FIRST-CLIENT-LEAD-READINESS.md) for commands and the essential lead-owned real Node smoke. Only lead integrates SEO subtree.
