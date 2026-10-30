@@ -8,6 +8,8 @@ const INDEX=require('./search-indexing-view.cjs');
 const HUMAN=require('./first-site-live-acceptance-view.cjs');
 const ACTIONS=require('./first-site-live-followup-view.cjs');
 const CRAWL=require('./seo-workspace-crawl-panel.cjs');
+const LEAD=require('./seo-lead-readiness.cjs');
+const LEAD_VIEW=require('./seo-lead-readiness-view.cjs');
 const FORMAT='manufact-seo-operator-workspace-v1';
 const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -42,7 +44,14 @@ function build(input){
   throw Error('Cannot combine launch, search and indexing evidence from different customer sites');
  if(indexed&&visibility&&indexing.blueprintSha256!==search.history.blueprintSha256)
   throw Error('Search History and URL Indexing reports need the same approved Blueprint bytes');
+ const leadReadiness=LEAD.build({siteId,first,launch,search,visibility,indexing,indexed,
+  crawl,human,manual,queue});
+ const leadView=LEAD_VIEW.render(leadReadiness);
  const sections=[
+  {href:'lead-readiness.html',name:'First Client — SEO Lead Readiness & Handoff',
+   sub:'Source-bound first-release blockers, missing original evidence and post-launch manual SEO gates in ONE lead worklist',
+   state:leadReadiness.summary.preLaunchBlocked+' BLOCKED · '+
+    leadReadiness.summary.preLaunchMissing+' MISSING · NEVER AUTOMATIC GO',kind:'lead'},
   ...(desk?[{href:desk.href,name:'Fill browser and form acceptance',
    sub:'Private offline operator editor, then run human-review session with exported JSON',
    state:'MANUAL ACTION REQUIRED',kind:'desk'}]:[]),
@@ -93,7 +102,7 @@ function build(input){
   ...(!launch&&visibility?['For first-site technical acceptance add the existing first-site-check summary and optional post-deploy evidence.']:[])
  ];
  const cards=sections.map(s=>'<a class="card" href="'+s.href+'"><div class="kicker">'+
-  (s.kind==='desk'?'OPERATOR ACTION':s.kind==='crawl'?'CRAWL / SEARCH DELIVERY':s.kind==='launch'?'LAUNCH OPERATIONS':s.kind==='indexing'?'URL INDEXING':s.kind==='human'?'HUMAN ACCEPTANCE':s.kind==='actions'?'P0 / P1 QUEUE':'POST-LAUNCH SEARCH')+'</div><h2>'+esc(s.name)+'</h2>'+
+  (s.kind==='lead'?'FIRST CLIENT LEAD HANDOFF':s.kind==='desk'?'OPERATOR ACTION':s.kind==='crawl'?'CRAWL / SEARCH DELIVERY':s.kind==='launch'?'LAUNCH OPERATIONS':s.kind==='indexing'?'URL INDEXING':s.kind==='human'?'HUMAN ACCEPTANCE':s.kind==='actions'?'P0 / P1 QUEUE':'POST-LAUNCH SEARCH')+'</div><h2>'+esc(s.name)+'</h2>'+
   '<p>'+esc(s.sub)+'</p><span class="state">'+esc(s.state)+'</span><span class="go">Open private report →</span></a>').join('');
  const css=[
  ':root{--back:#f3f7fa;--ink:#172f45;--muted:#5c7182;--line:#dbe5eb}',
@@ -122,7 +131,10 @@ function build(input){
   next.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ol>'+
   '<p class="notice">No automated publication, SEO content edits, verification of Google property ownership, real form delivery or client signoff.</p></section>'+
   '<footer>Private local report bundle · No network calls · Input hashes recorded separately · Do not upload or commit.</footer></main></body></html>';
- return {format:FORMAT,readOnly:true,siteId,homeHtml:html,launchHtml:launch?.html||null,
+ return {format:FORMAT,readOnly:true,siteId,homeHtml:html,
+  leadReadinessHtml:leadView.html,leadReadinessMarkdown:leadView.markdown,
+  leadReadinessJson:JSON.stringify(leadReadiness,null,2)+'\n',
+  launchHtml:launch?.html||null,
   searchHtml:visibility?.html||null,indexingHtml:indexed?.html||null,
   crawlHtml:crawl?.html||null,crawlLeadMarkdown:crawl?.markdown||null,
   crawlCandidateRobots:crawl?.candidate?input.crawl.proposedRobots:null,
@@ -140,7 +152,11 @@ function build(input){
   crawlPublicFollowupMarkdown:crawl?.publicFollowupView?.markdown||null,
   crawlPublicFollowupJson:crawl?.publicFollowup?JSON.stringify(crawl.publicFollowup,null,2)+'\n':null,
   humanHtml:manual?.html||null,nextActionsHtml:queue?.html||null,
-  overview:{nextActionsIncluded:!!queue,
+  overview:{leadReadinessIncluded:true,
+   leadPreLaunchBlocked:leadReadiness.summary.preLaunchBlocked,
+   leadPreLaunchMissing:leadReadiness.summary.preLaunchMissing,
+   leadPostLaunchDeferred:leadReadiness.summary.postLaunchDeferred,
+   nextActionsIncluded:!!queue,
    nextActionsUrgent:queue?.summary.urgent??null,nextActionsPending:queue?.summary.pending??null,
    operatorDeskIncluded:!!desk,launchIncluded:!!launch,searchIncluded:!!visibility,indexingIncluded:!!indexed,
    crawlIncluded:!!crawl,crawlP0:crawl?.counts.P0??null,crawlP1:crawl?.counts.P1??null,
