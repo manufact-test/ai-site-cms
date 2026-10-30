@@ -75,6 +75,28 @@ test('semantic formatted inline heading fragments are safe and copyable',()=>{
   refuses(()=>sdk.validateSite(foreign,manifests),'arbitrary fragment links forbidden');
 });
 
+test('site-owned hero viewport geometry and radial gradients',()=>{
+  const graph=require('../sdk/design-graph.cjs'),site=same(initial);
+  const section=sdk.sectionFrom(reg.get('custom-section'),'section-responsive-hero');
+  const n=section.designGraph.nodes[0];
+  n.styles={display:'grid',padding:40,paddingTop:12,paddingLeft:'@small',
+    minHeightViewport:90,gradient:{type:'radial',angle:0,from:'@accent',
+      to:'#ffffff',centerX:25,centerY:70,radius:'closest-side'}};
+  n.responsive={mobile:{minHeightViewport:75,paddingRight:8}};
+  site.pages[0].sections.push(section);
+  sdk.validateSite(site,manifests);
+  const html=graph.render(site,section.designGraph);
+  assert.ok(html.includes('min-height:90vh;min-height:90svh'));
+  assert.ok(html.includes('padding-top:12px'));
+  assert.ok(html.includes('radial-gradient(circle closest-side at 25% 70%'));
+  const bad=same(site);
+  bad.pages[0].sections.at(-1).designGraph.nodes[0].styles.minHeightViewport=121;
+  refuses(()=>sdk.validateSite(bad,manifests));
+  bad.pages[0].sections.at(-1).designGraph.nodes[0].styles.minHeightViewport=90;
+  bad.pages[0].sections.at(-1).designGraph.nodes[0].styles.minHeight=10;
+  refuses(()=>sdk.validateSite(bad,manifests));
+});
+
 test('author sections can use viewport edge width while keeping bounded enums',()=>{
   const source=same(initial),section=source.pages[0].sections[0];
   section.appearance={surface:'default',spacing:'normal',align:'left',width:'edge'};
