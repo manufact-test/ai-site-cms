@@ -48,6 +48,8 @@ assert.equal(r.publicHostAuthenticated,false);
 assert(r.summary.persistent>0&&r.summary.noLongerSeen>0&&r.summary.newlyObserved>0);
 assert.equal(r.summary.completedReportedStillObserved,1);
 assert.equal(r.summary.completedReportedNowAbsentUnverified,1);
+assert.equal(Object.values(r.summary.humanStatusesOnBefore).reduce((a,b)=>a+b,0),before.actions.length);
+assert(r.newlyObserved.every(a=>a.beforeObservation===null&&a.afterObservation!==null));
 assert(r.persistent.some(x=>x.taskId===persistent.taskId&&
  x.classification==='OWNER-REPORTED-COMPLETE-BUT-ISSUE-STILL-OBSERVED'));
 assert(r.noLongerSeen.some(x=>x.taskId===absent.taskId&&x.canAutoClose===false));
