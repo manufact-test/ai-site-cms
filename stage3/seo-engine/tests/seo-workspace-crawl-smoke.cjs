@@ -64,6 +64,8 @@ assert.equal(workspace.overview.crawlIncluded,true);
 assert.equal(workspace.overview.crawlP0,1);
 assert.equal(workspace.overview.releaseAuthorized,false);
 assert(workspace.homeHtml.includes('crawl.html'));
+assert(workspace.homeHtml.includes('lead-readiness.html'));
+assert(workspace.overview.leadPreLaunchBlocked>=1);
 assert.equal(workspace.crawlCandidateRobots,robots);
 assert.equal(workspace.crawlCandidateSitemap,sitemap);
 assert.throws(()=>PANEL.build({...crawl,regression:{
@@ -126,6 +128,8 @@ try{
  assert.equal(fs.readFileSync(path.join(output,'DRAFT-ONLY-sitemap.xml'),'utf8'),sitemap);
  assert(fs.readFileSync(path.join(output,'crawl.html'),'utf8').includes('UNAPPROVED'));
  assert(fs.existsSync(path.join(output,'crawl-lead-worklist.md')));
+ assert(fs.existsSync(path.join(output,'lead-readiness.json')));
+ assert(fs.existsSync(path.join(output,'LEAD-PACKET-INTEGRITY.json')));
  assert.throws(()=>CLI.main(['--config',configPath,'--out',output]),/already exists|exists|occupied/i);
  assert.throws(()=>CLI.readConfiguration({...config,crawl:{
   policy:sources.policy,repair:sources.repair}}),/four original files/);
