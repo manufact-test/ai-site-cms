@@ -148,7 +148,7 @@ function build({siteId,first=null,launch=null,search=null,visibility=null,
  const delta=crawl?.cmsRecheck||null;
  push('crawl-cms-repeat-observations','POST_LAUNCH','P1',
   !delta?'POST-LAUNCH-DEFERRED':delta.summary.completedReportedStillObserved>0||
-   delta.summary.newCriticalP0>0?'BLOCKED':'LEAD-REVIEW-REQUIRED',
+   delta.summary.newCriticalP0>0||delta.summary.changedCriticalP0>0?'BLOCKED':'LEAD-REVIEW-REQUIRED',
   'SEO_OPERATOR','Repeat crawl/CMS task lifecycle evidence',
   !delta?'Earlier and later original crawl/CMS worklists not supplied; cannot infer any resolved task.':
    'Observed new P0 '+delta.summary.newCriticalP0+'; reported complete still seen '+
@@ -160,7 +160,9 @@ function build({siteId,first=null,launch=null,search=null,visibility=null,
    completedStillObserved:delta?.summary.completedReportedStillObserved??null});
  const http=crawl?.publicFollowup||null;
  push('published-crawl-cms-evidence','PRE_LAUNCH','P0',
-  !http?'NEEDS-EVIDENCE':http.summary.conflict>0?'BLOCKED':'LEAD-REVIEW-REQUIRED',
+  !http?'NEEDS-EVIDENCE':http.summary.conflict>0||
+   http.summary.independentDeliveryBlockers>0?'BLOCKED':
+   http.summary.unknown>0?'NEEDS-EVIDENCE':'LEAD-REVIEW-REQUIRED',
   'PUBLISHER_LEAD','Public HTTP evidence for crawler, canonical and metadata fixes',
   !http?'No private source-pinned public HTTPS transcript was correlated with current crawl tasks.':
    'Supplied public bytes: '+http.summary.conflict+' conflicting, '+
@@ -174,6 +176,7 @@ function build({siteId,first=null,launch=null,search=null,visibility=null,
   http?.suppliedPublicCaptureRawSha256||null,
   {publicConflicts:http?.summary.conflict??null,
    publicUnknown:http?.summary.unknown??null,
+   publicRootRecheckStable:http?.htmlCoverage?.rootRecheckStable??null,
    independentDeliveryBlockers:http?.summary.independentDeliveryBlockers??null,
    alignedNotVerified:http?.summary.alignedNotVerified??null});
  const queueStatus=queue?.summary;
