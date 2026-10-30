@@ -20,7 +20,7 @@ for(const label of ['Add page','Add section','Add fact','Add source','Export for
 assert(html.includes('connect-src &#39;none&#39;'));
 assert(html.includes('Draft vs previous SEO Blueprint'));
 assert(html.includes('baseline-import'));
-assert(html.includes('UNVERIFIED BROWSER PREVIEW')===false,'Preview only after baseline is loaded');
+assert(html.includes('baseline-status'));
 assert(!html.includes('fetch(')&&!html.includes('https://cdn.'));
 assert(html.includes('site-industrial-demo'));
 const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
