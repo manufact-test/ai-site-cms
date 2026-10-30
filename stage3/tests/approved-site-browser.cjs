@@ -284,6 +284,8 @@ async function execute(){
     input.dispatchEvent(new Event('change',{bubbles:true}));
   },uploaded);
   await page.locator('#server-approved-review').waitFor({timeout:20000});
+  assert.match(await page.locator('#server-approved-media-bindings').innerText(),
+    /медиа|привязк/, 'Owner sees true media use in the approved-folder review');
   assert.equal(await page.locator('#server-approved-prototypes img').count(),3,
     'Operator must inspect desktop/tablet/mobile visual evidence before database writes');
   assert.equal(await page.locator('#server-approved-video-review video').count(),1,
