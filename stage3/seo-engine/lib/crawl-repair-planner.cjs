@@ -140,10 +140,8 @@ function repair(blueprint,site,{base,robotsText,sitemapXml,allowPageIds=[],agent
  }
  const after=POLICY.analyze({blueprint:bp,base,
   robotsText:proposedRobots,sitemapXml:generated.content,
-  agents:before.agents,scope:'complete'});
- const delta=DELTA.compare(
-  {...before,scope:'complete'},after
- );
+  agents:before.agents,scope});
+ const delta=DELTA.compare(before,after);
  // Source scope may be incomplete: never claim that newly generated full XML is
  // an observed improvement; explicit proposal status lives in this report.
  for(const candidate of candidates){
