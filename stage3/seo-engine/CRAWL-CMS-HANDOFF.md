@@ -89,3 +89,10 @@ The new smoke uses the existing real `industrial.blueprint.json` fixture with sy
 ## Stable work tracking and evidence checklist
 
 Each JSON/Markdown action now has a deterministic `crawl-cms:<sha256-prefix>` task ID, a specific `ownerTeam` (`CMS_EDITOR`, `PUBLISHER_LEAD`, `SEO_OPERATOR`, or `OWNER_AND_LEAD`), `evidenceRequired[]`, `ownerApprovalRequired:true`, and `readyToImplement:false`. The worklist groups practical responsibility, not automatic release authorization. IDs are stable for the **same original-source observed issue**; changed issue detail or approved source naturally produces a new ID, and the operator must not assume unrelated releases have the same task. The private HTML shows the ID, responsible team and mandatory original proof next to each action.
+
+
+## Continuation: source-controlled human decisions and post-edit verification
+
+The manual `crawl-cms:<task-sha>` ID now has a companion stable `crawl-topic:<issue-sha>` for matching an *existing issue whose detail or priority changed*, while never reusing a human approval. Each crawl/CMS report explicitly records the original crawler agent set, complete/sample scope and XML URL-list/sitemap-index type. Rechecks refuse differing declared coverage, while older worklists missing these fields are clearly marked **unknown comparability** rather than pretending they were exhaustive.
+
+The existing workspace now writes `crawl-cms-decisions.html` (offline browser Decision Desk with CSP script hash, source-bound draft import, statuses, evidence and validated JSON download), `crawl-cms-decisions-TEMPLATE.json` and, when `crawl.cmsBaseline` is supplied, `crawl-cms-recheck.html/.json/.md`. Optional `crawl.cmsDecisions` points to the operator-completed **earlier** ledger; its SHA256 must reference the precise earlier `crawl-cms-worklist.json` bytes. Reported completion is never an authenticated fix. For an independent report-to-report workflow, see [CRAWL-CMS-LIFECYCLE.md](CRAWL-CMS-LIFECYCLE.md) and `bin/recheck-crawl-cms-work.cjs`.
