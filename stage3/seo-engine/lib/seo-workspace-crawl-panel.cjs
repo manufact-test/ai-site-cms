@@ -113,11 +113,16 @@ function build(data){
  for(const f of policy.findings){
   check(f&&typeof f.id==='string'&&priorities.includes(f.priority),
    'invalid original crawl finding');
-  add('policy',f.id,f.priority,f.path,f.message,f.instruction||f.manualNext,f.agent);
+  const related=policy.actions.find(a=>a.pageId===f.pageId&&a.priority===f.priority&&
+   (!f.agent||a.id?.endsWith(':'+f.agent)));
+  add('policy',f.id,f.priority,f.path,f.message,
+   related?.step||f.instruction||f.manualNext,f.agent);
  }
- if(delta)for(const d of delta.changes)
+ if(delta)for(const d of delta.changes){
+  const related=delta.tasks.find(t=>t.id==='review:'+d.id);
   add('regression',d.id,d.priority,d.path,d.message,
-   'Inspect old/new original rules and exact published host before correction.',d.agent);
+   related?.instruction||'Inspect old/new original rules and exact published host before correction.',d.agent);
+ }
  if(correlation)for(const a of correlation.actions)
   add('correlation',a.id,a.priority,a.path,a.reason,a.manualNext,null);
  if(repair)for(let i=0;i<repair.manualHolds.length;i++){
@@ -156,7 +161,7 @@ function build(data){
  }
  const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;"><title>MANUFACT — Private Crawl Operations</title><style>'+css+'</style></head><body><main><header><div>MANUFACT · PRIVATE SEO OPERATOR WORKSPACE</div><h1>Search delivery &amp; crawl intelligence</h1><p>Site '+escape(policy.siteId)+' · '+escape(policy.base)+'</p><p>Original-source observations, not authenticated crawler traffic or Google URL Inspection.</p></header>'+
   '<section><h2>Manual review queue</h2><p><span class="tag">P0 '+counts.P0+' · P1 '+counts.P1+' · P2 '+counts.P2+'</span></p>'+
-  '<p>Regression '+(delta?'supplied':'not supplied')+' · GSC correlation '+(correlation?'supplied':'not supplied')+
+  '<p><a href="crawl-lead-worklist.md">Open private lead worklist</a></p><p>Regression '+(delta?'supplied':'not supplied')+' · GSC correlation '+(correlation?'supplied':'not supplied')+
   ' · candidate '+(candidate?'private draft only':'not supplied')+'</p><div class="scroll"><table><thead><tr><th>Priority</th><th>Source</th><th>Route / bot</th><th>Observation</th><th>Next manual check</th></tr></thead><tbody>'+
   (rows||'<tr><td colspan="5">No triggers in supplied input. This does NOT prove the public site is ready.</td></tr>')+
   '</tbody></table></div></section>'+propose+
