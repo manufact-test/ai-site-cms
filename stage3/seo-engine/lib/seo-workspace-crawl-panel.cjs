@@ -3,6 +3,8 @@
  * Reports are operator-supplied. No HTTP calls, automatic owner approvals or deployment.
  */
 const crypto=require('node:crypto');
+const CMS=require('./crawl-cms-implementation.cjs');
+const CMS_VIEW=require('./crawl-cms-implementation-view.cjs');
 const HASH=/^[0-9a-f]{64}$/;
 const hex=s=>crypto.createHash('sha256').update(s).digest('hex');
 const escape=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -102,6 +104,17 @@ function build(data){
   candidate={robots:'DRAFT-ONLY-robots.txt',sitemap:'DRAFT-ONLY-sitemap.xml',
    robotsSha256:rb,sitemapSha256:sm,holds:repair.manualHolds.length};
  }
+ let cmsReview=null,cmsView=null;
+ if(data.cmsBlueprint!==undefined||data.cmsSite!==undefined){
+  check(data.cmsBlueprint&&data.cmsSite&&
+   HASH.test(hashes.cmsBlueprint||'')&&HASH.test(hashes.cmsSite||''),
+   'original approved Blueprint and Site v1 must BOTH be supplied and SHA256-pinned');
+  cmsReview=CMS.build({blueprint:data.cmsBlueprint,
+   blueprintRawSha256:hashes.cmsBlueprint,site:data.cmsSite,
+   siteRawSha256:hashes.cmsSite,policy,regression:delta,correlation,repair,
+   repairManifest:manifest,indexing:data.indexing||null});
+  cmsView=CMS_VIEW.render(cmsReview);
+ }
  const items=[],ids=new Set();
  function add(source,id,priority,path,message,manual,agent){
   check(priorities.includes(priority),'invalid manual action priority');
@@ -159,12 +172,13 @@ function build(data){
    '<p>Manual holds: '+repair.manualHolds.length+'; explicit Allow suggestions: '+repair.appliedSuggestions.length+
    '; original Site v1 revision independently authenticated: NO.</p></section>';
  }
+ const cmsLink=cmsView?'<section><h2>CMS / publisher implementation mapping</h2><p><a href="crawl-cms.html">Open source-bound CMS and publisher implementation worklist</a> · <a href="crawl-cms-worklist.md">Lead Markdown</a> · <a href="crawl-cms-worklist.json">Private JSON</a></p><p>Source-drift pages: '+cmsReview.summary.driftPages+' · Extra pages: '+cmsReview.summary.unapprovedExtraPages+' · Manual implementation actions: '+cmsReview.summary.totalManualActions+'. No CMS Save or publishing is authorized.</p></section>':'';
  const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;"><title>MANUFACT — Private Crawl Operations</title><style>'+css+'</style></head><body><main><header><div>MANUFACT · PRIVATE SEO OPERATOR WORKSPACE</div><h1>Search delivery &amp; crawl intelligence</h1><p>Site '+escape(policy.siteId)+' · '+escape(policy.base)+'</p><p>Original-source observations, not authenticated crawler traffic or Google URL Inspection.</p></header>'+
   '<section><h2>Manual review queue</h2><p><span class="tag">P0 '+counts.P0+' · P1 '+counts.P1+' · P2 '+counts.P2+'</span></p>'+
   '<p><a href="crawl-lead-worklist.md">Open private lead worklist</a></p><p>Regression '+(delta?'supplied':'not supplied')+' · GSC correlation '+(correlation?'supplied':'not supplied')+
   ' · candidate '+(candidate?'private draft only':'not supplied')+'</p><div class="scroll"><table><thead><tr><th>Priority</th><th>Source</th><th>Route / bot</th><th>Observation</th><th>Next manual check</th></tr></thead><tbody>'+
   (rows||'<tr><td colspan="5">No triggers in supplied input. This does NOT prove the public site is ready.</td></tr>')+
-  '</tbody></table></div></section>'+propose+
+  '</tbody></table></div></section>'+cmsLink+propose+
   '<section><h2>Source fingerprints</h2><p>All original report bytes are pinned in the private workspace manifest. A matching hash is source consistency, not public-host authentication.</p><div class="scroll"><table><tbody>'+provenanceHtml+'</tbody></table></div></section>'+
   '<section><h2>Mandatory lead checks</h2><ol><li>Confirm approved site ID, Blueprint and current CMS revision with the owner.</li>'+
   '<li>Verify actual served HTTPS robots/sitemap, HTTP redirects, canonical and X-Robots-Tag before changes.</li>'+
@@ -187,16 +201,19 @@ function build(data){
   'Requires independent owner approval, source revision, actual public HTTPS and rollback review.',
   'No autonomous fixes, no release GO, no Google proof.',''].join('\n');
  return {siteId:policy.siteId,base:policy.base,blueprintSha256:policy.blueprintSha256,
-  html,markdown:md,candidate,
+  html,markdown:md,candidate,cmsReview,cmsView,
   counts,sourceIdentity:{policyRobotsSha256:policy.robotsSha256,
    policySitemapSha256:policy.sitemapSha256,
    canonicalBlueprintSha256:policy.blueprintSha256,
-   originalBlueprintFileSha256:manifest?.sourceRawSha256?.blueprint||
+   originalBlueprintFileSha256:hashes.cmsBlueprint||manifest?.sourceRawSha256?.blueprint||
     correlation?.originalBlueprintSourceSha256||null,
    siteSnapshotSha256:manifest?.sourceRawSha256?.site||null,
    files:Object.assign({},hashes)},
   overview:{included:true,P0:counts.P0,P1:counts.P1,P2:counts.P2,
    candidateIncluded:!!candidate,manualHolds:candidate?.holds??null,
+   cmsImplementationIncluded:!!cmsReview,
+   cmsImplementationManualActions:cmsReview?.summary.totalManualActions??null,
+   cmsImplementationDriftPages:cmsReview?.summary.driftPages??null,
    originalSiteAuthenticated:false,releaseAuthorized:false},
   limitations:limits};
 }
