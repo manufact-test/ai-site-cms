@@ -256,6 +256,20 @@ graphTest(str_contains($galleryHtml,'cmsdg-gallery-grid')&&
     str_contains($galleryHtml,'<figcaption>Проект &lt;первый&gt;</figcaption>')&&
     !str_contains($galleryHtml,'<первый>'),
     'PHP renders real gallery with safe captions and native lightbox');
+$scrollGallery=$gallerySite;
+$scrollIndex=count($scrollGallery['pages'][0]['sections'][2]['designGraph']['nodes'])-1;
+$scrollNode=&$scrollGallery['pages'][0]['sections'][2]['designGraph']['nodes'][$scrollIndex];
+$scrollNode['layout']='scroll';$scrollNode['scrollControls']=true;
+unset($scrollNode['columnsDesktop'],$scrollNode['columnsTablet'],$scrollNode['columnsMobile']);
+$validator->validate($scrollGallery);
+$scrollHtml=PublicRenderer::html($scrollGallery,'/');
+graphTest(str_contains($scrollHtml,'cmsdg-gallery-scroll-nav')&&
+    str_contains($scrollHtml,'href="#cmsdg-photo-gallery-photo-beta"'),
+    'PHP gallery emits native no-JavaScript photo navigation');
+$scrollNode['scrollControls']='true';
+try{$validator->validate($scrollGallery);throw new RuntimeException('Nonboolean scroll control accepted');}
+catch(InvalidArgumentException $expected){}
+unset($scrollNode);
 $englishGallery=$gallerySite;$englishGallery['language']='en';
 $englishGalleryHtml=PublicRenderer::html($englishGallery,'/');
 graphTest(str_contains($englishGalleryHtml,'aria-label="Next photo"')&&
