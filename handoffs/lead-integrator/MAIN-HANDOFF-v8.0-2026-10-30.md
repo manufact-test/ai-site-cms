@@ -55,3 +55,5 @@ The owner's explicit `docs/MASTER-TZ.md` outranks older tasks and examples: no r
 
 ## Mandatory product boundary update (30 Oct 2026)
 The generic site composer and canned Graph style recipes are now removed from shipped Studio as well as the six erroneous patterns. Do not reinstate them; `docs/MASTER-TZ.md` is authoritative. The independent AI author produces a finished customer-specific site from approved three-screen mockups; CMS handles manifest-bound editing, draft, publishing and rollback. Legacy SDK recipe files may remain for historical tests but MUST NOT ship as website-generation controls. E2E uses synthetic JSON site contracts to verify actual editing/publishing, not generated sites.
+
+Implementation head after source-safe media transfer: no generic site generation, no SEO branch changes. Preserve exact typed IDs for images, posters, backgrounds and WOFF2, never search-replace arbitrary strings during approved-folder import. Source files remain immutable.
