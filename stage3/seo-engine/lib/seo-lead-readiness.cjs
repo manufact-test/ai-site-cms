@@ -179,6 +179,21 @@ function build({siteId,first=null,launch=null,search=null,visibility=null,
    publicRootRecheckStable:http?.htmlCoverage?.rootRecheckStable??null,
    independentDeliveryBlockers:http?.summary.independentDeliveryBlockers??null,
    alignedNotVerified:http?.summary.alignedNotVerified??null});
+ const schema=crawl?.structuredData||null;
+ push('structured-data-owner-claims','PRE_LAUNCH','P1',
+  !schema?'NEEDS-EVIDENCE':schema.summary.P0>0?'BLOCKED':
+   schema.summary.uninspectedPages>0?'NEEDS-EVIDENCE':'LEAD-REVIEW-REQUIRED',
+  'SEO_OPERATOR','Schema.org JSON-LD semantics and owner-backed claims',
+  !schema?'No original per-site public JSON-LD semantic review was supplied.':
+   'Actual supplied HTML: '+schema.summary.P0+' P0, '+schema.summary.P1+
+    ' P1, '+schema.summary.uninspectedPages+' uninspected approved pages. Owner factual claims and Google rich-result status are NOT verified.',
+  ['Inspect JSON-LD syntax and approved-schema candidates, canonical URLs and BreadcrumbList references',
+   'Validate business facts, reviews, prices, addresses and offers directly with the owner',
+   'Do not auto-insert structured data or claim Google rich-result eligibility'],
+  ['approved-local-source','published-crawl-cms-evidence'],
+  schema?.inputSHA256?.publicHttp||null,
+  {schemaP0:schema?.summary.P0??null,schemaP1:schema?.summary.P1??null,
+   uninspected:schema?.summary.uninspectedPages??null});
  const queueStatus=queue?.summary;
  if(queueStatus)insist(Number.isSafeInteger(queueStatus.urgent)&&
   Number.isSafeInteger(queueStatus.pending),'invalid human action queue totals');
