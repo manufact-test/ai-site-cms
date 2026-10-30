@@ -1,3 +1,7 @@
+### Additional bridge: robots/sitemap policy + reported URL indexation
+
+[CRAWL-POLICY-WORKFLOW.md](CRAWL-POLICY-WORKFLOW.md) now documents `correlate-crawl-indexing.cjs`, which uses the existing private indexing-intelligence.json together with the **exact same original Blueprint bytes** and independently supplied robots/sitemap files. It creates per-page P1/P2 *manual investigation* prompts for co-observed Googlebot blocks or sitemap omissions. This cannot authenticate Search Console, live host state or whether robots caused a historic index status. Keep all four inputs and the generated private HTML/JSON/Markdown outside GitHub and hosting.
+
 ### Companion: original robots/sitemap policy and regressions
 
 Use [CRAWL-POLICY-WORKFLOW.md](CRAWL-POLICY-WORKFLOW.md) before interpreting GSC index reports: the offline crawl policy modules can check robots rule precedence for Googlebot/Bingbot and sitemap completeness or compare before/after policy sets. This is *operator-supplied evidence only*, not authenticated URL Inspection; never use a declared robots allow/deny alone to assert actual Google indexing. The GSC indexing workflow below remains separate.

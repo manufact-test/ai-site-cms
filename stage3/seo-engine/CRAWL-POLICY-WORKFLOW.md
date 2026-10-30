@@ -76,3 +76,28 @@ node stage3/seo-engine/tests/crawl-policy-cli-smoke.cjs
 Core tests cover crawler grouping and specificity, terminal-wildcard behavior, Unicode/percent escapes, sitemap mount and sample/index scope, XML comments/entities/lastmod, noindex/canonical and mismatch errors, no-release semantics, and regression scenarios. CLI test runs both real local Node subprocesses with original private temporary files and checks hash manifests, atomic output, refusal to overwrite, rejecting unsafe XML and checkout-sourced private data.
 
 **SEO worker does not claim real Node CI or real client website verification.** The independent lead runs these tests after integrating the subtree.
+
+## 6. Combine original GSC indexing observation with crawl policy
+
+**This is not Google URL Inspection, and it is NOT causal analysis.** The existing Search Indexing Intelligence already generates a private `indexing-intelligence.json` from an operator-declared GSC export. If you need to compare those historic/current operator observations against **supplied** crawler policy, use the new third CLI:
+
+```bash
+node stage3/seo-engine/bin/correlate-crawl-indexing.cjs \
+  --blueprint /ABS/private/ORIGINAL-blueprint.json \
+  --robots /ABS/private/original-robots.txt \
+  --sitemap /ABS/private/original-sitemap.xml \
+  --indexing /ABS/private/indexing-intelligence.json \
+  --base https://site.example/ \
+  --out /ABS/private/NEW-index-crawl-correlation
+```
+
+**Use exactly the same original Blueprint file bytes** that were used to generate the indexing intelligence; its recorded `blueprintSha256` must match that file's raw SHA256. Same approved page IDs, paths and HTTPS public-origin mount are required. Both the raw Blueprint byte hash and normalized canonical Blueprint hash are checked. Indexed/nonindexed observations are never authenticated by this step; `unobserved` stays `unobserved`.
+
+The output is a new private, atomic directory containing `index.html`, `CRAWL-INDEXING-CORRELATION.json`, `CRAWL-INDEXING-CORRELATION.md`, `SOURCE-MANIFEST.json` and `PRIVATE-README.md`. P1 investigations include a canonical indexable Blueprint page with operator-reported not-indexed plus a Googlebot block from supplied robots.txt, or an intended noindex page reported indexed; P2 may include not-indexed with no Googlebot block or missing from a declared complete XML URL list. **These co-observations do not prove that robots caused a Google index status or that the public host currently serves the same policy.** Actual Google URL Inspection, live HTTP status, canonical and X-Robots-Tag, period/freshness review and owner permission remain mandatory.
+
+```bash
+node stage3/seo-engine/tests/crawl-indexing-correlation-smoke.cjs
+node stage3/seo-engine/tests/crawl-indexing-cli-smoke.cjs
+```
+
+The SEO worker checked the deterministic core and local report generation in an emulated filesystem; full real Node CI and authentic public-site verification remain lead-owned.
