@@ -45,6 +45,7 @@ function build(input){
  if(indexed&&visibility&&indexing.blueprintSha256!==search.history.blueprintSha256)
   throw Error('Search History and URL Indexing reports need the same approved Blueprint bytes');
  const leadReadiness=LEAD.build({siteId,first,launch,search,visibility,indexing,indexed,
+  indexingSourceSha256:input.indexingReportSha256||input.crawl?.indexingReportSha256||null,
   crawl,human,manual,queue});
  const leadView=LEAD_VIEW.render(leadReadiness);
  const sections=[
