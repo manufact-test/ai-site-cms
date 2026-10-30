@@ -119,3 +119,8 @@ Bring over the allowed SEO subtree only, run the small relevant Node smokes, rev
 ## Subsequent extension — public HTTPS observations after manual CMS implementation
 
 The private two-cycle observation comparison is NOT a deployed-site check. New [CRAWL-PUBLIC-FOLLOWUP.md](CRAWL-PUBLIC-FOLLOWUP.md) adds `crawl.publicCapture` to the same workspace or `bin/review-crawl-public-fixes.cjs` to evaluate task-specific supplied **public HTTPS GET transcripts** after changes. It uses the existing bounded public HTTPS capture/delivery/parity/crawl policy modules, never fetches or republishes by itself. Tasks are marked `OBSERVED-CONFLICT`, `OBSERVED-ALIGNED-NOT-VERIFIED`, or `INSUFFICIENT-EVIDENCE`, with raw SHA256 and separate unexpected delivery blockers. A green-looking response does not authenticate a sourceRevision, deployment, owner approval or Google indexing. Current human decisions, earlier lifecycle comparison and this public observation can be viewed from one existing private SEO Operator Workspace.
+
+
+## Whole-first-client lead readiness connection
+
+When this crawl/CMS lifecycle appears in the single private Operator Workspace, `lead-readiness.html` also presents previous owner-reported completion still observed, new/changed P0 and follow-up source availability as lead-owned workflow gates. This never treats a disappearing worklist task as authenticated closure or completed live-site acceptance. Full details: [FIRST-CLIENT-LEAD-READINESS.md](FIRST-CLIENT-LEAD-READINESS.md).
