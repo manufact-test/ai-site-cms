@@ -43,6 +43,15 @@ const STYLE_KEYS=['display','columns','direction','align','justify','gap','paddi
   'paddingX','paddingY','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginBottom','widthPercent','minHeight','minHeightViewport','heightViewport','gridColumnSpan',
   'flexWrap','flexGrow','alignSelf','letterSpacing','fontFamily','objectFit','aspectRatio',
   'overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset','shadowFine','gridTracks','gridAutoRowsPx'];
+const FORM_APPEARANCE_SIZES=Object.freeze({gap:[0,64],inputRadius:[0,48],inputPadding:[4,32],
+  buttonRadius:[0,48],buttonPadding:[6,32]});
+const FORM_APPEARANCE_COLORS=['inputBackground','borderColor','buttonBackground','buttonColor'];
+const FORM_APPEARANCE_KEYS=[...Object.keys(FORM_APPEARANCE_SIZES),'labelWeight',...FORM_APPEARANCE_COLORS];
+const FORM_APPEARANCE_CSS=Object.freeze({gap:'--cmsdg-form-gap',inputRadius:'--cmsdg-form-input-radius',
+  inputPadding:'--cmsdg-form-input-padding',buttonRadius:'--cmsdg-form-button-radius',
+  buttonPadding:'--cmsdg-form-button-padding',labelWeight:'--cmsdg-form-label-weight',
+  inputBackground:'--cmsdg-form-input-bg',borderColor:'--cmsdg-form-border',
+  buttonBackground:'--cmsdg-form-button-bg',buttonColor:'--cmsdg-form-button-color'});
 const DEFAULT_TOKENS=Object.freeze({
   colors:{foreground:'#182b3d',background:'#ffffff',accent:'#0a5bff',muted:'#667788'},
   spacing:{small:12,medium:24,large:48},
@@ -81,6 +90,22 @@ function resolve(value,kind,tokens,at){
   }else if(!number(value,0,kind==='typography'?120:kind==='spacing'?240:240))
     fail(at,'invalid numeric length');
   return value;
+}
+function validateFormAppearance(appearance,tokens,at){
+  keys(appearance,FORM_APPEARANCE_KEYS,at);
+  for(const [key,value] of Object.entries(appearance)){
+    if(own(FORM_APPEARANCE_SIZES,key)){
+      const [min,max]=FORM_APPEARANCE_SIZES[key];
+      if(!number(value,min,max))fail(at+'/'+key,'invalid form size');
+    }else if(key==='labelWeight'){
+      if(![400,500,600,700].includes(value))fail(at+'/'+key,'invalid form label weight');
+    }else resolve(value,'colors',tokens,at+'/'+key);
+  }
+}
+function formAppearanceCSS(appearance,tokens,at){
+  return Object.entries(appearance).map(([key,value])=>
+    FORM_APPEARANCE_CSS[key]+':'+(FORM_APPEARANCE_COLORS.includes(key)?
+      resolve(value,'colors',tokens,at+'/'+key):String(value)+(key==='labelWeight'?'':'px'))).join(';');
 }
 function validateStyle(style,tokens,at,mode='base'){
   keys(style,STYLE_KEYS,at);
@@ -180,9 +205,11 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
   let count=0;const popups=new Set(),triggers=[];
   function visit(node,depth,parentType=null){
     if(depth>8||++count>90)fail('graph','excessive depth or node count');
-    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile','semanticTag','ariaLabel'],'node');
+    keys(node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile','semanticTag','ariaLabel','formAppearance','formAppearanceTablet','formAppearanceMobile'],'node');
     if(!IDENT.test(node.id)||seen.has(node.id)||!TYPES.includes(node.type))fail('node','duplicate id / unknown type');
     seen.add(node.id);
+    if(node.type!=='form-slot'&&['formAppearance','formAppearanceTablet','formAppearanceMobile'].some(k=>own(node,k)))
+      fail(node.id,'form appearance is only available on form slots');
     if(own(node,'popupTarget')){
       if(node.type!=='button'||own(node,'href')||typeof node.popupTarget!=='string'||!IDENT.test(node.popupTarget))
         fail(node.id,'popup trigger must be a button with a valid popup ID');
@@ -298,6 +325,8 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       if(own(node,'text')||own(node,'href')||own(node,'assetId')||own(node,'alt')||own(node,'level')||own(node,'posterAssetId')||own(node,'loop'))
         fail(node.id,'invalid container content');
     }else if(node.type==='form-slot'){
+      for(const key of ['formAppearance','formAppearanceTablet','formAppearanceMobile'])
+        if(own(node,key))validateFormAppearance(node[key],tokens,node.id+'/'+key);
       if(['text','href','assetId','alt','level','icon','posterAssetId','loop','ordered','cite','caption','children','runs','popupTarget','backgroundMedia','backgroundVideo','responsiveMedia','sequence','semanticTag','ariaLabel','layout'].some(k=>own(node,k)))
         fail(node.id,'form slot is a presentation-only leaf');
     }else if(node.type==='table-cell'){
@@ -602,7 +631,7 @@ function declarations(style,t){
   for(const [key,prop] of [['paddingTop','padding-top'],['paddingRight','padding-right'],['paddingBottom','padding-bottom'],['paddingLeft','padding-left']])if(own(style,key))put(prop,resolve(style[key],'spacing',t,key)+'px');
   return css.join(';');
 }
-function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPreview=null){
+function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPreview=null,formSection=null,previewFormStep=0){
   validateGraph(graph,new Set(site.assets.map(x=>x.id)),new Set(),
     site.designTokens,new Map(site.assets.map(x=>[x.id,x.mime])));
   const tokens=validateTokens(site.designTokens);
@@ -619,6 +648,65 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
   };
   const gl=galleryTranslations[site.language]||galleryTranslations.ru;
   const attr=s=>escapeHtml(s);
+  /* The Graph canvas must show actual authored field labels but must NEVER emit a live form action. */
+  const authoredSection=formSection||site.pages?.flatMap(p=>p.sections||[])
+    .find(section=>section.designGraph?.id===graph.id);
+  const renderInertForm=()=>{
+    if(!authoredSection||!['lead-form','lead-form-flex'].includes(authoredSection.component))return '<p>Форма заявки — серверный предпросмотр</p>';
+    const elements=new Map(authoredSection.elements.map(element=>[element.slot,element.values]));
+    const labelOf=slot=>String(elements.get(slot)?.['content.text']||'');
+    const words={
+      ru:['Это предварительный вид; отправка отключена','Предыдущий шаг','Следующий шаг','Шаг','Условный вопрос'],
+      en:['Preview only; submission disabled','Previous step','Next step','Step','Conditional question'],
+      pl:['Tylko podgląd; wysyłanie wyłączone','Poprzedni krok','Następny krok','Krok','Pytanie warunkowe'],
+      de:['Nur Vorschau; Absenden deaktiviert','Vorheriger Schritt','Nächster Schritt','Schritt','Bedingtes Feld'],
+      be:['Толькі прагляд; адпраўка адключана','Папярэдні крок','Наступны крок','Крок','Умоўнае пытанне'],
+      uk:['Лише перегляд; надсилання вимкнено','Попередній крок','Наступний крок','Крок','Умовне питання']
+    }[site.language]||['Это предварительный вид; отправка отключена','Предыдущий шаг','Следующий шаг','Шаг','Условный вопрос'];
+    const fields=[
+      {id:'name',kind:'text',label:labelOf('name-label'),required:true,placeholder:''},
+      {id:'email',kind:'email',label:labelOf('email-label'),required:true,placeholder:''},
+      {id:'message',kind:'textarea',label:labelOf('message-label'),required:true,placeholder:''}
+    ];
+    for(const [i,slot] of ['extra-one','extra-two','extra-three'].entries()){
+      const data=elements.get(slot)||{},kind=data['behavior.kind'];
+      if(!kind||kind==='off')continue;
+      fields.push({id:'extra'+(i+1),kind,label:String(data['content.text']||''),
+        required:data['behavior.required']===true,placeholder:'',
+        options:String(data['content.options']||'').split(/\r?\n/).filter(Boolean)});
+    }
+    for(const item of authoredSection.formFields||[])
+      fields.push({id:item.id,kind:item.kind,label:item.label,required:item.required,
+        placeholder:item.placeholder,options:item.options,when:item.when});
+    const fieldMarkup=field=>{
+      const label=attr(field.label)+(field.required?' *':'')+(field.when?' <small>('+attr(words[4])+')</small>':'');
+      const options=(field.options||[]).map(option=>'<option>'+attr(option)+'</option>').join('');
+      let control;
+      if(field.kind==='textarea')control='<textarea disabled rows="3" placeholder="'+attr(field.placeholder||'')+'"></textarea>';
+      else if(field.kind==='select')control='<select disabled><option value=""></option>'+options+'</select>';
+      else if(field.kind==='radio')control='<div class="cmsdg-preview-choices">'+
+        (field.options||[]).map(option=>'<label><input disabled type="radio"> '+attr(option)+'</label>').join('')+'</div>';
+      else if(field.kind==='checkbox')control='<input disabled type="checkbox">';
+      else control='<input disabled type="'+attr(['text','tel','email','number','date','url'].includes(field.kind)?field.kind:'text')+
+        '" placeholder="'+attr(field.placeholder||'')+'">';
+      if(field.kind==='radio')return '<fieldset data-cms-form-field="'+attr(field.id)+'" class="cmsdg-preview-field'+(field.when?' cmsdg-preview-conditional':'')+'"><legend>'+label+'</legend>'+control+'</fieldset>';
+      return '<label data-cms-form-field="'+attr(field.id)+'" class="cmsdg-preview-field'+(field.when?' cmsdg-preview-conditional':'')+'">'+label+control+'</label>';
+    };
+    const steps=Array.isArray(authoredSection.formSteps)?authoredSection.formSteps:null;
+    const stepIndex=steps?Math.min(steps.length-1,Math.max(0,
+      Number.isInteger(previewFormStep)?previewFormStep:0)):0;
+    const active=steps?new Set(steps[stepIndex].fields):null;
+    const visible=fields.filter(field=>!active||active.has(field.id));
+    const progress=steps?'<p class="cmsdg-preview-progress">'+attr(words[3])+' '+(stepIndex+1)+' / '+steps.length+' · '+attr(steps[stepIndex].title)+'</p>':'';
+    const next=steps?'<div class="cmsdg-preview-steps"><button type="button" disabled>'+attr(words[1])+
+      '</button><button type="button" disabled>'+attr(words[2])+'</button></div>':'';
+    return '<div class="cmsdg-form-preview" role="group" aria-label="'+attr(labelOf('heading'))+'">'+
+      '<h2>'+attr(labelOf('heading'))+'</h2>'+progress+
+      visible.map(fieldMarkup).join('')+next+
+      '<label class="cmsdg-preview-consent"><input type="checkbox" disabled> '+attr(labelOf('consent-label'))+'</label>'+
+      '<button type="button" disabled class="cmsdg-preview-submit">'+attr(labelOf('submit-label'))+'</button>'+
+      '<small class="cmsdg-preview-note">'+attr(words[0])+'</small></div>';
+  };
   const imageUrl=id=>{
     const a=assets.get(id);
     return a?(mediaPreview?mediaPreview(id):null)||safeMount+a.src:null;
@@ -782,8 +870,16 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       for(const tab of n.children)rules.push(scope+' .cmsdg-tabs-'+n.id+':has(> .cmsdg-tabs-controls > #cmsdg-tab-'+tab.id+':checked) > .cmsdg-tabs-panels > #cmsdg-panel-'+tab.id+'{display:block}');
       return '<div class="'+cls+' cmsdg-tabs-'+n.id+'"><div class="cmsdg-tabs-controls" role="group" aria-label="Вкладки">'+controls+'</div><div class="cmsdg-tabs-panels">'+n.children.map(visit).join('')+'</div></div>';
     }
-    if(n.type==='form-slot')return '<div class="'+cls+' cmsdg-form-slot" role="group" aria-label="Форма заявки">'+
-      '<p>Форма заявки: проверяйте поля и отправку в серверном предпросмотре.</p></div>';
+    if(n.type==='form-slot'){
+      const target=selector;
+      for(const [key,limit] of [['formAppearance',null],['formAppearanceTablet',900],['formAppearanceMobile',600]]){
+        if(!n[key])continue;
+        const declarations=formAppearanceCSS(n[key],tokens,n.id+'/'+key);
+        if(declarations)rules.push(limit?'@media(max-width:'+limit+'px){'+target+'{'+declarations+'}}':
+          target+'{'+declarations+'}');
+      }
+      return '<div class="'+cls+' cmsdg-form-slot">'+renderInertForm()+'</div>';
+    }
     if(n.type==='divider')return '<hr class="'+cls+'">';
     if(n.type==='icon'){
       const size=n.iconSize||'1em',weight={thin:'1.25',regular:'2',bold:'3'}[n.iconWeight||'regular'];
@@ -889,6 +985,23 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     scope+' .cmsdg-popup::backdrop{background:#08172c99}'+
     scope+' .cmsdg-popup-close{position:sticky;top:0;float:right;z-index:1;width:40px;height:40px;margin:-14px -14px 4px 10px;border:1px solid #ccd8e4;border-radius:50%;background:#fff;color:#182b3d;font:24px system-ui;cursor:pointer}'+
     scope+' .cmsdg-popup-trigger{font:inherit;cursor:pointer}'+
+    scope+' .cmsdg-form-preview{display:grid;gap:12px;width:100%;max-width:700px;font:inherit}'+
+    scope+' .cmsdg-preview-field{display:grid;gap:6px;font:inherit;min-width:0}'+
+    scope+' .cmsdg-preview-field input:not([type="checkbox"]):not([type="radio"]),'+scope+' .cmsdg-preview-field textarea,'+scope+' .cmsdg-preview-field select{width:100%;max-width:100%;padding:10px 12px;border:1px solid #b9c8d8;border-radius:8px;font:inherit;color:inherit;background:transparent;opacity:1}'+
+    scope+' .cmsdg-form-preview input:disabled,'+scope+' .cmsdg-form-preview select:disabled,'+scope+' .cmsdg-form-preview textarea:disabled{opacity:.75}'+
+    scope+' .cmsdg-preview-field small{font-size:.8em}'+
+    scope+' .cmsdg-preview-conditional{opacity:.8}'+
+    scope+' .cmsdg-preview-choices{display:grid;gap:8px}'+
+    scope+' .cmsdg-preview-choices label{display:flex;gap:8px;align-items:center}'+
+    scope+' .cmsdg-preview-consent{display:flex;gap:10px;align-items:flex-start}'+
+    scope+' .cmsdg-preview-submit{padding:12px 18px;border:0;border-radius:10px;background:var(--cms-primary,#0a5bff);color:#fff;font:inherit}'+
+    scope+' .cmsdg-preview-steps{display:flex;gap:12px}'+
+    scope+' .cmsdg-preview-steps button{padding:10px;border-radius:8px;border:1px solid #b9c8d8;background:transparent;color:inherit}'+
+    scope+' .cmsdg-form-slot .cmsdg-form-preview{gap:var(--cmsdg-form-gap,16px)}'+
+    scope+' .cmsdg-form-slot .cmsdg-preview-field{font-weight:var(--cmsdg-form-label-weight,600)}'+
+    scope+' .cmsdg-form-slot .cmsdg-preview-field input:not([type=checkbox]):not([type=radio]),'+scope+' .cmsdg-form-slot .cmsdg-preview-field select,'+scope+' .cmsdg-form-slot .cmsdg-preview-field textarea{padding:var(--cmsdg-form-input-padding,12px);border-radius:var(--cmsdg-form-input-radius,8px);border-color:var(--cmsdg-form-border,#a5b3c4);background:var(--cmsdg-form-input-bg,#fff)}'+
+    scope+' .cmsdg-form-slot .cmsdg-preview-submit{padding:var(--cmsdg-form-button-padding,12px) 18px;border-radius:var(--cmsdg-form-button-radius,10px);background:var(--cmsdg-form-button-bg,var(--cms-primary,#0a5bff));color:var(--cmsdg-form-button-color,#fff)}'+
+    scope+' .cmsdg-preview-note{font-size:.8em;opacity:.7}'+
     scope+' .cmsdg-quote{margin:12px 0;padding:20px;border-inline-start:4px solid currentColor}'+
     scope+' .cmsdg-quote blockquote{margin:0}'+
     scope+' .cmsdg-quote figcaption{margin-top:12px;font-size:.9em}'+

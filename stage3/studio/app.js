@@ -1547,6 +1547,21 @@
               visual.classList.add('cms-work-graph-target');
             }
           }
+          /* Keep manifest-defined custom fields clickable inside a composed lead form. */
+          if(section.component==='lead-form-flex'){
+            for(const field of section.formFields||[]){
+              for(const label of host.querySelectorAll('[data-cms-form-field="'+field.id+'"]')){
+                label.dataset.cmsWorkFormField=field.id;
+                label.classList.add('cms-work-linked-form');
+              }
+              for(const row of host.querySelectorAll('.cmsdg-form-slot .lead-field')){
+                const name=row.querySelector('input[name],select[name],textarea[name]')?.getAttribute('name');
+                if(name!==field.id)continue;
+                row.dataset.cmsWorkFormField=field.id;
+                row.classList.add('cms-work-linked-form');
+              }
+            }
+          }
           continue;
         }
         const used=new Set();
@@ -2879,7 +2894,7 @@
     workspace.append(visual,root);
     dlg.append(title,info,auditFocus,toolbar,workspace,auditPanel,footer);
     document.body.append(dlg);
-    let graph,tokens,selection,mode='desktop',sourcePage,sourceSection,previewDevice='desktop';
+    let graph,tokens,selection,mode='desktop',sourcePage,sourceSection,previewDevice='desktop',previewFormStep=0;
     let activeAuditFocus=null,auditNodeFocusPending=false;
     let undoStack=[],redoStack=[],activeGesture=null,suppressPreviewClick=false;
     const PREVIEW_WIDTHS={desktop:1200,tablet:780,mobile:390};
@@ -3196,6 +3211,14 @@
       });
       b.dataset.designDevice=id;deviceTools.append(b);
     }
+    const formStepSelect=document.createElement('select');
+    formStepSelect.id='cms-design-form-step';
+    formStepSelect.className='control';formStepSelect.hidden=true;
+    formStepSelect.setAttribute('aria-label','Просмотреть шаг формы в композиции');
+    formStepSelect.addEventListener('change',()=>{
+      previewFormStep=Number(formStepSelect.value)||0;paintVisual();
+    });
+    deviceTools.append(formStepSelect);
     function renderAudit(){
       auditPanel.replaceChildren();
       auditPanel.append(make('h3','Проверка доступности'));
@@ -3252,9 +3275,11 @@
       canvasStage.style.height=Math.min(520,Math.ceil(900*scale))+'px';
       try{
         const site={...session.current,designTokens:tokens};
+        const authoredForm=site.pages.find(p=>p.id===sourcePage)?.sections
+          .find(section=>section.id===sourceSection);
         const html=DESIGN_GRAPH.render(site,graph,'',
           assetId=>HOSTED?window.Stage3Host?.previewUrl?.(assetId):null,sourceSection,
-          assetId=>HOSTED?window.Stage3Host?.videoUrl?.(assetId):null);
+          assetId=>HOSTED?window.Stage3Host?.videoUrl?.(assetId):null,authoredForm,previewFormStep);
         previewFrame.srcdoc='<!doctype html><html lang="ru"><head><meta charset="utf-8">'+
           '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; img-src &#39;self&#39; data: blob:; media-src &#39;self&#39; blob:; connect-src &#39;none&#39;; form-action &#39;none&#39;; object-src &#39;none&#39;; frame-src &#39;none&#39;">'+
           '<style>html,body{margin:0;background:#fff;color:#182b3d;font:16px system-ui,Arial,sans-serif}body{padding:12px;min-width:0}.cmsdg{position:relative}.cmsdg [class*="cmsdg-n-"]{cursor:grab;touch-action:none}.cmsdg [class*="cmsdg-n-"]:hover{outline:2px dashed #1868d3!important;outline-offset:2px}.cmsdg .cms-design-picked{outline:3px solid #e88622!important;outline-offset:3px}.cmsdg .cms-design-dragging{opacity:.42!important;cursor:grabbing}.cmsdg .cms-design-drop-before{box-shadow:inset 0 4px #e88622!important}.cmsdg .cms-design-drop-after{box-shadow:inset 0 -4px #e88622!important}.cmsdg .cms-design-drop-inside{outline:3px solid #16865b!important;outline-offset:3px}.cms-design-resize-overlay{pointer-events:none}</style>'+
@@ -3280,6 +3305,20 @@
       chooser.value=selection;
       chooser.addEventListener('change',()=>{selection=chooser.value;render();});
       toolbar.append(chooser);
+      const formSource=session.current.pages.find(p=>p.id===sourcePage)?.sections
+        .find(section=>section.id===sourceSection);
+      const formSteps=formSource?.formSteps||[];
+      formStepSelect.hidden=!formSteps.length||!DESIGN_GRAPH.formSlotIds(graph).length;
+      formStepSelect.replaceChildren();
+      if(!formStepSelect.hidden){
+        previewFormStep=Math.min(previewFormStep,formSteps.length-1);
+        formSteps.forEach((step,index)=>{
+          const option=document.createElement('option');option.value=String(index);
+          option.textContent='Шаг '+(index+1)+' · '+step.title;
+          formStepSelect.append(option);
+        });
+        formStepSelect.value=String(previewFormStep);
+      }
       if(auditNodeFocusPending){
         auditNodeFocusPending=false;
         requestAnimationFrame(()=>chooser.focus({preventScroll:true}));
@@ -3563,6 +3602,43 @@
         fields.append(ctl('Название семантической области',n.ariaLabel||'',value=>{
           if(value.trim())n.ariaLabel=value;else delete n.ariaLabel;
         }));
+      }
+      if(n.type==='form-slot'){
+        const layerKey=mode==='tablet'?'formAppearanceTablet':mode==='mobile'?'formAppearanceMobile':'formAppearance';
+        const layer=n[layerKey]||{};
+        const settings=[
+          ['gap','Расстояние между полями (px)',0,64],
+          ['inputRadius','Скругление полей (px)',0,48],
+          ['inputPadding','Внутренний отступ полей (px)',4,32],
+          ['buttonRadius','Скругление кнопки (px)',0,48],
+          ['buttonPadding','Вертикальный отступ кнопки (px)',6,32],
+          ['labelWeight','Насыщенность подписей',400,700]];
+        const hint=make('p','',
+          'cms-design-form-hint');hint.textContent='Оформление формы · '+(mode==='desktop'?'ПК':mode==='tablet'?'планшет':'телефон')+
+          '. Пустые значения наследуют оформление старшего экрана.';
+        fields.append(hint);
+        for(const [key,label,min,max] of settings){
+          fields.append(ctl(label,layer[key]===undefined?'':String(layer[key]),value=>{
+            if(!value.trim()){if(n[layerKey])delete n[layerKey][key];}
+            else {
+              const raw=Number(value);
+              const safe=key==='labelWeight'?([400,500,600,700].includes(raw)?raw:600):
+                Math.round(Math.max(min,Math.min(max,Number.isFinite(raw)?raw:min)));
+              (n[layerKey]||(n[layerKey]={}))[key]=safe;
+            }
+            if(n[layerKey]&&!Object.keys(n[layerKey]).length)delete n[layerKey];
+          },'number'));
+        }
+        for(const [key,label] of [['inputBackground','Фон поля'],['borderColor','Обводка поля'],
+          ['buttonBackground','Фон кнопки'],['buttonColor','Текст кнопки']]){
+          fields.append(ctl(label+' · #112233 / @accent',layer[key]||'',value=>{
+            const color=value.trim();
+            if(!color){if(n[layerKey])delete n[layerKey][key];}
+            else if(/^#[0-9a-f]{6}$/i.test(color)||/^@[a-z][a-z0-9-]{1,39}$/.test(color))
+              (n[layerKey]||(n[layerKey]={}))[key]=color;
+            if(n[layerKey]&&!Object.keys(n[layerKey]).length)delete n[layerKey];
+          }));
+        }
       }
       if(n.type==='gallery'){
         fields.append(ctl('Пропорции миниатюр',{initial:n.photoShape||'natural',
@@ -4067,7 +4143,7 @@
       if(!section.designGraph&&!confirm('Создать новую свободную композицию? Она заменит отображение этого блока, но его прежние данные сохранятся.'))return;
       graph=cp(section.designGraph||DESIGN_GRAPH.baseGraph(section.id));
       tokens=cp(session.current.designTokens||DESIGN_GRAPH.DEFAULT_TOKENS);
-      mode='desktop';previewDevice='desktop';selection=graph.nodes[0].id;
+      mode='desktop';previewDevice='desktop';previewFormStep=0;selection=graph.nodes[0].id;
       activeAuditFocus=pendingGraphAuditFocus&&pendingGraphAuditFocus.pageId===page.id&&
         pendingGraphAuditFocus.sectionId===section.id?pendingGraphAuditFocus:null;
       pendingGraphAuditFocus=null;

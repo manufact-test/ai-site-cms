@@ -133,6 +133,67 @@ test('custom client Graph form slot retains real form semantics and device cover
   wrong.pages[1].sections.at(-1).component='custom-section';
   refuses(()=>sdk.validateSite(wrong,manifests),'Form slot is not allowed in generic Graph section');
 });
+test('authored form fields render in a truthful inert Graph Studio preview',()=>{
+  const G=require('../sdk/design-graph.cjs'),site=same(initial);
+  const section=sdk.sectionFrom(manifests.find(m=>m.id==='lead-form-flex'),'section-editor-preview');
+  section.formFields=[{id:'field-interest',label:'Услуга <script> & детали',kind:'select',
+    required:false,options:['Проект & расчёт','Другое'],placeholder:''}];
+  section.formSteps=[
+    {title:'Контакт и интерес',fields:['name','field-interest']},
+    {title:'Ответ клиенту',fields:['email','message']}
+  ];
+  section.designGraph={version:1,id:'graph-editor-lead-preview',nodes:[
+    {id:'graph-editor-lead-container',type:'container',children:[
+      {id:'graph-editor-lead-title',type:'heading',text:'Получить консультацию',level:2},
+      {id:'graph-editor-lead-slot',type:'form-slot',styles:{padding:12}}
+    ]}
+  ]};
+  site.pages[1].sections.push(section);
+  sdk.validateSite(site,manifests);
+  const preview=G.render(site,section.designGraph);
+  assert.match(preview,/cmsdg-form-preview/);
+  assert.match(preview,/Услуга &lt;script&gt; &amp; детали/);
+  assert.match(preview,/Проект &amp; расчёт/);
+  assert.match(preview,/Шаг 1 \/ 2/);
+  assert.match(preview,/data-cms-form-field="field-interest"/);
+  assert.match(preview,/type="button" disabled/);
+  assert.doesNotMatch(preview,/<form\b|action=|name="_token"|method="post"/i,
+    'Offline Studio cannot submit or expose an editable form token');
+  assert.doesNotMatch(preview,/Электронная почта/,
+    'Multi-step preview shows the initially visible step only');
+  const editorPreview=G.render(site,structuredClone(section.designGraph),'',null,section.id,null,section);
+  assert.match(editorPreview,/Услуга &lt;script&gt;/);
+  const slot=section.designGraph.nodes[0].children[1];
+  slot.formAppearance={gap:22,inputRadius:16,inputPadding:14,buttonRadius:25,
+    buttonPadding:15,labelWeight:700,inputBackground:'#f5f8fa',
+    borderColor:'@muted',buttonBackground:'@accent',buttonColor:'#ffffff'};
+  slot.formAppearanceTablet={gap:12};
+  slot.formAppearanceMobile={gap:8,buttonRadius:12};
+  sdk.validateSite(site,manifests);
+  const styled=G.render(site,section.designGraph,'',null,section.id,null,section);
+  for(const value of ['--cmsdg-form-gap:22px','--cmsdg-form-input-radius:16px',
+    '--cmsdg-form-button-padding:15px','--cmsdg-form-label-weight:700',
+    '--cmsdg-form-button-bg:#0a5bff','--cmsdg-form-border:#667788']){
+    assert.ok(styled.includes(value),'Preview form appearance '+value);
+  }
+  assert.match(styled,/@media\\(max-width:900px\\)\\{[^}]*--cmsdg-form-gap:12px/);
+  assert.match(styled,/@media\\(max-width:600px\\)\\{[^}]*--cmsdg-form-gap:8px/);
+  assert.match(styled,/var\\(--cmsdg-form-button-radius,10px\\)/);
+  const clean=JSON.stringify(slot);
+  for(const [key,badValue] of [['gap',-1],['inputRadius',999],['borderColor','url(javascript:evil)'],
+    ['labelWeight',900],['buttonBackground','@missing']]){
+    slot.formAppearance[key]=badValue;refuses(()=>sdk.validateSite(site,manifests));
+    Object.assign(slot,JSON.parse(clean));
+  }
+  slot.formAppearanceMobile={gap:'12px'};refuses(()=>sdk.validateSite(site,manifests));
+  slot.formAppearanceMobile={gap:8,buttonRadius:12};
+  slot.formAppearance={...slot.formAppearance,unrestrictedCss:'expression(evil)'};refuses(()=>sdk.validateSite(site,manifests));
+  Object.assign(slot,JSON.parse(clean));
+  section.designGraph.nodes[0].formAppearance={gap:8};
+  refuses(()=>sdk.validateSite(site,manifests),'Only form slots may carry appearance overrides');
+  delete section.designGraph.nodes[0].formAppearance;
+  sdk.validateSite(site,manifests);
+});
 test('responsive Graph headings and hidden mobile lead forms use effective visibility',()=>{
   const site=same(initial),page=site.pages[0],hero=page.sections[0];
   hero.designGraph={version:1,id:'graph-responsive-seo',nodes:[

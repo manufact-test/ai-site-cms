@@ -19,6 +19,14 @@ final class DesignGraph
         'rowGap','columnGap','paddingX','paddingY','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginBottom','widthPercent',
         'minHeight','minHeightViewport','heightViewport','gridColumnSpan','flexWrap','flexGrow','alignSelf','letterSpacing',
         'fontFamily','objectFit','aspectRatio','overflow','shadow','gradient','fluidFont','right','bottom','zIndex','widthPx','heightPx','minWidth','maxHeight','gridRowSpan','flexBasisPercent','flexShrink','justifySelf','alignContent','gridAutoFlow','objectPositionX','objectPositionY','outlineColor','outlineWidth','textDecoration','whiteSpace','fontStyle','textTransform','textWrap','wordBreak','textOverflow','textShadow','gridColumnsPreset','transformOrigin','isolation','mixBlendMode','clipShape','wordSpacing','textIndent','gridColumnStart','gridRowStart','translateX','translateY','rotateDeg','scalePercent','backdropBlur','borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius','borderStyle','filterPreset','shadowFine','gridTracks','gridAutoRowsPx'];
+    private const FORM_SIZES=['gap'=>[0,64],'inputRadius'=>[0,48],'inputPadding'=>[4,32],
+        'buttonRadius'=>[0,48],'buttonPadding'=>[6,32]];
+    private const FORM_COLORS=['inputBackground','borderColor','buttonBackground','buttonColor'];
+    private const FORM_CSS=['gap'=>'--cmsdg-form-gap','inputRadius'=>'--cmsdg-form-input-radius',
+        'inputPadding'=>'--cmsdg-form-input-padding','buttonRadius'=>'--cmsdg-form-button-radius',
+        'buttonPadding'=>'--cmsdg-form-button-padding','labelWeight'=>'--cmsdg-form-label-weight',
+        'inputBackground'=>'--cmsdg-form-input-bg','borderColor'=>'--cmsdg-form-border',
+        'buttonBackground'=>'--cmsdg-form-button-bg','buttonColor'=>'--cmsdg-form-button-color'];
     private const ICON_PATHS=[
         'check'=>'<path d="M5 12l4 4L19 6"/>',
         'arrow'=>'<path d="M5 12h14m-6-6 6 6-6 6"/>',
@@ -73,6 +81,26 @@ final class DesignGraph
     private static function integer(mixed $n,int $min,int $max): bool
     {
         return is_int($n) && $n >= $min && $n <= $max;
+    }
+    private static function validateFormAppearance(mixed $appearance,array $tokens,string $at): void
+    {
+        self::keys($appearance,array_keys(self::FORM_CSS),$at);
+        foreach($appearance as $key=>$value){
+            if(isset(self::FORM_SIZES[$key]))self::check(self::integer($value,...self::FORM_SIZES[$key]),$at.' invalid form size '.$key);
+            elseif($key==='labelWeight')self::check(in_array($value,[400,500,600,700],true),$at.' invalid label weight');
+            else self::resolve($value,'colors',$tokens,$at.'/'.$key);
+        }
+    }
+    private static function formAppearanceCSS(array $appearance,array $tokens,string $at): string
+    {
+        $declarations=[];
+        foreach($appearance as $key=>$value){
+            $resolved=in_array($key,self::FORM_COLORS,true)
+                ? self::resolve($value,'colors',$tokens,$at.'/'.$key)
+                : $value.($key==='labelWeight'?'':'px');
+            $declarations[]=self::FORM_CSS[$key].':'.$resolved;
+        }
+        return implode(';',$declarations);
     }
     public static function tokens(mixed $given): array
     {
@@ -225,8 +253,11 @@ final class DesignGraph
         $count=0;$popups=[];$triggers=[];
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,&$popups,&$triggers,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile','semanticTag','ariaLabel'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile','semanticTag','ariaLabel','formAppearance','formAppearanceTablet','formAppearanceMobile'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
+            if($type!=='form-slot')
+                self::check(!array_intersect(['formAppearance','formAppearanceTablet','formAppearanceMobile'],array_keys($node)),
+                    'form appearance only allowed on form slots');
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
                 &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup','form-slot'],true),
                 'invalid or duplicate node');
@@ -346,6 +377,8 @@ final class DesignGraph
                 foreach (['text','href','assetId','alt','level','posterAssetId','loop'] as $field)
                     self::check(!array_key_exists($field,$node),'invalid container/divider content');
             } elseif ($type==='form-slot') {
+                foreach(['formAppearance','formAppearanceTablet','formAppearanceMobile'] as $key)
+                    if(array_key_exists($key,$node))self::validateFormAppearance($node[$key],$tokens,$id.'/'.$key);
                 self::check(!array_intersect(['text','href','assetId','alt','level','icon','posterAssetId','loop','ordered','cite','caption','children','runs','popupTarget','backgroundMedia','backgroundVideo','responsiveMedia','sequence','semanticTag','ariaLabel','layout'],array_keys($node)),
                     'form slot must be a presentation-only leaf');
             } elseif ($type==='table-cell') {
@@ -831,7 +864,14 @@ final class DesignGraph
                     }
                     return '<div class="'.$cls.' cmsdg-tabs-'.$n['id'].'"><div class="cmsdg-tabs-controls" role="group" aria-label="Вкладки">'.$controls.'</div><div class="cmsdg-tabs-panels">'.$panels.'</div></div>';
                 case 'form-slot':
-                    return '<div class="'.$cls.' cmsdg-form-slot">'.
+                    foreach(['formAppearance'=>null,'formAppearanceTablet'=>900,'formAppearanceMobile'=>600] as $key=>$width){
+                        if(!isset($n[$key]))continue;
+                        $css=self::formAppearanceCSS($n[$key],$t,$n['id'].'/'.$key);
+                        if($css==='')continue;
+                        $rules[]=$width===null?$selector.'{'.$css.'}':
+                            '@media(max-width:'.$width.'px){'.$selector.'{'.$css.'}}';
+                    }
+                    return '<div class="'.$cls.' cmsdg-form-slot>'.
                         ($formMarkup??'<p>Форма заявки: проверьте поля в серверном предпросмотре.</p>').'</div>';
                 case 'divider':return '<hr class="'.$cls.'">';
                 case 'icon':

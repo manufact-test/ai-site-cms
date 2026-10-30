@@ -345,7 +345,10 @@ $formSection=['id'=>'section-graph-lead','component'=>'lead-form','manifestVersi
         'nodes'=>[['id'=>'graph-lead-layout','type'=>'container','styles'=>['display'=>'grid','columns'=>2],
             'responsive'=>['mobile'=>['columns'=>1]],'children'=>[
                 ['id'=>'graph-lead-intro','type'=>'text','text'=>'Вопрос по проекту'],
-                ['id'=>'graph-live-form-slot','type'=>'form-slot','styles'=>['padding'=>16]]
+                ['id'=>'graph-live-form-slot','type'=>'form-slot','styles'=>['padding'=>16],
+                  'formAppearance'=>['gap'=>20,'inputRadius'=>15,'buttonRadius'=>24,
+                      'inputBackground'=>'#f5f8fa','buttonBackground'=>'@accent'],
+                  'formAppearanceMobile'=>['gap'=>9,'buttonRadius'=>10]]
             ]]]]];
 $formSite['pages'][0]['sections'][]=$formSection;
 $validator->validate($formSite);
@@ -362,6 +365,24 @@ graphTest(substr_count($publishedForm,'<form class="lead-form"')===1
     &&str_contains($publishedForm,'name="_token"')
     &&str_contains($publishedForm,'name="consent"'),
     'A typed Graph form slot renders the existing real secure PHP form once');
+graphTest(str_contains($publishedForm,'--cmsdg-form-gap:20px')
+    &&str_contains($publishedForm,'--cmsdg-form-input-radius:15px')
+    &&str_contains($publishedForm,'--cmsdg-form-button-bg:#0a5bff')
+    &&str_contains($publishedForm,'@media(max-width:600px){.cmsdg-graph-live-lead .cmsdg-n-graph-live-form-slot{--cmsdg-form-gap:9px;--cmsdg-form-button-radius:10px}}')
+    &&str_contains($publishedForm,'var(--cmsdg-form-input-radius,8px)'),
+    'Public PHP form exposes validated per-device appearance overrides');
+$invalidForm=$formSite;
+$invalidForm['pages'][0]['sections'][2]['designGraph']['nodes'][0]['children'][1]['formAppearance']['inputRadius']=999;
+try{$validator->validate($invalidForm);throw new RuntimeException('Oversized form radius accepted');}
+catch(InvalidArgumentException $expected){}
+$invalidForm=$formSite;
+$invalidForm['pages'][0]['sections'][2]['designGraph']['nodes'][0]['children'][1]['formAppearance']['buttonBackground']='url(javascript:bad)';
+try{$validator->validate($invalidForm);throw new RuntimeException('Unsafe form background accepted');}
+catch(InvalidArgumentException $expected){}
+$invalidForm=$formSite;
+$invalidForm['pages'][0]['sections'][2]['designGraph']['nodes'][0]['children'][0]['formAppearance']=['gap'=>10];
+try{$validator->validate($invalidForm);throw new RuntimeException('Non-form node appearance accepted');}
+catch(InvalidArgumentException $expected){}
 $invalidForm=$formSite;
 $invalidForm['pages'][0]['sections'][2]['designGraph']['nodes'][]=['id'=>'second-live-slot','type'=>'form-slot'];
 try{$validator->validate($invalidForm);throw new RuntimeException('Duplicate form slot accepted');}

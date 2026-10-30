@@ -1208,6 +1208,51 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       .pages[1].sections.filter(s=>s.sharedKey).length,1,
       'Redo restores the shared section without collision');
 
+    /* Real Studio: graph-bound multi-step form preview is visually inspectable
+       without a live POST action, network access or a second form implementation. */
+    const graphFormSite=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));
+    const graphFormDef=JSON.parse(fs.readFileSync(path.join(root,'components/lead-form-flex.json'),'utf8'));
+    const graphFormSection=require('../sdk/contract.cjs').sectionFrom(graphFormDef,'section-graph-preview-ui');
+    graphFormSection.formFields=[{id:'field-interest',label:'Направление проекта',kind:'select',
+      required:false,options:['Проектирование','Сопровождение'],placeholder:''}];
+    graphFormSection.formSteps=[
+      {title:'Первый контакт',fields:['name','field-interest']},
+      {title:'Подробности',fields:['email','message']}
+    ];
+    graphFormSection.designGraph={version:1,id:'graph-browser-lead',nodes:[
+      {id:'graph-browser-lead-layout',type:'container',styles:{display:'grid',columns:2,gap:16},
+        responsive:{mobile:{columns:1}},children:[
+          {id:'graph-browser-lead-heading',type:'heading',text:'Есть проект?',level:2},
+          {id:'graph-browser-lead-slot',type:'form-slot',styles:{padding:12}}
+        ]}
+    ]};
+    graphFormSite.pages[1].sections.push(graphFormSection);
+    await page.evaluate(site=>window.Stage3Editor.replace(site),graphFormSite);
+    await page.locator('#pages .nav-entry').nth(1).click();
+    await page.locator('#sections .nav-entry').last().click();
+    await page.locator('#section-design-graph').click();
+    await page.locator('#cms-design-graph-dialog[open]').waitFor();
+    const graphFormFrame=page.frameLocator('#cms-design-preview-frame');
+    await graphFormFrame.getByText('Направление проекта').waitFor();
+    assert.equal(await graphFormFrame.locator('form').count(),0,
+      'Graph canvas must never send a real visitor submission');
+    assert.equal(await graphFormFrame.locator('[data-cms-form-field="field-interest"] select:disabled').count(),1);
+    assert.equal(await page.locator('#cms-design-form-step').isVisible(),true);
+    await page.locator('[data-design-device="desktop"]').click();
+    await page.locator('#cms-design-node-select').selectOption('graph-browser-lead-slot');
+    await page.getByLabel('Расстояние между полями (px)').last().fill('24');
+    assert.match(await graphFormFrame.locator('style').first().textContent(),/--cmsdg-form-gap:24px/);
+    await page.locator('[data-design-device="mobile"]').click();
+    await page.getByLabel('Скругление кнопки (px)').last().fill('19');
+    assert.match(await graphFormFrame.locator('style').first().textContent(),/@media\\(max-width:600px\\)\\{[^}]*--cmsdg-form-button-radius:19px/);
+    await page.locator('#cms-design-form-step').selectOption('1');
+    await graphFormFrame.getByText('Электронная почта').waitFor();
+    assert.equal(await graphFormFrame.getByText('Направление проекта').count(),0);
+    await page.locator('[data-design-device="mobile"]').click();
+    assert.equal(await page.locator('#cms-design-preview-frame').evaluate(el=>el.style.width),'390px');
+    assert.match(await graphFormFrame.locator('.cmsdg-preview-progress').innerText(),/2 \/ 2/);
+    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Закрыть'}).click();
+
     // Real native Chromium interaction, without adding a custom public runtime.
     const graphHost=require('../sdk/design-graph.cjs');
     const nativeSite=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));
