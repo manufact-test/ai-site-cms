@@ -373,7 +373,15 @@ final class ContractValidator
             self::must(is_array($page['sections']) && array_is_list($page['sections'])
                 && count($page['sections']) >= 1 && count($page['sections']) <= 100, 'Invalid sections');
             foreach ($page['sections'] as $section) {
-                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance', 'formFields', 'formSteps', 'designGraph','sharedKey']);
+                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance', 'formFields', 'formSteps', 'designGraph','sharedKey','deviceVisibility']);
+                if(array_key_exists('deviceVisibility',$section)){
+                    $visibility=$section['deviceVisibility'];
+                    self::must(is_array($visibility)&&!array_is_list($visibility)&&count($visibility)>0,'Invalid section device visibility');
+                    self::keys($visibility,['desktop','tablet','mobile']);
+                    foreach($visibility as $value)self::must(is_bool($value),'Invalid section device visibility value');
+                    self::must(($visibility['desktop']??true)||($visibility['tablet']??true)||($visibility['mobile']??true),
+                        'Section cannot be hidden on all devices');
+                }
                 if(array_key_exists('sharedKey',$section)){
                     self::id($section['sharedKey']);
                     $sharedGroups[$section['sharedKey']][]=['pageId'=>$page['id'],'section'=>$section];

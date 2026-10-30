@@ -316,4 +316,15 @@ foreach(['gridTracks'=>[1,'bad'],'gridAutoRowsPx'=>9999] as $key=>$value){
 }
 $invalid=$editorialSite;$invalid['pages'][0]['sections'][2]['designGraph']['nodes'][0]['semanticTag']='script';
 try{$validator->validate($invalid);throw new RuntimeException('Bad semantic tag accepted');}catch(InvalidArgumentException $expected){}
+$deviceSite=$site;
+$deviceSite['pages'][0]['sections'][0]['deviceVisibility']=['mobile'=>false,'tablet'=>false];
+$validator->validate($deviceSite);
+$deviceHtml=PublicRenderer::html($deviceSite,'/');
+graphTest(str_contains($deviceHtml,'cms-device-section cms-device-hide-tablet cms-device-hide-mobile')
+ && str_contains($deviceHtml,'@media(max-width:600px){.cms-device-hide-mobile{display:none!important}}'),
+ 'PHP typed per-device visibility');
+$badDevice=$deviceSite;
+$badDevice['pages'][0]['sections'][0]['deviceVisibility']=['desktop'=>false,'tablet'=>false,'mobile'=>false];
+try{$validator->validate($badDevice);throw new RuntimeException('All-hidden section accepted');}
+catch(InvalidArgumentException $expected){}
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";

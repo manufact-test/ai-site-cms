@@ -39,6 +39,28 @@ test('optional site header is safe, page-ID linked and editable',()=>{
   sdk.validateSite(deleted.current,manifests);
 });
 
+test('device visibility edits are undoable, safe and reflected in preview data',()=>{
+  const D=require('../sdk/draft.cjs'),site=same(initial),section=site.pages[0].sections[0];
+  section.deviceVisibility={mobile:false};sdk.validateSite(site,manifests);
+  for(const wrong of [{desktop:false,tablet:false,mobile:false},{mobile:'no'},{}]){
+    const invalid=same(site);invalid.pages[0].sections[0].deviceVisibility=wrong;
+    refuses(()=>sdk.validateSite(invalid,manifests));
+  }
+  const origin=D.begin(site,manifests);
+  const set=(draft,device,visible)=>D.structure(draft,manifests,{
+    action:'setSectionVisibility',pageId:site.pages[0].id,sectionId:section.id,
+    device,visible,expectedRevision:draft.revision});
+  const desktop=set(origin,'desktop',false);
+  assert.deepEqual(desktop.current.pages[0].sections[0].deviceVisibility,{mobile:false,desktop:false});
+  refuses(()=>set(desktop,'tablet',false));
+  const restored=set(desktop,'mobile',true);
+  assert.deepEqual(restored.current.pages[0].sections[0].deviceVisibility,{desktop:false});
+  const visible=set(restored,'desktop',true);
+  assert.equal(Object.hasOwn(visible.current.pages[0].sections[0],'deviceVisibility'),false);
+  assert.deepEqual(D.undo(visible,manifests).current,restored.current);
+  assert.equal(set(visible,'desktop',true).revision,visible.revision);
+  assert.equal(D.blockPreview(origin,manifests,site.pages[0].id,section.id,'mobile').deviceVisibility.mobile,false);
+});
 test('responsive editorial grids and semantic composition safety',()=>{
   const G=require('../sdk/design-graph.cjs'),site=same(initial);
   const section=sdk.sectionFrom(manifests.find(m=>m.id==='custom-section'),'section-editorial');

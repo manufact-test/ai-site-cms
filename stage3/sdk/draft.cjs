@@ -352,6 +352,25 @@ function structure(raw,manifests,command){
       page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,
         C.sectionFrom(reg.get(command.component),command.id));
       break;
+    case 'setSectionVisibility':{
+      if(!page||sectionIndex<0||!C.BREAKPOINTS.includes(command.device)||typeof command.visible!=='boolean')
+        throw Error('Invalid section device visibility edit');
+      const target=page.sections[sectionIndex];
+      const visibility={...(target.deviceVisibility||{})};
+      if(command.visible)delete visibility[command.device];
+      else visibility[command.device]=false;
+      if(C.BREAKPOINTS.every(device=>visibility[device]===false))
+        throw Error('Section cannot be hidden on all devices');
+      const apply=section=>{
+        if(Object.keys(visibility).length)section.deviceVisibility=copy(visibility);
+        else delete section.deviceVisibility;
+      };
+      apply(target);
+      // Shared section instances must agree on all three breakpoints.
+      if(target.sharedKey)for(const item of c.pages)for(const sibling of item.sections)
+        if(sibling.sharedKey===target.sharedKey&&sibling.id!==target.id)apply(sibling);
+      break;
+    }
     case 'duplicateSection':
       if(!page||sectionIndex<0)throw Error('Unknown section to duplicate');
       const duplicated=rekey(page.sections[sectionIndex],command.id);
@@ -575,6 +594,7 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
   return {format:'manufact-ai-block-preview-data-v1',siteId:s.current.siteId,
     pageId,sectionId,component:section.component,breakpoint,
     appearance:copy(section.appearance||C.DEFAULT_APPEARANCE),
+    deviceVisibility:copy(section.deviceVisibility||{}),
     designGraph:copy(section.designGraph||null),
     formFields:copy(section.formFields||[]),
     formSteps:copy(section.formSteps||[]),

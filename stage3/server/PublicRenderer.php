@@ -906,6 +906,15 @@ JS;
                 $body = substr($body, 0, $beforeSkin) . '<div class="cms-section-skin ' .
                     $skinClass . '">' . $rendered . '</div>';
             }
+            if(isset($section['deviceVisibility'])){
+                $hidden=[];
+                foreach(['desktop','tablet','mobile'] as $device)
+                    if(($section['deviceVisibility'][$device]??true)===false)$hidden[]='cms-device-hide-'.$device;
+                if($hidden){
+                    $rendered=substr($body,$beforeSkin);
+                    $body=substr($body,0,$beforeSkin).'<div class="cms-device-section '.implode(' ',$hidden).'">'.$rendered.'</div>';
+                }
+            }
         }
         $publicOrigin = self::origin($publicOrigin);
         $socialLocale=self::socialLocale($language);
@@ -1026,6 +1035,7 @@ JS;
             . '@media(max-width:900px){.cms-header-inner{flex-wrap:wrap;gap:10px;min-height:64px}.cms-nav-desktop{display:none}.cms-mobile-menu,.cms-mobile-inline{display:block;order:3;width:100%}.cms-mobile-menu>summary{cursor:pointer;list-style:revert;padding:9px 0;font-weight:700}.cms-mobile-menu .cms-menu-list,.cms-mobile-inline .cms-menu-list{display:block}.cms-mobile-menu .cms-menu-list a,.cms-mobile-inline .cms-menu-list a{padding:10px 6px}.cms-mobile-menu .cms-nav-submenu,.cms-mobile-inline .cms-nav-submenu{list-style:none;margin:0 0 5px 14px;padding:0 0 0 12px;border-left:2px solid #d0dce9}.cms-menu-cta{margin-left:auto;font-size:13px;padding:10px 12px}}'
             . '@media(max-width:900px){h1{font-size:var(--title-tablet)}}'
             . '@media(max-width:600px){.cms-mobile-align-left>section{text-align:left}.cms-mobile-align-center>section{text-align:center}.cms-mobile-spacing-tight>section{padding-top:24px;padding-bottom:24px}.cms-mobile-spacing-normal>section{padding-top:40px;padding-bottom:40px}.cms-mobile-spacing-airy>section{padding-top:72px;padding-bottom:72px}section{padding:40px 8px}.hero{padding-block:48px}.feature-grid{grid-template-columns:1fr}.story-layout{grid-template-columns:1fr}h1{font-size:var(--title-mobile)}}'
+            . '@media(min-width:901px){.cms-device-hide-desktop{display:none!important}}@media(min-width:601px) and (max-width:900px){.cms-device-hide-tablet{display:none!important}}@media(max-width:600px){.cms-device-hide-mobile{display:none!important}}'
             . '</style></head><body>' . $header
             . '<main>' . $body . '</main>' . self::siteFooter($site,$mount) . '</body></html>';
     }

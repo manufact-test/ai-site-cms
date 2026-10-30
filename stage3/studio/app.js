@@ -1791,6 +1791,20 @@
         detach.id='cms-work-shared-detach';detach.disabled=!canWrite();
         workActions.append(detach);
       }
+      const visibleControls=document.createElement('fieldset');visibleControls.id='cms-work-device-visibility';
+      const visibleLegend=document.createElement('legend');visibleLegend.textContent='Видимость блока по устройствам';
+      visibleControls.append(visibleLegend);
+      for(const [device,label] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
+        const row=document.createElement('label'),control=document.createElement('input');
+        control.type='checkbox';control.dataset.sectionDevice=device;
+        control.checked=section.deviceVisibility?.[device]!==false;control.disabled=!canWrite();
+        control.addEventListener('change',()=>{
+          structureWork({action:'setSectionVisibility',pageId:page.id,sectionId:section.id,device,visible:control.checked});
+          showWork();
+        });
+        row.append(control,document.createTextNode(' '+label));visibleControls.append(row);
+      }
+      workActions.append(visibleControls);
       const els=[...section.elements,...(section.items||[])];
       if(!els.some(e=>e.id===workElement))workElement=section.elements[0].id;
       for(const e of els){const o=document.createElement('option');o.value=e.id;
@@ -5298,6 +5312,22 @@
         'btn small',openFormBuilder);
       builder.id='cms-form-builder-open';builder.dataset.editorWrite='true';row.append(builder);
     }
+    // Device-specific visibility applies to the existing section, not a new template.
+    const visibilityPanel=document.createElement('fieldset');visibilityPanel.id='cms-section-device-visibility';
+    const visibilityTitle=document.createElement('legend');visibilityTitle.textContent='Показывать секцию на устройствах';
+    visibilityPanel.append(visibilityTitle);
+    for(const [device,label] of [['desktop','Компьютер'],['tablet','Планшет'],['mobile','Телефон']]){
+      const item=document.createElement('label'),control=document.createElement('input');
+      control.type='checkbox';control.dataset.sectionDevice=device;
+      control.checked=section.deviceVisibility?.[device]!==false;
+      control.dataset.editorWrite='true';
+      control.addEventListener('change',()=>{
+        structural({action:'setSectionVisibility',pageId,sectionId,device,visible:control.checked});
+        control.checked=current().section.deviceVisibility?.[device]!==false;
+      });
+      item.append(control,document.createTextNode(' '+label));visibilityPanel.append(item);
+    }
+    row.append(visibilityPanel);
     // Multi-page shared sections: one page-local ID per instance and atomic
     // propagation of every edit. Detach preserves this page's current content.
     {
@@ -5698,6 +5728,8 @@
       (appearance.mobileSpacing?' cms-mobile-spacing-'+appearance.mobileSpacing:'')+
       (appearance.button?' cms-button-'+appearance.button:'');
     content='<div class="cms-section-skin '+skin+'">'+content+'</div>';
+    if(block.deviceVisibility?.[block.breakpoint]===false)
+      content='<p class="cms-preview-hidden-note">Секция скрыта на этом устройстве. Содержимое ниже видно только для редактирования.</p>'+content;
     const skinCss='<style>.cms-surface-paper>section{background:var(--cms-surface)!important}'+
       '.cms-surface-tint>section{background:#ecf4fc!important}'+
       '.cms-surface-dark>section{background:#112536!important;color:#f5f9fe!important}'+
@@ -5912,7 +5944,8 @@
             '<details class="cms-menu-mobile"><summary>Меню</summary><nav>'+common+'</nav></details>')+
           '</header>';
         const root=first.slice(0,start).replace('<html lang="ru">','<html lang="'+escapeHtml(checked.language||'ru')+'">');
-        return root+navigation+docs.map((doc,i)=>'<div class="cms-preview-bound-section" data-cms-section-id="'+escapeHtml(page.sections[i].id)+'">'+doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))+'</div>').join('')+previewFooter(checked)+first.slice(end);
+        return root+navigation+docs.map((doc,i)=>page.sections[i].deviceVisibility?.[device]===false?'': 
+          '<div class="cms-preview-bound-section" data-cms-section-id="'+escapeHtml(page.sections[i].id)+'">'+doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))+'</div>').join('')+previewFooter(checked)+first.slice(end);
       }finally{session=prior;previewAssetSources=priorSources;}
     },
     applyComposition:site=>{

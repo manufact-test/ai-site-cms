@@ -407,7 +407,14 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey','deviceVisibility'],'section');
+      if(own(section,'deviceVisibility')){
+        const visibility=section.deviceVisibility;
+        objectKeys(visibility,['desktop','tablet','mobile'],'section.deviceVisibility');
+        if(!Object.keys(visibility).length||Object.values(visibility).some(value=>typeof value!=='boolean')||
+          ['desktop','tablet','mobile'].every(device=>visibility[device]===false))
+          fail('Invalid section device visibility',section.id);
+      }
       if(own(section,'sharedKey')){
         id(section.sharedKey,'shared section group');
         if(!sharedGroups.has(section.sharedKey))sharedGroups.set(section.sharedKey,[]);

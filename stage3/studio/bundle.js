@@ -1408,7 +1408,14 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey','deviceVisibility'],'section');
+      if(own(section,'deviceVisibility')){
+        const visibility=section.deviceVisibility;
+        objectKeys(visibility,['desktop','tablet','mobile'],'section.deviceVisibility');
+        if(!Object.keys(visibility).length||Object.values(visibility).some(value=>typeof value!=='boolean')||
+          ['desktop','tablet','mobile'].every(device=>visibility[device]===false))
+          fail('Invalid section device visibility',section.id);
+      }
       if(own(section,'sharedKey')){
         id(section.sharedKey,'shared section group');
         if(!sharedGroups.has(section.sharedKey))sharedGroups.set(section.sharedKey,[]);
@@ -2163,6 +2170,25 @@ function structure(raw,manifests,command){
       page.sections.splice(sectionIndex>=0?sectionIndex+1:page.sections.length,0,
         C.sectionFrom(reg.get(command.component),command.id));
       break;
+    case 'setSectionVisibility':{
+      if(!page||sectionIndex<0||!C.BREAKPOINTS.includes(command.device)||typeof command.visible!=='boolean')
+        throw Error('Invalid section device visibility edit');
+      const target=page.sections[sectionIndex];
+      const visibility={...(target.deviceVisibility||{})};
+      if(command.visible)delete visibility[command.device];
+      else visibility[command.device]=false;
+      if(C.BREAKPOINTS.every(device=>visibility[device]===false))
+        throw Error('Section cannot be hidden on all devices');
+      const apply=section=>{
+        if(Object.keys(visibility).length)section.deviceVisibility=copy(visibility);
+        else delete section.deviceVisibility;
+      };
+      apply(target);
+      // Shared section instances must agree on all three breakpoints.
+      if(target.sharedKey)for(const item of c.pages)for(const sibling of item.sections)
+        if(sibling.sharedKey===target.sharedKey&&sibling.id!==target.id)apply(sibling);
+      break;
+    }
     case 'duplicateSection':
       if(!page||sectionIndex<0)throw Error('Unknown section to duplicate');
       const duplicated=rekey(page.sections[sectionIndex],command.id);
@@ -2386,6 +2412,7 @@ function blockPreview(raw,manifests,pageId,sectionId,breakpoint='desktop'){
   return {format:'manufact-ai-block-preview-data-v1',siteId:s.current.siteId,
     pageId,sectionId,component:section.component,breakpoint,
     appearance:copy(section.appearance||C.DEFAULT_APPEARANCE),
+    deviceVisibility:copy(section.deviceVisibility||{}),
     designGraph:copy(section.designGraph||null),
     formFields:copy(section.formFields||[]),
     formSteps:copy(section.formSteps||[]),
@@ -4451,6 +4478,20 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         detach.id='cms-work-shared-detach';detach.disabled=!canWrite();
         workActions.append(detach);
       }
+      const visibleControls=document.createElement('fieldset');visibleControls.id='cms-work-device-visibility';
+      const visibleLegend=document.createElement('legend');visibleLegend.textContent='Видимость блока по устройствам';
+      visibleControls.append(visibleLegend);
+      for(const [device,label] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
+        const row=document.createElement('label'),control=document.createElement('input');
+        control.type='checkbox';control.dataset.sectionDevice=device;
+        control.checked=section.deviceVisibility?.[device]!==false;control.disabled=!canWrite();
+        control.addEventListener('change',()=>{
+          structureWork({action:'setSectionVisibility',pageId:page.id,sectionId:section.id,device,visible:control.checked});
+          showWork();
+        });
+        row.append(control,document.createTextNode(' '+label));visibleControls.append(row);
+      }
+      workActions.append(visibleControls);
       const els=[...section.elements,...(section.items||[])];
       if(!els.some(e=>e.id===workElement))workElement=section.elements[0].id;
       for(const e of els){const o=document.createElement('option');o.value=e.id;
@@ -7958,6 +7999,22 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         'btn small',openFormBuilder);
       builder.id='cms-form-builder-open';builder.dataset.editorWrite='true';row.append(builder);
     }
+    // Device-specific visibility applies to the existing section, not a new template.
+    const visibilityPanel=document.createElement('fieldset');visibilityPanel.id='cms-section-device-visibility';
+    const visibilityTitle=document.createElement('legend');visibilityTitle.textContent='Показывать секцию на устройствах';
+    visibilityPanel.append(visibilityTitle);
+    for(const [device,label] of [['desktop','Компьютер'],['tablet','Планшет'],['mobile','Телефон']]){
+      const item=document.createElement('label'),control=document.createElement('input');
+      control.type='checkbox';control.dataset.sectionDevice=device;
+      control.checked=section.deviceVisibility?.[device]!==false;
+      control.dataset.editorWrite='true';
+      control.addEventListener('change',()=>{
+        structural({action:'setSectionVisibility',pageId,sectionId,device,visible:control.checked});
+        control.checked=current().section.deviceVisibility?.[device]!==false;
+      });
+      item.append(control,document.createTextNode(' '+label));visibilityPanel.append(item);
+    }
+    row.append(visibilityPanel);
     // Multi-page shared sections: one page-local ID per instance and atomic
     // propagation of every edit. Detach preserves this page's current content.
     {
@@ -8358,6 +8415,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       (appearance.mobileSpacing?' cms-mobile-spacing-'+appearance.mobileSpacing:'')+
       (appearance.button?' cms-button-'+appearance.button:'');
     content='<div class="cms-section-skin '+skin+'">'+content+'</div>';
+    if(block.deviceVisibility?.[block.breakpoint]===false)
+      content='<p class="cms-preview-hidden-note">Секция скрыта на этом устройстве. Содержимое ниже видно только для редактирования.</p>'+content;
     const skinCss='<style>.cms-surface-paper>section{background:var(--cms-surface)!important}'+
       '.cms-surface-tint>section{background:#ecf4fc!important}'+
       '.cms-surface-dark>section{background:#112536!important;color:#f5f9fe!important}'+
@@ -8572,7 +8631,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             '<details class="cms-menu-mobile"><summary>Меню</summary><nav>'+common+'</nav></details>')+
           '</header>';
         const root=first.slice(0,start).replace('<html lang="ru">','<html lang="'+escapeHtml(checked.language||'ru')+'">');
-        return root+navigation+docs.map((doc,i)=>'<div class="cms-preview-bound-section" data-cms-section-id="'+escapeHtml(page.sections[i].id)+'">'+doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))+'</div>').join('')+previewFooter(checked)+first.slice(end);
+        return root+navigation+docs.map((doc,i)=>page.sections[i].deviceVisibility?.[device]===false?'': 
+          '<div class="cms-preview-bound-section" data-cms-section-id="'+escapeHtml(page.sections[i].id)+'">'+doc.slice(doc.indexOf('<body>')+6,doc.lastIndexOf('</body>'))+'</div>').join('')+previewFooter(checked)+first.slice(end);
       }finally{session=prior;previewAssetSources=priorSources;}
     },
     applyComposition:site=>{

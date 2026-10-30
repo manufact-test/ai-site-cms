@@ -474,6 +474,24 @@
             "$ref": "#/$defs/repeatItem"
           }
         },
+        "deviceVisibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "desktop": {"type": "boolean"},
+            "tablet": {"type": "boolean"},
+            "mobile": {"type": "boolean"}
+          },
+          "not": {
+            "required": ["desktop", "tablet", "mobile"],
+            "properties": {
+              "desktop": {"const": false},
+              "tablet": {"const": false},
+              "mobile": {"const": false}
+            }
+          }
+        },
         "appearance": {
           "$ref": "#/$defs/appearance"
         },

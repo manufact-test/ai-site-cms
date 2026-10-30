@@ -4013,8 +4013,11 @@
                 ' · действия: '+behavior+' · медиа: '+mediaFields+
                 ' · адаптивные поля: '+responsive;
             }
+            const devices=['desktop','tablet','mobile'].filter(device=>
+              section.deviceVisibility?.[device]===false);
             const row=element('li',null,(manifest?.label||section.component)+
-              ' · '+section.id+' — '+summary);
+              ' · '+section.id+' — '+summary+
+              (devices.length?' · скрыта: '+devices.map(device=>({desktop:'ПК',tablet:'планшет',mobile:'телефон'})[device]).join(', '):''));
             list.append(row);
           }
           editorInventoryBody.append(list);

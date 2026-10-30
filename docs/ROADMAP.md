@@ -573,3 +573,7 @@ Imported approved-site media is now rebound **only at declared typed media refer
 ### 30 October 2026 — approved-site editability map before import
 
 Owner Studio’s actual approved-folder review displays a **per-page inventory of editing controls from that site's declared manifests**: content, style, behavior and responsive field counts for the sections actually present, plus the real custom Design Graph node/text/media counts. Switching pages updates this live map next to the desktop/tablet/mobile comparison. It does not add components, generate layouts, edit the source, guarantee visual fidelity or publish. It is an explicit pre-import check that the externally authored individual site exposes the intended CMS controls (MASTER-TZ §E–F).
+
+### 30 October 2026 — independent visibility of authored sections by device
+
+An existing externally authored section can opt into a closed `deviceVisibility` map (desktop/tablet/mobile; omitted = visible). Studio whole-page and focused inspectors edit the same undoable draft; the full-page preview omits hidden sections, while the focused inspector leaves them available with a clear note. The approval-folder editability map highlights hidden breakpoints. The published PHP/HTML renderer uses no-JS CSS media conditions. JS/PHP contracts reject invalid keys/types and fully hidden sections; shared section instances propagate device visibility. No new template, no user-generated code, no change to 135 MUST classifications or real owner acceptance.
