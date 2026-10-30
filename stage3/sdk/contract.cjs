@@ -632,8 +632,15 @@ function inspectSite(raw,regInput){
     const sectionById=new Map(page.sections.map(section=>[section.id,section]));
     const hasVisibilitySettings=page.sections.some(section=>section.deviceVisibility||
       (section.designGraph&&graphHasVisibility(section.designGraph.nodes)));
-    const totalForms=page.sections.filter(section=>
-      ['lead-form','lead-form-flex'].includes(section.component)).length;
+    // A Design Graph replaces the legacy component's public output. A form
+    // component with a Graph is NOT a functioning visitor lead form.
+    const isRenderedForm=section=>!section.designGraph&&
+      ['lead-form','lead-form-flex'].includes(section.component);
+    const totalForms=page.sections.filter(isRenderedForm).length;
+    for(const section of page.sections)
+      if(section.designGraph&&['lead-form','lead-form-flex'].includes(section.component))
+        warnings.push(add('form-overridden-by-design',page,'#'+section.id,
+          'Композиция заменяет исходную форму: на странице она не выводится.',{sectionId:section.id}));
     for(const device of BREAKPOINTS){
       const visibleSections=page.sections.filter(section=>section.deviceVisibility?.[device]!==false);
       const deviceHeadings=headings.filter(item=>{
@@ -642,14 +649,12 @@ function inspectSite(raw,regInput){
           (!section.designGraph||!item.nodeId||graphVisibleNodes(section,device).has(item.nodeId));
       });
       const h1Count=deviceHeadings.filter(item=>item.level===1).length;
-      const formCount=visibleSections.filter(section=>
-        ['lead-form','lead-form-flex'].includes(section.component)).length;
+      const formCount=visibleSections.filter(isRenderedForm).length;
       deviceCoverage.push({pageId:page.id,path:page.path,device,sections:visibleSections.length,
         h1:h1Count,forms:formCount});
       if(totalForms>0&&formCount===0)
         warnings.push(add('device-missing-form',page,page.path,
-          'На '+device+' все формы этой страницы скрыты.',{device,sectionId:page.sections.find(section=>
-            ['lead-form','lead-form-flex'].includes(section.component))?.id}));
+          'На '+device+' все формы этой страницы скрыты.',{device,sectionId:page.sections.find(isRenderedForm)?.id}));
       // New warnings only for layouts actually using device/Graph visibility.
       if(!hasVisibilitySettings)continue;
       if(h1Count===0)warnings.push(add('device-missing-h1',page,page.path,

@@ -87,6 +87,17 @@ test('viewport audit rejects blank mobile pages and flags hidden headings and an
   assert.ok(!clean.warnings.some(w=>w.kind==='device-missing-h1'&&w.pageId===home.id));
   assert.ok(!sdk.inspectSite(initial,manifests).warnings.some(w=>w.kind.startsWith('device-')));
 });
+test('a Design Graph replacing a form is not counted as a functioning visitor form',()=>{
+  const site=same(initial),page=site.pages[0],D=require('../sdk/design-graph.cjs');
+  const form=sdk.sectionFrom(manifests.find(m=>m.id==='lead-form'),'section-graph-replaced-form');
+  page.sections.push(form);
+  assert.equal(sdk.inspectSite(site,manifests).deviceCoverage.find(x=>
+    x.pageId===page.id&&x.device==='mobile').forms,1);
+  form.designGraph=D.baseGraph(form.id);
+  const report=sdk.inspectSite(site,manifests);
+  assert.equal(report.deviceCoverage.find(x=>x.pageId===page.id&&x.device==='mobile').forms,0);
+  assert.ok(report.warnings.some(x=>x.kind==='form-overridden-by-design'&&x.sectionId===form.id));
+});
 test('responsive Graph headings and hidden mobile lead forms use effective visibility',()=>{
   const site=same(initial),page=site.pages[0],hero=page.sections[0];
   hero.designGraph={version:1,id:'graph-responsive-seo',nodes:[

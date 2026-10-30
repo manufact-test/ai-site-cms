@@ -2498,7 +2498,7 @@
     // Never replace the authoritative audit with a second simplified scanner.
     const readiness=editor.launchReadiness(),inspected=readiness.audit;
     const allSections=site.pages.flatMap(page=>page.sections);
-    const formSections=allSections.filter(section=>section.component==='lead-form-flex');
+    const formSections=allSections.filter(section=>section.component==='lead-form-flex'&&!section.designGraph);
     const conditionalFields=formSections.flatMap(section=>section.formFields||[])
       .filter(field=>field.when).length;
     const graphNodes=nodes=>nodes.reduce((total,node)=>total+1+

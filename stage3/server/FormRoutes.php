@@ -30,7 +30,8 @@ trait FormRoutes
         $add=function(array $site,string $source)use(&$forms):void{
             foreach($site['pages'] as $page)
                 foreach($page['sections'] as $section)
-                    if(in_array($section['component'],['lead-form','lead-form-flex'],true)){
+                    if(in_array($section['component'],['lead-form','lead-form-flex'],true)
+                        && !isset($section['designGraph'])){
                         $id=$section['id'];
                         if(!isset($forms[$id]))
                             $forms[$id]=['sectionId'=>$id,'label'=>(string)$page['title'].' · '.$id,

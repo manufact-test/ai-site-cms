@@ -204,7 +204,7 @@ trait SiteOperations
         foreach(['draft'=>$draft['site'],'published'=>$published['site']??null] as $source=>$site){
             if($site===null)continue;
             foreach($site['pages'] as $page)foreach($page['sections'] as $section){
-                if(!in_array($section['component'],['lead-form','lead-form-flex'],true))continue;
+                if(!in_array($section['component'],['lead-form','lead-form-flex'],true)||isset($section['designGraph']))continue;
                 $id=$section['id'];
                 if(!isset($forms[$id])){
                     $route=$this->formRouteRow($siteId,$id);
@@ -337,7 +337,8 @@ trait SiteOperations
         $site=$release['site']??null;
         $forms=0;
         foreach ($site['pages']??[] as $page) foreach ($page['sections'] as $section)
-            if (in_array($section['component'],['lead-form','lead-form-flex'],true)) $forms++;
+            if (in_array($section['component'],['lead-form','lead-form-flex'],true)
+                && !isset($section['designGraph'])) $forms++;
         return [
             'maintenance'=>$this->operationsState($siteId),
             'draftRevision'=>$draft['revision'],

@@ -664,6 +664,33 @@ async function stop(){
   assert.equal(surviving.forms[0].pages[0].path,'/contact/');
   assert.equal(surviving.formConfigurationRequired,1);
 
+  // Author-approved Graph takes over the exact form section: do not advertise
+  // a non-rendered form in routing/readiness or accept forged visitor submissions.
+  const overlaid=structuredClone(fixture);
+  overlaid.siteId='site-overlaid-form';
+  const overlaidSection=require(path.join(root,'stage3/sdk/contract.cjs'))
+    .sectionFrom(formDef,'section-form-overlaid');
+  overlaidSection.designGraph=require(path.join(root,'stage3/sdk/design-graph.cjs'))
+    .baseGraph(overlaidSection.id);
+  overlaid.pages[1].sections.push(overlaidSection);
+  assert.equal((await request('POST','/api/sites',{site:overlaid})).status,201);
+  assert.equal((await request('POST','/api/sites/'+overlaid.siteId+'/publish',
+    {expectedRevision:1})).status,200);
+  const overlaidForms=(await request('GET','/api/sites/'+overlaid.siteId+'/launch-forms')).body;
+  assert.equal(overlaidForms.formCount,0,'Graph override must not count as a public form');
+  const overlaidRoutes=(await request('GET','/api/sites/'+overlaid.siteId+'/delivery/routes')).body;
+  assert.equal(overlaidRoutes.forms.length,0,'Graph override must not expose a recipient route');
+  const overlaidHtml=(await request('GET','/published/'+overlaid.siteId+'/contact/')).body;
+  assert.doesNotMatch(overlaidHtml,/name="_token"/,'Graph replaced the actual visitor form');
+  const crypto=require('node:crypto');
+  const overlaidToken=crypto.createHmac('sha256',env.STAGE3_FORM_SECRET)
+    .update(overlaid.siteId+'|'+overlaidSection.id+'|1').digest('hex');
+  const forged=await fetch(origin+'/forms/'+overlaid.siteId+'/'+overlaidSection.id,{
+    method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','origin':origin},
+    body:new URLSearchParams({_release:'1',_token:overlaidToken,website:'',
+      name:'False lead',email:'test@example.test',message:'Should not save',consent:'yes'})
+  });
+  assert.equal(forged.status,422,'Even a valid HMAC cannot submit a form not in the visitor page');
 
   assert.equal((await request('POST',deliveryRoute+'/routes',{
     sectionId:'section-quote-form',emailMode:'custom',emailRecipient:'team-b@example.test',
