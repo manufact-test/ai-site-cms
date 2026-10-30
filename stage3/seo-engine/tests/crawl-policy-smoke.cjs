@@ -20,7 +20,7 @@ assert.equal(result.publicationAuthorized,false);
 assert.equal(result.summary.networkRequests,0);
 assert.equal(result.summary.canonicalIndexable,2);
 assert.equal(result.summary.priorities.P0,1);
-assert.equal(result.summary.priorities.P1,1);
+assert.equal(result.summary.priorities.P1,2);
 assert.deepEqual(result.pages.map(x=>x.crawlerDecisions.map(d=>d.allowed)),
  [[true,false,false],[false,true,true]]);
 assert(result.pages[1].crawlerDecisions[0].matchedRule?.line>0);
