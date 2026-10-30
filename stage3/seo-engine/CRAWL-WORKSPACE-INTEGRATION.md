@@ -80,3 +80,8 @@ The new smoke creates a private crawl-only workspace using real Node and tempora
 ## 30 October continuation — original Blueprint + Site v1 implementation mapping
 
 The original `crawl` workspace configuration optionally accepts `cmsBlueprint` **and** `cmsSite` together (both absolute private JSON paths). It revalidates canonical Blueprint bytes and original selected Site v1, preserves the exact original SHA256 in the shared manifest, and produces `crawl-cms.html`, `crawl-cms-worklist.md` and `crawl-cms-worklist.json` in the **same** workspace. The integrated crawl page links directly to this manual editor/publisher/GSC task breakdown. Errors on site/source/candidate drift fail closed. No CMS mutation, current-revision authentication or release authorization. Complete usage and focused Node test: [CRAWL-CMS-HANDOFF.md](CRAWL-CMS-HANDOFF.md).
+
+
+## Source-bound post-edit cycle and human ledger
+
+New optional `crawl.cmsBaseline` = exact original previous `crawl-cms-worklist.json`; `crawl.cmsDecisions` = human-edited earlier source-anchored decision ledger (requires baseline). Current `cmsBlueprint` + `cmsSite` remain mandatory. Creates `crawl-cms-decisions.html` and matching new template every cycle; optional previous baseline creates `crawl-cms-recheck.html/.md/.json`. The landing page gains a follow-up card; the existing crawl card and CMS review link the offline desk. Changed issue detail is classified separately using a stable topic ID; crawler agent/scope/sitemap-kind comparability is checked. No automatic resolution, approval or release. Exact workflow: [CRAWL-CMS-LIFECYCLE.md](CRAWL-CMS-LIFECYCLE.md).
