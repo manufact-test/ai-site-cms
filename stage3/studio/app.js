@@ -2195,6 +2195,8 @@
           if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item','popup'].includes(current.type))
             property('Текст', 'text',current.text);
           if(current.type==='gallery'){
+            property('Форма фотографии','photoShape',current.photoShape||'natural',
+              [['natural','Исходные пропорции'],['square','Квадрат 1:1'],['landscape','Широкая 16:9'],['portrait','Вертикальная 3:4']]);
             property('Режим фотогалереи','layout',current.layout||'scroll',
               [['scroll','Лента со свайпом'],['grid','Адаптивная сетка']]);
             property('Увеличивать фотографии','lightbox',String(!!current.lightbox),
