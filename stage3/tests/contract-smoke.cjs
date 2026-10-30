@@ -1831,11 +1831,16 @@ test('grid gallery captions, native lightbox and safe click-actions',()=>{
   gallery.scrollControls=true;refuses(()=>sdk.validateSite(site,manifests));
   gallery.layout='scroll';delete gallery.columnsDesktop;delete gallery.columnsTablet;delete gallery.columnsMobile;
   sdk.validateSite(site,manifests);
+  gallery.visibleDesktop=4;gallery.visibleTablet=2;gallery.visibleMobile=1;
+  sdk.validateSite(site,manifests);
   const scrollHtml=G.render(site,section.designGraph);
   assert.match(scrollHtml,/cmsdg-gallery-scroll-nav/);
+  assert.match(scrollHtml,/--cmsdg-visible-desktop:4;--cmsdg-visible-tablet:2;--cmsdg-visible-mobile:1/);
+  gallery.visibleMobile=3;refuses(()=>sdk.validateSite(site,manifests));gallery.visibleMobile=1;
   assert.match(scrollHtml,/href="#cmsdg-photo-gallery-photo-beta"/);
   gallery.scrollControls='yes';refuses(()=>sdk.validateSite(site,manifests));
   gallery.scrollControls=false;gallery.layout='grid';
+  delete gallery.visibleDesktop;delete gallery.visibleTablet;delete gallery.visibleMobile;
   gallery.columnsDesktop=4;gallery.columnsTablet=2;gallery.columnsMobile=1;
   gallery.photoShape='javascript:bad';refuses(()=>sdk.validateSite(site,manifests));
   gallery.photoShape='square';
