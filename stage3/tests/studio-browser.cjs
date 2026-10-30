@@ -1241,10 +1241,10 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('[data-design-device="desktop"]').click();
     await page.locator('#cms-design-node-select').selectOption('graph-browser-lead-slot');
     await page.getByLabel('Расстояние между полями (px)').last().fill('24');
-    assert.match(await graphFormFrame.locator('style').first().textContent(),/--cmsdg-form-gap:24px/);
+    assert.match((await graphFormFrame.locator('style').allTextContents()).join('\n'),/--cmsdg-form-gap:24px/);
     await page.locator('[data-design-device="mobile"]').click();
     await page.getByLabel('Скругление кнопки (px)').last().fill('19');
-    assert.match(await graphFormFrame.locator('style').first().textContent(),/@media\(max-width:600px\)\{[^}]*--cmsdg-form-button-radius:19px/);
+    assert.match((await graphFormFrame.locator('style').allTextContents()).join('\n'),/@media\(max-width:600px\)\{[^}]*--cmsdg-form-button-radius:19px/);
     await page.locator('#cms-design-form-step').selectOption('1');
     await graphFormFrame.getByText('Электронная почта').waitFor();
     assert.equal(await graphFormFrame.getByText('Направление проекта').count(),0);
