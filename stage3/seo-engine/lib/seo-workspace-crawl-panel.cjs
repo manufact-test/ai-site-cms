@@ -9,7 +9,6 @@ const escape=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const check=(test,message)=>{if(!test)throw Error('Crawl workspace: '+message);};
 const priorities=['P0','P1','P2'];
-const digits=x=>Number.isInteger(x)&&x>=0&&x<100000;
 function build(data){
  const policy=data?.policy,delta=data?.regression||null,
   correlation=data?.correlation||null,repair=data?.repair||null,
@@ -39,6 +38,9 @@ function build(data){
    'regression does not reference the supplied original crawl policy');
   check(HASH.test(hashes.regression||''),'regression bytes not pinned');
  }
+ if(data.indexing)check(data.indexing.siteId===policy.siteId&&
+  data.indexing.publicOrigin===policy.base&&data.indexing.readOnly===true,
+  'GSC URL indexing report must use the same approved site and HTTPS mount');
  if(correlation){
   check(correlation.format==='manufact-seo-crawl-indexing-correlation-v1'&&
    correlation.readOnly===true&&correlation.publicationAuthorized===false&&
@@ -73,6 +75,8 @@ function build(data){
    manifest.siteId===policy.siteId&&
    manifest.approvedBlueprintCanonicalSha256===policy.blueprintSha256&&
    manifest.sourceRawSha256?.robots===policy.robotsSha256&&
+   (!data.indexing||manifest.sourceRawSha256?.blueprint===data.indexing.blueprintSha256)&&
+   (!correlation||manifest.sourceRawSha256?.blueprint===correlation.originalBlueprintSourceSha256)&&
    manifest.sourceRawSha256?.sitemap===policy.sitemapSha256&&
    HASH.test(manifest.sourceRawSha256?.blueprint||'')&&
    HASH.test(manifest.sourceRawSha256?.site||''),
@@ -97,7 +101,7 @@ function build(data){
    'provided regression must compare original policy to THESE candidate bytes');
   candidate={robots:'DRAFT-ONLY-robots.txt',sitemap:'DRAFT-ONLY-sitemap.xml',
    robotsSha256:rb,sitemapSha256:sm,holds:repair.manualHolds.length};
- }else check(!delta||true,'');
+ }
  const items=[],ids=new Set();
  function add(source,id,priority,path,message,manual,agent){
   check(priorities.includes(priority),'invalid manual action priority');
