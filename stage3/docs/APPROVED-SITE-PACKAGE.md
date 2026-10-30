@@ -957,3 +957,8 @@ Typed Design Graph `image.caption` now works on standalone pictures as well as g
 ### Lead-integrator transition reference (30 October 2026)
 
 The complete next-chat startup and boundary checklist is saved at `handoffs/lead-integrator/MAIN-HANDOFF-v8.0-2026-10-30.md`. Its SHA is informational: always resolve current branch HEAD from GitHub on startup. Before acceptance, match both CI jobs to exact HEAD and compare each real approved desktop/tablet/mobile reference rather than reusing synthetic checks.
+
+
+### Final handoff addendum: robust PHP editor static response framing
+
+The isolated HTTP E2E exposed incomplete PHP gzip bytes for the large compiled `/bundle.js`; the diagnostic isolated fetch also verified `unexpected end of file` independently of undici. `stage3/server/Api.php` now only uses application gzip for small static Studio resources (up to 64 KiB); larger responses are identity with exact Content-Length and cache validator. Preserve this safety policy until an independently verified production-capable compression delivery layer replaces it. Final lead transition documentation: `handoffs/lead-integrator/MAIN-HANDOFF-v8.0-2026-10-30.md`. Any new code/doc commit requires an exact-HEAD CI success before claiming green.
