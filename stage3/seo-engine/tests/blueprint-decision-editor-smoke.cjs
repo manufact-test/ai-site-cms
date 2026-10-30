@@ -28,7 +28,7 @@ class Element{
  append(...args){this.children.push(...args);}
  replaceChildren(...args){this.children=args;}
  addEventListener(event,fn){this.handlers[event]=fn;}
- click(){if(this.tag==='a')downloads.push({filename:this.download,body:blobs.at(-1)?.[0]?.[0]});
+ click(){if(this.tag==='a')downloads.push({filename:this.download,body:blobs.at(-1)?.[0]});
   else this.handlers.click?.();}
  remove(){}
  scrollIntoView(){}
