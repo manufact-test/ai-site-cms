@@ -81,3 +81,10 @@ node stage3/seo-engine/tests/crawl-indexing-correlation-smoke.cjs
 ```
 
 All of these remain **local testing**, not customer acceptance. For the actual workflow see `CRAWL-REPAIR-WORKFLOW.md`. A complete combined lead handoff is in `INTEGRATION-HANDOFF.md`.
+
+
+## Worker continuation update — unified crawl operator workspace
+
+Following the earlier `e688834` crawl repair handoff, the SEO worker implemented the next substantial planned feature **inside the existing operator workspace**: `lib/seo-workspace-crawl-panel.cjs`, changes to `lib/seo-operator-workspace.cjs`, `bin/build-seo-operator-workspace.cjs`, and `tests/seo-workspace-crawl-smoke.cjs`. The private report accepts original crawl policy, optional original-source policy regression, optional original-source GSC indexing correlation and optional four-file repair dossier with **actual proposed byte SHA256 checks**. It shows combined P0/P1/P2 manual investigations, unapproved candidate text previews, private lead Markdown and source fingerprints. Enforces siteId, HTTPS mount and canonical Blueprint/source hash consistency; does not authenticate real Site v1, Google or host. It never merges, publishes or marks GO. See [CRAWL-WORKSPACE-INTEGRATION.md](CRAWL-WORKSPACE-INTEGRATION.md).
+
+**Verification:** isolated V8 JavaScript syntax passed on changed modules and the new smoke source; a V8 composition test of the real panel and operator landing page passed for crawl-only with HTML escaping, P0 task and no release. **Actual Node CLI/subprocess smoke, full CI, client HTTPS and real approval are still unverified.** The new real Node smoke is committed for lead/full-checkout execution. Consult GitHub HEAD after this doc update; do not treat older SHA as current. Keep worker-only scope.
