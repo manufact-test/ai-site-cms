@@ -87,7 +87,7 @@ function validateStyle(style,tokens,at,mode='base'){
   const enums={
     display:['block','grid','flex','none'],direction:['row','column'],
     align:['start','center','end','stretch','between'],justify:['start','center','end','stretch','between'],
-    alignSelf:['auto','start','center','end','stretch'],position:['static','relative','absolute'],
+    alignSelf:['auto','start','center','end','stretch'],position:['static','relative','absolute','sticky'],
     textAlign:['left','center','right'],flexWrap:['nowrap','wrap'],
     fontFamily:['inherit','system','arial','georgia','serif','mono','site-body','site-heading'],
     objectFit:['cover','contain','fill','none'],aspectRatio:['auto','square','portrait','landscape','wide'],
@@ -713,9 +713,15 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
         const id='cmsdg-lightbox-'+child.id;
         const caption=child.caption?'<figcaption>'+attr(child.caption)+'</figcaption>':'';
         const trigger=n.lightbox?'<button type="button" class="cmsdg-lightbox-trigger" popovertarget="'+id+'" aria-label="Открыть фотографию '+(index+1)+'">'+image+'</button>':image;
+        const before='cmsdg-lightbox-'+n.children[(index+n.children.length-1)%n.children.length].id;
+        const after='cmsdg-lightbox-'+n.children[(index+1)%n.children.length].id;
+        const navigation='<nav class="cmsdg-gallery-nav" aria-label="Навигация по фотографиям">'+
+          '<button type="button" popovertarget="'+before+'" aria-label="Предыдущая фотография">←</button>'+
+          '<span>'+(index+1)+' / '+n.children.length+'</span>'+
+          '<button type="button" popovertarget="'+after+'" aria-label="Следующая фотография">→</button></nav>';
         const popup=n.lightbox?'<div id="'+id+'" popover="auto" class="cmsdg-gallery-popover" role="dialog" aria-label="'+attr(child.alt||'Фотография '+(index+1))+'">'+
           '<button type="button" class="cmsdg-gallery-close" popovertarget="'+id+'" popovertargetaction="hide" aria-label="Закрыть фотографию">×</button>'+
-          '<div class="cmsdg-gallery-expanded">'+image+'</div>'+caption+'</div>':'';
+          '<div class="cmsdg-gallery-expanded">'+image+'</div>'+caption+navigation+'</div>':'';
         return '<figure class="cmsdg-gallery-item">'+trigger+caption+popup+'</figure>';
       }).join('');
       return '<div class="'+cls+' cmsdg-gallery'+(grid?' cmsdg-gallery-grid':'')+'" role="region" aria-roledescription="gallery" aria-label="'+attr(n.text)+'" tabindex="0"'+variables+'>'+content+'</div>';
@@ -814,6 +820,8 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     scope+' .cmsdg-gallery-expanded{display:grid;place-items:center;clear:both}'+
     scope+' .cmsdg-gallery-expanded img{width:auto;max-width:100%;max-height:75dvh;height:auto;object-fit:contain}'+
     scope+' .cmsdg-gallery-close{float:right;margin:0 0 8px 12px;border:1px solid #8b9aac;border-radius:50%;background:#fff;color:#182b3d;min-width:40px;height:40px;font:24px system-ui;cursor:pointer}'+
+    scope+' .cmsdg-gallery-nav{display:flex;justify-content:center;align-items:center;gap:24px;margin-top:10px}'+
+    scope+' .cmsdg-gallery-nav button{min-width:42px;height:42px;border:1px solid #8b9aac;border-radius:8px;background:#fff;color:#182b3d;font:24px system-ui;cursor:pointer}'+
     scope+' .cmsdg-picture img{max-width:100%;height:auto}'+
     scope+' .cmsdg-image-action{display:inline-block;max-width:100%}'+
     scope+' .cmsdg-image-action img{display:block}'+
