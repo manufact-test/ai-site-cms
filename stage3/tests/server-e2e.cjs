@@ -685,12 +685,12 @@ async function stop(){
   const formCrypto=require('node:crypto');
   const overlaidToken=formCrypto.createHmac('sha256',env.STAGE3_FORM_SECRET)
     .update(overlaid.siteId+'|'+overlaidSection.id+'|1').digest('hex');
-  const forged=await fetch(origin+'/forms/'+overlaid.siteId+'/'+overlaidSection.id,{
+  const overlaidResponse=await fetch(origin+'/forms/'+overlaid.siteId+'/'+overlaidSection.id,{
     method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','origin':origin},
     body:new URLSearchParams({_release:'1',_token:overlaidToken,website:'',
       name:'False lead',email:'test@example.test',message:'Should not save',consent:'yes'})
   });
-  assert.equal(forged.status,422,'Even a valid HMAC cannot submit a form not in the visitor page');
+  assert.equal(overlaidResponse.status,422,'Even a valid HMAC cannot submit a form not in the visitor page');
 
   assert.equal((await request('POST',deliveryRoute+'/routes',{
     sectionId:'section-quote-form',emailMode:'custom',emailRecipient:'team-b@example.test',
