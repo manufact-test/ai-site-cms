@@ -989,3 +989,8 @@ Imported approved-site media is now rebound **only at declared typed media refer
 ### 30 October 2026 — approved-site editability map before import
 
 Owner Studio’s actual approved-folder review displays a **per-page inventory of editing controls from that site's declared manifests**: content, style, behavior and responsive field counts for the sections actually present, plus the real custom Design Graph node/text/media counts. Switching pages updates this live map next to the desktop/tablet/mobile comparison. It does not add components, generate layouts, edit the source, guarantee visual fidelity or publish. It is an explicit pre-import check that the externally authored individual site exposes the intended CMS controls (MASTER-TZ §E–F).
+
+
+## Whole-section viewport verification (30 October 2026)
+
+An externally approved section can use `deviceVisibility: {"mobile":false}` when that exact section is absent on mobile. Omitted device flags mean visible. The JS and independent PHP validators reject an entirely blank page on any of the three viewports. The owner folder review and offline `audit-approved-site.cjs` report show visible section/H1 counts and link-to-hidden-anchor warnings at each viewport. These are whole-section structural diagnostics only: nested Graph elements may have additional responsive styles. The operator must still compare real PHP pages at all three widths against the sealed approved images before any sign-off.

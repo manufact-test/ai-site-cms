@@ -3,6 +3,10 @@
 // visual pixel fidelity, working form delivery, or completed publication.
 const fs=require('node:fs'),path=require('node:path');
 const {preflight}=require('./verify-approved-site.cjs');
+const contract=require('../sdk/contract.cjs');
+const componentsDir=path.resolve(__dirname,'../components');
+const manifests=fs.readdirSync(componentsDir).filter(name=>/^[a-z][a-z0-9-]+\.json$/.test(name))
+  .map(name=>JSON.parse(fs.readFileSync(path.join(componentsDir,name),'utf8')));
 function md(text){return String(text??'').replace(/[\r\n|<>]/g,' ').replace(/[\u0000-\u001f]/g,' ').slice(0,200);}
 function run(folder){
   const checked=preflight(folder);
@@ -18,6 +22,7 @@ function run(folder){
   const missingAlt=site.assets.filter(a=>!String(a.alt||'').trim());
   const brokenSeo=site.pages.filter(p=>!p.seo||!p.seo.title||!p.seo.description);
   const redirects=site.redirects||[];
+  const viewportAudit=contract.inspectSite(site,manifests);
   const rows=[
     '# Pilot acceptance checklist — '+md(site.title),
     '',
@@ -49,6 +54,22 @@ function run(folder){
   for(const p of site.pages)
     rows.push('| '+md(p.path)+' | '+md(p.title)+' | '+md(p.seo?.title||'MISSING')+
       ' | '+md(p.seo?.description||'MISSING')+' | '+p.sections.length+' |');
+  rows.push('','## Authored content and H1 at each viewport','','| Page | Desktop · sections/H1 | Tablet · sections/H1 | Mobile · sections/H1 |',
+    '| --- | ---: | ---: | ---: |');
+  for(const page of site.pages){
+    const count=device=>{
+      const row=viewportAudit.deviceCoverage.find(item=>item.pageId===page.id&&item.device===device);
+      return (row?.sections??0)+' / '+(row?.h1??0);
+    };
+    rows.push('| '+md(page.path)+' | '+count('desktop')+' | '+count('tablet')+' | '+count('mobile')+' |');
+  }
+  const deviceWarnings=viewportAudit.warnings.filter(item=>
+    ['device-missing-h1','device-multiple-h1','device-h1-position','hidden-anchor-device'].includes(item.kind));
+  rows.push('','Device-specific SEO and anchor observations: '+deviceWarnings.length);
+  for(const finding of deviceWarnings.slice(0,50))
+    rows.push('- '+md(finding.path)+' · '+md(finding.device)+' · '+md(finding.message));
+  if(deviceWarnings.length>50)rows.push('- … '+(deviceWarnings.length-50)+' additional observations in the CMS quality audit');
+  rows.push('','Counts track whole-section visibility, not nested Design Graph styles. Compare the actual three device designs.');
   rows.push('','## Potential gaps to check manually','','- SEO metadata missing: '+
     (brokenSeo.length?brokenSeo.map(p=>md(p.path)).join(', '):'none found'),
     '- Assets with empty ALT: '+(missingAlt.length?missingAlt.map(a=>md(a.id)).join(', '):'none found'),

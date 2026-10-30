@@ -3965,12 +3965,36 @@
         const editorInventoryBody=element('div','');
         editorInventory.append(editorInventoryBody);
         const manifestById=new Map(editor.manifests().map(m=>[m.id,m]));
+        // The same read-only SDK audit drives the owner review and the editor.
+        const sourceAudit=editor.auditSite(site);
         const editability=()=>{
           const page=site.pages.find(item=>item.path===pageSelect.value);
           editorInventoryBody.replaceChildren();
           if(!page)return;
           editorInventoryBody.append(element('p',null,'Страница: '+page.title+' · '+page.path+
             '. SEO и меню этой страницы редактируются отдельно. Ниже — только использованные секции.'));
+          const viewport=element('div','');
+          viewport.id='server-approved-device-coverage';
+          viewport.append(element('strong',null,'Содержимое и H1 по устройствам'));
+          for(const device of ['desktop','tablet','mobile']){
+            const data=sourceAudit.deviceCoverage.find(entry=>entry.pageId===page.id&&entry.device===device);
+            const name={desktop:'Компьютер',tablet:'Планшет',mobile:'Телефон'}[device];
+            viewport.append(element('p',null,name+': '+(data?.sections??0)+
+              ' видимых секций · '+(data?.h1??0)+' H1'+
+              (!data?.h1?' · проверьте заголовок':'')));
+          }
+          const problems=sourceAudit.warnings.filter(w=>w.pageId===page.id&&
+            ['device-missing-h1','device-multiple-h1','device-h1-position','hidden-anchor-device'].includes(w.kind));
+          if(problems.length){
+            const attention=element('ul','');
+            for(const finding of problems.slice(0,12))attention.append(element('li',null,
+              (finding.device||'')+' · '+finding.message+
+              (finding.path?' · '+finding.path:'')));
+            viewport.append(element('p',null,'Проверьте адаптивное SEO и навигацию:'),attention);
+          }
+          viewport.append(element('small',null,
+            'Подсчёт учитывает целые секции, но не заменяет проверку внутренних элементов и сравнение с настоящим макетом.'));
+          editorInventoryBody.append(viewport);
           const list=element('ul','');
           for(const section of page.sections){
             const manifest=manifestById.get(section.component);

@@ -5957,6 +5957,7 @@
     },
     getSite:()=>cp(session.current),
     launchReadiness,
+    auditSite:site=>C.inspectSite(site,manifests),
     focusLaunchIssue,
     // Bind a server-issued immutable media ID using the same declared SDK field
     // and Undo/Redo transaction as editing an image in the Inspector.

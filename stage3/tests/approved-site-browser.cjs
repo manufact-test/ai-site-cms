@@ -326,6 +326,10 @@ async function execute(){
   const coverage=page.locator('#server-approved-editability');
   assert.equal(await coverage.count(),1,'Actual site editability map is visible');
   assert.match(await coverage.innerText(),/Контент:|Авторский дизайн:/);
+  const viewportCoverage=page.locator('#server-approved-device-coverage');
+  assert.match(await viewportCoverage.innerText(),/Компьютер:[^\n]*H1/);
+  assert.match(await viewportCoverage.innerText(),/Планшет:[^\n]*H1/);
+  assert.match(await viewportCoverage.innerText(),/Телефон:[^\n]*H1/);
   const pageOptions=await page.locator('#server-approved-review-page option').count();
   assert.ok(pageOptions>=2,'Owner can preview interior page before accepting site');
   const beforePageReference=await page.locator('[data-prototype="desktop"]').getAttribute('src');

@@ -577,3 +577,7 @@ Owner Studio’s actual approved-folder review displays a **per-page inventory o
 ### 30 October 2026 — independent visibility of authored sections by device
 
 An existing externally authored section can opt into a closed `deviceVisibility` map (desktop/tablet/mobile; omitted = visible). Studio whole-page and focused inspectors edit the same undoable draft; the full-page preview omits hidden sections, while the focused inspector leaves them available with a clear note. The approval-folder editability map highlights hidden breakpoints. The published PHP/HTML renderer uses no-JS CSS media conditions. JS/PHP contracts reject invalid keys/types and fully hidden sections; shared section instances propagate device visibility. No new template, no user-generated code, no change to 135 MUST classifications or real owner acceptance.
+
+### 30 October 2026 — viewport-safe client site validation and approval evidence
+
+The SDK/PHP validators reject any page with zero visible sections on PC/tablet/mobile. Existing whole-page quality audit provides deterministic page/device visible-section and H1 counts and warnings for hidden H1, duplicated visible H1 and hidden anchor targets. The owner-only approved-folder review shows the same data for the selected original page, while the offline pilot audit emits a three-device matrix, not a fake client acceptance certificate. This checks whole-section visibility only, not nested Graph node styling. Main/SEO/prod untouched; original 135 MUST tally and owner acceptance unchanged.

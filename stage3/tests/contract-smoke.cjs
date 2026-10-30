@@ -1775,6 +1775,8 @@ test('read-only approved folder preflight accepts a custom external design and r
     refuses(()=>seal(folder,'rev-2',{confirmedApproved:true}),'No silent overwrite of a sealed design');
     assert.equal(seal(folder,'rev-2',{confirmedApproved:true,replace:true}).version,'rev-2');
     const audit=require('../bin/audit-approved-site.cjs').run(folder);
+    assert.match(audit.report,/Authored content and H1 at each viewport/);
+    assert.match(audit.report,/Desktop · sections\/H1/);
     assert.equal(audit.summary.integrity,'sha256-verified');
     assert.match(audit.report,/Desktop \(1280px\)/);
     assert.match(audit.report,/Tablet \(768px\)/);
