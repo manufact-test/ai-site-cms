@@ -6,6 +6,7 @@ const LAUNCH=require('./first-site-launch-cockpit.cjs');
 const SEARCH=require('./search-ops-dashboard.cjs');
 const INDEX=require('./search-indexing-view.cjs');
 const HUMAN=require('./first-site-live-acceptance-view.cjs');
+const ACTIONS=require('./first-site-live-followup-view.cjs');
 const FORMAT='manufact-seo-operator-workspace-v1';
 const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -25,6 +26,7 @@ function build(input){
  const indexed=indexing?INDEX.render(indexing):null;
  const manual=human?HUMAN.render(human.report,human.contract,human.contractSha,first,
   first.summarySha,first.postDeploySha):null;
+ const queue=manual?ACTIONS.render(human.report):null;
  const siteId=launch?.siteId||visibility?.summary.siteId||indexed?.summary.siteId||manual?.siteId;
  if([launch?.siteId,visibility?.summary.siteId,indexed?.summary.siteId,manual?.siteId].filter(Boolean).some(x=>x!==siteId))
   throw Error('Cannot combine launch, search and indexing evidence from different customer sites');
@@ -43,6 +45,9 @@ function build(input){
   ...(indexed?[{href:'indexing.html',name:'URL Indexing Intelligence',
    sub:'Approved Blueprint robots, operator-supplied indexed/excluded URL observations and manual indexability checks',
    state:'INDEX STATUS — OPERATOR REPORTED',kind:'indexing',counts:indexed.summary}]:[]),
+  ...(queue?[{href:'next-actions.html',name:'Fixes and missing evidence',
+   sub:'P0/P1 route-specific work queue, owners, receipts needed and independent final signoff',
+   state:queue.summary.urgent+' urgent · '+queue.summary.pending+' pending',kind:'actions'}]:[]),
   ...(manual?[{href:'human.html',name:'Real-World Human Acceptance',
    sub:'Source-bound browser/page/device and actual form POST operator attestations; never an automatic release approval',
    state:manual.status,kind:'human',counts:manual.summary}]:[])
@@ -56,12 +61,14 @@ function build(input){
   ...(visibility?.summary.tasks?['Have the owner/editor review '+visibility.summary.tasks+
    ' observed SEO task(s); no copy or CMS change is automatically authorized.']:[]),
   ...(indexed?.summary.actions?['Inspect '+indexed.summary.actions+' indexing anomaly or mapping prompt(s) manually in live URL Inspection.']:[]),
+  ...(queue?[queue.summary.urgent+' urgent and '+queue.summary.pending+
+   ' pending specific actions: open next-actions.html to assign fixes and gather new source-bound evidence.']:[]),
   ...(manual?['Review original private human/browser/form evidence independently; operator checkmarks do not prove a real authenticated customer signoff.']:[]),
   ...(launch&&!visibility?['After launch and real Search Console data accumulation, add the private Search History to this workspace.']:[]),
   ...(!launch&&visibility?['For first-site technical acceptance add the existing first-site-check summary and optional post-deploy evidence.']:[])
  ];
  const cards=sections.map(s=>'<a class="card" href="'+s.href+'"><div class="kicker">'+
-  (s.kind==='desk'?'OPERATOR ACTION':s.kind==='launch'?'LAUNCH OPERATIONS':s.kind==='indexing'?'URL INDEXING':s.kind==='human'?'HUMAN ACCEPTANCE':'POST-LAUNCH SEARCH')+'</div><h2>'+esc(s.name)+'</h2>'+
+  (s.kind==='desk'?'OPERATOR ACTION':s.kind==='launch'?'LAUNCH OPERATIONS':s.kind==='indexing'?'URL INDEXING':s.kind==='human'?'HUMAN ACCEPTANCE':s.kind==='actions'?'P0 / P1 QUEUE':'POST-LAUNCH SEARCH')+'</div><h2>'+esc(s.name)+'</h2>'+
   '<p>'+esc(s.sub)+'</p><span class="state">'+esc(s.state)+'</span><span class="go">Open private report →</span></a>').join('');
  const css=[
  ':root{--back:#f3f7fa;--ink:#172f45;--muted:#5c7182;--line:#dbe5eb}',
@@ -92,8 +99,10 @@ function build(input){
   '<footer>Private local report bundle · No network calls · Input hashes recorded separately · Do not upload or commit.</footer></main></body></html>';
  return {format:FORMAT,readOnly:true,siteId,homeHtml:html,launchHtml:launch?.html||null,
   searchHtml:visibility?.html||null,indexingHtml:indexed?.html||null,
-  humanHtml:manual?.html||null,
-  overview:{operatorDeskIncluded:!!desk,launchIncluded:!!launch,searchIncluded:!!visibility,indexingIncluded:!!indexed,
+  humanHtml:manual?.html||null,nextActionsHtml:queue?.html||null,
+  overview:{nextActionsIncluded:!!queue,
+   nextActionsUrgent:queue?.summary.urgent??null,nextActionsPending:queue?.summary.pending??null,
+   operatorDeskIncluded:!!desk,launchIncluded:!!launch,searchIncluded:!!visibility,indexingIncluded:!!indexed,
    humanAcceptanceIncluded:!!manual,humanAcceptanceStatus:manual?.status??null,
    indexingActionCount:indexed?.summary.actions??null,
    technicalBlockers:launch?.summary.blockingGates??null,

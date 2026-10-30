@@ -50,6 +50,13 @@ assert.equal(w.overview.humanAcceptanceIncluded,true);
 assert.equal(w.overview.humanAcceptanceStatus,'HUMAN-EVIDENCE-INCOMPLETE');
 assert.equal(w.overview.releaseAuthorized,false);
 assert(w.homeHtml.includes('human.html'));
+assert(w.homeHtml.includes('next-actions.html'));
+assert(w.nextActionsHtml.includes('Fix now — observed failures'));
+assert(w.nextActionsHtml.includes('Independent owner authorization'));
+assert.equal(w.overview.nextActionsPending,8);
+assert.equal(w.overview.nextActionsUrgent,0);
+assert(!w.nextActionsHtml.includes('private://'));
+
 assert(w.humanHtml.includes('Human First-Site Acceptance'));
 assert(w.humanHtml.includes('manual'));
 assert(w.humanHtml.includes('/contact/'));
@@ -80,8 +87,11 @@ const fakeSuccess={...report,status:'OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZAT
   passedFormReceipts:1,operatorFormInventorySigned:true,
   missingFormPages:[],perPageFormReceipts:{'/contact/':1},
   perFormChecks:[{page:'/contact/',sectionId:'contact-lead',state:'passed'}]}};
-assert(WORK.build({...data,liveAcceptance:{...data.liveAcceptance,report:fakeSuccess}})
- .humanHtml.includes('REQUIRES-OWNER-AUTHORIZATION'));
+const allPassed=WORK.build({...data,liveAcceptance:{...data.liveAcceptance,report:fakeSuccess}});
+assert(allPassed.humanHtml.includes('REQUIRES-OWNER-AUTHORIZATION'));
+assert.equal(allPassed.overview.nextActionsPending,1);
+assert(allPassed.nextActionsHtml.includes('No release permission.'));
+
 assert.throws(()=>WORK.build({...data,liveAcceptance:{...data.liveAcceptance,
  report:{...fakeSuccess,checks:{...fakeSuccess.checks,
   perFormChecks:[{page:'/contact/',sectionId:'fake-section',state:'passed'}]}}}}),
