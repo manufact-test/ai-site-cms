@@ -18,6 +18,12 @@ function build(input){
  const human=input.liveAcceptance||null,desk=input.operatorDesk||null;
  const crawl=input.crawl?CRAWL.build({...input.crawl,indexing,
   indexingReportSha256:input.crawl.indexingReportSha256||null}):null;
+ if(crawl&&search){
+  if(search.history.publicOrigin!==crawl.base)throw Error('Crawl and Search History need identical HTTPS public origin');
+  const rawBlueprint=crawl.sourceIdentity.originalBlueprintFileSha256;
+  if(rawBlueprint&&rawBlueprint!==search.history.blueprintSha256)
+   throw Error('Crawl and Search History need the same original approved Blueprint bytes');
+ }
  if(desk&&desk.href!=='../live-acceptance-template/LIVE-ACCEPTANCE-DESK.html')
   throw Error('Unexpected private operator desk link');
  if(human&&(!first?.summary||!first.postDeploy||!human.report||!human.contract))
