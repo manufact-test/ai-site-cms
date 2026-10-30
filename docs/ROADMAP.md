@@ -520,3 +520,10 @@ Both JS/PHP contracts reject unknown/duplicate internal page IDs, unsafe malform
 ## 30.10.2026 — типизированная геометрия индивидуального первого экрана
 
 В существующий Design Graph добавлены настоящие viewport-высоты, раздельные физические отступы и радиальные градиенты для переноса согласованных desktop/tablet/mobile макетов. Один контракт обслуживает Studio, PHP и независимые visitor-экспорты. Никакой дополнительной фабрики шаблонов или свободного CSS. Реальный клиентский approved-v2 пакет не предоставлен, ownerAccepted=0, никаких изменений main/SEO/production.
+
+
+## 30 October 2026 — real portfolio gallery and interactive image review in typed Design Graph
+
+Delivered an end-to-end optional custom-site gallery enhancement without replacing the existing horizontal gallery or exporting unsafe client HTML. Site-authored galleries can use scroll or responsive grid with independent desktop/tablet/mobile column counts, accessible photo captions, and native Popover API lightbox with previous/next controls and Esc/outside-click dismissal. A gallery photo is either a validated action link or lightbox trigger, not both; both first-party validators reject conflicts and arbitrary attributes. Existing site-owned raster binding, per-device art direction, safe output escaping, image replacement and hosted/standalone visitor export remain intact. The Studio full graph editor and quick workbench expose these choices as draft edits; no new database or CDN dependency. Graph `position:sticky` is now permitted as a typed responsive layout value with bounded top/bottom offsets.
+
+Evidence: additive JS contract scenario, real PHP renderer smoke scenario and unchanged comprehensive `contract` + `technology-runtime` pipelines. Real customer-approved v2 images, visual sign-off, external publishing, live provider delivery and owner GO remain unverified. MUST engineering counts stay 124 implemented_candidate / 5 partial / 6 owner_environment_gate out of 135; ownerAccepted=0. No SEO-engine/main/production touched.
