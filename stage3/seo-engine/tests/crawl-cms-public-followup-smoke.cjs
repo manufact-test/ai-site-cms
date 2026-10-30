@@ -94,6 +94,28 @@ assert(partly.tasks.some(t=>t.category==='publisher-sitemap'&&
 const missingHtml=capture(allowed,fullXml,site.pages.map(p=>({...page(p),html:''})));
 const noHtml=FOLLOW.review({...inputs,capture:missingHtml,captureRawSha256:h(json(missingHtml))});
 assert(noHtml.tasks.some(t=>t.category==='cms-seo-robots'&&t.status==='INSUFFICIENT-EVIDENCE'));
+/* Mixed deployment window and SPA fallback cannot masquerade as resolved SEO. */
+const inconsistent=capture(),rootPage=inconsistent.pages.find(x=>x.path==='/');
+inconsistent.rootRecheck={
+ requestUrl:rootPage.requestUrl,firstStatus:rootPage.status,secondStatus:200,
+ initialHtmlSha256:h(rootPage.html),finalHtmlSha256:h('changed HTTP root'),
+ matched:false,sourceRevisionAuthenticated:false,publicHostProvenanceAuthenticated:false
+};
+const mixed=FOLLOW.review({...inputs,capture:inconsistent,captureRawSha256:h(json(inconsistent))});
+assert.equal(mixed.summary.alignedNotVerified,0);
+assert.equal(mixed.summary.unknown,work.actions.length);
+assert(mixed.independentDeliveryBlockers.some(x=>x.code==='delivery:public-capture-window-drift'));
+const spaFallback=capture();
+spaFallback.negativeProbe={
+ path:'/cms-seo-nonexistent-'+bp.siteId+'/',
+ requestUrl:base+'cms-seo-nonexistent-'+bp.siteId+'/',
+ status:200,contentType:'text/html',bodySha256:h('<html>fallback</html>')
+};
+const soft404=FOLLOW.review({...inputs,capture:spaFallback,captureRawSha256:h(json(spaFallback))});
+assert(soft404.tasks.some(x=>x.category==='publisher-redirect-collision'&&
+ x.status==='INSUFFICIENT-EVIDENCE'));
+assert(soft404.independentDeliveryBlockers.some(x=>x.code==='delivery:soft-404-unknown-route'));
+
 const badCapture=capture();
 badCapture.origin='https://attacker.example/';
 assert.throws(()=>FOLLOW.review({...inputs,capture:badCapture}),/mount/);
