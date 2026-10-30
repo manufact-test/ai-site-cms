@@ -10,6 +10,7 @@ const ROOT=path.resolve(__dirname,'../../..');
 const FILES=new Set([
  'index.html','launch.html','search.html','indexing.html','crawl.html',
  'human.html','next-actions.html','lead-readiness.html','lead-readiness.md','lead-readiness.json',
+ 'structured-data.html','structured-data.md','structured-data.json',
  'crawl-lead-worklist.md','crawl-cms.html','crawl-cms-worklist.md','crawl-cms-worklist.json',
  'crawl-cms-decisions-TEMPLATE.json','crawl-cms-decisions.html',
  'crawl-cms-recheck.html','crawl-cms-recheck.md','crawl-cms-recheck.json',
