@@ -35,7 +35,7 @@ function readConfiguration(source){
   throw Error('Unexpected private operator desk path');
  const shapes={firstSite:['summary','bundle','postDeploy','operatorReview'],
   search:['history','decisions','releases'],liveAcceptance:['report','contract'],
-  crawl:['policy','regression','correlation','repair','repairManifest','proposedRobots','proposedSitemap']};
+  crawl:['policy','regression','correlation','repair','repairManifest','proposedRobots','proposedSitemap','cmsBlueprint','cmsSite']};
  if(source.indexing&&(!source.indexing.report||Object.keys(source.indexing).some(k=>k!=='report')||
    typeof source.indexing.report!=='string'||!path.isAbsolute(source.indexing.report)))
   throw Error('Indexing workspace source must be a private absolute report path');
@@ -53,6 +53,8 @@ function readConfiguration(source){
    const present=keys.filter(k=>s[k]!==undefined);
    if(present.length&&present.length!==keys.length)throw Error('Crawl repair requires four original files');
    if(s.correlation&&!source.indexing)throw Error('Crawl correlation requires original indexing report');
+   if(Boolean(s.cmsBlueprint)!==Boolean(s.cmsSite))
+    throw Error('Crawl CMS worklist requires both original Blueprint and Site v1 paths');
   }
  }
  return source;
@@ -89,7 +91,8 @@ function main(argv){
  const indexing=collect('indexing',{report:4500000});
  const human=collect('liveAcceptance',{report:2500000,contract:2500000});
  const crawl=collect('crawl',{policy:4000000,regression:4000000,correlation:4500000,
-  repair:7000000,repairManifest:350000,proposedRobots:{max:250000},proposedSitemap:{max:750000}});
+  repair:7000000,repairManifest:350000,proposedRobots:{max:250000},proposedSitemap:{max:750000},
+  cmsBlueprint:2000000,cmsSite:3500000});
  if(crawl){crawl.digests=digests.crawl;crawl.indexingReportSha256=digests.indexing?.report||null;}
  if(human)human.contractSha=digests.liveAcceptance.contract;
  const out=PRIVATE.privateOutput(args.out);
@@ -113,6 +116,9 @@ function main(argv){
   if(workspace.indexingHtml)write('indexing.html',workspace.indexingHtml);
   if(workspace.crawlHtml)write('crawl.html',workspace.crawlHtml);
   if(workspace.crawlLeadMarkdown)write('crawl-lead-worklist.md',workspace.crawlLeadMarkdown);
+  if(workspace.crawlCmsHtml)write('crawl-cms.html',workspace.crawlCmsHtml);
+  if(workspace.crawlCmsMarkdown)write('crawl-cms-worklist.md',workspace.crawlCmsMarkdown);
+  if(workspace.crawlCmsJson)write('crawl-cms-worklist.json',workspace.crawlCmsJson);
   if(workspace.crawlCandidateRobots!==null)write('DRAFT-ONLY-robots.txt',workspace.crawlCandidateRobots);
   if(workspace.crawlCandidateSitemap!==null)write('DRAFT-ONLY-sitemap.xml',workspace.crawlCandidateSitemap);
   if(workspace.humanHtml)write('human.html',workspace.humanHtml);
