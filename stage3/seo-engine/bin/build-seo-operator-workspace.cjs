@@ -125,6 +125,8 @@ function main(argv){
   if(workspace.crawlCmsJson)write('crawl-cms-worklist.json',workspace.crawlCmsJson);
   if(workspace.crawlCmsDecisionsTemplate)
    write('crawl-cms-decisions-TEMPLATE.json',workspace.crawlCmsDecisionsTemplate);
+  if(workspace.crawlCmsDecisionDeskHtml)
+   write('crawl-cms-decisions.html',workspace.crawlCmsDecisionDeskHtml);
   if(workspace.crawlCmsRecheckHtml)write('crawl-cms-recheck.html',workspace.crawlCmsRecheckHtml);
   if(workspace.crawlCmsRecheckMarkdown)write('crawl-cms-recheck.md',workspace.crawlCmsRecheckMarkdown);
   if(workspace.crawlCmsRecheckJson)write('crawl-cms-recheck.json',workspace.crawlCmsRecheckJson);
