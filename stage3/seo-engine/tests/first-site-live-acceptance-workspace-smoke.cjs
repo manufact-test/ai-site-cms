@@ -39,7 +39,7 @@ const report={format:'manufact-seo-first-site-live-acceptance-review-v1',readOnl
   missingFormPages:[{page:'/contact/',expected:1,passed:0}],
   perPageFormReceipts:{},perFormChecks:[{page:'/contact/',sectionId:'contact-lead',state:'missing'}]}};
 const bundle={format:'manufact-seo-review-bundle-v1',readOnly:true,siteId:site,
- approvedSiteSource:{fileSha256:source},
+ release:{blockers:[]},approvedSiteSource:{fileSha256:source},
  localPhpForms:{format:'manufact-seo-local-php-forms-v1',observedForms:1,
   pages:[{path:'/',actualForms:0,formInstances:[]},
    {path:'/contact/',actualForms:1,formInstances:[{sectionId:'contact-lead'}]}]}};
@@ -64,6 +64,17 @@ assert(w.nextActionsHtml.includes('technical launch report'));
 const actionView=require('../lib/first-site-live-followup-view.cjs');
 assert.throws(()=>actionView.render(report,{summary:{...summary,siteId:'wrong-site'},
  bundle,postDeploy:post}),/same approved release/);
+const blockedDetails=actionView.render({...report,status:'TECHNICAL-EVIDENCE-BLOCKED'},
+ {summary:{...summary,release:{...summary.release,blockingGates:1,
+   blockerIds:['php-canonical'] }},
+  bundle:{...bundle,release:{blockers:[{gateId:'php-canonical',
+   reason:'Broken <canonical> host'}]}},
+  postDeploy:{...post,disposition:'NOT-READY',postDeployBlockingReasons:[
+   {code:'HTTPS-MEDIA-DRIFT',reason:'Public image digest mismatch'}]}}).html;
+assert(blockedDetails.includes('php-canonical'));
+assert(blockedDetails.includes('HTTPS-MEDIA-DRIFT'));
+assert(blockedDetails.includes('&lt;canonical&gt;'));
+assert(!blockedDetails.includes('Broken <canonical>'));
 assert(!w.nextActionsHtml.includes('private://'));
 
 assert(w.humanHtml.includes('Human First-Site Acceptance'));
