@@ -207,7 +207,7 @@ final class DesignGraph
         $count=0;$popups=[];$triggers=[];
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,&$popups,&$triggers,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
                 &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup'],true),
@@ -294,7 +294,17 @@ final class DesignGraph
             self::check(($type==='list'||!array_key_exists('ordered',$node))&&($type!=='list'||!array_key_exists('ordered',$node)||is_bool($node['ordered'])),'invalid ordered-list flag');
             self::check(($type!=='list-item'||$parentType==='list')&&($parentType!=='list'||$type==='list-item'),'invalid list hierarchy');
             self::check(($type!=='tab'||$parentType==='tabs')&&($parentType!=='tabs'||$type==='tab'),'invalid tabs hierarchy');
+            self::check($type==='gallery'||!array_intersect(['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox'],array_keys($node)),'gallery setting on another node');
+            if(array_key_exists('caption',$node))self::check($type==='image'&&$parentType==='gallery'&&is_string($node['caption'])&&strlen($node['caption'])<=240&&preg_match('/[\\x00-\\x1f]/',$node['caption'])!==1,'invalid photo caption');
             if($type==='gallery'){
+                self::check(!isset($node['layout'])||in_array($node['layout'],['scroll','grid'],true),'invalid gallery layout');
+                self::check(!array_key_exists('lightbox',$node)||is_bool($node['lightbox']),'invalid gallery lightbox');
+                if(array_intersect(['columnsDesktop','columnsTablet','columnsMobile'],array_keys($node)))
+                    self::check(($node['layout']??'scroll')==='grid','gallery columns require grid');
+                foreach(['columnsDesktop'=>[1,6],'columnsTablet'=>[1,4],'columnsMobile'=>[1,2]] as $key=>$bounds)
+                    if(array_key_exists($key,$node))self::check(self::integer($node[$key],...$bounds),'invalid gallery columns');
+                if(!empty($node['lightbox']))foreach(($node['children']??[]) as $child)
+                    self::check(!is_array($child)||!array_key_exists('href',$child),'lightbox conflicts with photo link');
                 self::check(is_string($node['text']??null)&&strlen($node['text'])<=120&&trim($node['text'])!==''&&
                     preg_match('/[\x00-\x1f]/',$node['text'])!==1&&
                     !array_intersect(['href','assetId','alt','level','icon','loop','posterAssetId','ordered'],array_keys($node)),
@@ -718,8 +728,23 @@ final class DesignGraph
                 case 'list-item':
                     return '<li class="'.$cls.'">'.self::h($n['text']).'</li>';
                 case 'gallery':
-                    $body='';foreach($n['children'] as $child)$body.=$visit($child);
-                    return '<div class="'.$cls.' cmsdg-gallery" role="region" aria-roledescription="gallery" aria-label="'.self::h($n['text']).'" tabindex="0">'.$body.'</div>';
+                    $grid=($n['layout']??'scroll')==='grid';
+                    $vars=$grid?' style="--cmsdg-gallery-columns:'.($n['columnsDesktop']??3).
+                        ';--cmsdg-gallery-tablet:'.($n['columnsTablet']??2).
+                        ';--cmsdg-gallery-mobile:'.($n['columnsMobile']??1).'"':'';
+                    $body='';
+                    foreach($n['children'] as $index=>$child){
+                        $visual=$visit($child);
+                        $id='cmsdg-lightbox-'.$child['id'];
+                        $caption=empty($child['caption'])?'':'<figcaption>'.self::h($child['caption']).'</figcaption>';
+                        $trigger=empty($n['lightbox'])?$visual:'<button type="button" class="cmsdg-lightbox-trigger" popovertarget="'.$id.'" aria-label="Открыть фотографию '.($index+1).'">'.$visual.'</button>';
+                        $popup='';
+                        if(!empty($n['lightbox']))$popup='<div id="'.$id.'" popover="auto" class="cmsdg-gallery-popover" role="dialog" aria-label="'.self::h($child['alt']?:'Фотография '.($index+1)).'">'.
+                            '<button type="button" class="cmsdg-gallery-close" popovertarget="'.$id.'" popovertargetaction="hide" aria-label="Закрыть фотографию">×</button>'.
+                            '<div class="cmsdg-gallery-expanded">'.$visual.'</div>'.$caption.'</div>';
+                        $body.='<figure class="cmsdg-gallery-item">'.$trigger.$caption.$popup.'</figure>';
+                    }
+                    return '<div class="'.$cls.' cmsdg-gallery'.($grid?' cmsdg-gallery-grid':'').'" role="region" aria-roledescription="gallery" aria-label="'.self::h($n['text']).'" tabindex="0"'.$vars.'>'.$body.'</div>';
                 case 'table':
                     $first=$visit($n['children'][0]);$rest='';
                     foreach(array_slice($n['children'],1) as $row)$rest.=$visit($row);
@@ -820,8 +845,21 @@ final class DesignGraph
             .$scope.' .cmsdg-table th,'.$scope.' .cmsdg-table td{padding:12px 16px;border:1px solid #c6cdd7;text-align:start}'
             .$scope.' .cmsdg-table th{font-weight:700;background:#f2f5f9}'
             .$scope.' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'
-            .$scope.' .cmsdg-gallery>img,'.$scope.' .cmsdg-gallery>picture,'.$scope.' .cmsdg-gallery>a{flex:0 0 min(82%,420px);scroll-snap-align:start;border-radius:10px}'
-            .$scope.' .cmsdg-gallery>picture img,'.$scope.' .cmsdg-gallery>a img{width:100%;height:100%;object-fit:cover;border-radius:inherit}'
+            .$scope.' .cmsdg-gallery>.cmsdg-gallery-item{flex:0 0 min(82%,420px);scroll-snap-align:start;min-width:0;max-width:100%;margin:0;border-radius:10px;overflow:hidden}'
+            .$scope.' .cmsdg-gallery-item img{display:block;width:100%;height:auto;object-fit:cover;border-radius:inherit}'
+            .$scope.' .cmsdg-gallery-item figcaption{padding:8px 4px;line-height:1.45;font-size:.9em;overflow-wrap:anywhere}'
+            .$scope.' .cmsdg-gallery-grid{display:grid;grid-template-columns:repeat(var(--cmsdg-gallery-columns,3),minmax(0,1fr));overflow:visible;scroll-snap-type:none}'
+            .$scope.' .cmsdg-gallery-grid>.cmsdg-gallery-item{flex:none}'
+            .'@media(max-width:900px){'.$scope.' .cmsdg-gallery-grid{grid-template-columns:repeat(var(--cmsdg-gallery-tablet,2),minmax(0,1fr))}}'
+            .'@media(max-width:600px){'.$scope.' .cmsdg-gallery-grid{grid-template-columns:repeat(var(--cmsdg-gallery-mobile,1),minmax(0,1fr))}}'
+            .$scope.' .cmsdg-lightbox-trigger{display:block;width:100%;padding:0;border:0;background:transparent;color:inherit;cursor:zoom-in}'
+            .$scope.' .cmsdg-lightbox-trigger:focus-visible{outline:3px solid #1868d3;outline-offset:-3px}'
+            .$scope.' .cmsdg-gallery-popover{position:fixed;inset:0;margin:auto;padding:20px;max-width:min(1100px,calc(100vw - 24px));max-height:95dvh;overflow:auto;border:1px solid #c7d2e0;border-radius:14px;background:#fff;color:#182b3d;box-shadow:0 22px 70px #08172c66}'
+            .$scope.' .cmsdg-gallery-popover:not(:popover-open){display:none!important}'
+            .$scope.' .cmsdg-gallery-popover::backdrop{background:#071321b8}'
+            .$scope.' .cmsdg-gallery-expanded{display:grid;place-items:center;clear:both}'
+            .$scope.' .cmsdg-gallery-expanded img{width:auto;max-width:100%;max-height:75dvh;height:auto;object-fit:contain}'
+            .$scope.' .cmsdg-gallery-close{float:right;margin:0 0 8px 12px;border:1px solid #8b9aac;border-radius:50%;background:#fff;color:#182b3d;min-width:40px;height:40px;font:24px system-ui;cursor:pointer}'
             .$scope.' .cmsdg-picture img{max-width:100%;height:auto}'
             .$scope.' .cmsdg-image-action{display:inline-block;max-width:100%}'
             .$scope.' .cmsdg-image-action img{display:block}'
