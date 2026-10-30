@@ -91,3 +91,8 @@ The new Node smoke uses the real compiled `industrial.blueprint.json` fixture, o
 4. Investigate all `OBSERVED-CONFLICT` and independent delivery blockers first, then all unknowns. For aligned observations, independently authenticate live served bytes/sourceRevision and owner decisions; never auto-close.
 5. Perform separate URL Inspection / Search Console confirmation when indexation is at issue; rank/traffic improvement remains a separate measurement.
 6. Only the sole CMS lead may authorize and perform implementation with rollback; this report remains a read-only private document.
+
+
+## Two critical fail-closed public capture gates
+
+This workflow additionally checks existing public-capture integrity observations: (1) a `rootRecheck.matched:false` mixed-deployment window forces **all** task results to `INSUFFICIENT-EVIDENCE`, never optimistic alignment; (2) a negative-route probe returning anything other than 404/410 prevents an optimistic HTTP 200 clearance for an approved route previously shadowed by a redirect. Both appear as separate independent delivery blockers through the existing `DELIVERY.review` contract. The focused smoke covers both unsafe source scenarios with original-source SHA256, rather than claiming them as verified repairs.
