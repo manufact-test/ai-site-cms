@@ -1835,6 +1835,8 @@ test('grid gallery captions, native lightbox and safe click-actions',()=>{
   assert.match(scrollHtml,/cmsdg-gallery-scroll-nav/);
   assert.match(scrollHtml,/href="#cmsdg-photo-gallery-photo-beta"/);
   gallery.scrollControls='yes';refuses(()=>sdk.validateSite(site,manifests));
+  gallery.scrollControls=false;gallery.layout='grid';
+  gallery.columnsDesktop=4;gallery.columnsTablet=2;gallery.columnsMobile=1;
   gallery.photoShape='javascript:bad';refuses(()=>sdk.validateSite(site,manifests));
   gallery.photoShape='square';
   assert.match(html,/--cmsdg-gallery-columns:4;--cmsdg-gallery-tablet:2;--cmsdg-gallery-mobile:1/);
