@@ -224,7 +224,7 @@ function tableTsv(graph,tableId,spreadsheetSafe=true){
     // TSV quoting must preserve literal leading quotes and embedded quotes
     // on the next import; spreadsheet exports additionally neutralize formulas.
     const text=spreadsheetSafe&&/^\s*[=+@-]/.test(value)?"'"+value:value;
-    return text.includes('"')?'"'+text.replace(/"/g,'""')+'"':text;
+    return text.includes('"')||/^\s|\s$/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;
   }).join('\t')).join('\n');
 }
 function replaceTableMatrix(graph,tableId,matrix,makeId){
