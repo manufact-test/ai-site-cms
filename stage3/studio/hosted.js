@@ -2614,7 +2614,10 @@
     overlayImage.alt='Наложение утверждённого макета поверх PHP-превью';
     overlayImage.hidden=true;
     overlayImage.setAttribute('aria-hidden','true');
-    draftCanvas.append(frame,overlayImage);viewport.append(draftCanvas);
+    const findingMarkers=element('div','hosted-launch-finding-markers');
+    findingMarkers.id='server-launch-finding-markers';
+    findingMarkers.setAttribute('aria-label','Отметки замечаний на странице');
+    draftCanvas.append(frame,overlayImage,findingMarkers);viewport.append(draftCanvas);
     const liveViewport=element('div','hosted-launch-viewport hosted-launch-live-viewport');
     liveViewport.id='server-launch-live-viewport';
     const liveLabel=element('p','hosted-launch-live-label','Опубликованная версия');
@@ -2653,9 +2656,13 @@
     findingInput.placeholder='Например: отступ заголовка отличается от макета на телефоне';
     findingInput.setAttribute('aria-label','Новое замечание по макету и PHP-странице');
     const findingAdd=action('Добавить замечание','server-launch-finding-add',()=>{});
+    const pickPoint=action('Указать точку на странице','server-launch-pick-point',()=>{});
+    const pointHint=element('small','hosted-launch-point-hint',
+      'По умолчанию позиция берётся с верхней границы текущей прокрутки.');
+    pointHint.id='server-launch-point-hint';
     const findingList=element('div','hosted-launch-finding-list');
     findingList.id='server-launch-finding-list';
-    findingPanel.append(findingInput,findingAdd,findingList);
+    findingPanel.append(findingInput,pickPoint,pointHint,findingAdd,findingList);
 
     const backlog=element('section','hosted-launch-backlog');
     backlog.id='server-launch-readiness';
@@ -2867,6 +2874,12 @@
     document.body.append(dialog);
     let selectedRow=comparisonRows[0],device='desktop',viewMode='draft',request=0;
     let pendingFindingJump=null;
+    let pickedY=null,pickingPoint=false;
+    const resetPoint=()=>{
+      pickedY=null;pickingPoint=false;
+      pickPoint.textContent='Указать точку на странице';
+      pointHint.textContent='По умолчанию позиция берётся с верхней границы текущей прокрутки.';
+    };
     const widths={desktop:1200,tablet:780,mobile:390};
     const devicesNeeded=Object.keys(widths),reviewed=new Map(),previewReady=new Set();
     // Each device's own real PHP document must render before sign-off. These
@@ -2960,8 +2973,43 @@
     ].join('\n\n');
     const drawFindings=()=>{
       findingList.replaceChildren();
+      findingMarkers.replaceChildren();
       const pageId=selectedRow?.current?.id;
       const selected=manualFindings.filter(f=>f.pageId===pageId&&f.device===device);
+      if(previewReady.has(pageId+'|'+device)&&selectedRow?.current){
+        const scale=Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1])||1;
+        // Cluster close Y positions so a long review stays legible. These
+        // accessible controls are on the Studio canvas, never in the PHP HTML.
+        const groups=new Map();
+        for(const finding of selected.filter(f=>!f.resolved)){
+          const bucket=Math.floor(finding.scrollY*scale/34);
+          if(!groups.has(bucket))groups.set(bucket,[]);
+          groups.get(bucket).push(finding);
+        }
+        for(const group of groups.values()){
+          const first=group[0];
+          const marker=action(group.length===1?'!':String(group.length),'hosted-launch-finding-marker',()=>{
+            viewport.scrollTop=first.scrollY*scale;
+            findingList.querySelectorAll('.hosted-launch-finding')
+              [selected.indexOf(first)]?.scrollIntoView({block:'nearest'});
+          });
+          marker.style.top=Math.max(14,Math.min(draftCanvas.clientHeight-14,
+            Math.round(first.scrollY*scale)))+'px';
+          marker.title=group.map(f=>f.note).join('\n').slice(0,800);
+          marker.setAttribute('aria-label',group.length===1?
+            'Замечание на Y '+first.scrollY+': '+first.note:
+            group.length+' замечаний около Y '+first.scrollY);
+          findingMarkers.append(marker);
+        }
+        if(pickedY!==null){
+          const selectedMarker=element('span','hosted-launch-finding-marker hosted-launch-finding-marker-picked','+');
+          selectedMarker.style.top=Math.max(14,Math.min(draftCanvas.clientHeight-14,
+            Math.round(pickedY*scale)))+'px';
+          selectedMarker.title='Новая точка замечания: Y '+pickedY+' px';
+          selectedMarker.setAttribute('aria-label','Выбранная точка Y '+pickedY+' px');
+          findingMarkers.append(selectedMarker);
+        }
+      }
       findingInput.disabled=findingAdd.disabled=!pageId||!freshDraft()||remoteBusy;
       if(!selected.length){
         findingList.append(element('small',null,'Нет записанных замечаний на этом устройстве.'));
@@ -3056,6 +3104,18 @@
         findingList.append(row);
       }
     };
+    pickPoint.addEventListener('click',()=>{
+      if(!freshDraft()||!selectedRow?.current||
+          !previewReady.has(selectedRow.current.id+'|'+device)){
+        notice('Сначала дождитесь реального PHP-предпросмотра страницы.',true);return;
+      }
+      pickingPoint=!pickingPoint;
+      pickPoint.textContent=pickingPoint?'Отменить выбор точки':'Указать точку на странице';
+      pointHint.textContent=pickingPoint?
+        'Нажмите на нужное место непосредственно в PHP-странице, затем добавьте замечание.':
+        pickedY!==null?'Выбрана точка Y '+pickedY+' px. Можно добавить замечание.':
+          'Выбор точки отменён. Снова нажмите кнопку, чтобы указать место.';
+    });
     findingAdd.addEventListener('click',()=>{
       const note=findingInput.value.trim();
       if(manualFindings.length>=200){
@@ -3066,14 +3126,14 @@
       }
       const scale=Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1])||1;
       const finding={pageId:selectedRow.current.id,path:selectedRow.current.path,
-        device,note,scrollY:Math.min(60000,Math.round(viewport.scrollTop/scale)),resolved:false};
+        device,note,scrollY:pickedY??Math.min(60000,Math.round(viewport.scrollTop/scale)),resolved:false};
       if(remoteBusy)return;
       if(storedReview.available){
         remoteBusy=true;findingAdd.disabled=true;
         void api(reviewEndpoint,'POST',{action:'create',expectedRevision:openedRevision,...finding})
           .then(result=>{
             replaceRemote(result);
-            findingInput.value='';
+            findingInput.value='';resetPoint();drawFindings();
             reviewed.get(finding.pageId)?.delete(finding.device);
           })
           .catch(error=>notice('Не удалось записать замечание: '+error.message,true))
@@ -3082,7 +3142,7 @@
       }
       manualFindings.push(finding);
       reviewed.get(selectedRow.current.id)?.delete(device);
-      findingInput.value='';drawFindings();updateReviewed();syncActions();
+      findingInput.value='';resetPoint();drawFindings();updateReviewed();syncActions();
     });
     const referenceUrls=new Map(),referenceLoads=new Map();
     let syncGuard=false;
@@ -3456,6 +3516,21 @@
       const doc=frame.contentDocument,token=doc?.querySelector(
         'meta[name="manufact-preview-ticket"]')?.content;
       if(!dialog.open||token!==String(request))return;
+      // One deliberate click can pin the actual vertical coordinate of a
+      // visual mismatch. The PHP document remains scriptless and unchanged;
+      // the parent owns this temporary editor-only capture handler.
+      doc.addEventListener('click',event=>{
+        if(!pickingPoint||!selectedRow?.current||
+            token!==String(request)||!previewReady.has(selectedRow.current.id+'|'+device))return;
+        event.preventDefault();event.stopImmediatePropagation();
+        pickedY=Math.max(0,Math.min(60000,Math.round(event.clientY+
+          (doc.defaultView?.scrollY||0))));
+        pickingPoint=false;
+        pickPoint.textContent='Изменить выбранную точку';
+        pointHint.textContent='Выбрана точка Y '+pickedY+
+          ' px. Введите описание и добавьте замечание.';
+        drawFindings();findingInput.focus();
+      },true);
       const ticket=request,row=selectedRow,mode=device;
       void (async()=>{
         const images=[...doc.images];
@@ -3561,6 +3636,7 @@
       }
     };
     const choosePage=row=>{
+      resetPoint();
       selectedRow=row;
       const page=row.current||row.prior;
       pageHeading.textContent=page.title+' · '+page.path;
@@ -3613,7 +3689,7 @@
     for(const [mode,name] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
       const control=action(name,'',()=>{
         if(device===mode)return;
-        device=mode;renderViewport();updateReviewed();syncActions();void showPreview();void showReference();
+        resetPoint();device=mode;renderViewport();updateReviewed();syncActions();void showPreview();void showReference();
       });
       control.dataset.device=mode;control.dataset.originalLabel=name;devices.append(control);
     }

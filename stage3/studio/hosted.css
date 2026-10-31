@@ -201,6 +201,19 @@
    canvases so the operator can scroll below the initial desktop viewport. */
 .hosted-launch-canvas{position:relative;width:100%;min-width:0;min-height:0}
 .hosted-launch-viewport{overscroll-behavior:contain}
+.hosted-launch-finding-markers{position:absolute;inset:0;z-index:4;pointer-events:none}
+.hosted-launch-finding-marker{position:absolute;left:5px;transform:translateY(-50%);min-width:25px;height:25px;
+ display:flex;align-items:center;justify-content:center;border:2px solid #fff;border-radius:99px;
+ background:#b63535;color:#fff;font-size:12px;font-weight:800;box-shadow:0 1px 7px #172c4270;
+ pointer-events:auto;cursor:pointer;padding:0 4px;line-height:1}
+.hosted-launch-finding-marker:hover,.hosted-launch-finding-marker:focus-visible{
+ outline:3px solid #f9d277;outline-offset:2px;background:#8e1723}
+.hosted-launch-finding-marker-picked{background:#13668c;color:#fff;border-color:#d8efff;
+ pointer-events:none;font-size:19px}
+.hosted-launch-point-hint{display:block;color:#a9e1ee;font-size:11px}
+.hosted-launch-finding-edit{display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex-basis:100%;width:100%}
+.hosted-launch-finding-edit textarea{flex:1 1 230px}
+.hosted-launch-finding-edit input[type=number]{width:110px;max-width:100%}
 
 /* First actual approved client pilot: compare the safe full PHP draft against
    archived sealed static prototypes without making them editable/interactive. */

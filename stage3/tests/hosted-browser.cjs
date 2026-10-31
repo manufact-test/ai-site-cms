@@ -210,8 +210,18 @@ async function execute(){
   await page.locator('#server-launch-compare-modes [data-compare-mode="draft"]').click();
   await page.locator('#server-launch-preview-status').getByText(/PHP-страница целиком/).waitFor();
   const beforeVisualFix=await page.evaluate(()=>window.Stage3Editor.getSite());
+  await page.locator('#server-launch-pick-point').click();
+  await page.frameLocator('#server-launch-preview').locator('section[id]').first().click();
+  const pointText=await page.locator('#server-launch-point-hint').innerText();
+  assert.match(pointText,/Выбрана точка Y \d+ px/);
+  const pickedReviewY=Number(pointText.match(/Y (\d+) px/)[1]);
+  assert.equal(await page.locator('#server-launch-finding-markers .hosted-launch-finding-marker-picked').count(),1);
   await page.locator('#server-launch-finding-input').fill('Проверьте отступ в первом экране мобильной версии');
   await page.locator('#server-launch-finding-add').click();
+  await page.locator('#server-launch-finding-markers .hosted-launch-finding-marker').first().waitFor();
+  assert.equal(await page.locator('#server-launch-finding-markers .hosted-launch-finding-marker').count(),1,
+    'An open finding is pinned to the actual PHP preview canvas');
+  assert.match(await page.locator('#server-launch-finding-list').innerText(),new RegExp('Y '+pickedReviewY+' px'));
   await page.locator('#server-launch-finding-list .hosted-launch-finding')
     .getByRole('button',{name:'Изменить'}).click();
   await page.locator('#server-launch-finding-list [aria-label="Исправленный текст замечания"]')
@@ -220,6 +230,8 @@ async function execute(){
     .fill('0');
   await page.locator('#server-launch-finding-list').getByRole('button',{name:'Сохранить замечание'}).click();
   await page.locator('#server-launch-finding-list').getByText(/Нужно уточнить мобильный отступ/).waitFor();
+  assert.match(await page.locator('#server-launch-finding-markers .hosted-launch-finding-marker').first()
+    .getAttribute('aria-label'),/Нужно уточнить мобильный отступ/);
   const fixFinding=page.locator('#server-launch-finding-list .hosted-launch-finding')
     .getByRole('button',{name:/Исправить в редакторе/});
   await fixFinding.waitFor();

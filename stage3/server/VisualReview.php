@@ -317,7 +317,7 @@ trait VisualReview
             }
             self::archiveCheck(is_string($r['createdBy'])&&
                 ($r['resolved']?($r['resolvedBy']!==null&&$r['resolvedAt']!==null&&$r['version']>=2):
-                    ($r['resolvedBy']===null&&$r['resolvedAt']===null&&$r['version']===1)),
+                    ($r['resolvedBy']===null&&$r['resolvedAt']===null&&$r['version']>=1)),
                 'invalid visual finding transition');
             self::archiveDate($r['createdAt']);
             if($r['resolvedAt']!==null)self::archiveDate($r['resolvedAt']);
