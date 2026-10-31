@@ -38,7 +38,7 @@ final class FormGateway
      * Confirm the optional return destination against the exact PUBLISHED
      * form's page, and the browser's allowed site origin. A form value is
      * never sufficient authority for an arbitrary outbound link/redirect.
-     * No automatic navigation; the visitor explicitly chooses to go back.
+     * Without an explicitly authored success page the visitor chooses to go back.
      */
     private static function returnPage(
         SiteRepository $sites,string $siteId,string $sectionId,int $release,
@@ -77,6 +77,42 @@ final class FormGateway
         return '';
     }
 
+    /** Optional POST/Redirect/GET to a real authored page, never a caller URL.
+     * The validated _return identifies the exact published form origin/mount;
+     * it cannot choose the destination, which comes only from the immutable
+     * published section's successPageId. If anything drifts, keep the proven
+     * collector receipt instead of redirecting to a guessed site.
+     */
+    private static function successTarget(array $site,string $sectionId,string $returnTarget,
+        ?string $origin,string $ours): string
+    {
+        if($returnTarget==='')return '';
+        $targetId=null;
+        foreach($site['pages'] as $page)foreach($page['sections'] as $section)
+            if($section['id']===$sectionId){$targetId=$section['successPageId']??null;break 2;}
+        if(!is_string($targetId))return '';
+        $successPath=null;
+        foreach($site['pages'] as $page)
+            if($page['id']===$targetId){$successPath=$page['path'];break;}
+        if($successPath===null)return '';
+        if(str_starts_with($returnTarget,'/')) {
+            if($origin!==null&&$origin!==$ours)return '';
+            $requestedPath=$returnTarget;
+            $base='';
+        }else{
+            $parts=parse_url($returnTarget);
+            if(!is_array($parts)||!isset($parts['scheme'],$parts['host'],$parts['path']))return '';
+            $base=$parts['scheme'].'://'.$parts['host'].
+                (isset($parts['port'])?':'.$parts['port']:'');
+            if(($origin??$ours)!==$base)return '';
+            $requestedPath=$parts['path'];
+        }
+        $siteId=$site['siteId'];
+        $prefix='/published/'.$siteId;
+        $mount=str_starts_with($requestedPath,$prefix.'/')?$prefix:'';
+        return $base.$mount.$successPath;
+    }
+
     /** Immutable published site's language controls the no-script response. */
     private static function copy(string $language,string $key): string
     {
@@ -101,6 +137,7 @@ final class FormGateway
         $messageKey='invalid';
         $status = 422;
         $returnTarget='';
+        $successTarget='';
         try {
             $origin = $_SERVER['HTTP_ORIGIN'] ?? null;
             $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -146,6 +183,7 @@ final class FormGateway
                 try {
                     $returnTarget=self::returnPage($sites,$siteId,$sectionId,(int)$release,
                         $returnRequest,$ours,$origin,$allow);
+                    $successTarget=self::successTarget($published,$sectionId,$returnTarget,$origin,$ours);
                 }catch(\Throwable $ignored){$returnTarget='';}
                 $messageKey='success';
                 $status = 201;
@@ -163,6 +201,11 @@ final class FormGateway
             }
         }
         http_response_code($status);
+        if($status===201&&$successTarget!==''){
+            header('Location: '.$successTarget,true,303);
+            header('Referrer-Policy: no-referrer');
+            exit;
+        }
         $title=self::copy($language,'title');
         $message=self::copy($language,$messageKey);
         echo '<!doctype html><html lang="'.$language.'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'.$title.'</title><style>body{font:18px/1.5 system-ui,sans-serif;max-width:660px;margin:12vh auto;padding:24px;color:#17324d}main{border:1px solid #dde5ef;padding:30px;border-radius:12px}</style></head><body><main><h1>'.$title.'</h1><p>'

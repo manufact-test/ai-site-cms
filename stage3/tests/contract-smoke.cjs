@@ -46,6 +46,38 @@ test('optional bespoke 404 page is hidden, noindex, form-free and survives ordin
   assert.equal(Object.hasOwn(initial,'notFoundPageId'),false,'existing sites remain unchanged');
 });
 
+test('per-form authored success destination is noindex, form-free, ID-stable and Undoable',()=>{
+  const D=require('../sdk/draft.cjs'),site=same(initial),success=site.pages[1];
+  success.navigation={label:'Спасибо',hidden:true};
+  success.seo={title:'Спасибо',description:'Заявка сохранена',robots:'noindex',
+    ogTitle:'',ogDescription:'',ogImage:''};
+  const form=sdk.sectionFrom(manifests.find(x=>x.id==='lead-form'),'section-success-form');
+  form.successPageId=success.id;
+  site.pages[0].sections.push(form);
+  sdk.validateSite(site,manifests);
+  const indexed=same(site);indexed.pages[1].seo.robots='index';
+  refuses(()=>sdk.validateSite(indexed,manifests),'Thank-you route must be noindex');
+  const visible=same(site);visible.pages[1].navigation.hidden=false;
+  refuses(()=>sdk.validateSite(visible,manifests),'Thank-you route must be hidden');
+  const missing=same(site);missing.pages[0].sections.at(-1).successPageId='page-absent';
+  refuses(()=>sdk.validateSite(missing,manifests),'Thank-you target must exist');
+  const custom=same(site);custom.pages[0].sections[0].successPageId=success.id;
+  refuses(()=>sdk.validateSite(custom,manifests),'Only real forms have a success destination');
+  const recursive=same(site);recursive.pages[1].sections.push(sdk.sectionFrom(
+    manifests.find(x=>x.id==='lead-form-flex'),'section-success-loop'));
+  refuses(()=>sdk.validateSite(recursive,manifests),'Success page cannot collect another lead');
+  const errorPage=same(site);errorPage.notFoundPageId=success.id;
+  refuses(()=>sdk.validateSite(errorPage,manifests),'404 and success cannot be the same page');
+  const draft=D.begin(site,manifests);
+  const renamed=D.structure(draft,manifests,{action:'updatePage',pageId:success.id,
+    title:'Спасибо за заявку',path:'/thank-you/',expectedRevision:draft.revision});
+  assert.equal(renamed.current.pages[0].sections.at(-1).successPageId,success.id);
+  const deleted=D.structure(renamed,manifests,{action:'removePage',pageId:success.id,
+    expectedRevision:renamed.revision});
+  assert.equal(Object.hasOwn(deleted.current.pages[0].sections.at(-1),'successPageId'),false);
+  sdk.validateSite(deleted.current,manifests);
+});
+
 test('optional site header is safe, page-ID linked and editable',()=>{
   const X=require('../sdk/draft.cjs'),site=same(initial),target=site.pages.find(p=>p.path!=='/');
   site.header={notice:'Бесплатная консультация',noticePageId:target.id,

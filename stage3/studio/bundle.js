@@ -1854,7 +1854,7 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey','deviceVisibility'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey','deviceVisibility','successPageId'],'section');
       if(own(section,'deviceVisibility')){
         const visibility=section.deviceVisibility;
         objectKeys(visibility,['desktop','tablet','mobile'],'section.deviceVisibility');
@@ -1935,6 +1935,18 @@ function validateSite(raw,regInput){
       fallback.navigation?.hidden!==true||
       fallback.sections.some(section=>['lead-form','lead-form-flex'].includes(section.component)))
       fail('404 page must be an existing, hidden, noindex, form-free non-home page');
+  }
+  const pageIds=new Map(raw.pages.map(page=>[page.id,page]));
+  for(const page of raw.pages)for(const section of page.sections){
+    if(!own(section,'successPageId'))continue;
+    id(section.successPageId,'section.successPageId');
+    const target=pageIds.get(section.successPageId);
+    if(!['lead-form','lead-form-flex'].includes(section.component)||
+      (section.designGraph&&GRAPH_HOST.formSlotIds(section.designGraph).length===0)||
+      !target||target.path==='/'||target.navigation?.hidden!==true||
+      target.seo?.robots!=='noindex'||target.id===raw.notFoundPageId||
+      target.sections.some(x=>['lead-form','lead-form-flex'].includes(x.component)))
+      fail('Form success page must be a hidden noindex form-free authored page',section.id);
   }
   if(own(raw,'redirects')){
     if(!Array.isArray(raw.redirects)||raw.redirects.length>60)fail('Invalid redirect count');
@@ -2714,6 +2726,8 @@ function structure(raw,manifests,command){
       if(c.footer?.links)c.footer.links=c.footer.links.filter(link=>link.pageId!==page.id);
       if(c.header?.noticePageId===page.id)c.header.noticePageId='';
       if(c.notFoundPageId===page.id)delete c.notFoundPageId;
+      for(const survivor of c.pages)for(const section of survivor.sections)
+        if(section.successPageId===page.id)delete section.successPageId;
       if(c.redirects){
         c.redirects=c.redirects.filter(r=>r.to!==page.path);
         if(!c.redirects.length)delete c.redirects;
@@ -9966,6 +9980,42 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const builder=button('Поля и шаги формы · '+(section.formFields||[]).length+'/9'+(section.formSteps?' · '+section.formSteps.length+' шага(ов)':''),
         'btn small',openFormBuilder);
       builder.id='cms-form-builder-open';builder.dataset.editorWrite='true';row.append(builder);
+    }
+    if(['lead-form','lead-form-flex'].includes(section.component)){
+      const targetBox=document.createElement('fieldset');targetBox.id='cms-form-success-settings';
+      const legend=document.createElement('legend');legend.textContent='После успешной отправки формы';
+      const label=document.createElement('label');label.textContent='Страница подтверждения ';
+      const chooser=document.createElement('select');chooser.className='control';chooser.id='cms-form-success-page';
+      const eligible=session.current.pages.filter(page=>page.path!=='/'&&
+        page.id!==session.current.notFoundPageId&&page.navigation?.hidden===true&&
+        page.seo?.robots==='noindex'&&!page.sections.some(s=>
+          ['lead-form','lead-form-flex'].includes(s.component)));
+      for(const [id,name] of [['','Стандартное подтверждение'],
+        ...eligible.map(page=>[page.id,page.title+' · '+page.path])]){
+        const option=document.createElement('option');option.value=id;option.textContent=name;
+        chooser.append(option);
+      }
+      if(section.successPageId&&!eligible.some(page=>page.id===section.successPageId)){
+        const invalid=document.createElement('option');invalid.value=section.successPageId;
+        invalid.textContent='Ранее выбранная страница недоступна';chooser.append(invalid);
+      }
+      chooser.value=section.successPageId||'';
+      chooser.disabled=Boolean(section.designGraph&&DESIGN_GRAPH.formSlotIds(section.designGraph).length===0);
+      chooser.addEventListener('change',()=>{
+        try{
+          const site=cp(session.current);
+          for(const page of site.pages)for(const ownSection of page.sections){
+            if(ownSection.id!==section.id&&(!section.sharedKey||ownSection.sharedKey!==section.sharedKey))continue;
+            if(chooser.value)ownSection.successPageId=chooser.value;
+            else delete ownSection.successPageId;
+          }
+          session=D.replaceSite(session,manifests,site,session.revision);
+          draw();notice('Страница подтверждения изменена в черновике. Публикация отдельно.');
+        }catch(e){notice('Настройка формы отклонена: '+e.message,true);draw();}
+      });
+      label.append(chooser);
+      const hint=document.createElement('p');hint.textContent='Только уже созданная скрытая страница с noindex и без форм. Переход после принятой сервером заявки; ошибки остаются в форме. Если страницу не выбрать, остаётся штатное подтверждение. Для стороннего HTTPS-хостинга необходимо проверить реальную доставку и маршрут.';
+      targetBox.append(legend,label,hint);row.append(targetBox);
     }
     // Device-specific visibility applies to the existing section, not a new template.
     const visibilityPanel=document.createElement('fieldset');visibilityPanel.id='cms-section-device-visibility';

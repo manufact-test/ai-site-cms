@@ -2563,6 +2563,55 @@ async function stop(){
     }
   }
 
+  // A real, accepted lead may reach the designer's own hidden thank-you page.
+  // Unaccepted POSTs, an untrusted _return and sites without this opt-in keep
+  // their existing collector receipt; no arbitrary caller redirect is allowed.
+  const thankSite=structuredClone(fixture);
+  thankSite.siteId='site-thank-you-ci';
+  thankSite.pages[1].navigation={label:'Спасибо',hidden:true};
+  thankSite.pages[1].seo={title:'Спасибо за обращение',description:'Заявка получена',
+    robots:'noindex',ogTitle:'',ogDescription:'',ogImage:''};
+  const thankForm=csdk.sectionFrom(richDefs.find(d=>d.id==='lead-form'),'section-thank-form');
+  thankForm.successPageId=thankSite.pages[1].id;
+  thankSite.pages[0].sections.push(thankForm);
+  const badThank=structuredClone(thankSite);
+  badThank.pages[1].seo.robots='index';
+  assert.equal((await request('POST','/api/sites',{site:badThank})).status,422,
+    'Server rejects an indexable success destination');
+  const madeThank=await request('POST','/api/sites',{site:thankSite});
+  assert.equal(madeThank.status,201,JSON.stringify(madeThank.body));
+  assert.equal((await request('POST','/api/sites/site-thank-you-ci/publish',
+    {expectedRevision:1})).status,200);
+  const thankFormHtml=(await request('GET','/published/site-thank-you-ci/')).body;
+  const thankToken=/name="_token" value="([a-f0-9]{64})"/.exec(thankFormHtml)?.[1];
+  const thankReturn=/name="_return" value="([^"]+)"/.exec(thankFormHtml)?.[1];
+  assert.ok(thankToken&&thankReturn);
+  const thankPost=async(fields)=>fetch(origin+'/forms/site-thank-you-ci/section-thank-form',{
+    method:'POST',redirect:'manual',headers:{origin,'content-type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({_release:'1',_token:thankToken,_return:thankReturn,website:'',
+      name:'Test visitor',email:'visitor@example.test',message:'Request for a proposal',
+      consent:'yes',...fields})
+  });
+  const declinedThank=await thankPost({email:'incorrect'});
+  assert.equal(declinedThank.status,422);
+  assert.equal(declinedThank.headers.get('location'),null);
+  const acceptedThank=await thankPost({});
+  assert.equal(acceptedThank.status,303,'Saved lead uses POST/Redirect/GET only when opted in');
+  assert.equal(acceptedThank.headers.get('location'),origin+'/published/site-thank-you-ci/contact/');
+  assert.match(acceptedThank.headers.get('cache-control'),/no-store/);
+  assert.equal(acceptedThank.headers.get('referrer-policy'),'no-referrer');
+  const thankPage=await request('GET','/published/site-thank-you-ci/contact/');
+  assert.equal(thankPage.status,200);
+  assert.match(thankPage.body,/Спасибо за обращение/);
+  assert.match(thankPage.body,/noindex,follow/);
+  const tamperedThank=await thankPost({_return:'https://attacker.example.test/contact/'});
+  assert.equal(tamperedThank.status,201,'Untrusted return preserves safe collector success receipt');
+  assert.equal(tamperedThank.headers.get('location'),null);
+  assert.match(await tamperedThank.text(),/заявка сохранена/);
+  const thankInventory=(await request('GET','/api/sites/site-thank-you-ci/launch-forms')).body;
+  assert.equal(thankInventory.forms[0].savedSubmissionCount,2,
+    'Accepted leads persist even when the visitor returns to a bespoke page');
+
   // Full URL rename flow through the same validated SDK used by Studio.
   const urlSite=structuredClone(fixture);urlSite.siteId='site-url-ci';
   const english=structuredClone(urlSite);

@@ -515,6 +515,10 @@
             "$ref": "#/$defs/formField"
           }
         },
+        "successPageId": {
+          "$ref": "#/$defs/id",
+          "description": "Optional existing hidden noindex form-free page shown only after an accepted lead. Valid on lead-form and lead-form-flex sections."
+        },
         "designGraph": {
           "$ref": "#/$defs/designGraph"
         }

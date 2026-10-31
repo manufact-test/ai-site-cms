@@ -410,7 +410,7 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey','deviceVisibility'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey','deviceVisibility','successPageId'],'section');
       if(own(section,'deviceVisibility')){
         const visibility=section.deviceVisibility;
         objectKeys(visibility,['desktop','tablet','mobile'],'section.deviceVisibility');
@@ -491,6 +491,18 @@ function validateSite(raw,regInput){
       fallback.navigation?.hidden!==true||
       fallback.sections.some(section=>['lead-form','lead-form-flex'].includes(section.component)))
       fail('404 page must be an existing, hidden, noindex, form-free non-home page');
+  }
+  const pageIds=new Map(raw.pages.map(page=>[page.id,page]));
+  for(const page of raw.pages)for(const section of page.sections){
+    if(!own(section,'successPageId'))continue;
+    id(section.successPageId,'section.successPageId');
+    const target=pageIds.get(section.successPageId);
+    if(!['lead-form','lead-form-flex'].includes(section.component)||
+      (section.designGraph&&GRAPH_HOST.formSlotIds(section.designGraph).length===0)||
+      !target||target.path==='/'||target.navigation?.hidden!==true||
+      target.seo?.robots!=='noindex'||target.id===raw.notFoundPageId||
+      target.sections.some(x=>['lead-form','lead-form-flex'].includes(x.component)))
+      fail('Form success page must be a hidden noindex form-free authored page',section.id);
   }
   if(own(raw,'redirects')){
     if(!Array.isArray(raw.redirects)||raw.redirects.length>60)fail('Invalid redirect count');
