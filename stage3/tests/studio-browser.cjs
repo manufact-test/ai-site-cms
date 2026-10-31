@@ -84,7 +84,36 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       }],reportedComplete:[],notSelected:[],blocked:[]
     };
     const jsonFile=value=>({name:'cms-search-work-packets.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(value))});
-    await page.locator('#cms-seo-handoff-open').click();
+    const seoHandoffButton=page.locator('#cms-seo-handoff-open');
+    await seoHandoffButton.scrollIntoViewIfNeeded();
+    const seoHandoffGeometry=await seoHandoffButton.evaluate(button=>{
+      const describe=node=>{
+        if(!node)return null;
+        const rect=node.getBoundingClientRect(),style=getComputedStyle(node);
+        return {tag:node.tagName.toLowerCase(),id:node.id||'',className:typeof node.className==='string'?node.className:'',
+          rect:{x:Math.round(rect.x*100)/100,y:Math.round(rect.y*100)/100,
+            top:Math.round(rect.top*100)/100,right:Math.round(rect.right*100)/100,
+            bottom:Math.round(rect.bottom*100)/100,width:Math.round(rect.width*100)/100,
+            height:Math.round(rect.height*100)/100},
+          overflowY:style.overflowY,position:style.position,zIndex:style.zIndex,
+          pointerEvents:style.pointerEvents,display:style.display};
+      };
+      const rect=button.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+      const hit=document.elementFromPoint(x,y);
+      const sidebar=document.querySelector('.sidebar'),tools=document.querySelector('#local-site-tools');
+      return {viewport:{width:innerWidth,height:innerHeight,scrollY},center:{x,y},
+        hitIsTarget:hit===button||button.contains(hit),hit:describe(hit),
+        hitStack:document.elementsFromPoint(x,y).slice(0,6).map(describe),
+        target:describe(button),sidebar:describe(sidebar),sidebarScrollTop:sidebar.scrollTop,
+        sidebarScrollHeight:sidebar.scrollHeight,sidebarClientHeight:sidebar.clientHeight,
+        panelTop:describe(document.querySelector('.panel-top')),localTools:describe(tools),
+        localToolsContent:describe(document.querySelector('#local-site-tools-content')),
+        category:describe(button.closest('.local-tool-category'))};
+    });
+    console.log('[local-site-tool-pointer-geometry] '+JSON.stringify(seoHandoffGeometry));
+    assert.equal(seoHandoffGeometry.hitIsTarget,true,
+      'A real pointer at the site tool action must hit the button: '+JSON.stringify(seoHandoffGeometry));
+    await seoHandoffButton.click();
     await page.locator('#cms-seo-handoff-file').setInputFiles(jsonFile({...handoff,siteId:'wrong-project'}));
     assert.match(await page.locator('#cms-seo-handoff-status').innerText(),/другого сайта/);
     await page.locator('#cms-seo-handoff-file').setInputFiles(jsonFile(handoff));
