@@ -527,9 +527,13 @@ final class Api
                         if(!is_int($body['scrollY']??null))
                             throw new InvalidArgumentException('Visual scroll position required');
                         $this->auditDetail='Visual finding recorded for '.$body['device'];
+                        foreach(['targetSectionId','targetNodeId'] as $field)
+                            if(isset($body[$field])&&!is_string($body[$field]))
+                                throw new InvalidArgumentException('Invalid visual target identity');
                         $this->response(201,$this->sites->visualReviewCreate($review[1],$revision,
                             $body['pageId'],$body['path'],$body['device'],$body['scrollY'],
-                            $body['note'],$principal['username']));
+                            $body['note'],$principal['username'],
+                            $body['targetSectionId']??null,$body['targetNodeId']??null));
                     }
                     if ($op==='import') {
                         if(!is_array($body['findings']??null))
@@ -549,11 +553,16 @@ final class Api
                         if(!is_string($body['findingId']??null)
                             ||!is_int($body['expectedVersion']??null)
                             ||!is_string($body['note']??null)
-                            ||!is_int($body['scrollY']??null))
+                            ||!is_int($body['scrollY']??null)
+                            ||(isset($body['replaceTarget'])&&!is_bool($body['replaceTarget']))
+                            ||(isset($body['targetSectionId'])&&!is_string($body['targetSectionId']))
+                            ||(isset($body['targetNodeId'])&&!is_string($body['targetNodeId'])))
                             throw new InvalidArgumentException('Finding ID, version, note and scroll position required');
                         $this->auditDetail='Visual finding edited '.$body['findingId'];
                         $this->response(200,$this->sites->visualReviewEdit($review[1],$revision,
-                            $body['findingId'],$body['expectedVersion'],$body['note'],$body['scrollY']));
+                            $body['findingId'],$body['expectedVersion'],$body['note'],$body['scrollY'],
+                            $body['replaceTarget']??false,$body['targetSectionId']??null,
+                            $body['targetNodeId']??null));
                     }
                     throw new InvalidArgumentException('Unknown visual review action');
                 }

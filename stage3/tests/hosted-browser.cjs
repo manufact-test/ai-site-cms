@@ -214,6 +214,8 @@ async function execute(){
   await page.frameLocator('#server-launch-preview').locator('section[id]').first().click();
   const pointText=await page.locator('#server-launch-point-hint').innerText();
   assert.match(pointText,/Выбрана точка Y \d+ px/);
+  assert.match(pointText,/секция section-hero/,
+    'The actual PHP click records a stable authored section, not just a Y offset');
   const pickedReviewY=Number(pointText.match(/Y (\d+) px/)[1]);
   assert.equal(await page.locator('#server-launch-finding-markers .hosted-launch-finding-marker-picked').count(),1);
   await page.locator('#server-launch-finding-input').fill('Проверьте отступ в первом экране мобильной версии');
@@ -222,14 +224,22 @@ async function execute(){
   assert.equal(await page.locator('#server-launch-finding-markers .hosted-launch-finding-marker').count(),1,
     'An open finding is pinned to the actual PHP preview canvas');
   assert.match(await page.locator('#server-launch-finding-list').innerText(),new RegExp('Y '+pickedReviewY+' px'));
+  assert.match(await page.locator('#server-launch-finding-list').innerText(),/секция section-hero/);
+  await page.locator('#server-launch-pick-point').click();
+  await page.frameLocator('#server-launch-preview').locator('#section-highlights').click();
+  assert.match(await page.locator('#server-launch-point-hint').innerText(),/секция section-highlights/);
   await page.locator('#server-launch-finding-list .hosted-launch-finding')
     .getByRole('button',{name:'Изменить'}).click();
+  await page.locator('#server-launch-finding-list').getByRole('button',
+    {name:'Привязать выбранную точку'}).click();
   await page.locator('#server-launch-finding-list [aria-label="Исправленный текст замечания"]')
     .fill('Нужно уточнить мобильный отступ в самом первом экране');
   await page.locator('#server-launch-finding-list [aria-label="Вертикальная позиция замечания в пикселях"]')
     .fill('0');
   await page.locator('#server-launch-finding-list').getByRole('button',{name:'Сохранить замечание'}).click();
   await page.locator('#server-launch-finding-list').getByText(/Нужно уточнить мобильный отступ/).waitFor();
+  assert.match(await page.locator('#server-launch-finding-list').innerText(),/секция section-highlights/,
+    'Retargeting an open review finding preserves the new authored section');
   assert.match(await page.locator('#server-launch-finding-markers .hosted-launch-finding-marker').first()
     .getAttribute('aria-label'),/Нужно уточнить мобильный отступ/);
   const fixFinding=page.locator('#server-launch-finding-list .hosted-launch-finding')
@@ -238,7 +248,7 @@ async function execute(){
   await fixFinding.click();
   await page.locator('#cms-page-preview[open]').waitFor();
   assert.equal(await page.locator('#cms-page-preview-path').inputValue(),beforeVisualFix.pages[0].path);
-  assert.equal(await page.locator('#cms-work-section').inputValue(),beforeVisualFix.pages[0].sections[0].id);
+  assert.equal(await page.locator('#cms-work-section').inputValue(),beforeVisualFix.pages[0].sections[1].id);
   assert.equal(await page.locator('#cms-page-preview-frame').evaluate(el=>el.style.width),'390px');
   assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeVisualFix);
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();

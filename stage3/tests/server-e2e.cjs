@@ -2835,18 +2835,36 @@ async function stop(){
   // Save so an operator cannot bypass an issue by saving the same draft again.
   const visualSite=structuredClone(fixture);
   visualSite.siteId='site-visual-ci';
+  // This is a real authored node in a real first-party PHP Graph, not an
+  // arbitrary CSS selector supplied by the browser.
+  visualSite.pages[0].sections[0].designGraph=
+    require(path.join(root,'stage3/sdk/design-graph.cjs')).baseGraph('section-hero');
+  const anchoredSection=visualSite.pages[0].sections[0];
+  const anchoredNode=anchoredSection.designGraph.nodes[0].children[0].id;
   assert.equal((await request('POST','/api/sites',{site:visualSite})).status,201);
   const visualPath='/api/sites/site-visual-ci/visual-review';
   const startReview=await request('GET',visualPath+'?revision=1');
   assert.equal(startReview.status,200);
   assert.equal(startReview.body.available,true);
+  assert.equal(startReview.body.targetBindingsAvailable,true);
   assert.equal(startReview.body.openCount,0);
   const note1=await request('POST',visualPath,{action:'create',expectedRevision:1,
     pageId:visualSite.pages[0].id,path:'/',device:'mobile',
-    scrollY:420,note:'Главный заголовок перекрывает фото на телефоне'});
+    scrollY:420,note:'Главный заголовок перекрывает фото на телефоне',
+    targetSectionId:anchoredSection.id,targetNodeId:anchoredNode});
   assert.equal(note1.status,201,JSON.stringify(note1.body));
   assert.equal(note1.body.openCount,1);
   assert.equal(note1.body.findings[0].createdBy,'testowner');
+  assert.equal(note1.body.findings[0].targetSectionId,anchoredSection.id);
+  assert.equal(note1.body.findings[0].targetNodeId,anchoredNode);
+  assert.equal((await request('POST',visualPath,{action:'create',expectedRevision:1,
+    pageId:visualSite.pages[0].id,path:'/',device:'mobile',scrollY:10,
+    note:'Нельзя прикреплять чужой элемент',targetSectionId:anchoredSection.id,
+    targetNodeId:'wrong-outside-node'})).status,422);
+  assert.equal((await request('POST',visualPath,{action:'create',expectedRevision:1,
+    pageId:visualSite.pages[1].id,path:'/contact/',device:'mobile',scrollY:10,
+    note:'Нельзя прикреплять секцию чужой страницы',targetSectionId:anchoredSection.id,
+    targetNodeId:anchoredNode})).status,422);
   const firstFinding=note1.body.findings[0];
   assert.match(firstFinding.findingId,/^visual-[a-f0-9]{24}$/);
   const editedNote='Заголовок перекрывает фото именно на мобильном экране';
@@ -2857,6 +2875,7 @@ async function stop(){
   assert.equal(changedFinding.body.findings[0].scrollY,560);
   assert.equal(changedFinding.body.findings[0].version,2);
   assert.equal(changedFinding.body.findings[0].device,'mobile');
+  assert.equal(changedFinding.body.findings[0].targetNodeId,anchoredNode);
   assert.equal(changedFinding.body.openCount,1);
   assert.equal((await request('POST',visualPath,{action:'edit',expectedRevision:1,
     findingId:firstFinding.findingId,expectedVersion:1,note:'Устаревший текст',scrollY:99})).status,409,
@@ -2887,6 +2906,17 @@ async function stop(){
   assert.equal((await request('POST',visualPath,
     {action:'import',expectedRevision:1,findings:importRows})).body.added,0);
   assert.equal((await request('GET',visualPath+'?revision=1')).body.openCount,2);
+  const importFinding=importedReview.body.findings.find(f=>f.device==='desktop');
+  assert.equal((await request('POST',visualPath,{action:'edit',expectedRevision:1,
+    findingId:importFinding.findingId,expectedVersion:1,note:longLocalizedNote,scrollY:45,
+    replaceTarget:true,targetSectionId:anchoredSection.id,targetNodeId:anchoredNode})).status,422,
+    'Retargeting cannot move an imported finding to a foreign page');
+  const correctedTarget=await request('POST',visualPath,{action:'edit',expectedRevision:1,
+    findingId:importFinding.findingId,expectedVersion:1,note:longLocalizedNote,scrollY:45,
+    replaceTarget:true,targetSectionId:visualSite.pages[1].sections[0].id,targetNodeId:null});
+  assert.equal(correctedTarget.status,200,JSON.stringify(correctedTarget.body));
+  assert.equal(correctedTarget.body.findings.find(f=>f.device==='desktop').targetSectionId,
+    visualSite.pages[1].sections[0].id);
   const advancedVisual=await request('POST','/api/sites/site-visual-ci/save',
     {expectedRevision:1,site:visualSite});
   assert.equal(advancedVisual.status,200,JSON.stringify(advancedVisual.body));
@@ -2896,6 +2926,10 @@ async function stop(){
   const continued=await request('GET',visualPath+'?revision=2');
   assert.equal(continued.status,200);
   assert.equal(continued.body.openCount,2,'Open issues carried to next saved revision');
+  assert.equal(continued.body.findings.find(f=>f.device==='mobile').targetNodeId,anchoredNode,
+    'A stable authored target survives Save and can reopen exact Workbench focus');
+  assert.equal(continued.body.findings.find(f=>f.device==='desktop').targetSectionId,
+    visualSite.pages[1].sections[0].id,'A manually corrected target survives Save');
   assert.equal((await request('POST','/api/sites/site-visual-ci/publish',
     {expectedRevision:2})).status,409);
   for(const item of continued.body.findings){
@@ -2928,6 +2962,7 @@ async function stop(){
   assert.equal(visualArchive.payload.visualFindings.length,4);
   assert.equal(visualArchive.payload.visualFindings.filter(f=>!f.resolved).length,2);
   assert.equal(visualArchive.payload.visualFindings.filter(f=>f.resolved).length,2);
+  assert.equal(visualArchive.payload.visualFindings.filter(f=>f.targetNodeId===anchoredNode).length,2);
   const visualRestoreTarget='site-visual-copy-ci';
   const visualPayload={archive:visualArchive,targetSiteId:visualRestoreTarget};
   const forged=structuredClone(visualArchive);
@@ -2937,6 +2972,22 @@ async function stop(){
   assert.equal((await request('POST','/api/backups/plan',
     {archive:forged,targetSiteId:visualRestoreTarget})).status,422,
     'Recomputed checksum cannot bypass per-revision review source references');
+  const forgedTarget=structuredClone(visualArchive);
+  forgedTarget.payload.visualFindings[0].targetNodeId='foreign-node';
+  forgedTarget.sha256=require('node:crypto').createHash('sha256')
+    .update(JSON.stringify(forgedTarget.payload)).digest('hex');
+  assert.equal((await request('POST','/api/backups/plan',
+    {archive:forgedTarget,targetSiteId:visualRestoreTarget})).status,422,
+    'Backup checksum alone never authorizes a cross-Graph target');
+  const oldFindingRows=structuredClone(visualArchive);
+  for(const finding of oldFindingRows.payload.visualFindings){
+    delete finding.targetSectionId;delete finding.targetNodeId;
+  }
+  oldFindingRows.sha256=require('node:crypto').createHash('sha256')
+    .update(JSON.stringify(oldFindingRows.payload)).digest('hex');
+  assert.equal((await request('POST','/api/backups/plan',
+    {archive:oldFindingRows,targetSiteId:visualRestoreTarget})).status,200,
+    'Legacy visual findings without target fields remain restorable');
   const oldV2=structuredClone(visualArchive);
   delete oldV2.payload.visualFindings;
   oldV2.sha256=require('node:crypto').createHash('sha256')

@@ -2874,9 +2874,9 @@
     document.body.append(dialog);
     let selectedRow=comparisonRows[0],device='desktop',viewMode='draft',request=0;
     let pendingFindingJump=null;
-    let pickedY=null,pickingPoint=false;
+    let pickedY=null,pickedTarget=null,pickingPoint=false;
     const resetPoint=()=>{
-      pickedY=null;pickingPoint=false;
+      pickedY=null;pickedTarget=null;pickingPoint=false;
       pickPoint.textContent='Указать точку на странице';
       pointHint.textContent='По умолчанию позиция берётся с верхней границы текущей прокрутки.';
     };
@@ -2925,7 +2925,9 @@
               for(const note of data.findings.slice(0,200))
                 reviewHistoryDetails.append(element('p',null,
                   (note.resolved?'✓ Закрыто':'⚠ Открыто')+' · '+note.path+
-                  ' · '+note.device+' · Y '+note.scrollY+' px · '+note.note+
+                  ' · '+note.device+' · Y '+note.scrollY+' px'+
+                  (note.targetNodeId?' · элемент '+note.targetNodeId:
+                    note.targetSectionId?' · секция '+note.targetSectionId:'')+' · '+note.note+
                   ' · '+note.createdBy+' ('+note.createdAt+')'+
                   (note.resolved?' · '+note.resolvedBy+' ('+note.resolvedAt+')':'')));
             }).catch(error=>notice('История проверки недоступна: '+error.message,true));
@@ -2958,6 +2960,26 @@
       }
       return closest;
     };
+    // A deliberate click in the actual PHP preview binds the observation to
+    // its authored node, when one exists. Class names are emitted by the
+    // first-party renderer; only IDs present in this page's validated Graph
+    // are accepted. No selectors, HTML or scripts enter the saved journal.
+    const targetAtReviewElement=(el,page)=>{
+      if(!(el instanceof frame.contentWindow.Element)||!page)return null;
+      const sectionEl=el.closest('section[id]');
+      const section=page.sections.find(s=>s.id===sectionEl?.id);
+      if(!section)return null;
+      let nodeId=null;
+      const nodes=new Set();
+      const walk=entries=>{for(const node of entries||[]){nodes.add(node.id);walk(node.children);}};
+      walk(section.designGraph?.nodes);
+      for(let item=el;item&&item!==sectionEl;item=item.parentElement){
+        const candidate=[...item.classList].find(name=>
+          name.startsWith('cmsdg-n-')&&nodes.has(name.slice('cmsdg-n-'.length)));
+        if(candidate){nodeId=candidate.slice('cmsdg-n-'.length);break;}
+      }
+      return {targetSectionId:section.id,targetNodeId:nodeId};
+    };
     const unresolvedCount=()=>manualFindings.filter(f=>!f.resolved).length;
     const plainFixList=()=>[
       'AI Site CMS — замечания к визуальной проверке сайта',
@@ -2966,7 +2988,9 @@
       'Сравнение с реальным PHP-превью, не с HTML-макетом.',
       ...manualFindings.filter(f=>!f.resolved).map((f,i)=>
         (i+1)+'. Страница '+f.path+' | '+f.device+' ('+widths[f.device]+
-        ' px) | прокрутка Y '+f.scrollY+' px\n'+f.note),
+        ' px) | прокрутка Y '+f.scrollY+' px'+
+        (f.targetSectionId?' | секция '+f.targetSectionId:'')+
+        (f.targetNodeId?' | элемент '+f.targetNodeId:'')+'\n'+f.note),
       'Исправления вносить в типизированный Design Graph/контент черновика;',
       'оригинальные макеты не менять. После правок: Save → ручная проверка → Publish.',
       'Это замечания оператора, не подтверждение 1:1 и не разрешение на публикацию.'
@@ -3019,7 +3043,9 @@
         const row=element('div','hosted-launch-finding');
         row.append(element('span',null,
           (finding.resolved?'✓ Исправлено: ':'Не исправлено: ')+finding.note+
-          ' · Y '+finding.scrollY+' px'));
+          ' · Y '+finding.scrollY+' px'+
+          (finding.targetNodeId?' · элемент '+finding.targetNodeId:
+            finding.targetSectionId?' · секция '+finding.targetSectionId:'')));
         const seek=action('К месту','',()=>{
           // Stored position is in real unscaled PHP document CSS pixels.
           const scale=Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1])||1;
@@ -3039,6 +3065,17 @@
             yInput.type='number';yInput.min='0';yInput.max='60000';yInput.step='1';
             yInput.value=String(finding.scrollY);
             yInput.setAttribute('aria-label','Вертикальная позиция замечания в пикселях');
+            let replacement=null;
+            const usePoint=action('Привязать выбранную точку','',()=>{
+              if(pickedY===null){
+                notice('Сначала нажмите «Указать точку на странице» и выберите место в PHP-превью.',true);
+                return;
+              }
+              yInput.value=String(pickedY);
+              replacement=pickedTarget||{targetSectionId:null,targetNodeId:null};
+              usePoint.textContent='✓ Точка выбрана для этого замечания';
+            });
+            usePoint.disabled=!freshDraft()||remoteBusy;
             const apply=action('Сохранить замечание','',()=>{
               const note=noteInput.value.trim(),y=Number(yInput.value);
               if(!freshDraft()||remoteBusy||[...note].length<3||[...note].length>500
@@ -3048,32 +3085,41 @@
               if(storedReview.available){
                 remoteBusy=true;apply.disabled=true;findingAdd.disabled=true;
                 void api(reviewEndpoint,'POST',{action:'edit',expectedRevision:openedRevision,
-                  findingId:finding.findingId,expectedVersion:finding.version,note,scrollY:y})
+                  findingId:finding.findingId,expectedVersion:finding.version,note,scrollY:y,
+                  ...(replacement&&storedReview.targetBindingsAvailable?
+                    {replaceTarget:true,...replacement}:{})})
                   .then(result=>{
                     reviewed.get(finding.pageId)?.delete(finding.device);
-                    replaceRemote(result);
+                    replaceRemote(result);resetPoint();
                   })
                   .catch(error=>notice('Не удалось изменить замечание: '+error.message,true))
                   .finally(()=>{remoteBusy=false;if(dialog.open){drawFindings();updateReviewed();syncActions();}});
                 return;
               }
               finding.note=note;finding.scrollY=y;
+              if(replacement)Object.assign(finding,replacement);
               reviewed.get(finding.pageId)?.delete(finding.device);
-              drawFindings();updateReviewed();syncActions();
+              resetPoint();drawFindings();updateReviewed();syncActions();
             });
             const cancel=action('Отмена','',()=>{form.remove();edit.disabled=false;});
-            form.append(noteInput,yInput,apply,cancel);row.append(form);noteInput.focus();
+            form.append(noteInput,yInput,usePoint,apply,cancel);row.append(form);noteInput.focus();
           });
           edit.disabled=!freshDraft()||remoteBusy;
           row.append(edit);
           const fix=action('Исправить в редакторе','',()=>{
             if(!freshDraft()||remoteBusy)return;
-            const sectionId=sectionAtReviewY(selectedRow?.current,finding.scrollY);
+            const page=selectedRow?.current;
+            const pinned=page?.sections.find(s=>s.id===finding.targetSectionId);
+            const sectionId=pinned?.id||sectionAtReviewY(page,finding.scrollY);
             if(!sectionId){
               notice('Дождитесь загрузки PHP-страницы для точного перехода.',true);return;
             }
+            const nodeId=pinned&&finding.targetNodeId&&
+              (()=>{const ids=new Set();const walk=arr=>{for(const n of arr||[]){
+                ids.add(n.id);walk(n.children);}};walk(pinned.designGraph?.nodes);
+                return ids.has(finding.targetNodeId);})()?finding.targetNodeId:null;
             const target={pageId:finding.pageId,sectionId,device:finding.device,
-              scrollY:finding.scrollY};
+              scrollY:finding.scrollY,nodeId};
             dialog.close();
             if(!editor.focusVisualReview(target))
               notice('Не удалось открыть редактирование замечания.',true);
@@ -3127,6 +3173,8 @@
       const scale=Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1])||1;
       const finding={pageId:selectedRow.current.id,path:selectedRow.current.path,
         device,note,scrollY:pickedY??Math.min(60000,Math.round(viewport.scrollTop/scale)),resolved:false};
+      if(pickedTarget&&(!storedReview.available||storedReview.targetBindingsAvailable))
+        Object.assign(finding,pickedTarget);
       if(remoteBusy)return;
       if(storedReview.available){
         remoteBusy=true;findingAdd.disabled=true;
@@ -3282,6 +3330,15 @@
         const incoming=[];
         for(const item of report.visualFindings){
           const note=offline?item?.text:item?.note;
+          const targetSectionId=offline?null:(item?.targetSectionId??null);
+          const targetNodeId=offline?null:(item?.targetNodeId??null);
+          const pageForTarget=site.pages.find(p=>p.id===item?.pageId);
+          const sectionForTarget=pageForTarget?.sections.find(s=>s.id===targetSectionId);
+          const validGraphTarget=()=>{
+            if(targetNodeId===null)return true;
+            const visit=nodes=>(nodes||[]).some(n=>n.id===targetNodeId||visit(n.children));
+            return !!sectionForTarget&&visit(sectionForTarget.designGraph?.nodes);
+          };
           if(!item||!valid.has(item.pageId)||!Object.hasOwn(widths,item.device)
             ||typeof note!=='string'||[...note].length<3||[...note].length>500
             ||[...note].some(ch=>{
@@ -3289,10 +3346,12 @@
             })
             ||!Number.isInteger(item.scrollY)||item.scrollY<0||item.scrollY>60000
             ||typeof item.resolved!=='boolean'
+            ||(targetSectionId!==null&&(!/^[a-z][a-z0-9-]{2,79}$/.test(targetSectionId)||!sectionForTarget))
+            ||(targetNodeId!==null&&(!/^[a-z][a-z0-9-]{2,79}$/.test(targetNodeId)||!validGraphTarget()))
             ||site.pages.find(p=>p.id===item.pageId)?.path!==item.path)
             throw Error('Некорректное замечание или изменён адрес страницы');
           incoming.push({pageId:item.pageId,path:item.path,device:item.device,
-            note,scrollY:item.scrollY,
+            note,scrollY:item.scrollY,targetSectionId,targetNodeId,
             // Never import a remotely checked checkbox as CMS approval.
             resolved:!offline&&report.revision===openedRevision&&item.resolved});
         }
@@ -3304,8 +3363,8 @@
           try{
             const result=await api(reviewEndpoint,'POST',{
               action:'import',expectedRevision:openedRevision,
-              findings:incoming.filter(x=>!x.resolved).map(({pageId,path,device,scrollY,note})=>
-                ({pageId,path,device,scrollY,note}))
+              findings:incoming.filter(x=>!x.resolved).map(({pageId,path,device,scrollY,note,targetSectionId,targetNodeId})=>
+                ({pageId,path,device,scrollY,note,targetSectionId,targetNodeId}))
             });
             replaceRemote(result);
             for(const row of incoming)reviewed.get(row.pageId)?.delete(row.device);
@@ -3525,10 +3584,15 @@
         event.preventDefault();event.stopImmediatePropagation();
         pickedY=Math.max(0,Math.min(60000,Math.round(event.clientY+
           (doc.defaultView?.scrollY||0))));
+        pickedTarget=targetAtReviewElement(event.target,selectedRow.current);
         pickingPoint=false;
         pickPoint.textContent='Изменить выбранную точку';
         pointHint.textContent='Выбрана точка Y '+pickedY+
-          ' px. Введите описание и добавьте замечание.';
+          ' px'+(pickedTarget?.targetNodeId?' · элемент '+pickedTarget.targetNodeId:
+            pickedTarget?.targetSectionId?' · секция '+pickedTarget.targetSectionId:'')+
+          (storedReview.available&&!storedReview.targetBindingsAvailable?
+            ' · старая схема журнала: сохраняется только Y до разрешённого CLI-обновления':'')+
+          '. Введите описание и добавьте замечание.';
         drawFindings();findingInput.focus();
       },true);
       const ticket=request,row=selectedRow,mode=device;
