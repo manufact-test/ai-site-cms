@@ -1063,3 +1063,31 @@ html[data-stage3-mode="server"] .sidebar-bottom{display:none!important}
 html[data-stage3-mode="server"] .cms-design-advanced-actions{
   flex:1 0 100%;width:100%;min-width:0;
 }
+
+/* Site tools are a plain task list, not a dashboard of unrelated tiles. */
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-drawers{
+  grid-template-columns:minmax(0,1fr);
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-drawer[open]{
+  grid-column:auto;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-site-tools{
+  display:grid;gap:0;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-tool-category{
+  margin:0;border:0;border-bottom:1px solid #e5ebf2;border-radius:0;background:transparent;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-tool-category-summary{
+  padding:12px 14px;background:transparent;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-site-tool-actions{
+  display:grid;grid-template-columns:minmax(0,1fr);gap:3px;padding:4px 12px 12px;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-site-tool-link{
+  display:flex;width:100%;justify-content:flex-start;text-align:left;
+  min-height:36px;padding:8px 10px;border:0;border-radius:7px;
+  background:transparent;color:#31577e;box-shadow:none;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-site-tool-link:hover{
+  background:#edf4fc;
+}
