@@ -29,6 +29,8 @@
 
 The owner remembers early Studio screenshots as severely outdated/overcrowded. **Technical functionality is not an approved admin design**. Before final product handover, professionally audit and redesign **the existing Studio/Workbench UX/UI**, taking clarity and workflow ergonomics from Elementor/Tilda **without copying** them or creating a second editor. Focus on actual owner journeys (site/pages → sections/elements → context settings → 3 viewport previews → drafts/publish/history), reducing visible clutter, clear hierarchy, understandable feedback, modern consistent visuals and accessible interactions. Show real browser evidence, let Илья perform tasks, fix feedback, seek explicit **UI/UX owner GO**. Schedule as a substantive vertical during final functional closure/first pilot, **not** cosmetic micro-iterations.
 
+Practical owner acceptance checklist: [`stage3/docs/OWNER-STUDIO-UX-ACCEPTANCE.md`](../../stage3/docs/OWNER-STUDIO-UX-ACCEPTANCE.md).
+
 ### C. Reporting: short, numerical and honest
 
 - The owner does **not** want long technical narratives or reports after each micro-action. Brief milestone updates if needed; after one substantive development session give **4–6 lines**: **current stage + approximate technical %; what owner can now do; what remains until next milestone; critical blockers; exact SHA + both CI results**. Technical details stay in the repository and are supplied only when asked.
