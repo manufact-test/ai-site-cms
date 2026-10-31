@@ -218,7 +218,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#cms-seo-social-description').innerText(),'Описание для поисковых систем');
     await page.locator('#cms-setting-seo-og-description').fill('Описание для публикации');
     await page.locator('#cms-setting-seo-og-image').selectOption('');
-    assert.equal(await page.locator('#cms-setting-seo-schema-type option[value="FAQPage"]').isDisabled(),true,
+    assert.equal(await page.locator('#cms-setting-seo-schema-type option[value="FAQPage"]').evaluate(option=>option.disabled),true,
       'A page without actual visible FAQs cannot claim FAQPage structured data');
     await page.locator('#cms-setting-seo-schema-type').selectOption('WebPage');
     assert.match(await page.locator('#cms-seo-schema-status').innerText(),/WebPage:/);
