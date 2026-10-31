@@ -106,11 +106,20 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
         hitStack:document.elementsFromPoint(x,y).slice(0,6).map(describe),
         target:describe(button),sidebar:describe(sidebar),sidebarScrollTop:sidebar.scrollTop,
         sidebarScrollHeight:sidebar.scrollHeight,sidebarClientHeight:sidebar.clientHeight,
+        sidebarCanScroll:sidebar.scrollHeight>sidebar.clientHeight,
+        localToolsFlexShrink:getComputedStyle(tools).flexShrink,
+        localToolsContentFits:tools.scrollHeight<=tools.clientHeight+1,
         panelTop:describe(document.querySelector('.panel-top')),localTools:describe(tools),
         localToolsContent:describe(document.querySelector('#local-site-tools-content')),
         category:describe(button.closest('.local-tool-category'))};
     });
     console.log('[local-site-tool-pointer-geometry] '+JSON.stringify(seoHandoffGeometry));
+    assert.equal(seoHandoffGeometry.localToolsFlexShrink,'0',
+      'The expanded site tools group must retain its full height: '+JSON.stringify(seoHandoffGeometry));
+    assert.equal(seoHandoffGeometry.localToolsContentFits,true,
+      'The site tools group must not clip its expanded categories: '+JSON.stringify(seoHandoffGeometry));
+    assert.equal(seoHandoffGeometry.sidebarCanScroll,true,
+      'The sidebar must own scrolling for expanded site tools: '+JSON.stringify(seoHandoffGeometry));
     assert.equal(seoHandoffGeometry.hitIsTarget,true,
       'A real pointer at the site tool action must hit the button: '+JSON.stringify(seoHandoffGeometry));
     await seoHandoffButton.click();
