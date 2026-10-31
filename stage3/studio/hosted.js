@@ -3107,14 +3107,17 @@
             yInput.value=String(finding.scrollY);
             yInput.setAttribute('aria-label','Вертикальная позиция замечания в пикселях');
             let replacement=null;
-            const usePoint=action('Привязать выбранную точку','',()=>{
+            const canStoreTarget=!storedReview.available||storedReview.targetBindingsAvailable;
+            const usePoint=action(canStoreTarget?'Привязать выбранную точку':
+              'Перенести Y к выбранной точке (старая схема)','',()=>{
               if(pickedY===null){
                 notice('Сначала нажмите «Указать точку на странице» и выберите место в PHP-превью.',true);
                 return;
               }
               yInput.value=String(pickedY);
               replacement=pickedTarget||{targetSectionId:null,targetNodeId:null};
-              usePoint.textContent='✓ Точка выбрана для этого замечания';
+              usePoint.textContent=canStoreTarget?'✓ Точка и элемент выбраны':
+                '✓ Новая позиция Y (привязка недоступна до CLI-обновления)';
             });
             usePoint.disabled=!freshDraft()||remoteBusy;
             const apply=action('Сохранить замечание','',()=>{
