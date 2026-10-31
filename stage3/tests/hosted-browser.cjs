@@ -1520,6 +1520,69 @@ async function execute(){
   await page.locator('#server-site-select').selectOption(siteId);
   await page.locator('#server-open').click();
   await page.locator('#server-status').getByText(/Опубликовано: v/).waitFor();
+  // Owner prepares several client images with separate alt labels. All files
+  // stay local until confirmation; uploads use the same private per-file CAS.
+  const beforeBatch=await page.evaluate(()=>({
+    revision:Number(document.querySelector('#server-status').textContent.match(/Черновик #(\d+)/)[1]),
+    assets:window.Stage3Editor.getSite().assets.length
+  }));
+  await page.locator('#server-media-file').setInputFiles([
+    {name:'desktop_photo.png',mimeType:'image/png',buffer:png},
+    {name:'mobile_photo.png',mimeType:'image/png',buffer:png}
+  ]);
+  await page.locator('#server-media-batch-dialog[open]').waitFor();
+  assert.equal(await page.locator('#server-media-batch-rows .hosted-media-batch-row').count(),2);
+  assert.equal(await page.locator('#server-media-batch-alt-0').inputValue(),'desktop photo');
+  await page.locator('#server-media-batch-alt-0').fill('Цех на широком экране');
+  await page.locator('#server-media-batch-alt-1').fill(''); // Decorative mobile asset.
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).assets.length,beforeBatch.assets);
+  await page.locator('#server-media-batch-upload').click();
+  await page.locator('#server-media-batch-dialog').waitFor({state:'hidden'});
+  const afterBatch=await page.evaluate(()=>({
+    revision:Number(document.querySelector('#server-status').textContent.match(/Черновик #(\d+)/)[1]),
+    assets:window.Stage3Editor.getSite().assets
+  }));
+  assert.equal(afterBatch.revision,beforeBatch.revision+2);
+  assert.equal(afterBatch.assets.length,beforeBatch.assets+2);
+  assert.deepEqual(afterBatch.assets.slice(-2).map(a=>a.alt),['Цех на широком экране','']);
+  assert.equal((await visitor.goto(publicUrl)).status(),200,'Batch never publishes private images');
+
+  // One malformed file must be detected before any POST, including a valid
+  // earlier image in the same selection. The revision must stay untouched.
+  await page.locator('#server-media-file').setInputFiles([
+    {name:'valid.png',mimeType:'image/png',buffer:png},
+    {name:'bad.png',mimeType:'image/png',buffer:Buffer.from('not an image')}
+  ]);
+  await page.locator('#server-media-batch-dialog[open]').waitFor();
+  await page.locator('#server-media-batch-upload').click();
+  await page.locator('#server-media-batch-progress').getByText(/Загружено 0 из 2/).waitFor();
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).assets.length,afterBatch.assets.length);
+  assert.match(await page.locator('#server-status').innerText(),new RegExp('Черновик #'+afterBatch.revision+'\\b'));
+  await page.locator('#server-media-batch-close').click();
+  await page.locator('#server-media-batch-dialog').waitFor({state:'hidden'});
+
+  // If the API fails after one successful file, Studio reports a PARTIAL
+  // result, retains the committed revision and prevents a duplicate retry.
+  let batchRequests=0;
+  const mediaRoute='**/api/sites/'+siteId+'/media';
+  await page.route(mediaRoute,route=>{
+    batchRequests++;
+    if(batchRequests===2)return route.fulfill({status:409,contentType:'application/json',
+      body:JSON.stringify({error:'Stale draft; reload before uploading media'})});
+    return route.continue();
+  });
+  await page.locator('#server-media-file').setInputFiles([
+    {name:'first.png',mimeType:'image/png',buffer:png},
+    {name:'blocked.png',mimeType:'image/png',buffer:png}
+  ]);
+  await page.locator('#server-media-batch-upload').click();
+  await page.locator('#server-media-batch-progress').getByText(/Загружено 1 из 2/).waitFor();
+  assert.equal(await page.locator('#server-media-batch-upload').isDisabled(),true);
+  await page.locator('#server-media-batch-close').click();
+  await page.unroute(mediaRoute);
+  const afterPartial=(await page.evaluate(()=>window.Stage3Editor.getSite())).assets;
+  assert.equal(afterPartial.length,afterBatch.assets.length+1,'Exactly one committed private upload');
+  assert.equal(afterPartial.at(-1).alt,'first');
   await staffCtx.close();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();

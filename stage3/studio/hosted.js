@@ -457,10 +457,10 @@
   // Server-only media library: binary bytes never enter document JSON.
   const mediaPanel=element('div','hosted-media');
   const mediaTitle=element('strong',null,'Медиабиблиотека');
-  const mediaHint=element('small',null,'PNG/JPEG/WebP до 1 МБ · MP4 до 16 МиБ · WOFF2 до 1 МиБ · приватно до публикации');
+  const mediaHint=element('small',null,'Перетащите изображения сюда или выберите файлы · PNG/JPEG/WebP до 1 МБ · до 20 за пакет · MP4 до 16 МиБ · WOFF2 до 1 МиБ · приватно до публикации');
   const mediaInput=element('input');mediaInput.type='file';mediaInput.id='server-media-file';
-  mediaInput.accept='image/png,image/jpeg,image/webp';mediaInput.hidden=true;
-  const mediaUpload=action('+ Загрузить изображение','server-media-upload',()=>mediaInput.click());
+  mediaInput.accept='image/png,image/jpeg,image/webp';mediaInput.multiple=true;mediaInput.hidden=true;
+  const mediaUpload=action('+ Загрузить изображения','server-media-upload',()=>mediaInput.click());
   const mediaList=element('div','hosted-media-list');mediaList.id='server-media-list';
   const videoInput=element('input');videoInput.type='file';videoInput.id='server-video-file';
   videoInput.accept='video/mp4,.mp4';videoInput.hidden=true;
@@ -471,6 +471,34 @@
   mediaPanel.append(mediaTitle,mediaHint,mediaUpload,mediaInput,videoUpload,videoInput,
     fontUpload,fontInput,mediaList);
   toolbar.after(mediaPanel);
+  // A local-file review queue for the existing per-image CAS endpoint. No new
+  // media store or publishing path: each committed image is a private revision.
+  const mediaBatchDialog=element('dialog','hosted-backup-dialog hosted-media-batch-dialog');
+  mediaBatchDialog.id='server-media-batch-dialog';
+  const mediaBatchRows=element('div','hosted-media-entries');mediaBatchRows.id='server-media-batch-rows';
+  const mediaBatchProgress=element('p','hosted-media-batch-progress');
+  mediaBatchProgress.id='server-media-batch-progress';
+  mediaBatchProgress.setAttribute('role','status');mediaBatchProgress.setAttribute('aria-live','polite');
+  const mediaBatchSubmit=action('Загрузить проверенные изображения','server-media-batch-upload',
+    ()=>uploadMediaBatch());
+  const mediaBatchClose=action('Отмена','server-media-batch-close',()=>{
+    if(!mediaBatchBusy)mediaBatchDialog.close();
+  });
+  let mediaBatchFiles=[],mediaBatchUrls=[],mediaBatchBusy=false;
+  mediaBatchDialog.addEventListener('cancel',event=>{
+    if(mediaBatchBusy)event.preventDefault();
+  });
+  mediaBatchDialog.addEventListener('close',()=>{
+    mediaBatchFiles=[];mediaBatchRows.replaceChildren();mediaBatchProgress.textContent='';
+    for(const url of mediaBatchUrls)URL.revokeObjectURL(url);
+    mediaBatchUrls=[];
+  });
+  mediaBatchDialog.append(element('h2',null,'Пакетная загрузка изображений'),
+    element('p',null,'Проверьте каждый файл и описание для доступности и SEO. '+
+      'Содержательные фотографии требуют alt; для декоративных оставьте поле пустым. '+
+      'Изображения добавляются по одному в приватный черновик. Публикация отдельно.'),
+    mediaBatchRows,mediaBatchProgress,mediaBatchSubmit,mediaBatchClose);
+  document.body.append(mediaBatchDialog);
   // Auditable site-wide media maintenance. Immutable bytes and all published
   // snapshots survive; an operator previews and applies one bounded draft CAS.
   const mediaWorkOpen=action('Центр медиа: аудит и массовые правки','server-media-work-open',
@@ -1652,6 +1680,123 @@
     }
   }
 
+  const readImageBase64=file=>new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');
+    reader.onerror=()=>reject(Error('Не удалось прочитать «'+file.name+'»'));
+    reader.readAsDataURL(file);
+  });
+  function openMediaBatch(files){
+    if(state.busy)throw Error('Дождитесь завершения текущей операции');
+    if(!state.siteId||!canEdit()||editor.isDirty())
+      throw Error('Откройте доступный для редактирования сайт и сохраните черновик');
+    if(files.length<2||files.length>20)
+      throw Error('За один пакет выберите от 2 до 20 изображений');
+    if(editor.getSite().assets.length+files.length>300)
+      throw Error('В медиабиблиотеке сайта не может быть больше 300 файлов');
+    for(const file of files){
+      if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size<1||file.size>1000000)
+        throw Error('«'+file.name+'»: нужен PNG/JPEG/WebP размером до 1 МБ');
+    }
+    mediaBatchFiles=files;
+    mediaBatchRows.replaceChildren();
+    for(const [index,file] of files.entries()){
+      const row=element('div','hosted-media-batch-row');row.dataset.batchIndex=String(index);
+      const thumbnail=element('img');thumbnail.alt='';thumbnail.loading='lazy';
+      thumbnail.src=URL.createObjectURL(file);mediaBatchUrls.push(thumbnail.src);
+      const details=element('div','hosted-media-batch-details');
+      const info=element('strong',null,file.name+' · '+Math.ceil(file.size/1024)+' КиБ');
+      const label=element('label',null,'Alt — описание изображения');
+      const input=element('input','control');input.type='text';input.maxLength=200;
+      input.id='server-media-batch-alt-'+index;
+      input.value=file.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').slice(0,200);
+      label.htmlFor=input.id;
+      const dimensions=element('small');dimensions.dataset.role='dimensions';
+      const remove=action('Убрать файл из пакета','',()=>{
+        if(mediaBatchBusy)return;
+        const current=mediaBatchFiles.indexOf(file);
+        if(current<0)return;
+        URL.revokeObjectURL(mediaBatchUrls[current]);
+        mediaBatchUrls.splice(current,1);mediaBatchFiles.splice(current,1);row.remove();
+        for(const [position,item] of [...mediaBatchRows.children].entries()){
+          item.dataset.batchIndex=String(position);
+          const control=item.querySelector('input');control.id='server-media-batch-alt-'+position;
+          item.querySelector('label').htmlFor=control.id;
+        }
+        mediaBatchSubmit.disabled=!mediaBatchFiles.length;
+        mediaBatchSubmit.textContent='Загрузить '+mediaBatchFiles.length+' изображений';
+        mediaBatchProgress.textContent=mediaBatchFiles.length?
+          'Осталось файлов в пакете: '+mediaBatchFiles.length+'. Публикация отдельно.':
+          'В пакете нет файлов. Закройте окно и выберите новые изображения.';
+      });
+      remove.dataset.mediaBatchAction='remove';
+      details.append(info,dimensions,label,input,remove);
+      row.append(thumbnail,details);mediaBatchRows.append(row);
+    }
+    mediaBatchProgress.textContent='Выбрано '+files.length+' изображений. '+
+      'После проверки нажатие «Загрузить» изменит только приватный черновик.';
+    mediaBatchSubmit.textContent='Загрузить '+files.length+' изображений';
+    mediaBatchSubmit.disabled=false;mediaBatchClose.disabled=false;
+    mediaBatchDialog.showModal();
+  }
+  async function uploadMediaBatch(){
+    return safe(async()=>{
+      if(!mediaBatchDialog.open||mediaBatchBusy||!mediaBatchFiles.length)return;
+      if(!state.siteId||!canEdit()||editor.isDirty())
+        throw Error('Сначала сохраните изменения текущего черновика');
+      const siteId=state.siteId,files=mediaBatchFiles;
+      const alts=files.map((_,index)=>mediaBatchRows.querySelector(
+        '#server-media-batch-alt-'+index).value);
+      if(alts.some(alt=>alt.length>200||/[\x00-\x1f]/.test(alt)))
+        throw Error('Проверьте описания изображений: до 200 символов без управляющих знаков');
+      mediaBatchBusy=true;mediaBatchSubmit.disabled=true;mediaBatchClose.disabled=true;
+      let uploaded=0;
+      try{
+        // Decode every file BEFORE the first POST. A broken or oversized
+        // raster must never cause an avoidable half-completed batch.
+        for(let i=0;i<files.length;i++){
+          mediaBatchProgress.textContent='Проверка изображения '+(i+1)+' из '+files.length+'…';
+          let bitmap;
+          try{bitmap=await createImageBitmap(files[i]);}
+          catch(error){
+            mediaBatchRows.children[i].dataset.invalid='true';
+            throw Error('«'+files[i].name+'»: повреждённое или неподдерживаемое изображение');
+          }
+          const width=bitmap.width,height=bitmap.height;bitmap.close();
+          mediaBatchRows.children[i].querySelector('[data-role="dimensions"]').textContent=
+            width+' × '+height+' px';
+          if(width<1||height<1||width>4096||height>4096){
+            mediaBatchRows.children[i].dataset.invalid='true';
+            throw Error('Размеры «'+files[i].name+'» должны быть до 4096 × 4096 px');
+          }
+        }
+        for(let i=0;i<files.length;i++){
+          mediaBatchProgress.textContent='Загрузка '+(i+1)+' из '+files.length+': '+files[i].name;
+          const response=await api('/api/sites/'+encodeURIComponent(siteId)+'/media','POST',{
+            base64:await readImageBase64(files[i]),alt:alts[i],expectedRevision:state.revision
+          });
+          if(state.siteId!==siteId)throw Error('Открытый сайт изменился во время загрузки');
+          selectSite(response);uploaded++;
+          mediaBatchRows.children[i].dataset.uploaded='true';
+        }
+        await refreshSites();await loadHistory();
+        mediaBatchDialog.close();
+        notice('Загружено '+uploaded+' изображений в приватный черновик. '+
+          'Теперь можно привязать их к блокам и адаптивным вариантам; публикация отдельно.');
+      }catch(error){
+        if(uploaded){
+          await refreshSites().catch(()=>{});
+          await loadHistory().catch(()=>{});
+        }
+        const message='Загружено '+uploaded+' из '+files.length+'. '+error.message+
+          (uploaded?' Уже добавленные файлы сохранены; для оставшихся выберите новый пакет.':'');
+        mediaBatchProgress.textContent=message;
+        throw Error(message);
+      }finally{
+        mediaBatchBusy=false;mediaBatchClose.disabled=false;
+      }
+    });
+  }
   async function uploadMedia(file){
     return safe(async()=>{
       if(!state.siteId)throw Error('Сначала создайте сайт');
@@ -1660,21 +1805,35 @@
       const description=prompt('Описание изображения (alt)',file.name.replace(/\.[^.]+$/,''));
       if(description===null)return;
       if(description.length>200)throw Error('Описание не более 200 символов');
-      const base64=await new Promise((resolve,reject)=>{
-        const reader=new FileReader();
-        reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');
-        reader.onerror=()=>reject(Error('Не удалось прочитать изображение'));
-        reader.readAsDataURL(file);
-      });
+      const base64=await readImageBase64(file);
       const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/media','POST',
         {base64,alt:description,expectedRevision:state.revision});
       selectSite(response);await refreshSites();await loadHistory();
       notice('Изображение добавлено. Выберите его в поле блока «Изображение и описание».');
     });
   }
+  function receiveImages(files){
+    if(files.length===1)void uploadMedia(files[0]);
+    else if(files.length>1){
+      try{openMediaBatch(files);}catch(error){notice(error.message,true);}
+    }
+  }
   mediaInput.addEventListener('change',()=>{
-    const file=mediaInput.files?.[0];mediaInput.value='';
-    if(file)uploadMedia(file);
+    const files=Array.from(mediaInput.files||[]);mediaInput.value='';
+    receiveImages(files);
+  });
+  mediaPanel.addEventListener('dragover',event=>{
+    if(!event.dataTransfer||!Array.from(event.dataTransfer.types).includes('Files'))return;
+    event.preventDefault();event.dataTransfer.dropEffect='copy';
+    mediaPanel.classList.add('hosted-media-drop');
+  });
+  mediaPanel.addEventListener('dragleave',event=>{
+    if(!mediaPanel.contains(event.relatedTarget))mediaPanel.classList.remove('hosted-media-drop');
+  });
+  mediaPanel.addEventListener('drop',event=>{
+    mediaPanel.classList.remove('hosted-media-drop');
+    if(!event.dataTransfer?.files.length)return;
+    event.preventDefault();receiveImages(Array.from(event.dataTransfer.files));
   });
   fontInput.addEventListener('change',()=>{
     const file=fontInput.files?.[0];fontInput.value='';

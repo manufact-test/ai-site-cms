@@ -643,6 +643,31 @@ async function execute(){
   assert.equal(carouselState.visibleDesktop,2);
   assert.equal(carouselState.visibleMobile,1);
   assert.equal(carouselState.scrollControls,true);
+  // Image sources uploaded with an approved site are visually selectable for
+  // all three screen widths in the SAME full-page authored Graph Workbench.
+  await page.locator('#cms-work-graph-node').selectOption('approved-custom-photo');
+  assert.equal(await page.locator('#cms-work-graph-image-previews figure').count(),3);
+  await page.waitForFunction(()=>document.querySelector(
+    '#cms-work-graph-image-previews img')?.src.startsWith('data:image/png;base64,'));
+  await page.locator('#cms-page-preview [data-mode="mobile"]').click();
+  await page.locator('#cms-work-graph-image-library > summary').click();
+  await page.locator('#cms-work-graph-image-library input[type="search"]').fill('Мобильный знак');
+  assert.equal(await page.locator('#cms-work-graph-image-library [data-graph-device-asset-id]').count(),2,
+    'Visual search narrows to one image plus the inheritance control');
+  await page.locator('#cms-work-graph-image-library [data-graph-device-asset-id="'+
+    importedMobileLogo.id+'"]').click();
+  let customImage=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
+    .find(s=>s.id==='section-approved-custom').designGraph.nodes.find(n=>n.id==='approved-custom-photo');
+  assert.equal(customImage.responsiveMedia.mobileAssetId,importedMobileLogo.id);
+  assert.equal(await page.locator('#cms-work-graph-image-previews figure').nth(2)
+    .locator('figcaption').innerText(),'Телефон · свой файл');
+  await page.locator('#cms-work-graph-image-library > summary').click();
+  await page.locator('#cms-work-graph-image-library [data-graph-device-asset-id="'+
+    importedDesktopLogo.id+'"]').click();
+  customImage=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
+    .find(s=>s.id==='section-approved-custom').designGraph.nodes.find(n=>n.id==='approved-custom-photo');
+  assert.equal(customImage.responsiveMedia.mobileAssetId,importedDesktopLogo.id);
+  await page.locator('#cms-page-preview [data-mode="desktop"]').click();
   await page.locator('#cms-work-graph-node').selectOption('approved-custom-container');
   await page.locator('#cms-work-graph-background-video').selectOption(importedVideo.id);
   await page.locator('#cms-work-backgroundVideo-posterAssetId').selectOption(importedDesktopLogo.id);
@@ -1269,6 +1294,89 @@ async function execute(){
   assert.equal(await visitor.locator('.cms-footer-description').innerText(),
     'Контакты и поддержка из утверждённого дизайна',
     'Private footer changes must never silently alter the public release');
+
+  // A real imported individual site must accept a reviewed multi-file upload
+  // without creating a second editor or silently publishing these new bytes.
+  const batchStart=footerDraft.revision;
+  const assetCount=footerDraft.site.assets.length;
+  await page.locator('#server-media-file').setInputFiles([
+    {name:'desktop_banner.png',mimeType:'image/png',buffer:examplePng},
+    {name:'discard.png',mimeType:'image/png',buffer:examplePng},
+    {name:'mobile_banner.png',mimeType:'image/png',buffer:examplePng}
+  ]);
+  await page.locator('#server-media-batch-dialog[open]').waitFor();
+  assert.equal(await page.locator('#server-media-batch-rows img').count(),3);
+  await page.locator('[data-batch-index="1"] [data-media-batch-action="remove"]').click();
+  assert.equal(await page.locator('#server-media-batch-rows img').count(),2);
+  assert.equal(await page.locator('#server-media-batch-alt-0').inputValue(),'desktop banner');
+  await page.locator('#server-media-batch-alt-0').fill('Баннер для ПК');
+  await page.locator('#server-media-batch-alt-1').fill('');
+  assert.equal((await (await page.request.get(origin+
+    '/api/sites/site-approved-browser')).json()).revision,batchStart,
+  'Review cannot start uploading before confirmation');
+  await page.locator('#server-media-batch-upload').click();
+  await page.locator('#server-media-batch-dialog').waitFor({state:'hidden'});
+  const batchResult=await (await page.request.get(origin+
+    '/api/sites/site-approved-browser')).json();
+  assert.equal(batchResult.revision,batchStart+2,'Each upload uses current saved CAS revision');
+  assert.equal(batchResult.site.assets.length,assetCount+2);
+  assert.deepEqual(batchResult.site.assets.slice(-2).map(asset=>asset.alt),['Баннер для ПК','']);
+  assert.equal((await visitor.locator('.cms-footer-description').innerText()),
+    'Контакты и поддержка из утверждённого дизайна','Batch upload never publishes a draft');
+
+  // Preflight must reject a corrupt second image BEFORE sending the first one.
+  await page.locator('#server-media-file').setInputFiles([
+    {name:'safe.png',mimeType:'image/png',buffer:examplePng},
+    {name:'corrupt.png',mimeType:'image/png',buffer:Buffer.from('bad bytes')}
+  ]);
+  await page.locator('#server-media-batch-dialog[open]').waitFor();
+  await page.locator('#server-media-batch-upload').click();
+  await page.locator('#server-media-batch-progress').getByText(/Загружено 0 из 2/).waitFor();
+  assert.equal((await (await page.request.get(origin+
+    '/api/sites/site-approved-browser')).json()).revision,batchStart+2);
+  await page.locator('#server-media-batch-close').click();
+
+  // Dragging client files into the existing media panel opens the SAME
+  // review queue. Cancelling releases previews and leaves the site untouched.
+  await page.evaluate(base64=>{
+    const bytes=Uint8Array.from(atob(base64),char=>char.charCodeAt(0));
+    const transfer=new DataTransfer();
+    transfer.items.add(new File([bytes],'drag-desktop.png',{type:'image/png'}));
+    transfer.items.add(new File([bytes],'drag-mobile.png',{type:'image/png'}));
+    document.querySelector('.hosted-media').dispatchEvent(new DragEvent('drop',{
+      dataTransfer:transfer,bubbles:true,cancelable:true
+    }));
+  },examplePng.toString('base64'));
+  await page.locator('#server-media-batch-dialog[open]').waitFor();
+  const localPreview=await page.locator('#server-media-batch-rows img').first().getAttribute('src');
+  assert.match(localPreview,/^blob:/,'Preview uses local object URL, not public media bytes');
+  await page.locator('#server-media-batch-close').click();
+  assert.equal((await (await page.request.get(origin+
+    '/api/sites/site-approved-browser')).json()).revision,batchStart+2);
+
+  // A stale server revision mid-queue must not claim atomic success or retry
+  // already-saved media; only successful entries appear in the draft.
+  let requests=0;
+  const batchRoute='**/api/sites/site-approved-browser/media';
+  await page.route(batchRoute,route=>{
+    requests++;
+    if(requests===2)return route.fulfill({status:409,contentType:'application/json',
+      body:JSON.stringify({error:'Stale draft; reload before uploading media'})});
+    return route.continue();
+  });
+  await page.locator('#server-media-file').setInputFiles([
+    {name:'saved.png',mimeType:'image/png',buffer:examplePng},
+    {name:'conflict.png',mimeType:'image/png',buffer:examplePng}
+  ]);
+  await page.locator('#server-media-batch-upload').click();
+  await page.locator('#server-media-batch-progress').getByText(/Загружено 1 из 2/).waitFor();
+  assert.equal(await page.locator('#server-media-batch-upload').isDisabled(),true);
+  await page.locator('#server-media-batch-close').click();
+  await page.unroute(batchRoute);
+  const partialBatch=await (await page.request.get(origin+
+    '/api/sites/site-approved-browser')).json();
+  assert.equal(partialBatch.revision,batchStart+3);
+  assert.equal(partialBatch.site.assets.length,assetCount+3);
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
   assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,

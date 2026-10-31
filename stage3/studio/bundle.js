@@ -4873,8 +4873,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       if(typeof assetId!=='string'||!modal.open)return;
       const uri=window.Stage3Host?.previewUrl?.(assetId);
       if(typeof uri!=='string'||!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(uri))return;
-      for(const image of modal.querySelectorAll('img[data-work-backdrop-asset-id]'))
-        if(image.dataset.workBackdropAssetId===assetId)image.src=uri;
+      for(const image of modal.querySelectorAll('img[data-work-preview-asset-id]'))
+        if(image.dataset.workPreviewAssetId===assetId)image.src=uri;
     });
 
     // Selected page persists independently of main inspector focus.
@@ -5399,8 +5399,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             const btn=workButton(name,()=>{if(canWrite())editWork(f,{value:id});});
             btn.classList.add('cms-work-media-choice');btn.dataset.mediaId=id;
             btn.setAttribute('aria-pressed',selected?'true':'false');
-            if(src&&/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(src)){
-              const img=document.createElement('img');img.alt='';img.src=src;img.loading='lazy';btn.prepend(img);
+            if(id&&HOSTED){
+              const img=document.createElement('img');img.alt='';img.loading='lazy';
+              img.dataset.workPreviewAssetId=id;
+              if(src&&/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(src))img.src=src;
+              btn.prepend(img);
             }
             btn.disabled=!canWrite();grid.append(btn);
           };
@@ -6049,6 +6052,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             const image=document.createElement('img');image.alt='';
             image.loading='lazy';image.referrerPolicy='no-referrer';
             image.dataset.workBackdropAssetId=assetId;
+            image.dataset.workPreviewAssetId=assetId;
             const uri=window.Stage3Host?.previewUrl?.(assetId);
             if(typeof uri==='string'&&
               /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(uri))image.src=uri;
@@ -6274,26 +6278,35 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             summary.textContent='Медиабиблиотека · '+media.length+
               (current.type==='video'?' видео':' изображений');
             const mediaGrid=document.createElement('div');mediaGrid.className='cms-work-media-grid';
-            for(const asset of media){
-              const choice=workButton(asset.alt||asset.id,()=>{
-                editGraphWork(node=>{
-                  node.assetId=asset.id;
-                  if(!node.alt)node.alt=asset.alt||(current.type==='video'?'Видео':'Изображение');
+            const mediaSearch=document.createElement('input');mediaSearch.type='search';
+            mediaSearch.className='control';mediaSearch.placeholder='Найти изображение по alt или ID';
+            mediaSearch.setAttribute('aria-label','Поиск медиа для узла композиции');
+            const mediaCount=document.createElement('small');
+            const renderMediaChoices=()=>{
+              mediaGrid.replaceChildren();
+              const query=mediaSearch.value.toLocaleLowerCase().trim();
+              const matching=media.filter(a=>(a.id+' '+a.alt).toLocaleLowerCase().includes(query));
+              const visible=matching.slice(0,36);
+              const selected=media.find(a=>a.id===current.assetId);
+              if(selected&&!visible.some(a=>a.id===selected.id)&&!query)visible.unshift(selected);
+              for(const asset of visible){
+                const choice=workButton(asset.alt||asset.id,()=>{
+                  editGraphWork(node=>{
+                    node.assetId=asset.id;
+                    if(!node.alt)node.alt=asset.alt||(current.type==='video'?'Видео':'Изображение');
+                  });
                 });
-              });
-              choice.classList.add('cms-work-media-choice');
-              choice.dataset.graphMediaId=asset.id;
-              choice.setAttribute('aria-pressed',current.assetId===asset.id?'true':'false');
-              if(current.type==='image'&&HOSTED){
-                const url=window.Stage3Host?.previewUrl?.(asset.id);
-                if(url&&url.startsWith('/')){
-                  const thumb=document.createElement('img');
-                  thumb.alt='';thumb.src=url;thumb.loading='lazy';choice.prepend(thumb);
-                }
+                choice.classList.add('cms-work-media-choice');
+                choice.dataset.graphMediaId=asset.id;
+                choice.setAttribute('aria-pressed',current.assetId===asset.id?'true':'false');
+                if(current.type==='image'&&HOSTED)choice.prepend(workBackdropThumb(asset.id));
+                choice.disabled=!canWrite();mediaGrid.append(choice);
               }
-              choice.disabled=!canWrite();mediaGrid.append(choice);
-            }
-            mediaPicker.append(summary,mediaGrid);
+              mediaCount.textContent='Показано '+visible.length+' из '+matching.length+
+                '. Для остальных уточните поиск по названию или ID.';
+            };
+            mediaSearch.addEventListener('input',renderMediaChoices);renderMediaChoices();
+            mediaPicker.append(summary,mediaSearch,mediaGrid,mediaCount);
             if(HOSTED){
               const upload=workButton(
                 current.type==='video'?'+ Загрузить MP4':'+ Загрузить изображение',()=>{
@@ -6306,6 +6319,78 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
               mediaPicker.append(upload,tip);
             }
             panel.append(mediaPicker);
+            if(current.type==='image'&&HOSTED){
+              // Responsive source selection stays attached to the one authored
+              // image node. These are the exact IDs used by PHP <picture>, not
+              // copies of the image or a new standalone media editor.
+              const variants=current.responsiveMedia||{};
+              const effective=[current.assetId,
+                variants.tabletAssetId||current.assetId,
+                variants.mobileAssetId||variants.tabletAssetId||current.assetId];
+              const previews=document.createElement('div');
+              previews.className='cms-work-backdrop-previews';
+              previews.id='cms-work-graph-image-previews';
+              for(const [index,[label,own]] of [
+                ['ПК',true],['Планшет',!!variants.tabletAssetId],
+                ['Телефон',!!variants.mobileAssetId]
+              ].entries()){
+                const figure=document.createElement('figure');
+                figure.dataset.responsiveImage=index;
+                figure.append(workBackdropThumb(effective[index]));
+                const caption=document.createElement('figcaption');
+                caption.textContent=label+(own?' · свой файл':' · наследует');
+                figure.append(caption);previews.append(figure);
+              }
+              panel.append(previews);
+              const chooser=document.createElement('details');
+              chooser.id='cms-work-graph-image-library';chooser.className='cms-work-media';
+              const caption=document.createElement('summary');
+              caption.textContent='Выбрать по фотографии · '+
+                ({desktop:'ПК',tablet:'планшет',mobile:'телефон'}[mode]);
+              const choices=document.createElement('div');choices.className='cms-work-media-grid';
+              const search=document.createElement('input');search.type='search';
+              search.className='control';search.placeholder='Найти загруженное изображение';
+              search.setAttribute('aria-label','Поиск адаптивного изображения для '+mode);
+              const count=document.createElement('small');
+              const key=mode+'AssetId';
+              const selected=mode==='desktop'?current.assetId:variants[key]||'';
+              const renderDeviceChoices=()=>{
+                choices.replaceChildren();
+                if(mode!=='desktop'){
+                  const inherit=workButton('Наследовать предыдущий экран',()=>editGraphWork(node=>{
+                    if(node.responsiveMedia){
+                      delete node.responsiveMedia[key];
+                      if(!Object.keys(node.responsiveMedia).length)delete node.responsiveMedia;
+                    }
+                  }));
+                  inherit.classList.add('cms-work-media-choice');inherit.dataset.graphDeviceAssetId='';
+                  inherit.setAttribute('aria-pressed',selected===''?'true':'false');
+                  inherit.disabled=!canWrite();choices.append(inherit);
+                }
+                const query=search.value.toLocaleLowerCase().trim();
+                const matching=media.filter(a=>(a.id+' '+a.alt).toLocaleLowerCase().includes(query));
+                const visible=matching.slice(0,36);
+                const currentAsset=media.find(a=>a.id===selected);
+                if(currentAsset&&!visible.some(a=>a.id===selected)&&!query)visible.unshift(currentAsset);
+                for(const asset of visible){
+                  const choice=workButton(asset.alt||asset.id,()=>editGraphWork(node=>{
+                    if(mode==='desktop'){
+                      node.assetId=asset.id;
+                      if(!node.alt)node.alt=asset.alt||'Изображение';
+                    }else (node.responsiveMedia||(node.responsiveMedia={}))[key]=asset.id;
+                  }));
+                  choice.classList.add('cms-work-media-choice');
+                  choice.dataset.graphDeviceAssetId=asset.id;
+                  choice.setAttribute('aria-pressed',selected===asset.id?'true':'false');
+                  choice.prepend(workBackdropThumb(asset.id));
+                  choice.disabled=!canWrite();choices.append(choice);
+                }
+                count.textContent='Показано '+visible.length+' из '+matching.length+
+                  ' файлов · используйте поиск для остальных.';
+              };
+              search.addEventListener('input',renderDeviceChoices);renderDeviceChoices();
+              chooser.append(caption,search,choices,count);panel.append(chooser);
+            }
           }
           if(current.type==='heading'){
             property('Уровень H1–H6','level',String(current.level||2),

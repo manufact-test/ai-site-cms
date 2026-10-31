@@ -21,6 +21,7 @@
 .center[hidden],.inspector[hidden]{display:none!important}
 
 .hosted-media{display:grid;gap:8px;padding:12px 18px;border-bottom:1px solid rgba(128,150,160,.2)}
+.hosted-media.hosted-media-drop{outline:2px dashed #8ddfc2;outline-offset:-6px;background:#1e4340}
 .hosted-media>strong{font-size:13px}.hosted-media>small{font-size:11px;opacity:.8}
 .hosted-media-list{display:grid;gap:7px;max-height:240px;overflow-y:auto}
 .hosted-media-item{display:flex;align-items:center;gap:8px;min-width:0}
@@ -79,6 +80,19 @@
 .hosted-media-references summary{cursor:pointer;font-size:11px}
 .hosted-media-references small{display:block;overflow-wrap:anywhere}
 .hosted-media-item [data-media-action]:disabled{opacity:.5;cursor:not-allowed}
+.hosted-media-batch-dialog{width:min(720px,calc(100% - 32px))}
+.hosted-media-batch-dialog .hosted-media-entries{max-height:min(52vh,480px);overflow:auto}
+.hosted-media-batch-row{display:grid;grid-template-columns:88px minmax(0,1fr);gap:10px;padding:10px;border:1px solid #476270;border-radius:8px;overflow-wrap:anywhere}
+.hosted-media-batch-row img{width:88px;height:78px;object-fit:contain;background:#e3eded;border-radius:5px}
+.hosted-media-batch-details{display:grid;gap:5px;min-width:0}
+.hosted-media-batch-row strong{font-size:12px}.hosted-media-batch-row label{font-size:12px}
+.hosted-media-batch-row small{font-size:11px;opacity:.8}
+.hosted-media-batch-row .control{width:100%;box-sizing:border-box}
+.hosted-media-batch-row [data-media-batch-action=remove]{justify-self:start;font-size:11px;padding:5px 8px}
+.hosted-media-batch-row[data-uploaded=true]{border-color:#63b59c;background:#22463b}
+.hosted-media-batch-row[data-invalid=true]{border-color:#c77f71;background:#4c302d}
+.hosted-media-batch-progress{color:#9ee2c6;overflow-wrap:anywhere}
+.hosted-media-batch-dialog .btn:disabled{opacity:.55;cursor:not-allowed}
 
 /* Workbench crop/rotate/encoding is integrated only with the authenticated Studio. */
 .cms-media-processor{width:min(970px,calc(100vw - 28px));max-height:calc(100vh - 35px);overflow:auto;
