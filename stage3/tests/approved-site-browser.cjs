@@ -96,6 +96,10 @@ async function execute(){
   }finally{await keyboard.close();}
   const ctx=await browser.newContext({viewport:{width:1400,height:1000}});
   const page=await ctx.newPage(),errors=[];
+  const openGraphActions=async()=>{
+    const group=page.locator('#cms-design-structure-actions');
+    if(!(await group.evaluate(node=>node.open)))await group.locator(':scope > summary').click();
+  };
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin+'/studio');
   await page.locator('#server-login:not([hidden])').waitFor();
@@ -857,13 +861,13 @@ async function execute(){
   await page.locator('#section-design-graph').click();
   await page.locator('#cms-design-graph-dialog').waitFor();
   await page.locator('#cms-design-node-select').selectOption('approved-rich-table');
-  await page.locator('#cms-design-structure-actions>summary').click();
+  await openGraphActions();
   await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Строка',exact:true}).click();
   await page.locator('#cms-design-node-select').selectOption('approved-rich-table');
-  await page.locator('#cms-design-structure-actions>summary').click();
+  await openGraphActions();
   await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Столбец',exact:true}).click();
   await page.locator('#cms-design-node-select').selectOption('approved-rich-gallery');
-  await page.locator('#cms-design-structure-actions>summary').click();
+  await openGraphActions();
   await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Фото',exact:true}).click();
   await page.locator('#cms-design-node-select').selectOption('approved-rich-quote');
   await page.locator('#cms-design-graph-dialog label')
