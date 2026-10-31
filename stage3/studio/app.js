@@ -716,6 +716,161 @@
     tools.append(theme,seo);$('pages').before(tools);
   }
 
+  // Private operator Search/CMS packets are a navigation aid for the existing
+  // editor, not a second SEO editor, content-importer, approval or publisher.
+  // The chosen JSON stays in this tab and is never posted or persisted.
+  function initSeoHandoff(){
+    const dlg=document.createElement('dialog');dlg.id='cms-seo-handoff-dialog';
+    dlg.className='cms-settings-dialog';
+    Object.assign(dlg.style,{width:'min(1000px,96vw)',maxHeight:'90vh',overflow:'auto'});
+    const heading=document.createElement('h2');heading.textContent='SEO-пакеты · путь к полям CMS';
+    const help=document.createElement('p');help.textContent=
+      'Откройте приватный cms-search-work-packets.json из SEO Operator. Файл читается только в этой вкладке. '+
+      'Наблюдения Google и «принятые» задачи — заявления оператора, не подтверждение клиента. '+
+      'Проверяйте утверждённый Blueprint, текст, текущие переопределения и реальную страницу. '+
+      'Никаких автоматических изменений, сохранения или публикации.';
+    const label=document.createElement('label');label.textContent='Локальный JSON с ручными SEO-задачами';
+    const input=document.createElement('input');input.type='file';input.id='cms-seo-handoff-file';
+    input.accept='.json,application/json';input.className='control';label.append(input);
+    const status=document.createElement('p');status.id='cms-seo-handoff-status';
+    status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+    const results=document.createElement('div');results.id='cms-seo-handoff-results';
+    const close=button('Закрыть','btn',()=>dlg.close());
+    const actions=document.createElement('div');actions.className='cms-settings-actions';actions.append(close);
+    dlg.append(heading,help,label,status,results,actions);document.body.append(dlg);
+    let packet=null,loading=0;
+    const line=(parent,value,tag='p')=>{
+      const node=document.createElement(tag);node.textContent=String(value);parent.append(node);return node;
+    };
+    const unchanged=async()=>{
+      if(!packet)return false;
+      const revision=session.revision,site=cp(session.current),source=packet;
+      const hash=await SEO_HANDOFF.fingerprint(site,globalThis.crypto);
+      return revision===session.revision&&packet===source&&hash===source.currentSiteFingerprint;
+    };
+    const openPage=(id,section,element,seo=false)=>{
+      const page=session.current.pages.find(p=>p.id===id);
+      if(!page)return status.textContent='Целевая страница удалена — заново проверьте пакет.';
+      const target=page.sections.find(s=>s.id===section)||page.sections[0];
+      const selection=target.elements.find(e=>e.id===element)||target.items?.find(e=>e.id===element)||target.elements[0];
+      pageId=page.id;sectionId=target.id;elementId=selection.id;
+      dlg.close();draw();
+      if(seo)$('cms-open-seo')?.click();
+      else notice('Открыт исходный блок/элемент. Изменение выполняется обычным редактором; Save и Publish отдельно.');
+    };
+    const copyValue=async value=>{
+      if(!(await unchanged())){
+        status.textContent='Черновик отличается от версии SEO-пакета. Загрузите заново проверенный пакет.';return;
+      }
+      try{
+        if(!navigator.clipboard?.writeText)throw Error('Clipboard API unavailable');
+        await navigator.clipboard.writeText(value);
+        status.textContent='Значение скопировано. Сверьте с утверждённым Blueprint и вручную вставьте в поле CMS.';
+      }catch(_){
+        selectGraphTextForCopy(dlg,value);
+        status.textContent='Значение выделено для Ctrl+C. Автоматических изменений нет.';
+      }
+    };
+    const render=async()=>{
+      results.replaceChildren();if(!packet)return;
+      let review;
+      try{
+        const source=packet,site=cp(session.current),revision=session.revision;
+        const hash=await SEO_HANDOFF.fingerprint(site,globalThis.crypto);
+        if(source!==packet)return;
+        if(revision!==session.revision)throw Error('Черновик изменился при проверке');
+        review=SEO_HANDOFF.inspect(source,site,manifests,hash);
+      }catch(error){status.textContent='SEO-пакет не принят: '+error.message;packet=null;return;}
+      status.textContent=review.revisionMatches?
+        'Сверка SHA-256 текущего Site v1 совпала с источником пакета. Происхождение файла и согласование клиента НЕ подтверждены.':
+        'ВНИМАНИЕ: текущий черновик отличается от Site v1, по которому создан пакет. Копирование предложений отключено; нужна новая проверка.';
+      line(results,'Рабочих задач: '+review.active.length+' · заявлено завершённых (проверить): '+
+        review.completed.length+' · без разрешения: '+review.notSelectedCount+
+        ' · заблокировано в SEO Engine: '+review.blockedCount,'h3');
+      const group=(title,items)=>{
+        line(results,title,'h3');
+        if(!items.length){line(results,'Нет задач в этой группе.');return;}
+        for(const task of items){
+          const card=document.createElement('section');card.className='cms-seo-work-packet';
+          card.style.cssText='border:1px solid #c9d6e5;border-radius:12px;padding:16px;margin:12px 0';
+          const title=line(card,task.priority+' · '+task.path+' · '+task.actionId,'h4');
+          title.style.overflowWrap='anywhere';
+          line(card,'Статус оператора: '+task.status+(task.assignee?' · '+task.assignee:'')+
+            (task.completed?' · ТОЛЬКО ЗАЯВЛЕНО, проверка публикации обязательна':''));
+          line(card,'Наблюдение: '+task.observed);
+          line(card,'Проверить вручную: '+task.next);
+          if(!task.pageMatches){
+            line(card,'Страница или путь больше не совпадает с пакетом. Сначала актуализируйте Blueprint / Site v1.');
+            results.append(card);continue;
+          }
+          const nav=button('Открыть SEO и меню этой страницы','btn small',()=>openPage(task.pageId,null,null,true));
+          nav.className='btn small';card.append(nav);
+          const table=document.createElement('table');table.style.cssText='width:100%;margin-top:12px;table-layout:fixed';
+          const head=document.createElement('tr');
+          for(const label of ['Поле','Сейчас в CMS','Blueprint в пакете','Действие'])line(head,label,'th');
+          table.append(head);
+          for(const field of task.meta){
+            const row=document.createElement('tr');
+            for(const value of [field.property,field.current,field.approved]){
+              const cell=line(row,value||'—','td');cell.style.overflowWrap='anywhere';
+            }
+            const target=document.createElement('td');
+            if(!field.sourceMatches)line(target,'Данные поля изменены со времени источника.','small');
+            else if(!field.differs)line(target,'Совпадает','small');
+            else if(task.canCopy){
+              const copy=button('Копировать для ручной правки','btn small',()=>copyValue(field.approved));
+              target.append(copy);
+            }else line(target,'Требуется новый пакет','small');
+            row.append(target);table.append(row);
+          }
+          const overflow=document.createElement('div');overflow.style.overflowX='auto';overflow.append(table);card.append(overflow);
+          if(task.proposals.length){
+            line(card,'Адресные предложения по существующим полям компонентов','h5');
+            for(const proposal of task.proposals){
+              const row=document.createElement('div');row.style.cssText='border-top:1px solid #dce5ee;padding:9px 0';
+              line(row,proposal.locator.sectionId+' / '+proposal.locator.elementId+' / '+proposal.locator.property);
+              line(row,'Сейчас: '+proposal.source+' → Blueprint: '+proposal.approved);
+              if(proposal.valid){
+                row.append(button('К полю','btn small',()=>openPage(task.pageId,
+                  proposal.locator.sectionId,proposal.locator.elementId)));
+                if(proposal.changed&&task.canCopy)row.append(button('Копировать значение','btn small',()=>copyValue(proposal.approved)));
+              }else line(row,'Предложение устарело, неоднозначно или переопределено. Не применять.','small');
+              card.append(row);
+            }
+          }
+          if(task.sections.length){
+            line(card,'Блоки для сверки с реальной страницей','h5');
+            const sectionBar=document.createElement('div');sectionBar.style.cssText='display:flex;flex-wrap:wrap;gap:6px';
+            for(const section of task.sections){
+              if(section.valid)sectionBar.append(button(section.id+' · '+section.component,'btn small',()=>openPage(task.pageId,section.id)));
+              else line(sectionBar,'Блок '+section.id+' изменён — перепроверьте пакет.','small');
+            }
+            card.append(sectionBar);
+          }
+          results.append(card);
+        }
+      };
+      group('В работе · требуется решение редактора',review.active);
+      group('Заявлено завершённым · требуется независимая проверка',review.completed);
+    };
+    input.addEventListener('change',async()=>{
+      const file=input.files?.[0];if(!file)return;
+      packet=null;results.replaceChildren();status.textContent='Проверка локального JSON…';
+      const serial=++loading;
+      try{
+        const text=await readLocalGraphText(file,3000000,2000000);
+        const incoming=JSON.parse(text);
+        if(serial!==loading)return;
+        packet=incoming;await render();
+      }catch(error){packet=null;status.textContent='Не удалось открыть SEO-пакет: '+error.message;}
+      input.value='';
+    });
+    const trigger=button('SEO-пакеты','btn small',()=>{void render();dlg.showModal();});
+    trigger.id='cms-seo-handoff-open';
+    const tools=document.createElement('div');tools.className='structure-tools cms-site-settings';
+    tools.append(trigger);$('pages').before(tools);
+  }
+
 
   // Page-ID-based global footer. Internal paths are resolved at render time,
   // so a page rename changes every footer link without string rewrites.
@@ -6941,5 +7096,5 @@
     remapImportedMedia:(site,idMap,assets)=>C.remapImportedMedia(site,manifests,idMap,assets),
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initFooterEditor();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
+  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initSeoHandoff();initFooterEditor();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
 })();

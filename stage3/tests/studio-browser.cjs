@@ -20,6 +20,65 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#sections .nav-entry').count(),2);
     assert.equal(await page.locator('#fields [data-field]').count(),3,
       'Only declared heading fields appear; no generic CSS catalogue');
+    // Operator-produced private SEO handoff opens relevant REAL CMS fields.
+    // The browser verifies an exact source-site hash; the file itself never
+    // grants owner approval, changes a draft, or invokes Save/Publish.
+    const sourceSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const {fingerprint:sourceHash}=require('../seo-engine/lib/acceptance.cjs');
+    const seoPage=sourceSite.pages[0],seoSection=seoPage.sections[0],seoElement=seoSection.elements[0];
+    const handoff={
+      format:'manufact-seo-search-cms-handoff-v1',version:1,readOnly:true,
+      siteId:sourceSite.siteId,approvedBlueprintFingerprint:'a'.repeat(64),
+      currentSiteFingerprint:sourceHash(sourceSite),sourceHistorySha256:'b'.repeat(64),
+      summary:{activeWorkPackets:1,reportedCompleteNeedsVerification:0,notApprovedOrUnreviewed:0,blockedForCurrentSiteDrift:0},
+      active:[{
+        actionId:'observed-click-decline:'+seoPage.id,priority:'P1',pageId:seoPage.id,
+        approvedPath:seoPage.path,measuredObservation:'Synthetic GSC example only',
+        approvedManualNextStep:'Review actual search intent before choosing words',
+        ownerDecision:{status:'accepted',assignee:'Synthetic fixture'},
+        currentSiteRevisionFingerprint:sourceHash(sourceSite),sourceReportSha256:'b'.repeat(64),
+        automaticApplication:false,releaseAuthorized:false,
+        existingEditorTargets:{
+          metaFields:['title','description','robots','ogTitle','ogDescription'].map(key=>({
+            property:'seo.'+key,expectedCurrent:seoPage.seo?.[key]??(key==='robots'?'index':''),
+            approvedBlueprintValue:key==='title'?'Согласованный SEO title':
+              seoPage.seo?.[key]??(key==='robots'?'index':''),
+            isDifferent:key==='title'&&(seoPage.seo?.[key]||'')!=='Согласованный SEO title',
+            mayEditAutomatically:false
+          })),
+          approvedFieldProposals:[{
+            proposalId:'synthetic-heading',componentId:seoSection.component,
+            sectionManifestVersion:seoSection.manifestVersion,
+            locator:{pageId:seoPage.id,sectionId:seoSection.id,elementId:seoElement.id,property:'content.text'},
+            expectedBefore:seoElement.values['content.text'],approvedAfter:'Заголовок согласован отдельно',
+            automatic:false,manualOverrideCheckRequired:true
+          }],
+          sectionReview:[{sectionId:seoSection.id,component:seoSection.component}],blockedFieldMappings:[]
+        }
+      }],reportedComplete:[],notSelected:[],blocked:[]
+    };
+    const jsonFile=value=>({name:'cms-search-work-packets.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(value))});
+    await page.locator('#cms-seo-handoff-open').click();
+    await page.locator('#cms-seo-handoff-file').setInputFiles(jsonFile({...handoff,siteId:'wrong-project'}));
+    assert.match(await page.locator('#cms-seo-handoff-status').innerText(),/другого сайта/);
+    await page.locator('#cms-seo-handoff-file').setInputFiles(jsonFile(handoff));
+    await page.locator('#cms-seo-handoff-results h4').getByText(handoff.active[0].actionId,{exact:false}).waitFor();
+    assert.match(await page.locator('#cms-seo-handoff-status').innerText(),/совпала/);
+    assert.equal(await page.locator('#cms-seo-handoff-results button').filter({hasText:'Копировать'}).count(),2);
+    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),sourceSite,
+      'Import is strictly read-only; no owner Save or publication');
+    await page.locator('#cms-seo-handoff-results button').filter({hasText:'К полю'}).click();
+    assert.equal(await page.locator('#cms-seo-handoff-dialog').isVisible(),false);
+    assert.equal(await page.locator('#fields [data-field="content.text"]').inputValue(),seoElement.values['content.text']);
+    // A changed draft cannot silently reuse a previously matching packet.
+    const seoHeadline=page.locator('#fields [data-field="content.text"]');
+    await seoHeadline.fill('Новая версия для проверки устаревания');
+    await seoHeadline.dispatchEvent('change');
+    await page.locator('#cms-seo-handoff-open').click();
+    assert.match(await page.locator('#cms-seo-handoff-status').innerText(),/отличается/);
+    assert.equal(await page.locator('#cms-seo-handoff-results button').filter({hasText:'Копировать'}).count(),0);
+    await page.locator('#cms-seo-handoff-dialog .cms-settings-actions button').click();
+    await page.locator('#undo').click();
     // In-site page factory: build a whole page (not a new site), preserve
     // source until commit, validate real content/links and Undo atomically.
     await page.locator('#cms-blueprint-open').click();

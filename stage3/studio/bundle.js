@@ -3212,6 +3212,124 @@ module.exports=Object.freeze({FACTORY_FORMAT,SESSION_FORMAT,HANDOFF_FORMAT,AUDIT
   createSession,resumeSession,refreshSession,inspectSession,exportHandoff});
 
 return module.exports;})();
+const SEO_HANDOFF=(()=>{const module={exports:{}};
+'use strict';
+// A local, read-only bridge between operator-produced Search/CMS work packets
+// and the ONE existing Stage3 editor. These files are human assertions, not
+// authenticated approvals or executable patches.
+const FORMAT='manufact-seo-search-cms-handoff-v1';
+const HEX=/^[0-9a-f]{64}$/;
+const FIELDS={
+ 'seo.title':160,'seo.description':300,'seo.robots':7,
+ 'seo.ogTitle':160,'seo.ogDescription':300
+};
+function canonical(value){
+ if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';
+ if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(k=>
+  JSON.stringify(k)+':'+canonical(value[k])).join(',')+'}';
+ if(typeof value==='number'&&!Number.isFinite(value))throw Error('Invalid site fingerprint value');
+ return JSON.stringify(value);
+}
+async function fingerprint(site,webCrypto){
+ const subtle=webCrypto?.subtle;
+ if(!subtle)throw Error('Для сравнения ревизии нужен доступный Web Crypto SHA-256');
+ const digest=await subtle.digest('SHA-256',new TextEncoder().encode(canonical(site)));
+ return Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');
+}
+const str=(v,max=1000)=>typeof v==='string'&&v.length<=max&&!/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(v);
+const record=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
+function inspect(report,site,manifests,actualHash){
+ if(!record(report)||report.format!==FORMAT||report.version!==1||report.readOnly!==true||
+  !str(report.siteId,150)||!HEX.test(report.currentSiteFingerprint||'')||
+  !HEX.test(report.approvedBlueprintFingerprint||'')||!HEX.test(report.sourceHistorySha256||'')||
+  !Array.isArray(report.active)||!Array.isArray(report.reportedComplete)||
+  !Array.isArray(report.notSelected)||!Array.isArray(report.blocked)||
+  report.active.length+report.reportedComplete.length>250||
+  report.notSelected.length+report.blocked.length>500||
+  !record(report.summary))throw Error('Неверный формат или размер SEO-пакета');
+ if(report.siteId!==site.siteId)throw Error('Пакет предназначен для другого сайта');
+ const names=['activeWorkPackets','reportedCompleteNeedsVerification','notApprovedOrUnreviewed','blockedForCurrentSiteDrift'];
+ const lengths=[report.active.length,report.reportedComplete.length,report.notSelected.length,report.blocked.length];
+ if(names.some((name,i)=>report.summary[name]!==lengths[i]))throw Error('Счётчики SEO-пакета противоречат содержимому');
+ const manifestsById=new Map(manifests.map(m=>[m.id,m]));
+ const pages=new Map(site.pages.map(p=>[p.id,p]));
+ const seen=new Set(),revisionMatches=actualHash===report.currentSiteFingerprint;
+ function action(item,completed){
+  if(!record(item)||!str(item.actionId,240)||!item.actionId||seen.has(item.actionId)||
+   !['P0','P1','P2','P3'].includes(item.priority)||
+   !str(item.pageId,150)||!str(item.approvedPath,300)||
+   !str(item.measuredObservation,1200)||!str(item.approvedManualNextStep,1200)||
+   !record(item.ownerDecision)||!['accepted','in-progress','completed-reported'].includes(item.ownerDecision.status)||
+   (completed!==(item.ownerDecision.status==='completed-reported'))||
+   !record(item.existingEditorTargets)||!Array.isArray(item.existingEditorTargets.metaFields)||
+   !Array.isArray(item.existingEditorTargets.approvedFieldProposals)||
+   !Array.isArray(item.existingEditorTargets.blockedFieldMappings)||
+   !Array.isArray(item.existingEditorTargets.sectionReview)||
+   item.existingEditorTargets.approvedFieldProposals.length>120||
+   item.existingEditorTargets.blockedFieldMappings.length>120||
+   item.existingEditorTargets.sectionReview.length>120||
+   item.currentSiteRevisionFingerprint!==report.currentSiteFingerprint||
+   item.sourceReportSha256!==report.sourceHistorySha256||
+   item.automaticApplication!==false||item.releaseAuthorized!==false)
+   throw Error('Некорректный или повторный SEO action');
+  seen.add(item.actionId);
+  const page=pages.get(item.pageId),pageMatches=!!page&&page.path===item.approvedPath;
+  const fields=item.existingEditorTargets.metaFields,keys=new Set();
+  if(fields.length!==Object.keys(FIELDS).length)throw Error('Неполная карта SEO-полей');
+  const meta=fields.map(field=>{
+   if(!record(field)||!Object.hasOwn(FIELDS,field.property)||keys.has(field.property)||
+    !str(field.expectedCurrent,FIELDS[field.property])||!str(field.approvedBlueprintValue,FIELDS[field.property])||
+    field.mayEditAutomatically!==false||typeof field.isDifferent!=='boolean'||
+    field.isDifferent!==(field.expectedCurrent!==field.approvedBlueprintValue)||
+    (field.property==='seo.robots'&&(!['index','noindex'].includes(field.expectedCurrent)||
+      !['index','noindex'].includes(field.approvedBlueprintValue))))
+    throw Error('Недостоверная карта полей SEO');
+   keys.add(field.property);
+   const name=field.property.slice(4),current=page?.seo?.[name]??(name==='robots'?'index':'');
+   return {property:field.property,current,source:field.expectedCurrent,
+    approved:field.approvedBlueprintValue,sourceMatches:pageMatches&&current===field.expectedCurrent,
+    differs:current!==field.approvedBlueprintValue};
+  });
+  const proposals=item.existingEditorTargets.approvedFieldProposals.map(p=>{
+   if(!record(p)||!record(p.locator)||!str(p.proposalId,500)||
+    !str(p.expectedBefore,500)||!str(p.approvedAfter,500)||
+    p.automatic!==false||p.manualOverrideCheckRequired!==true||
+    !str(p.componentId,100)||!str(p.sectionManifestVersion,50))
+    throw Error('Некорректный адрес предложения');
+   const loc=p.locator;
+   if(loc.pageId!==item.pageId||!str(loc.sectionId,150)||!str(loc.elementId,150)||
+    !['content.text','behavior.href'].includes(loc.property))throw Error('Чужой адрес поля');
+   const sec=page?.sections.find(x=>x.id===loc.sectionId);
+   const el=sec?.elements.find(x=>x.id===loc.elementId)||sec?.items?.find(x=>x.id===loc.elementId);
+   const manifest=manifestsById.get(sec?.component);
+   const declared=manifest?.elements?.find(x=>x.slot===el?.slot)?.fields?.find(f=>f.path===loc.property);
+   const valid=pageMatches&&revisionMatches&&!!sec&&!sec.designGraph&&!!el&&
+    sec.component===p.componentId&&sec.manifestVersion===p.sectionManifestVersion&&
+    !!declared&&(loc.property==='content.text'?declared.type==='text':declared.type==='url')&&
+    el.values?.[loc.property]===p.expectedBefore;
+   return {locator:loc,source:p.expectedBefore,approved:p.approvedAfter,valid,
+    changed:el?.values?.[loc.property]!==p.approvedAfter};
+  });
+  const sections=item.existingEditorTargets.sectionReview.map(s=>{
+   if(!record(s)||!str(s.sectionId,150)||!str(s.component,100))throw Error('Некорректный раздел в SEO-пакете');
+   const current=page?.sections.find(x=>x.id===s.sectionId);
+   return {id:s.sectionId,component:s.component,
+    valid:pageMatches&&!!current&&current.component===s.component};
+  });
+  return {actionId:item.actionId,priority:item.priority,pageId:item.pageId,
+   path:item.approvedPath,observed:item.measuredObservation,next:item.approvedManualNextStep,
+   status:item.ownerDecision.status,assignee:str(item.ownerDecision.assignee,180)?item.ownerDecision.assignee:'',
+   completed,pageMatches,meta,proposals,sections,
+   canCopy:revisionMatches&&pageMatches};
+ }
+ const active=report.active.map(x=>action(x,false));
+ const completed=report.reportedComplete.map(x=>action(x,true));
+ return {revisionMatches,siteId:report.siteId,active,completed,
+  notSelectedCount:report.notSelected.length,blockedCount:report.blocked.length};
+}
+module.exports=Object.freeze({FORMAT,canonical,fingerprint,inspect});
+
+return module.exports;})();
 const MANIFESTS=[{"format":"manufact-ai-component-v1","id":"company-hero","version":"1.0.0","label":"Первый экран компании","elements":[{"slot":"heading","label":"Главный заголовок","fields":[{"path":"content.text","label":"Текст заголовка","type":"text","default":"Оборудование для вашего производства","responsive":false,"maxLength":180},{"path":"style.fontSize","label":"Размер заголовка","type":"length","default":{"desktop":"64px","tablet":"48px","mobile":"32px"},"responsive":true,"min":10,"max":120,"units":["px","rem"]},{"path":"style.color","label":"Цвет заголовка","type":"color","default":"#172A43","responsive":false}]},{"slot":"summary","label":"Описание","fields":[{"path":"content.text","label":"Текст описания","type":"text","default":"Расскажите о вашем предложении без вымышленных фактов.","responsive":false,"maxLength":420}]},{"slot":"action","label":"Основная кнопка","fields":[{"path":"content.text","label":"Подпись кнопки","type":"text","default":"Связаться","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес перехода","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"feature-highlights","version":"1.0.0","label":"Преимущества","elements":[{"slot":"heading","label":"Заголовок преимуществ","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Чем мы занимаемся","responsive":false,"maxLength":180}]},{"slot":"first","label":"Первая карточка","fields":[{"path":"content.text","label":"Описание преимущества","type":"text","default":"Заполните подтверждённые преимущества компании","responsive":false,"maxLength":280},{"path":"style.color","label":"Цвет текста","type":"color","default":"#172A43","responsive":false}]},{"slot":"second","label":"Вторая карточка","fields":[{"path":"content.text","label":"Описание второй карточки","type":"text","default":"Уточните факты у заказчика","responsive":false,"maxLength":280}]}]},{"format":"manufact-ai-component-v1","id":"contact-panel","version":"1.0.0","label":"Контакты","elements":[{"slot":"heading","label":"Заголовок контактов","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Свяжитесь с нами","responsive":false,"maxLength":180}]},{"slot":"action","label":"Контактная кнопка","fields":[{"path":"content.text","label":"Подпись","type":"text","default":"Оставить заявку","responsive":false,"maxLength":120},{"path":"behavior.href","label":"Ссылка","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"image-showcase","version":"1.0.0","label":"Изображение и описание","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок секции","type":"text","default":"Наше производство","responsive":false,"maxLength":160}]},{"slot":"photo","label":"Фотография","fields":[{"path":"content.media","label":"Изображение из медиабиблиотеки","type":"media","default":"","responsive":false}]},{"slot":"caption","label":"Подпись","fields":[{"path":"content.text","label":"Подпись фотографии","type":"text","default":"Добавьте фотографию вашего производства","responsive":false,"maxLength":400}]}]},{"format":"manufact-ai-component-v1","id":"lead-form","version":"1.0.0","label":"Форма заявки","elements":[{"slot":"heading","label":"Заголовок формы","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Оставьте заявку","responsive":false,"maxLength":160}]},{"slot":"name-label","label":"Имя","fields":[{"path":"content.text","label":"Подпись поля имени","type":"text","default":"Ваше имя","responsive":false,"maxLength":90}]},{"slot":"email-label","label":"Email","fields":[{"path":"content.text","label":"Подпись email","type":"text","default":"Электронная почта","responsive":false,"maxLength":90}]},{"slot":"message-label","label":"Сообщение","fields":[{"path":"content.text","label":"Подпись сообщения","type":"text","default":"Ваш вопрос","responsive":false,"maxLength":90}]},{"slot":"consent-label","label":"Согласие","fields":[{"path":"content.text","label":"Текст согласия","type":"text","default":"Согласен на обработку данных для ответа на обращение","responsive":false,"maxLength":250}]},{"slot":"submit-label","label":"Кнопка отправки","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Отправить заявку","responsive":false,"maxLength":90}]}]},{"format":"manufact-ai-component-v1","id":"lead-form-flex","version":"1.0.0","label":"Форма заявки · конструктор","elements":[{"slot":"heading","label":"Заголовок формы","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Оставьте заявку","responsive":false,"maxLength":160}]},{"slot":"name-label","label":"Имя","fields":[{"path":"content.text","label":"Подпись поля имени","type":"text","default":"Ваше имя","responsive":false,"maxLength":90}]},{"slot":"email-label","label":"Email","fields":[{"path":"content.text","label":"Подпись email","type":"text","default":"Электронная почта","responsive":false,"maxLength":90}]},{"slot":"message-label","label":"Сообщение","fields":[{"path":"content.text","label":"Подпись сообщения","type":"text","default":"Ваш вопрос","responsive":false,"maxLength":90}]},{"slot":"consent-label","label":"Согласие","fields":[{"path":"content.text","label":"Текст согласия","type":"text","default":"Согласен на обработку данных для ответа на обращение","responsive":false,"maxLength":250}]},{"slot":"submit-label","label":"Кнопка отправки","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Отправить заявку","responsive":false,"maxLength":90}]},{"slot":"extra-one","label":"Дополнительное поле 1","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 1","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]},{"slot":"extra-two","label":"Дополнительное поле 2","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 2","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]},{"slot":"extra-three","label":"Дополнительное поле 3","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 3","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]}]},{"format":"manufact-ai-component-v1","id":"service-grid","version":"1.0.0","label":"Услуги · повторяемые карточки","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Услуги · повторяемые карточки","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":16,"fields":[{"path":"content.title","label":"Название услуги","type":"text","default":"Название услуги","responsive":false,"maxLength":150},{"path":"content.text","label":"Описание услуги","type":"text","default":"Добавьте подтверждённое описание услуги.","responsive":false,"maxLength":600},{"path":"behavior.href","label":"Ссылка","type":"url","default":"/contact/","responsive":false}]}},{"format":"manufact-ai-component-v1","id":"faq-accordion","version":"1.0.0","label":"FAQ · раскрывающиеся вопросы","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"FAQ · раскрывающиеся вопросы","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":24,"fields":[{"path":"content.question","label":"Вопрос","type":"text","default":"Укажите вопрос","responsive":false,"maxLength":220},{"path":"content.answer","label":"Ответ","type":"text","default":"Добавьте проверенный ответ.","responsive":false,"maxLength":1200}]}},{"format":"manufact-ai-component-v1","id":"testimonials","version":"1.0.0","label":"Отзывы · повторяемые карточки","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Отзывы · повторяемые карточки","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":16,"fields":[{"path":"content.quote","label":"Текст отзыва","type":"text","default":"Добавьте реальный отзыв с согласия автора.","responsive":false,"maxLength":900},{"path":"content.author","label":"Автор","type":"text","default":"Имя автора","responsive":false,"maxLength":130},{"path":"content.role","label":"Описание автора","type":"text","default":"","responsive":false,"maxLength":180}]}},{"format":"manufact-ai-component-v1","id":"photo-gallery","version":"1.0.0","label":"Галерея · повторяемые фотографии","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Галерея · повторяемые фотографии","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":20,"fields":[{"path":"content.media","label":"Фотография","type":"media","default":"","responsive":false},{"path":"content.caption","label":"Подпись","type":"text","default":"","responsive":false,"maxLength":240}]}},{"format":"manufact-ai-component-v1","id":"media-story","version":"1.0.0","label":"Фото и текст · две колонки","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок секции","type":"text","default":"История нашей компании","responsive":false,"maxLength":160}]},{"slot":"copy","label":"Описание","fields":[{"path":"content.text","label":"Текст рядом с фотографией","type":"text","default":"Расскажите о проекте, команде или продукте.","responsive":false,"maxLength":900}]},{"slot":"photo","label":"Основная фотография","fields":[{"path":"content.media","label":"Фотография из медиабиблиотеки","type":"media","default":"","responsive":false}]},{"slot":"action","label":"Кнопка","fields":[{"path":"content.text","label":"Подпись кнопки","type":"text","default":"Подробнее","responsive":false,"maxLength":110},{"path":"behavior.href","label":"Адрес перехода","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"partner-logos","version":"1.0.0","label":"Логотипы партнёров · повторяемые","elements":[{"slot":"heading","label":"Заголовок логотипов","fields":[{"path":"content.text","label":"Название секции","type":"text","default":"Нам доверяют","responsive":false,"maxLength":160}]}],"repeat":{"label":"Логотип партнёра","min":2,"max":20,"fields":[{"path":"content.media","label":"Логотип","type":"media","default":"","responsive":false},{"path":"content.caption","label":"Название партнёра","type":"text","default":"Название партнёра","responsive":false,"maxLength":130},{"path":"behavior.href","label":"Ссылка партнёра","type":"url","default":"/","responsive":false}]}},{"format":"manufact-ai-component-v1","id":"cta-banner","version":"1.0.0","label":"CTA · призыв к действию","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок CTA","type":"text","default":"Готовы обсудить проект?","responsive":false,"maxLength":180}]},{"slot":"summary","label":"Описание","fields":[{"path":"content.text","label":"Пояснение","type":"text","default":"Расскажите о задаче — подберём решение и ответим на вопросы.","responsive":false,"maxLength":500}]},{"slot":"primary","label":"Основная кнопка","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Связаться с нами","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес кнопки","type":"url","default":"/","responsive":false}]},{"slot":"secondary","label":"Дополнительная кнопка","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Наши услуги","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес кнопки","type":"url","default":"/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"pricing-plans","version":"1.0.0","label":"Тарифы · планы с услугами","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Варианты сотрудничества","responsive":false,"maxLength":180}]},{"slot":"intro","label":"Описание","fields":[{"path":"content.text","label":"Пояснение к тарифам","type":"text","default":"Укажите подтверждённые условия каждой услуги.","responsive":false,"maxLength":500}]},{"slot":"footnote","label":"Примечание","fields":[{"path":"content.text","label":"Условия и оговорки","type":"text","default":"Цены и состав услуг укажите самостоятельно.","responsive":false,"maxLength":500}]}],"repeat":{"label":"Тариф или пакет","min":2,"max":6,"fields":[{"path":"content.title","label":"Название пакета","type":"text","default":"Название пакета","responsive":false,"maxLength":100},{"path":"content.price","label":"Подтверждённая цена или «по запросу»","type":"text","default":"По запросу","responsive":false,"maxLength":90},{"path":"content.period","label":"Период оплаты","type":"text","default":"Условия уточняются","responsive":false,"maxLength":100},{"path":"content.description","label":"Описание","type":"text","default":"Опишите, кому подходит этот пакет.","responsive":false,"maxLength":360},{"path":"content.features","label":"Что входит (каждый пункт с новой строки)","type":"text","default":"Укажите реальную услугу\nУточните объём работ","responsive":false,"maxLength":1200},{"path":"content.button","label":"Текст кнопки","type":"text","default":"Обсудить условия","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес кнопки","type":"url","default":"/contact/","responsive":false},{"path":"behavior.featured","label":"Выделить пакет","type":"boolean","default":false,"responsive":false}]}},{"format":"manufact-ai-component-v1","id":"process-timeline","version":"1.0.0","label":"Этапы работы · дорожная карта","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Как проходит работа","responsive":false,"maxLength":180}]},{"slot":"description","label":"Введение","fields":[{"path":"content.text","label":"Пояснение","type":"text","default":"Ниже приведён описанный вами порядок работы.","responsive":false,"maxLength":400}]}],"repeat":{"label":"Этап процесса","min":2,"max":12,"fields":[{"path":"content.title","label":"Название этапа","type":"text","default":"Название этапа","responsive":false,"maxLength":130},{"path":"content.description","label":"Действие и результат","type":"text","default":"Опишите реальное содержание этапа.","responsive":false,"maxLength":500},{"path":"content.detail","label":"Дополнительная подсказка","type":"text","default":"","responsive":false,"maxLength":200}]}},{"format":"manufact-ai-component-v1","id":"comparison-matrix","version":"1.0.0","label":"Сравнение · два варианта","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Название таблицы","type":"text","default":"Сравнение вариантов","responsive":false,"maxLength":180}]},{"slot":"first","label":"Первый вариант","fields":[{"path":"content.text","label":"Название колонки","type":"text","default":"Вариант A","responsive":false,"maxLength":100}]},{"slot":"second","label":"Второй вариант","fields":[{"path":"content.text","label":"Название колонки","type":"text","default":"Вариант B","responsive":false,"maxLength":100}]},{"slot":"caption","label":"Пояснение","fields":[{"path":"content.text","label":"Примечание под таблицей","type":"text","default":"Характеристики предоставлены владельцем сайта.","responsive":false,"maxLength":400}]}],"repeat":{"label":"Строка сравнения","min":2,"max":20,"fields":[{"path":"content.metric","label":"Название критерия","type":"text","default":"Критерий","responsive":false,"maxLength":130},{"path":"content.first","label":"Значение первого варианта","type":"text","default":"Уточнить","responsive":false,"maxLength":220},{"path":"content.second","label":"Значение второго варианта","type":"text","default":"Уточнить","responsive":false,"maxLength":220}]}},{"format":"manufact-ai-component-v1","id":"content-switcher","version":"1.0.0","label":"Переключатель · интерактивные вкладки","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок блока","type":"text","default":"Выберите интересующий раздел","responsive":false,"maxLength":180}]},{"slot":"summary","label":"Введение","fields":[{"path":"content.text","label":"Описание блока","type":"text","default":"Переключайте вкладки, чтобы посмотреть информацию.","responsive":false,"maxLength":400}]}],"repeat":{"label":"Вкладка","min":2,"max":8,"fields":[{"path":"content.title","label":"Текст вкладки","type":"text","default":"Название вкладки","responsive":false,"maxLength":120},{"path":"content.heading","label":"Заголовок содержимого","type":"text","default":"Заголовок раздела","responsive":false,"maxLength":150},{"path":"content.body","label":"Текст вкладки","type":"text","default":"Укажите достоверную информацию для посетителей.","responsive":false,"maxLength":1100}]}},{"format":"manufact-ai-component-v1","id":"adaptive-gallery","version":"1.0.0","label":"Адаптивная галерея · Grid / Masonry / Carousel","elements":[{"slot":"heading","label":"Заголовок галереи","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Наши фотографии","responsive":false,"maxLength":180}]},{"slot":"settings","label":"Варианты отображения","fields":[{"path":"behavior.layout","label":"Вид галереи","type":"enum","default":"grid","responsive":false,"options":["grid","masonry","carousel"]},{"path":"behavior.columns","label":"Количество колонок на ПК","type":"number","default":3,"responsive":false,"min":2,"max":5},{"path":"behavior.fit","label":"Заполнение изображения","type":"enum","default":"cover","responsive":false,"options":["cover","contain"]},{"path":"behavior.caption","label":"Показывать подписи","type":"boolean","default":true,"responsive":false}]}],"repeat":{"label":"Фотография","min":2,"max":24,"fields":[{"path":"content.media","label":"Изображение из медиабиблиотеки","type":"media","default":"","responsive":false},{"path":"content.caption","label":"Подпись к фотографии","type":"text","default":"","responsive":false,"maxLength":240},{"path":"behavior.featured","label":"Выделенный кадр (Grid)","type":"boolean","default":false,"responsive":false}]}},{"format":"manufact-ai-component-v1","id":"custom-section","version":"1.0.0","label":"Индивидуальная секция · Design Graph","elements":[{"slot":"section-note","label":"Служебное название секции","fields":[{"path":"content.text","label":"Название для внутреннего описания (не выводится на сайт)","type":"text","default":"Индивидуальная секция","responsive":false,"maxLength":180}]}]}];
 const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","title":"Завод оборудования","schemaVersion":1,"assets":[],"pages":[{"id":"page-home","path":"/","title":"Главная","sections":[{"id":"section-hero","component":"company-hero","manifestVersion":"1.0.0","elements":[{"id":"section-hero-heading","slot":"heading","values":{"content.text":"Производим технологическое оборудование","style.fontSize":{"desktop":"64px","tablet":"48px","mobile":"32px"},"style.color":"#172A43"}},{"id":"section-hero-summary","slot":"summary","values":{"content.text":"Промышленные решения для заказчиков"}},{"id":"section-hero-action","slot":"action","values":{"content.text":"Связаться","behavior.href":"/contact/"}}]},{"id":"section-highlights","component":"feature-highlights","manifestVersion":"1.0.0","elements":[{"id":"section-highlights-heading","slot":"heading","values":{"content.text":"Чем мы занимаемся"}},{"id":"section-highlights-first","slot":"first","values":{"content.text":"Разработка производственных решений","style.color":"#172A43"}},{"id":"section-highlights-second","slot":"second","values":{"content.text":"Помощь в выборе оборудования"}}]}]},{"id":"page-contact","path":"/contact/","title":"Контакты","sections":[{"id":"section-contact","component":"contact-panel","manifestVersion":"1.0.0","elements":[{"id":"section-contact-heading","slot":"heading","values":{"content.text":"Свяжитесь с нами"}},{"id":"section-contact-action","slot":"action","values":{"content.text":"Оставить заявку","behavior.href":"/contact/"}}]}]}]};
 'use strict';
@@ -3930,6 +4048,161 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const theme=button('Стили и язык сайта','btn small',()=>open('theme'));theme.id='cms-open-theme';
     const seo=button('SEO и меню','btn small',()=>open('seo'));seo.id='cms-open-seo';
     tools.append(theme,seo);$('pages').before(tools);
+  }
+
+  // Private operator Search/CMS packets are a navigation aid for the existing
+  // editor, not a second SEO editor, content-importer, approval or publisher.
+  // The chosen JSON stays in this tab and is never posted or persisted.
+  function initSeoHandoff(){
+    const dlg=document.createElement('dialog');dlg.id='cms-seo-handoff-dialog';
+    dlg.className='cms-settings-dialog';
+    Object.assign(dlg.style,{width:'min(1000px,96vw)',maxHeight:'90vh',overflow:'auto'});
+    const heading=document.createElement('h2');heading.textContent='SEO-пакеты · путь к полям CMS';
+    const help=document.createElement('p');help.textContent=
+      'Откройте приватный cms-search-work-packets.json из SEO Operator. Файл читается только в этой вкладке. '+
+      'Наблюдения Google и «принятые» задачи — заявления оператора, не подтверждение клиента. '+
+      'Проверяйте утверждённый Blueprint, текст, текущие переопределения и реальную страницу. '+
+      'Никаких автоматических изменений, сохранения или публикации.';
+    const label=document.createElement('label');label.textContent='Локальный JSON с ручными SEO-задачами';
+    const input=document.createElement('input');input.type='file';input.id='cms-seo-handoff-file';
+    input.accept='.json,application/json';input.className='control';label.append(input);
+    const status=document.createElement('p');status.id='cms-seo-handoff-status';
+    status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+    const results=document.createElement('div');results.id='cms-seo-handoff-results';
+    const close=button('Закрыть','btn',()=>dlg.close());
+    const actions=document.createElement('div');actions.className='cms-settings-actions';actions.append(close);
+    dlg.append(heading,help,label,status,results,actions);document.body.append(dlg);
+    let packet=null,loading=0;
+    const line=(parent,value,tag='p')=>{
+      const node=document.createElement(tag);node.textContent=String(value);parent.append(node);return node;
+    };
+    const unchanged=async()=>{
+      if(!packet)return false;
+      const revision=session.revision,site=cp(session.current),source=packet;
+      const hash=await SEO_HANDOFF.fingerprint(site,globalThis.crypto);
+      return revision===session.revision&&packet===source&&hash===source.currentSiteFingerprint;
+    };
+    const openPage=(id,section,element,seo=false)=>{
+      const page=session.current.pages.find(p=>p.id===id);
+      if(!page)return status.textContent='Целевая страница удалена — заново проверьте пакет.';
+      const target=page.sections.find(s=>s.id===section)||page.sections[0];
+      const selection=target.elements.find(e=>e.id===element)||target.items?.find(e=>e.id===element)||target.elements[0];
+      pageId=page.id;sectionId=target.id;elementId=selection.id;
+      dlg.close();draw();
+      if(seo)$('cms-open-seo')?.click();
+      else notice('Открыт исходный блок/элемент. Изменение выполняется обычным редактором; Save и Publish отдельно.');
+    };
+    const copyValue=async value=>{
+      if(!(await unchanged())){
+        status.textContent='Черновик отличается от версии SEO-пакета. Загрузите заново проверенный пакет.';return;
+      }
+      try{
+        if(!navigator.clipboard?.writeText)throw Error('Clipboard API unavailable');
+        await navigator.clipboard.writeText(value);
+        status.textContent='Значение скопировано. Сверьте с утверждённым Blueprint и вручную вставьте в поле CMS.';
+      }catch(_){
+        selectGraphTextForCopy(dlg,value);
+        status.textContent='Значение выделено для Ctrl+C. Автоматических изменений нет.';
+      }
+    };
+    const render=async()=>{
+      results.replaceChildren();if(!packet)return;
+      let review;
+      try{
+        const source=packet,site=cp(session.current),revision=session.revision;
+        const hash=await SEO_HANDOFF.fingerprint(site,globalThis.crypto);
+        if(source!==packet)return;
+        if(revision!==session.revision)throw Error('Черновик изменился при проверке');
+        review=SEO_HANDOFF.inspect(source,site,manifests,hash);
+      }catch(error){status.textContent='SEO-пакет не принят: '+error.message;packet=null;return;}
+      status.textContent=review.revisionMatches?
+        'Сверка SHA-256 текущего Site v1 совпала с источником пакета. Происхождение файла и согласование клиента НЕ подтверждены.':
+        'ВНИМАНИЕ: текущий черновик отличается от Site v1, по которому создан пакет. Копирование предложений отключено; нужна новая проверка.';
+      line(results,'Рабочих задач: '+review.active.length+' · заявлено завершённых (проверить): '+
+        review.completed.length+' · без разрешения: '+review.notSelectedCount+
+        ' · заблокировано в SEO Engine: '+review.blockedCount,'h3');
+      const group=(title,items)=>{
+        line(results,title,'h3');
+        if(!items.length){line(results,'Нет задач в этой группе.');return;}
+        for(const task of items){
+          const card=document.createElement('section');card.className='cms-seo-work-packet';
+          card.style.cssText='border:1px solid #c9d6e5;border-radius:12px;padding:16px;margin:12px 0';
+          const title=line(card,task.priority+' · '+task.path+' · '+task.actionId,'h4');
+          title.style.overflowWrap='anywhere';
+          line(card,'Статус оператора: '+task.status+(task.assignee?' · '+task.assignee:'')+
+            (task.completed?' · ТОЛЬКО ЗАЯВЛЕНО, проверка публикации обязательна':''));
+          line(card,'Наблюдение: '+task.observed);
+          line(card,'Проверить вручную: '+task.next);
+          if(!task.pageMatches){
+            line(card,'Страница или путь больше не совпадает с пакетом. Сначала актуализируйте Blueprint / Site v1.');
+            results.append(card);continue;
+          }
+          const nav=button('Открыть SEO и меню этой страницы','btn small',()=>openPage(task.pageId,null,null,true));
+          nav.className='btn small';card.append(nav);
+          const table=document.createElement('table');table.style.cssText='width:100%;margin-top:12px;table-layout:fixed';
+          const head=document.createElement('tr');
+          for(const label of ['Поле','Сейчас в CMS','Blueprint в пакете','Действие'])line(head,label,'th');
+          table.append(head);
+          for(const field of task.meta){
+            const row=document.createElement('tr');
+            for(const value of [field.property,field.current,field.approved]){
+              const cell=line(row,value||'—','td');cell.style.overflowWrap='anywhere';
+            }
+            const target=document.createElement('td');
+            if(!field.sourceMatches)line(target,'Данные поля изменены со времени источника.','small');
+            else if(!field.differs)line(target,'Совпадает','small');
+            else if(task.canCopy){
+              const copy=button('Копировать для ручной правки','btn small',()=>copyValue(field.approved));
+              target.append(copy);
+            }else line(target,'Требуется новый пакет','small');
+            row.append(target);table.append(row);
+          }
+          const overflow=document.createElement('div');overflow.style.overflowX='auto';overflow.append(table);card.append(overflow);
+          if(task.proposals.length){
+            line(card,'Адресные предложения по существующим полям компонентов','h5');
+            for(const proposal of task.proposals){
+              const row=document.createElement('div');row.style.cssText='border-top:1px solid #dce5ee;padding:9px 0';
+              line(row,proposal.locator.sectionId+' / '+proposal.locator.elementId+' / '+proposal.locator.property);
+              line(row,'Сейчас: '+proposal.source+' → Blueprint: '+proposal.approved);
+              if(proposal.valid){
+                row.append(button('К полю','btn small',()=>openPage(task.pageId,
+                  proposal.locator.sectionId,proposal.locator.elementId)));
+                if(proposal.changed&&task.canCopy)row.append(button('Копировать значение','btn small',()=>copyValue(proposal.approved)));
+              }else line(row,'Предложение устарело, неоднозначно или переопределено. Не применять.','small');
+              card.append(row);
+            }
+          }
+          if(task.sections.length){
+            line(card,'Блоки для сверки с реальной страницей','h5');
+            const sectionBar=document.createElement('div');sectionBar.style.cssText='display:flex;flex-wrap:wrap;gap:6px';
+            for(const section of task.sections){
+              if(section.valid)sectionBar.append(button(section.id+' · '+section.component,'btn small',()=>openPage(task.pageId,section.id)));
+              else line(sectionBar,'Блок '+section.id+' изменён — перепроверьте пакет.','small');
+            }
+            card.append(sectionBar);
+          }
+          results.append(card);
+        }
+      };
+      group('В работе · требуется решение редактора',review.active);
+      group('Заявлено завершённым · требуется независимая проверка',review.completed);
+    };
+    input.addEventListener('change',async()=>{
+      const file=input.files?.[0];if(!file)return;
+      packet=null;results.replaceChildren();status.textContent='Проверка локального JSON…';
+      const serial=++loading;
+      try{
+        const text=await readLocalGraphText(file,3000000,2000000);
+        const incoming=JSON.parse(text);
+        if(serial!==loading)return;
+        packet=incoming;await render();
+      }catch(error){packet=null;status.textContent='Не удалось открыть SEO-пакет: '+error.message;}
+      input.value='';
+    });
+    const trigger=button('SEO-пакеты','btn small',()=>{void render();dlg.showModal();});
+    trigger.id='cms-seo-handoff-open';
+    const tools=document.createElement('div');tools.className='structure-tools cms-site-settings';
+    tools.append(trigger);$('pages').before(tools);
   }
 
 
@@ -10157,7 +10430,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     remapImportedMedia:(site,idMap,assets)=>C.remapImportedMedia(site,manifests,idMap,assets),
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initFooterEditor();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
+  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initSeoHandoff();initFooterEditor();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
 })();
 
 })();
