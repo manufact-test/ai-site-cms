@@ -858,9 +858,11 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     // Create a second container and a child, then reparent the heading by dropping
     // onto that child's center. The container ancestor should win over the child hit.
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
-    await page.getByRole('button',{name:'+ Рядом'}).click();
+    await page.locator('#cms-design-structure-actions>summary').click();
+    await page.getByRole('button',{name:'Добавить рядом'}).click();
     const extraContainerId=await page.locator('#cms-design-node-select').inputValue();
-    await page.getByRole('button',{name:'+ Вложенный'}).click();
+    await page.locator('#cms-design-structure-actions>summary').click();
+    await page.getByRole('button',{name:'Добавить внутрь'}).click();
     const extraChildId=await page.locator('#cms-design-node-select').inputValue();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
     const dropBox=await designFrame.locator('.cmsdg-n-'+extraChildId).boundingBox();
