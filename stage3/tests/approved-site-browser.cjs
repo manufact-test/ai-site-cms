@@ -1736,6 +1736,8 @@ async function execute(){
     .designGraph.nodes[0].children.find(n=>n.id==='approved-custom-photo')
     .responsiveMedia.mobileAssetId,mediaState.asset.id);
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+  if(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open))
+    await page.locator('#server-site-tools-close').click();
   assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
     'Changing draft mobile imagery does not publish the new asset');
 
