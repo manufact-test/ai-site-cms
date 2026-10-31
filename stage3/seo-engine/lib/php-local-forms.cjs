@@ -2,6 +2,7 @@
 // Read-only check of actual public PHP lead forms: NEVER submit data or expose tokens.
 const FORMAT='manufact-seo-local-php-forms-v1';
 const {hasPublishedForm}=require('./graph-authored.cjs');
+const {sectionById}=require('./php-local-components.cjs');
 function attrs(s){
  const out={};
  for(const m of String(s).matchAll(/([a-z][a-z0-9_-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/gi))
@@ -21,9 +22,8 @@ function forms(s){
    paragraphs:tags(m[2],'p'),buttons:tags(m[2],'button')}));
 }
 function sectionForms(html,id){
- const wrappers=[...strip(html).matchAll(/<section\b([^>]*?)>([\s\S]*?)<\/section\s*>/gi)]
-  .filter(m=>attrs(m[1]).id===id);
- return wrappers.length===1?forms(wrappers[0][2]):[];
+ const root=sectionById(html,id);
+ return root?forms(root):[];
 }
 function validAction(action,siteId,sectionId){
  if(typeof action!=='string'||(!action.startsWith('/')&&!/^https?:\/\//i.test(action))||action.startsWith('//'))return false;

@@ -166,9 +166,12 @@ function formAndFirstSiteCliContracts(){
  // feed exact per-section acceptance counts, not be treated as a decoration.
  const slotted=JSON.parse(JSON.stringify(site));
  slotted.pages[0].sections[0].designGraph={id:'graph-form',nodes:[
+  {id:'intro',type:'container',semanticTag:'section',children:[
+   {id:'intro-text',type:'text',text:'Introduction'}]},
   {id:'group',type:'container',children:[{id:'lead-slot',type:'form-slot'}]}]};
  const slottedCapture=FORM.review(slotted,{siteId:'pilot-form',pages:[{
   id:'page-form',path:'/',html:doc('a'.repeat(64)).replace('<form ',
+   '<section class="cmsdg-n-intro"><p>Introduction</p></section>'+
    '<div class="cmsdg-n-lead-slot cmsdg-form-slot"><form ').replace('</form>',
    '</form></div>')
  }]});
@@ -362,6 +365,27 @@ function actualPublishedComponentAndGraphContracts(){
  assert.equal(correctGraph.checkedNodes,8);
  assert.deepEqual(correctComponents.findings,[]);
  assert.deepEqual(correctGraph.findings,[]);
+ const tableSite={siteId:'pilot-table',assets:[],redirects:[],pages:[{
+  id:'page-table',path:'/',sections:[{id:'sec-table',component:'custom-section',
+   designGraph:{id:'graph-table',nodes:[{id:'comparison',type:'table',rowHeaders:true,
+    children:[
+     {id:'head-row',type:'table-row',children:[
+      {id:'head-name',type:'table-cell',text:'Feature'},
+      {id:'head-value',type:'table-cell',text:'Value'}]},
+     {id:'data-row',type:'table-row',children:[
+      {id:'row-name',type:'table-cell',text:'Support'},
+      {id:'row-value',type:'table-cell',text:'24/7'}]}]}]}}]}]};
+ const tableMarkup='<section id="sec-table" class="cmsdg cmsdg-graph-table">'+
+  '<div class="cmsdg-table-scroll"><table class="cmsdg-n-comparison cmsdg-table">'+
+  '<thead><tr class="cmsdg-n-head-row"><th scope="col" class="cmsdg-n-head-name">Feature</th>'+
+  '<th scope="col" class="cmsdg-n-head-value">Value</th></tr></thead>'+
+  '<tbody><tr class="cmsdg-n-data-row"><th scope="row" class="cmsdg-n-row-name">Support</th>'+
+  '<td class="cmsdg-n-row-value">24/7</td></tr></tbody></table></div></section>';
+ const tableSnapshot={siteId:'pilot-table',pages:[{id:'page-table',path:'/',html:tableMarkup}]};
+ assert.deepEqual(GRAPH.review(tableSite,tableSnapshot).findings,[]);
+ assert.ok(GRAPH.review(tableSite,{...tableSnapshot,pages:[{
+  ...tableSnapshot.pages[0],html:tableMarkup.replace('scope="row"','scope="col"')}]})
+  .findings.some(x=>x.code==='php-graph:node-content-drift'&&x.graphNodeId==='row-name'));
  const changed=html.replace('href="/published/pilot-typed/contact/"',
   'href="/published/pilot-typed/missing/"')
   .replace('id="cms-pane-choice-two"','id="wrong-pane"')

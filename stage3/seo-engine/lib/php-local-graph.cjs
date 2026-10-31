@@ -62,6 +62,8 @@ function review(site,snapshot){
    const spec=section.designGraph,nodes=allNodes(spec),ids=new Set();
    const headingCells=new Set(nodes.filter(n=>n.type==='table')
     .flatMap(n=>(n.children?.[0]?.children||[]).map(cell=>cell.id)));
+   const rowHeadingCells=new Set(nodes.filter(n=>n.type==='table'&&n.rowHeaders===true)
+    .flatMap(n=>(n.children||[]).slice(1).map(row=>row.children?.[0]?.id).filter(Boolean)));
    const css=snapshotPage.html;
    if(!/<section\b/i.test(html)||!html.includes('cmsdg-'+spec.id))
     add(page,section,null,'graph-wrapper','Published graph wrapper or identifier differs from Site v1.');
@@ -84,10 +86,11 @@ function review(site,snapshot){
      if(el.tag!=='h'+(n.level||2)||textValue()!==norm(n.text))
       mismatch('Published graph heading level or visible text differs from Site v1.');
     }else if(n.type==='text'||n.type==='list-item'||n.type==='table-cell'){
-     const tags={text:'p','list-item':'li','table-cell':headingCells.has(n.id)?'th':'td'};
+     const scope=headingCells.has(n.id)?'col':rowHeadingCells.has(n.id)?'row':null;
+     const tags={text:'p','list-item':'li','table-cell':scope?'th':'td'};
      if(el.tag!==tags[n.type]||
        textValue()!==norm(n.text)||
-        (n.type==='table-cell'&&headingCells.has(n.id)&&a.scope!=='col'))
+        (n.type==='table-cell'&&(scope?a.scope!==scope:Object.hasOwn(a,'scope'))))
       mismatch('Published graph text/list/table cell differs from Site v1.');
     }else if(n.type==='link'||n.type==='button'){
      const popup=Boolean(n.popupTarget);
