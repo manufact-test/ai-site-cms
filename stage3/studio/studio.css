@@ -573,6 +573,21 @@ button:disabled{opacity:.45}
   .canvas-toolbar .device{flex:1;min-height:40px}
   .control{min-height:42px}
   .workspace{display:block}
+  #pages,#sections{
+    display:flex;flex-wrap:nowrap;gap:7px;
+    overflow-x:auto;overflow-y:hidden;
+    padding:5px 14px 9px;
+    scroll-snap-type:x proximity;scroll-padding-inline:14px;
+    overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;scrollbar-color:#b8c9dc transparent;
+  }
+  #pages .nav-entry,#sections .nav-entry{
+    display:block;width:auto;flex:0 0 auto;max-width:82vw;
+    min-height:40px;padding:9px 12px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    scroll-snap-align:start;
+  }
+  .nav-title{padding:12px 14px 7px}
   .sidebar,.inspector{position:static;height:auto;overflow:visible}
   .sidebar{border-right:0;border-bottom:1px solid var(--line)}
   .inspector{display:block}

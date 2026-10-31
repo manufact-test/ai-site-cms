@@ -539,6 +539,15 @@ async function execute(){
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-tablet.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});
   await assertNoHorizontalOverflow('Studio at 390px');
+  const mobileTreeLayout=await page.evaluate(()=>{
+    const nav=document.querySelector('#sections'),style=getComputedStyle(nav);
+    return {display:style.display,overflowX:style.overflowX,
+      clientWidth:nav.clientWidth,scrollWidth:nav.scrollWidth};
+  });
+  assert.equal(mobileTreeLayout.display,'flex','Mobile section tree must use the compact horizontal layout');
+  assert.equal(mobileTreeLayout.overflowX,'auto','Mobile section tree must scroll internally');
+  assert.ok(mobileTreeLayout.scrollWidth>mobileTreeLayout.clientWidth,
+    'Long block lists must scroll inside the tree, not extend the page: '+JSON.stringify(mobileTreeLayout));
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-mobile.png'),fullPage:true});
   await page.setViewportSize({width:1400,height:1000});
   await page.locator('#server-edit-page').click();
