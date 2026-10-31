@@ -567,8 +567,7 @@ async function execute(){
   });
   await page.locator('#server-site-tools-close').click();
   await page.waitForFunction(()=>!document.querySelector('#server-site-tools-dialog')?.open);
-  await page.waitForFunction(()=>document.querySelector('#preview')?.contentDocument
-    ?.querySelectorAll('[data-cms-section-id]').length>=2);
+  await page.frameLocator('#preview').locator('[data-cms-section-id]').nth(1).waitFor();
   assert.equal(await page.locator('#canvas-title').innerText(),imported.pages[0].title,
     'Main canvas shows the full selected page, not an isolated block preview');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-desktop.png'),fullPage:true});
@@ -1560,6 +1559,10 @@ async function execute(){
 
   // Edit the global footer through Studio, save a private revision, and verify
   // that the already-published visitor remains unchanged without Publish.
+  if(!(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open))){
+    await page.locator('#server-site-tools-open').click();
+    await page.locator('#server-site-tools-dialog[open]').waitFor();
+  }
   await page.locator('#server-site-tools').evaluate(node=>{node.open=true;});
   await page.locator('#server-tool-navigation').evaluate(node=>{node.open=true;});
   await page.locator('#cms-open-footer').click();
