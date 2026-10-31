@@ -1475,6 +1475,86 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       'Opening a review finding is navigation only, never an implicit save or edit');
     await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
 
+    // Real customer compositions can contain inline style/linked text runs.
+    // All three owner paths must preserve them: all-page replace, Workbench
+    // property editing and double-click quick text editing.
+    const richSource=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));
+    richSource.pages[0].sections[0].designGraph={version:1,id:'rich-editor-graph',nodes:[{
+      id:'rich-heading-editor',type:'heading',level:1,
+      text:'Монтаж и доставка',
+      runs:[{text:'Монтаж ',strong:true,color:'@accent'},
+        {text:'и доставка',italic:true,href:'/contact/'}]
+    }]};
+    await page.evaluate(site=>window.Stage3Editor.replace(site),richSource);
+    const richNode=async()=>{
+      const site=await page.evaluate(()=>window.Stage3Editor.getSite());
+      return site.pages[0].sections[0].designGraph.nodes[0];
+    };
+    await page.locator('#cms-content-open').click();
+    await page.locator('#cms-content-search').fill('Монтаж');
+    await page.locator('#cms-content-replace').fill('Производство');
+    assert.equal(await page.locator('#cms-content-results .cms-content-row').count(),1);
+    await page.locator('#cms-content-apply').click();
+    assert.equal((await richNode()).text,'Производство и доставка');
+    assert.deepEqual((await richNode()).runs[0],
+      {text:'Производство ',strong:true,color:'@accent'});
+    assert.deepEqual((await richNode()).runs[1],
+      {text:'и доставка',italic:true,href:'/contact/'});
+    await page.locator('#undo').click();
+    await page.locator('#cms-content-open').click();
+    await page.locator('#cms-content-search').fill('таж и до');
+    await page.locator('#cms-content-replace').fill('замена');
+    assert.match(await page.locator('#cms-content-results').innerText(),/пересекает границу/);
+    assert.equal(await page.locator('#cms-content-apply').isDisabled(),true);
+    await page.locator('#cms-content-workbench').getByRole('button',{name:'Закрыть'}).click();
+    assert.deepEqual((await richNode()).runs,richSource.pages[0].sections[0].designGraph.nodes[0].runs);
+    await page.locator('#cms-open-page-preview').click();
+    await page.locator('#cms-work-graph-node').selectOption('rich-heading-editor');
+    const workRich=page.locator('[data-work-graph-field="richText:0"]');
+    await workRich.fill('Производство ');
+    await workRich.dispatchEvent('change');
+    assert.equal((await richNode()).text,'Производство и доставка');
+    assert.equal((await richNode()).runs[1].href,'/contact/');
+    await page.locator('#cms-work-undo').click();
+    await page.frameLocator('#cms-page-preview-frame')
+      .locator('[data-cms-work-graph-node="rich-heading-editor"]').dblclick();
+    await page.locator('#cms-work-quick-runs [data-rich-run-index="0"]').fill('Изготовление ');
+    await page.locator('#cms-work-quick-save').click();
+    assert.equal((await richNode()).text,'Изготовление и доставка');
+    assert.deepEqual((await richNode()).runs[1],
+      {text:'и доставка',italic:true,href:'/contact/'});
+    await page.locator('#cms-work-undo').click();
+    assert.equal((await richNode()).text,'Монтаж и доставка');
+    await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+
+    // One edited instance of a real shared bespoke section must propagate
+    // to the other page, not leave inconsistent duplicate copy behind.
+    const D=require('../sdk/draft.cjs');
+    const manifests=fs.readdirSync(path.join(root,'components')).filter(name=>name.endsWith('.json'))
+      .map(name=>JSON.parse(fs.readFileSync(path.join(root,'components',name),'utf8')));
+    let shared=D.begin(richSource,manifests);
+    shared=D.structure(shared,manifests,{action:'linkSharedSection',
+      pageId:richSource.pages[0].id,sectionId:richSource.pages[0].sections[0].id,
+      toPageId:richSource.pages[1].id,id:'section-rich-linked',sharedKey:'shared-rich-copy',
+      expectedRevision:shared.revision});
+    await page.evaluate(site=>window.Stage3Editor.replace(site),shared.current);
+    await page.locator('#cms-content-open').click();
+    await page.locator('#cms-content-search').fill('Монтаж');
+    await page.locator('#cms-content-replace').fill('Комплектация');
+    assert.equal(await page.locator('#cms-content-results .cms-content-row').count(),2);
+    await page.locator('#cms-content-results .cms-content-row').nth(1)
+      .locator('input[type="checkbox"]').uncheck();
+    assert.match(await page.locator('#cms-content-status').innerText(),/1 общих групп/);
+    await page.locator('#cms-content-apply').click();
+    const linkedSite=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const linkedNodes=linkedSite.pages.flatMap(p=>p.sections).filter(s=>s.sharedKey==='shared-rich-copy')
+      .map(s=>s.designGraph.nodes[0]);
+    assert.equal(linkedNodes.length,2);
+    assert.deepEqual(linkedNodes.map(n=>n.text),
+      ['Комплектация и доставка','Комплектация и доставка']);
+    assert.ok(linkedNodes.every(n=>n.runs[1].href==='/contact/'&&n.runs[0].strong));
+    await page.locator('#undo').click();
+
     // Real native Chromium interaction, without adding a custom public runtime.
     const graphHost=require('../sdk/design-graph.cjs');
     const nativeSite=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));

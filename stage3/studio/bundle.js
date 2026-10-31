@@ -3330,6 +3330,49 @@ function inspect(report,site,manifests,actualHash){
 module.exports=Object.freeze({FORMAT,canonical,fingerprint,inspect});
 
 return module.exports;})();
+const RICH_TEXT=(()=>{const module={exports:{}};
+'use strict';
+// Preserve the approved styling and links of typed Design Graph text runs.
+// Only a human can deliberately remove a rich-text run in the advanced editor;
+// a site-wide search must never silently flatten a styled heading/paragraph.
+const MAX_TEXT=3000;
+const illegal=/[\x00-\x08\x0b\x0c\x0e-\x1f]/;
+function checkRuns(node){
+ if(!['heading','text'].includes(node?.type)||!Array.isArray(node.runs)||
+  node.runs.length<2||node.runs.length>16||
+  node.runs.some(run=>typeof run.text!=='string'||run.text.length<1||run.text.length>1500)||
+  node.runs.map(run=>run.text).join('')!==node.text)
+  throw Error('Оформленные фрагменты изменены или имеют неверную структуру');
+}
+function updateTexts(node,texts){
+ checkRuns(node);
+ if(!Array.isArray(texts)||texts.length!==node.runs.length||
+  texts.some(s=>typeof s!=='string'||s.length<1||s.length>1500||illegal.test(s)))
+  throw Error('Каждый фрагмент должен содержать 1–1500 безопасных символов');
+ const text=texts.join('');
+ if(text.length>MAX_TEXT)throw Error('Общий текст не может превышать 3000 символов');
+ return {text,runs:node.runs.map((run,i)=>({...run,text:texts[i]}))};
+}
+const escapePattern=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+function replaceLiteral(node,needle,replacement){
+ if(typeof node?.text!=='string'||typeof needle!=='string'||needle.length<2||
+  typeof replacement!=='string'||illegal.test(replacement))throw Error('Недопустимые параметры замены');
+ const regex=new RegExp(escapePattern(needle),'gi');
+ const expected=node.text.replace(regex,()=>replacement);
+ if(!node.runs)return {after:expected,runTexts:null,blocked:false,reason:''};
+ checkRuns(node);
+ const texts=node.runs.map(run=>run.text.replace(regex,()=>replacement));
+ const actual=texts.join('');
+ if(expected!==actual)return {after:node.text,runTexts:null,blocked:true,
+  reason:'Совпадение пересекает границу оформленных фрагментов. Откройте их для ручной правки.'};
+ try{
+  updateTexts(node,texts);
+ }catch(error){return {after:node.text,runTexts:null,blocked:true,reason:error.message};}
+ return {after:actual,runTexts:texts,blocked:false,reason:''};
+}
+module.exports=Object.freeze({updateTexts,replaceLiteral});
+
+return module.exports;})();
 const MANIFESTS=[{"format":"manufact-ai-component-v1","id":"company-hero","version":"1.0.0","label":"Первый экран компании","elements":[{"slot":"heading","label":"Главный заголовок","fields":[{"path":"content.text","label":"Текст заголовка","type":"text","default":"Оборудование для вашего производства","responsive":false,"maxLength":180},{"path":"style.fontSize","label":"Размер заголовка","type":"length","default":{"desktop":"64px","tablet":"48px","mobile":"32px"},"responsive":true,"min":10,"max":120,"units":["px","rem"]},{"path":"style.color","label":"Цвет заголовка","type":"color","default":"#172A43","responsive":false}]},{"slot":"summary","label":"Описание","fields":[{"path":"content.text","label":"Текст описания","type":"text","default":"Расскажите о вашем предложении без вымышленных фактов.","responsive":false,"maxLength":420}]},{"slot":"action","label":"Основная кнопка","fields":[{"path":"content.text","label":"Подпись кнопки","type":"text","default":"Связаться","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес перехода","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"feature-highlights","version":"1.0.0","label":"Преимущества","elements":[{"slot":"heading","label":"Заголовок преимуществ","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Чем мы занимаемся","responsive":false,"maxLength":180}]},{"slot":"first","label":"Первая карточка","fields":[{"path":"content.text","label":"Описание преимущества","type":"text","default":"Заполните подтверждённые преимущества компании","responsive":false,"maxLength":280},{"path":"style.color","label":"Цвет текста","type":"color","default":"#172A43","responsive":false}]},{"slot":"second","label":"Вторая карточка","fields":[{"path":"content.text","label":"Описание второй карточки","type":"text","default":"Уточните факты у заказчика","responsive":false,"maxLength":280}]}]},{"format":"manufact-ai-component-v1","id":"contact-panel","version":"1.0.0","label":"Контакты","elements":[{"slot":"heading","label":"Заголовок контактов","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Свяжитесь с нами","responsive":false,"maxLength":180}]},{"slot":"action","label":"Контактная кнопка","fields":[{"path":"content.text","label":"Подпись","type":"text","default":"Оставить заявку","responsive":false,"maxLength":120},{"path":"behavior.href","label":"Ссылка","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"image-showcase","version":"1.0.0","label":"Изображение и описание","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок секции","type":"text","default":"Наше производство","responsive":false,"maxLength":160}]},{"slot":"photo","label":"Фотография","fields":[{"path":"content.media","label":"Изображение из медиабиблиотеки","type":"media","default":"","responsive":false}]},{"slot":"caption","label":"Подпись","fields":[{"path":"content.text","label":"Подпись фотографии","type":"text","default":"Добавьте фотографию вашего производства","responsive":false,"maxLength":400}]}]},{"format":"manufact-ai-component-v1","id":"lead-form","version":"1.0.0","label":"Форма заявки","elements":[{"slot":"heading","label":"Заголовок формы","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Оставьте заявку","responsive":false,"maxLength":160}]},{"slot":"name-label","label":"Имя","fields":[{"path":"content.text","label":"Подпись поля имени","type":"text","default":"Ваше имя","responsive":false,"maxLength":90}]},{"slot":"email-label","label":"Email","fields":[{"path":"content.text","label":"Подпись email","type":"text","default":"Электронная почта","responsive":false,"maxLength":90}]},{"slot":"message-label","label":"Сообщение","fields":[{"path":"content.text","label":"Подпись сообщения","type":"text","default":"Ваш вопрос","responsive":false,"maxLength":90}]},{"slot":"consent-label","label":"Согласие","fields":[{"path":"content.text","label":"Текст согласия","type":"text","default":"Согласен на обработку данных для ответа на обращение","responsive":false,"maxLength":250}]},{"slot":"submit-label","label":"Кнопка отправки","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Отправить заявку","responsive":false,"maxLength":90}]}]},{"format":"manufact-ai-component-v1","id":"lead-form-flex","version":"1.0.0","label":"Форма заявки · конструктор","elements":[{"slot":"heading","label":"Заголовок формы","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Оставьте заявку","responsive":false,"maxLength":160}]},{"slot":"name-label","label":"Имя","fields":[{"path":"content.text","label":"Подпись поля имени","type":"text","default":"Ваше имя","responsive":false,"maxLength":90}]},{"slot":"email-label","label":"Email","fields":[{"path":"content.text","label":"Подпись email","type":"text","default":"Электронная почта","responsive":false,"maxLength":90}]},{"slot":"message-label","label":"Сообщение","fields":[{"path":"content.text","label":"Подпись сообщения","type":"text","default":"Ваш вопрос","responsive":false,"maxLength":90}]},{"slot":"consent-label","label":"Согласие","fields":[{"path":"content.text","label":"Текст согласия","type":"text","default":"Согласен на обработку данных для ответа на обращение","responsive":false,"maxLength":250}]},{"slot":"submit-label","label":"Кнопка отправки","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Отправить заявку","responsive":false,"maxLength":90}]},{"slot":"extra-one","label":"Дополнительное поле 1","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 1","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]},{"slot":"extra-two","label":"Дополнительное поле 2","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 2","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]},{"slot":"extra-three","label":"Дополнительное поле 3","fields":[{"path":"content.text","label":"Подпись поля","type":"text","default":"Дополнительный вопрос 3","responsive":false,"maxLength":100},{"path":"behavior.kind","label":"Тип поля","type":"enum","default":"off","responsive":false,"options":["off","text","tel","select","textarea"]},{"path":"behavior.required","label":"Обязательное","type":"boolean","default":false,"responsive":false},{"path":"content.options","label":"Варианты для списка (один на строку)","type":"text","default":"Вариант 1\nВариант 2","responsive":false,"maxLength":500}]}]},{"format":"manufact-ai-component-v1","id":"service-grid","version":"1.0.0","label":"Услуги · повторяемые карточки","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Услуги · повторяемые карточки","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":16,"fields":[{"path":"content.title","label":"Название услуги","type":"text","default":"Название услуги","responsive":false,"maxLength":150},{"path":"content.text","label":"Описание услуги","type":"text","default":"Добавьте подтверждённое описание услуги.","responsive":false,"maxLength":600},{"path":"behavior.href","label":"Ссылка","type":"url","default":"/contact/","responsive":false}]}},{"format":"manufact-ai-component-v1","id":"faq-accordion","version":"1.0.0","label":"FAQ · раскрывающиеся вопросы","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"FAQ · раскрывающиеся вопросы","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":24,"fields":[{"path":"content.question","label":"Вопрос","type":"text","default":"Укажите вопрос","responsive":false,"maxLength":220},{"path":"content.answer","label":"Ответ","type":"text","default":"Добавьте проверенный ответ.","responsive":false,"maxLength":1200}]}},{"format":"manufact-ai-component-v1","id":"testimonials","version":"1.0.0","label":"Отзывы · повторяемые карточки","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Отзывы · повторяемые карточки","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":16,"fields":[{"path":"content.quote","label":"Текст отзыва","type":"text","default":"Добавьте реальный отзыв с согласия автора.","responsive":false,"maxLength":900},{"path":"content.author","label":"Автор","type":"text","default":"Имя автора","responsive":false,"maxLength":130},{"path":"content.role","label":"Описание автора","type":"text","default":"","responsive":false,"maxLength":180}]}},{"format":"manufact-ai-component-v1","id":"photo-gallery","version":"1.0.0","label":"Галерея · повторяемые фотографии","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Галерея · повторяемые фотографии","responsive":false,"maxLength":180}]}],"repeat":{"label":"Повторяемый элемент","min":2,"max":20,"fields":[{"path":"content.media","label":"Фотография","type":"media","default":"","responsive":false},{"path":"content.caption","label":"Подпись","type":"text","default":"","responsive":false,"maxLength":240}]}},{"format":"manufact-ai-component-v1","id":"media-story","version":"1.0.0","label":"Фото и текст · две колонки","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок секции","type":"text","default":"История нашей компании","responsive":false,"maxLength":160}]},{"slot":"copy","label":"Описание","fields":[{"path":"content.text","label":"Текст рядом с фотографией","type":"text","default":"Расскажите о проекте, команде или продукте.","responsive":false,"maxLength":900}]},{"slot":"photo","label":"Основная фотография","fields":[{"path":"content.media","label":"Фотография из медиабиблиотеки","type":"media","default":"","responsive":false}]},{"slot":"action","label":"Кнопка","fields":[{"path":"content.text","label":"Подпись кнопки","type":"text","default":"Подробнее","responsive":false,"maxLength":110},{"path":"behavior.href","label":"Адрес перехода","type":"url","default":"/contact/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"partner-logos","version":"1.0.0","label":"Логотипы партнёров · повторяемые","elements":[{"slot":"heading","label":"Заголовок логотипов","fields":[{"path":"content.text","label":"Название секции","type":"text","default":"Нам доверяют","responsive":false,"maxLength":160}]}],"repeat":{"label":"Логотип партнёра","min":2,"max":20,"fields":[{"path":"content.media","label":"Логотип","type":"media","default":"","responsive":false},{"path":"content.caption","label":"Название партнёра","type":"text","default":"Название партнёра","responsive":false,"maxLength":130},{"path":"behavior.href","label":"Ссылка партнёра","type":"url","default":"/","responsive":false}]}},{"format":"manufact-ai-component-v1","id":"cta-banner","version":"1.0.0","label":"CTA · призыв к действию","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок CTA","type":"text","default":"Готовы обсудить проект?","responsive":false,"maxLength":180}]},{"slot":"summary","label":"Описание","fields":[{"path":"content.text","label":"Пояснение","type":"text","default":"Расскажите о задаче — подберём решение и ответим на вопросы.","responsive":false,"maxLength":500}]},{"slot":"primary","label":"Основная кнопка","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Связаться с нами","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес кнопки","type":"url","default":"/","responsive":false}]},{"slot":"secondary","label":"Дополнительная кнопка","fields":[{"path":"content.text","label":"Текст кнопки","type":"text","default":"Наши услуги","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес кнопки","type":"url","default":"/","responsive":false}]}]},{"format":"manufact-ai-component-v1","id":"pricing-plans","version":"1.0.0","label":"Тарифы · планы с услугами","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Варианты сотрудничества","responsive":false,"maxLength":180}]},{"slot":"intro","label":"Описание","fields":[{"path":"content.text","label":"Пояснение к тарифам","type":"text","default":"Укажите подтверждённые условия каждой услуги.","responsive":false,"maxLength":500}]},{"slot":"footnote","label":"Примечание","fields":[{"path":"content.text","label":"Условия и оговорки","type":"text","default":"Цены и состав услуг укажите самостоятельно.","responsive":false,"maxLength":500}]}],"repeat":{"label":"Тариф или пакет","min":2,"max":6,"fields":[{"path":"content.title","label":"Название пакета","type":"text","default":"Название пакета","responsive":false,"maxLength":100},{"path":"content.price","label":"Подтверждённая цена или «по запросу»","type":"text","default":"По запросу","responsive":false,"maxLength":90},{"path":"content.period","label":"Период оплаты","type":"text","default":"Условия уточняются","responsive":false,"maxLength":100},{"path":"content.description","label":"Описание","type":"text","default":"Опишите, кому подходит этот пакет.","responsive":false,"maxLength":360},{"path":"content.features","label":"Что входит (каждый пункт с новой строки)","type":"text","default":"Укажите реальную услугу\nУточните объём работ","responsive":false,"maxLength":1200},{"path":"content.button","label":"Текст кнопки","type":"text","default":"Обсудить условия","responsive":false,"maxLength":100},{"path":"behavior.href","label":"Адрес кнопки","type":"url","default":"/contact/","responsive":false},{"path":"behavior.featured","label":"Выделить пакет","type":"boolean","default":false,"responsive":false}]}},{"format":"manufact-ai-component-v1","id":"process-timeline","version":"1.0.0","label":"Этапы работы · дорожная карта","elements":[{"slot":"heading","label":"Заголовок секции","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Как проходит работа","responsive":false,"maxLength":180}]},{"slot":"description","label":"Введение","fields":[{"path":"content.text","label":"Пояснение","type":"text","default":"Ниже приведён описанный вами порядок работы.","responsive":false,"maxLength":400}]}],"repeat":{"label":"Этап процесса","min":2,"max":12,"fields":[{"path":"content.title","label":"Название этапа","type":"text","default":"Название этапа","responsive":false,"maxLength":130},{"path":"content.description","label":"Действие и результат","type":"text","default":"Опишите реальное содержание этапа.","responsive":false,"maxLength":500},{"path":"content.detail","label":"Дополнительная подсказка","type":"text","default":"","responsive":false,"maxLength":200}]}},{"format":"manufact-ai-component-v1","id":"comparison-matrix","version":"1.0.0","label":"Сравнение · два варианта","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Название таблицы","type":"text","default":"Сравнение вариантов","responsive":false,"maxLength":180}]},{"slot":"first","label":"Первый вариант","fields":[{"path":"content.text","label":"Название колонки","type":"text","default":"Вариант A","responsive":false,"maxLength":100}]},{"slot":"second","label":"Второй вариант","fields":[{"path":"content.text","label":"Название колонки","type":"text","default":"Вариант B","responsive":false,"maxLength":100}]},{"slot":"caption","label":"Пояснение","fields":[{"path":"content.text","label":"Примечание под таблицей","type":"text","default":"Характеристики предоставлены владельцем сайта.","responsive":false,"maxLength":400}]}],"repeat":{"label":"Строка сравнения","min":2,"max":20,"fields":[{"path":"content.metric","label":"Название критерия","type":"text","default":"Критерий","responsive":false,"maxLength":130},{"path":"content.first","label":"Значение первого варианта","type":"text","default":"Уточнить","responsive":false,"maxLength":220},{"path":"content.second","label":"Значение второго варианта","type":"text","default":"Уточнить","responsive":false,"maxLength":220}]}},{"format":"manufact-ai-component-v1","id":"content-switcher","version":"1.0.0","label":"Переключатель · интерактивные вкладки","elements":[{"slot":"heading","label":"Заголовок","fields":[{"path":"content.text","label":"Заголовок блока","type":"text","default":"Выберите интересующий раздел","responsive":false,"maxLength":180}]},{"slot":"summary","label":"Введение","fields":[{"path":"content.text","label":"Описание блока","type":"text","default":"Переключайте вкладки, чтобы посмотреть информацию.","responsive":false,"maxLength":400}]}],"repeat":{"label":"Вкладка","min":2,"max":8,"fields":[{"path":"content.title","label":"Текст вкладки","type":"text","default":"Название вкладки","responsive":false,"maxLength":120},{"path":"content.heading","label":"Заголовок содержимого","type":"text","default":"Заголовок раздела","responsive":false,"maxLength":150},{"path":"content.body","label":"Текст вкладки","type":"text","default":"Укажите достоверную информацию для посетителей.","responsive":false,"maxLength":1100}]}},{"format":"manufact-ai-component-v1","id":"adaptive-gallery","version":"1.0.0","label":"Адаптивная галерея · Grid / Masonry / Carousel","elements":[{"slot":"heading","label":"Заголовок галереи","fields":[{"path":"content.text","label":"Заголовок","type":"text","default":"Наши фотографии","responsive":false,"maxLength":180}]},{"slot":"settings","label":"Варианты отображения","fields":[{"path":"behavior.layout","label":"Вид галереи","type":"enum","default":"grid","responsive":false,"options":["grid","masonry","carousel"]},{"path":"behavior.columns","label":"Количество колонок на ПК","type":"number","default":3,"responsive":false,"min":2,"max":5},{"path":"behavior.fit","label":"Заполнение изображения","type":"enum","default":"cover","responsive":false,"options":["cover","contain"]},{"path":"behavior.caption","label":"Показывать подписи","type":"boolean","default":true,"responsive":false}]}],"repeat":{"label":"Фотография","min":2,"max":24,"fields":[{"path":"content.media","label":"Изображение из медиабиблиотеки","type":"media","default":"","responsive":false},{"path":"content.caption","label":"Подпись к фотографии","type":"text","default":"","responsive":false,"maxLength":240},{"path":"behavior.featured","label":"Выделенный кадр (Grid)","type":"boolean","default":false,"responsive":false}]}},{"format":"manufact-ai-component-v1","id":"custom-section","version":"1.0.0","label":"Индивидуальная секция · Design Graph","elements":[{"slot":"section-note","label":"Служебное название секции","fields":[{"path":"content.text","label":"Название для внутреннего описания (не выводится на сайт)","type":"text","default":"Индивидуальная секция","responsive":false,"maxLength":180}]}]}];
 const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","title":"Завод оборудования","schemaVersion":1,"assets":[],"pages":[{"id":"page-home","path":"/","title":"Главная","sections":[{"id":"section-hero","component":"company-hero","manifestVersion":"1.0.0","elements":[{"id":"section-hero-heading","slot":"heading","values":{"content.text":"Производим технологическое оборудование","style.fontSize":{"desktop":"64px","tablet":"48px","mobile":"32px"},"style.color":"#172A43"}},{"id":"section-hero-summary","slot":"summary","values":{"content.text":"Промышленные решения для заказчиков"}},{"id":"section-hero-action","slot":"action","values":{"content.text":"Связаться","behavior.href":"/contact/"}}]},{"id":"section-highlights","component":"feature-highlights","manifestVersion":"1.0.0","elements":[{"id":"section-highlights-heading","slot":"heading","values":{"content.text":"Чем мы занимаемся"}},{"id":"section-highlights-first","slot":"first","values":{"content.text":"Разработка производственных решений","style.color":"#172A43"}},{"id":"section-highlights-second","slot":"second","values":{"content.text":"Помощь в выборе оборудования"}}]}]},{"id":"page-contact","path":"/contact/","title":"Контакты","sections":[{"id":"section-contact","component":"contact-panel","manifestVersion":"1.0.0","elements":[{"id":"section-contact-heading","slot":"heading","values":{"content.text":"Свяжитесь с нами"}},{"id":"section-contact-action","slot":"action","values":{"content.text":"Оставить заявку","behavior.href":"/contact/"}}]}]}]};
 'use strict';
@@ -5194,6 +5237,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const quickLabel=document.createElement('label');quickLabel.textContent='Изменить текст на странице';
     const quickInput=document.createElement('textarea');quickInput.id='cms-work-quick-input';
     quickInput.className='control';quickInput.rows=3;quickLabel.append(quickInput);
+    const quickRuns=document.createElement('div');quickRuns.id='cms-work-quick-runs';quickRuns.hidden=true;
     const quickButtons=document.createElement('div');quickButtons.className='cms-work-quick-actions';
     const dismissQuick=()=>{quick.hidden=true;};
     const quickCancel=button('Отмена','btn small',dismissQuick);
@@ -5201,7 +5245,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const node=selectedGraphNode();
       if(node&&['heading','text','button','link','quote','table-cell','list-item','disclosure','tab'].includes(node.type)){
         if(!canWrite())return feedback('Нет права на редактирование.',true);
-        if(editGraphWork(n=>{n.text=quickInput.value;delete n.runs;}))dismissQuick();
+        if(node.runs){
+          try{
+            const texts=[...quickRuns.querySelectorAll('[data-rich-run-index]')]
+              .map(input=>input.value);
+            const updated=RICH_TEXT.updateTexts(node,texts);
+            if(editGraphWork(n=>{n.text=updated.text;n.runs=updated.runs;}))dismissQuick();
+          }catch(error){feedback('Фрагменты не изменены: '+error.message,true);}
+        }else if(editGraphWork(n=>{n.text=quickInput.value;}))dismissQuick();
         return;
       }
       const page=pageForWork(),section=sectionForWork();
@@ -5211,7 +5262,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       editWork(field,quickInput);dismissQuick();
     });
     quickSave.id='cms-work-quick-save';
-    quickButtons.append(quickSave,quickCancel);quick.append(quickLabel,quickButtons);area.append(quick);
+    quickButtons.append(quickSave,quickCancel);quick.append(quickLabel,quickRuns,quickButtons);area.append(quick);
     quickInput.addEventListener('keydown',e=>{
       if(e.key==='Escape'){e.preventDefault();dismissQuick();}
       if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();quickSave.click();}
@@ -5220,10 +5271,29 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       if(!canWrite())return;
       const graph=selectedGraphNode();
       if(graph&&['heading','text','button','link','quote','table-cell','list-item','disclosure','tab'].includes(graph.type)){
-        quickLabel.firstChild.textContent='Текст узла: '+graph.type;
-        quickInput.value=graph.text;
-        quickInput.maxLength=graph.type==='table-cell'?1600:['tab','disclosure'].includes(graph.type)?160:3000;
-        quick.hidden=false;quickInput.focus();quickInput.select();
+        quickRuns.replaceChildren();
+        quickRuns.hidden=!graph.runs;quickLabel.hidden=!!graph.runs;
+        if(graph.runs){
+          const hint=document.createElement('p');hint.textContent=
+            'Текст оформлен фрагментами. Изменяйте их отдельно: цвет, жирность, курсив и ссылки сохранятся.';
+          quickRuns.append(hint);
+          graph.runs.forEach((run,i)=>{
+            const label=document.createElement('label');
+            label.textContent='Фрагмент '+(i+1)+
+              (run.strong?' · жирный':'')+(run.italic?' · курсив':'')+
+              (run.href?' · ссылка '+run.href:'');
+            const input=document.createElement('textarea');input.className='control';
+            input.dataset.richRunIndex=String(i);input.rows=2;input.maxLength=1500;
+            input.value=run.text;label.append(input);quickRuns.append(label);
+          });
+        }else{
+          quickLabel.firstChild.textContent='Текст узла: '+graph.type;
+          quickInput.value=graph.text;
+          quickInput.maxLength=graph.type==='table-cell'?1600:['tab','disclosure'].includes(graph.type)?160:3000;
+        }
+        quick.hidden=false;
+        const focus=graph.runs?quickRuns.querySelector('textarea'):quickInput;
+        focus.focus();focus.select();
         return;
       }
       if(!workFocusPath)return;
@@ -5232,6 +5302,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const field=C.controls(session.current,manifests,page.id,section.id,workElement)
         .find(f=>f.path===workFocusPath&&f.type==='text');
       if(!field)return;
+      quickLabel.hidden=false;quickRuns.hidden=true;
       quickLabel.firstChild.textContent='Изменить: '+field.label;
       quickInput.value=safeText(field.responsive?C.effectiveValue(field.value,mode):field.value);
       quickInput.maxLength=field.maxLength||10000;
@@ -6025,7 +6096,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const property=(label,key,value,options=null)=>{
           const wrap=document.createElement('label');wrap.className='cms-work-field';
           const caption=document.createElement('span');caption.textContent=label;
-          const input=document.createElement(options?'select':key==='text'?'textarea':'input');
+          const input=document.createElement(options?'select':key==='text'||key.startsWith('richText:')?'textarea':'input');
           input.className='control';input.dataset.workGraphField=key;
           if(options){
             for(const [v,t] of options){const opt=document.createElement('option');opt.value=v;opt.textContent=t;input.append(opt);}
@@ -6034,7 +6105,24 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           input.disabled=!canWrite();
           input.addEventListener('change',()=>{
             const val=input.value;
-            if(key.startsWith('form:')){
+            if(key.startsWith('richText:')||key.startsWith('richHref:')||
+              key.startsWith('richColor:')||key.startsWith('richStrong:')||key.startsWith('richItalic:')){
+              const [kind,indexText]=key.split(':'),index=Number(indexText);
+              editGraphWork(node=>{
+                if(!['heading','text'].includes(node.type)||!node.runs?.[index])
+                  throw Error('Оформленный фрагмент больше не существует');
+                if(kind==='richText'){
+                  const texts=node.runs.map((run,i)=>i===index?val:run.text);
+                  const updated=RICH_TEXT.updateTexts(node,texts);
+                  node.text=updated.text;node.runs=updated.runs;
+                }else{
+                  const field={richHref:'href',richColor:'color',richStrong:'strong',richItalic:'italic'}[kind];
+                  if(['strong','italic'].includes(field))node.runs[index][field]=val==='true';
+                  else if(val.trim())node.runs[index][field]=val.trim();
+                  else delete node.runs[index][field];
+                }
+              });
+            }else if(key.startsWith('form:')){
               editGraphWork(node=>{
                 if(node.type!=='form-slot')throw Error('Внешний вид формы доступен только для form-slot');
                 const field=key.slice(5),layerKey=mode==='tablet'?'formAppearanceTablet':
@@ -6133,8 +6221,21 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           return input;
         };
         if(current){
-          if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','disclosure','tab','list-item','popup'].includes(current.type))
-            property('Текст', 'text',current.text);
+          if(current.runs){
+            const hint=document.createElement('p');hint.className='cms-work-hint';
+            hint.textContent='Оформленные фрагменты исходного макета. Изменяйте текст/акценты отдельно, чтобы не потерять ссылки и стили.';
+            panel.append(hint);
+            current.runs.forEach((run,i)=>{
+              property('Текст фрагмента '+(i+1),'richText:'+i,run.text);
+              property('Жирность фрагмента '+(i+1),'richStrong:'+i,String(!!run.strong),
+                [['false','Обычный'],['true','Жирный']]);
+              property('Курсив фрагмента '+(i+1),'richItalic:'+i,String(!!run.italic),
+                [['false','Нет'],['true','Курсив']]);
+              property('Цвет фрагмента '+(i+1)+' · #hex / @token','richColor:'+i,run.color||'');
+              property('Ссылка фрагмента '+(i+1),'richHref:'+i,run.href||'');
+            });
+          }else if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','disclosure','tab','list-item','popup'].includes(current.type))
+            property('Текст','text',current.text);
           if(current.type==='form-slot'){
             const layerKey=mode==='tablet'?'formAppearanceTablet':mode==='mobile'?'formAppearanceMobile':'formAppearance';
             const layer=current[layerKey]||{};
@@ -8484,9 +8585,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     dlg.append(h,info,filters,status,results,actions);document.body.append(dlg);
     let entries=[];
     function fields(){
-      const out=[],add=(page,kind,field,key,text,name,section=null,element=null)=>{
+      const out=[],add=(page,kind,field,key,text,name,section=null,element=null,richNode=null)=>{
         if(typeof text==='string')out.push({pageId:page.id,pageTitle:page.title,
-          sectionId:section?.id,elementId:element?.id,kind,key,text,name,formId:field?.id});
+          sectionId:section?.id,elementId:element?.id,kind,key,text,name,formId:field?.id,
+          richType:richNode?.type||null,runs:richNode?.runs?cp(richNode.runs):null,
+          sharedKey:section?.sharedKey||null});
       };
       for(const page of session.current.pages){
         if(pagePicker.value&&pagePicker.value!==page.id)continue;
@@ -8500,7 +8603,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
               for(const node of nodes){
                 if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','list-item','disclosure','tab'].includes(node.type))
                   add(page,'graph',null,'text',node.text,
-                    'Дизайн-композиция · '+node.type+' · '+node.id,section,{id:node.id});
+                    'Дизайн-композиция · '+node.type+' · '+node.id,section,{id:node.id},node);
                 if(node.type==='quote'&&node.cite)
                   add(page,'graph',null,'cite',node.cite,
                     'Дизайн-композиция · автор цитаты · '+node.id,section,{id:node.id});
@@ -8543,10 +8646,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const field=[...$('fields').querySelectorAll('[data-field]')].find(x=>x.dataset.field===entry.key);
       if(entry.kind==='field'&&field){field.focus();field.scrollIntoView({block:'nearest'});}
     }
-    const selected=()=>entries.filter(x=>x.checked&&x.after!==x.text);
+    const selected=()=>entries.filter(x=>x.checked&&!x.blocked&&x.after!==x.text);
     function updateCount(){
       status.textContent=entries.length+' совпадений · '+selected().length+
-        ' выбранных замен · одна операция Undo · без публикации';
+        ' выбранных замен · '+entries.filter(x=>x.blocked).length+
+        ' требуют ручной правки фрагментов · '+new Set(selected().map(x=>x.sharedKey).filter(Boolean)).size+
+        ' общих групп (все страницы синхронизируются) · одна операция Undo · без публикации';
       apply.disabled=!selected().length;
     }
     function search(){
@@ -8556,11 +8661,17 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const special='\\.^$|?*+()[]{}';
       const regexp=new RegExp([...needle].map(c=>special.includes(c)?'\\'+c:c).join(''),'gi');
       const matched=fields().filter(f=>f.text.toLocaleLowerCase().includes(needle.toLocaleLowerCase()));
-      entries=matched.slice(0,120).map(f=>({...f,checked:true,after:f.text.replace(regexp,()=>value.value)}));
+      entries=matched.slice(0,120).map(f=>{
+        const rich=f.runs?RICH_TEXT.replaceLiteral({type:f.richType,text:f.text,runs:f.runs},needle,value.value):null;
+        return {...f,checked:!rich?.blocked,blocked:!!rich?.blocked,
+          blockedReason:rich?.reason||'',needle,replacement:value.value,
+          after:rich?rich.after:f.text.replace(regexp,()=>value.value)};
+      });
       if(matched.length>120){const note=document.createElement('p');note.textContent='Показаны первые 120 из '+matched.length+' полей. Уточните поиск для остальных.';results.append(note);}
       for(const [i,entry] of entries.entries()){
         const row=document.createElement('div');row.className='cms-content-row';
-        const check=document.createElement('input');check.type='checkbox';check.checked=true;
+        const check=document.createElement('input');check.type='checkbox';check.checked=entry.checked;
+        check.disabled=entry.blocked;
         check.setAttribute('aria-label','Выбрать замену '+(i+1));
         check.addEventListener('change',()=>{entry.checked=check.checked;updateCount();});
         const words=document.createElement('div');
@@ -8568,6 +8679,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const before=document.createElement('p');before.textContent='Было: '+entry.text;
         const after=document.createElement('p');after.textContent='Будет: '+entry.after;
         words.append(head,before,after);
+        if(entry.blocked){const warning=document.createElement('p');
+          warning.textContent='Безопасная замена недоступна: '+entry.blockedReason;
+          words.append(warning);}
         const nav=document.createElement('div');nav.className='cms-content-row-nav';
         nav.append(button('К полю','btn small',()=>focus(entry)),
           button('Вся страница','btn small',()=>focus(entry,true)));
@@ -8606,8 +8720,20 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             }
           }
           if(!target||target[e.key]!==e.text)throw Error('Поле изменилось; повторите поиск');
-          target[e.key]=e.after;
+          if(e.kind==='graph'&&e.runs){
+            if(JSON.stringify(target.runs)!==JSON.stringify(e.runs))
+              throw Error('Оформление или ссылки изменились; повторите поиск');
+            const change=RICH_TEXT.replaceLiteral(target,e.needle,e.replacement);
+            if(change.blocked||change.after!==e.after||!change.runTexts)
+              throw Error('Изменение границ оформленных фрагментов требует ручной проверки');
+            const updated=RICH_TEXT.updateTexts(target,change.runTexts);
+            target.text=updated.text;target.runs=updated.runs;
+          }else target[e.key]=e.after;
         }
+        // A linked section is one editable source on multiple pages. The SDK
+        // resolves those copies atomically or refuses divergent selections;
+        // no page may silently keep an old run/link after a bulk replacement.
+        D.syncSharedSite(next,session.current);
         // Full schema validation before the session mutation. Either all pass or none.
         session=D.replaceSite(session,manifests,next,session.revision);
         dlg.close();draw();notice('Обновлено '+changes.length+' текстовых полей одной операцией. Сохранение и публикация отдельно.');

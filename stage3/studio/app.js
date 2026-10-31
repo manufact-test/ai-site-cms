@@ -1860,6 +1860,7 @@
     const quickLabel=document.createElement('label');quickLabel.textContent='Изменить текст на странице';
     const quickInput=document.createElement('textarea');quickInput.id='cms-work-quick-input';
     quickInput.className='control';quickInput.rows=3;quickLabel.append(quickInput);
+    const quickRuns=document.createElement('div');quickRuns.id='cms-work-quick-runs';quickRuns.hidden=true;
     const quickButtons=document.createElement('div');quickButtons.className='cms-work-quick-actions';
     const dismissQuick=()=>{quick.hidden=true;};
     const quickCancel=button('Отмена','btn small',dismissQuick);
@@ -1867,7 +1868,14 @@
       const node=selectedGraphNode();
       if(node&&['heading','text','button','link','quote','table-cell','list-item','disclosure','tab'].includes(node.type)){
         if(!canWrite())return feedback('Нет права на редактирование.',true);
-        if(editGraphWork(n=>{n.text=quickInput.value;delete n.runs;}))dismissQuick();
+        if(node.runs){
+          try{
+            const texts=[...quickRuns.querySelectorAll('[data-rich-run-index]')]
+              .map(input=>input.value);
+            const updated=RICH_TEXT.updateTexts(node,texts);
+            if(editGraphWork(n=>{n.text=updated.text;n.runs=updated.runs;}))dismissQuick();
+          }catch(error){feedback('Фрагменты не изменены: '+error.message,true);}
+        }else if(editGraphWork(n=>{n.text=quickInput.value;}))dismissQuick();
         return;
       }
       const page=pageForWork(),section=sectionForWork();
@@ -1877,7 +1885,7 @@
       editWork(field,quickInput);dismissQuick();
     });
     quickSave.id='cms-work-quick-save';
-    quickButtons.append(quickSave,quickCancel);quick.append(quickLabel,quickButtons);area.append(quick);
+    quickButtons.append(quickSave,quickCancel);quick.append(quickLabel,quickRuns,quickButtons);area.append(quick);
     quickInput.addEventListener('keydown',e=>{
       if(e.key==='Escape'){e.preventDefault();dismissQuick();}
       if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();quickSave.click();}
@@ -1886,10 +1894,29 @@
       if(!canWrite())return;
       const graph=selectedGraphNode();
       if(graph&&['heading','text','button','link','quote','table-cell','list-item','disclosure','tab'].includes(graph.type)){
-        quickLabel.firstChild.textContent='Текст узла: '+graph.type;
-        quickInput.value=graph.text;
-        quickInput.maxLength=graph.type==='table-cell'?1600:['tab','disclosure'].includes(graph.type)?160:3000;
-        quick.hidden=false;quickInput.focus();quickInput.select();
+        quickRuns.replaceChildren();
+        quickRuns.hidden=!graph.runs;quickLabel.hidden=!!graph.runs;
+        if(graph.runs){
+          const hint=document.createElement('p');hint.textContent=
+            'Текст оформлен фрагментами. Изменяйте их отдельно: цвет, жирность, курсив и ссылки сохранятся.';
+          quickRuns.append(hint);
+          graph.runs.forEach((run,i)=>{
+            const label=document.createElement('label');
+            label.textContent='Фрагмент '+(i+1)+
+              (run.strong?' · жирный':'')+(run.italic?' · курсив':'')+
+              (run.href?' · ссылка '+run.href:'');
+            const input=document.createElement('textarea');input.className='control';
+            input.dataset.richRunIndex=String(i);input.rows=2;input.maxLength=1500;
+            input.value=run.text;label.append(input);quickRuns.append(label);
+          });
+        }else{
+          quickLabel.firstChild.textContent='Текст узла: '+graph.type;
+          quickInput.value=graph.text;
+          quickInput.maxLength=graph.type==='table-cell'?1600:['tab','disclosure'].includes(graph.type)?160:3000;
+        }
+        quick.hidden=false;
+        const focus=graph.runs?quickRuns.querySelector('textarea'):quickInput;
+        focus.focus();focus.select();
         return;
       }
       if(!workFocusPath)return;
@@ -1898,6 +1925,7 @@
       const field=C.controls(session.current,manifests,page.id,section.id,workElement)
         .find(f=>f.path===workFocusPath&&f.type==='text');
       if(!field)return;
+      quickLabel.hidden=false;quickRuns.hidden=true;
       quickLabel.firstChild.textContent='Изменить: '+field.label;
       quickInput.value=safeText(field.responsive?C.effectiveValue(field.value,mode):field.value);
       quickInput.maxLength=field.maxLength||10000;
@@ -2691,7 +2719,7 @@
         const property=(label,key,value,options=null)=>{
           const wrap=document.createElement('label');wrap.className='cms-work-field';
           const caption=document.createElement('span');caption.textContent=label;
-          const input=document.createElement(options?'select':key==='text'?'textarea':'input');
+          const input=document.createElement(options?'select':key==='text'||key.startsWith('richText:')?'textarea':'input');
           input.className='control';input.dataset.workGraphField=key;
           if(options){
             for(const [v,t] of options){const opt=document.createElement('option');opt.value=v;opt.textContent=t;input.append(opt);}
@@ -2700,7 +2728,24 @@
           input.disabled=!canWrite();
           input.addEventListener('change',()=>{
             const val=input.value;
-            if(key.startsWith('form:')){
+            if(key.startsWith('richText:')||key.startsWith('richHref:')||
+              key.startsWith('richColor:')||key.startsWith('richStrong:')||key.startsWith('richItalic:')){
+              const [kind,indexText]=key.split(':'),index=Number(indexText);
+              editGraphWork(node=>{
+                if(!['heading','text'].includes(node.type)||!node.runs?.[index])
+                  throw Error('Оформленный фрагмент больше не существует');
+                if(kind==='richText'){
+                  const texts=node.runs.map((run,i)=>i===index?val:run.text);
+                  const updated=RICH_TEXT.updateTexts(node,texts);
+                  node.text=updated.text;node.runs=updated.runs;
+                }else{
+                  const field={richHref:'href',richColor:'color',richStrong:'strong',richItalic:'italic'}[kind];
+                  if(['strong','italic'].includes(field))node.runs[index][field]=val==='true';
+                  else if(val.trim())node.runs[index][field]=val.trim();
+                  else delete node.runs[index][field];
+                }
+              });
+            }else if(key.startsWith('form:')){
               editGraphWork(node=>{
                 if(node.type!=='form-slot')throw Error('Внешний вид формы доступен только для form-slot');
                 const field=key.slice(5),layerKey=mode==='tablet'?'formAppearanceTablet':
@@ -2799,8 +2844,21 @@
           return input;
         };
         if(current){
-          if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','disclosure','tab','list-item','popup'].includes(current.type))
-            property('Текст', 'text',current.text);
+          if(current.runs){
+            const hint=document.createElement('p');hint.className='cms-work-hint';
+            hint.textContent='Оформленные фрагменты исходного макета. Изменяйте текст/акценты отдельно, чтобы не потерять ссылки и стили.';
+            panel.append(hint);
+            current.runs.forEach((run,i)=>{
+              property('Текст фрагмента '+(i+1),'richText:'+i,run.text);
+              property('Жирность фрагмента '+(i+1),'richStrong:'+i,String(!!run.strong),
+                [['false','Обычный'],['true','Жирный']]);
+              property('Курсив фрагмента '+(i+1),'richItalic:'+i,String(!!run.italic),
+                [['false','Нет'],['true','Курсив']]);
+              property('Цвет фрагмента '+(i+1)+' · #hex / @token','richColor:'+i,run.color||'');
+              property('Ссылка фрагмента '+(i+1),'richHref:'+i,run.href||'');
+            });
+          }else if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','disclosure','tab','list-item','popup'].includes(current.type))
+            property('Текст','text',current.text);
           if(current.type==='form-slot'){
             const layerKey=mode==='tablet'?'formAppearanceTablet':mode==='mobile'?'formAppearanceMobile':'formAppearance';
             const layer=current[layerKey]||{};
@@ -5150,9 +5208,11 @@
     dlg.append(h,info,filters,status,results,actions);document.body.append(dlg);
     let entries=[];
     function fields(){
-      const out=[],add=(page,kind,field,key,text,name,section=null,element=null)=>{
+      const out=[],add=(page,kind,field,key,text,name,section=null,element=null,richNode=null)=>{
         if(typeof text==='string')out.push({pageId:page.id,pageTitle:page.title,
-          sectionId:section?.id,elementId:element?.id,kind,key,text,name,formId:field?.id});
+          sectionId:section?.id,elementId:element?.id,kind,key,text,name,formId:field?.id,
+          richType:richNode?.type||null,runs:richNode?.runs?cp(richNode.runs):null,
+          sharedKey:section?.sharedKey||null});
       };
       for(const page of session.current.pages){
         if(pagePicker.value&&pagePicker.value!==page.id)continue;
@@ -5166,7 +5226,7 @@
               for(const node of nodes){
                 if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','list-item','disclosure','tab'].includes(node.type))
                   add(page,'graph',null,'text',node.text,
-                    'Дизайн-композиция · '+node.type+' · '+node.id,section,{id:node.id});
+                    'Дизайн-композиция · '+node.type+' · '+node.id,section,{id:node.id},node);
                 if(node.type==='quote'&&node.cite)
                   add(page,'graph',null,'cite',node.cite,
                     'Дизайн-композиция · автор цитаты · '+node.id,section,{id:node.id});
@@ -5209,10 +5269,12 @@
       const field=[...$('fields').querySelectorAll('[data-field]')].find(x=>x.dataset.field===entry.key);
       if(entry.kind==='field'&&field){field.focus();field.scrollIntoView({block:'nearest'});}
     }
-    const selected=()=>entries.filter(x=>x.checked&&x.after!==x.text);
+    const selected=()=>entries.filter(x=>x.checked&&!x.blocked&&x.after!==x.text);
     function updateCount(){
       status.textContent=entries.length+' совпадений · '+selected().length+
-        ' выбранных замен · одна операция Undo · без публикации';
+        ' выбранных замен · '+entries.filter(x=>x.blocked).length+
+        ' требуют ручной правки фрагментов · '+new Set(selected().map(x=>x.sharedKey).filter(Boolean)).size+
+        ' общих групп (все страницы синхронизируются) · одна операция Undo · без публикации';
       apply.disabled=!selected().length;
     }
     function search(){
@@ -5222,11 +5284,17 @@
       const special='\\.^$|?*+()[]{}';
       const regexp=new RegExp([...needle].map(c=>special.includes(c)?'\\'+c:c).join(''),'gi');
       const matched=fields().filter(f=>f.text.toLocaleLowerCase().includes(needle.toLocaleLowerCase()));
-      entries=matched.slice(0,120).map(f=>({...f,checked:true,after:f.text.replace(regexp,()=>value.value)}));
+      entries=matched.slice(0,120).map(f=>{
+        const rich=f.runs?RICH_TEXT.replaceLiteral({type:f.richType,text:f.text,runs:f.runs},needle,value.value):null;
+        return {...f,checked:!rich?.blocked,blocked:!!rich?.blocked,
+          blockedReason:rich?.reason||'',needle,replacement:value.value,
+          after:rich?rich.after:f.text.replace(regexp,()=>value.value)};
+      });
       if(matched.length>120){const note=document.createElement('p');note.textContent='Показаны первые 120 из '+matched.length+' полей. Уточните поиск для остальных.';results.append(note);}
       for(const [i,entry] of entries.entries()){
         const row=document.createElement('div');row.className='cms-content-row';
-        const check=document.createElement('input');check.type='checkbox';check.checked=true;
+        const check=document.createElement('input');check.type='checkbox';check.checked=entry.checked;
+        check.disabled=entry.blocked;
         check.setAttribute('aria-label','Выбрать замену '+(i+1));
         check.addEventListener('change',()=>{entry.checked=check.checked;updateCount();});
         const words=document.createElement('div');
@@ -5234,6 +5302,9 @@
         const before=document.createElement('p');before.textContent='Было: '+entry.text;
         const after=document.createElement('p');after.textContent='Будет: '+entry.after;
         words.append(head,before,after);
+        if(entry.blocked){const warning=document.createElement('p');
+          warning.textContent='Безопасная замена недоступна: '+entry.blockedReason;
+          words.append(warning);}
         const nav=document.createElement('div');nav.className='cms-content-row-nav';
         nav.append(button('К полю','btn small',()=>focus(entry)),
           button('Вся страница','btn small',()=>focus(entry,true)));
@@ -5272,8 +5343,20 @@
             }
           }
           if(!target||target[e.key]!==e.text)throw Error('Поле изменилось; повторите поиск');
-          target[e.key]=e.after;
+          if(e.kind==='graph'&&e.runs){
+            if(JSON.stringify(target.runs)!==JSON.stringify(e.runs))
+              throw Error('Оформление или ссылки изменились; повторите поиск');
+            const change=RICH_TEXT.replaceLiteral(target,e.needle,e.replacement);
+            if(change.blocked||change.after!==e.after||!change.runTexts)
+              throw Error('Изменение границ оформленных фрагментов требует ручной проверки');
+            const updated=RICH_TEXT.updateTexts(target,change.runTexts);
+            target.text=updated.text;target.runs=updated.runs;
+          }else target[e.key]=e.after;
         }
+        // A linked section is one editable source on multiple pages. The SDK
+        // resolves those copies atomically or refuses divergent selections;
+        // no page may silently keep an old run/link after a bulk replacement.
+        D.syncSharedSite(next,session.current);
         // Full schema validation before the session mutation. Either all pass or none.
         session=D.replaceSite(session,manifests,next,session.revision);
         dlg.close();draw();notice('Обновлено '+changes.length+' текстовых полей одной операцией. Сохранение и публикация отдельно.');
