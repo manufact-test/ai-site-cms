@@ -24,6 +24,10 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
         if(!(await group.evaluate(node=>node.open)))await group.locator('summary').click();
       }
     };
+    const openGraphActions=async()=>{
+      const group=page.locator('#cms-design-structure-actions');
+      if(!(await group.evaluate(node=>node.open)))await group.locator(':scope > summary').click();
+    };
     const closeEditingExtras=async()=>{
       await page.evaluate(()=>{
         for(const id of ['local-site-tools','page-actions-more','section-actions-more']){
@@ -922,7 +926,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.mouse.down();
     await page.mouse.move(mobileHandleBox.x+mobileHandleBox.width/2+16,mobileHandleBox.y+mobileHandleBox.height/2,{steps:4});
     await page.mouse.up();
-    await page.locator('#cms-design-structure-actions>summary').click();
+    await openGraphActions();
     await page.locator('#cms-design-fit-width').click();
     await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').waitFor();
     assert.ok(await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').evaluate(e=>e.getBoundingClientRect().width<=390),
@@ -931,10 +935,10 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     // Create a second container and a child, then reparent the heading by dropping
     // onto that child's center. The container ancestor should win over the child hit.
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
-    await page.locator('#cms-design-structure-actions>summary').click();
+    await openGraphActions();
     await page.getByRole('button',{name:'Добавить рядом'}).click();
     const extraContainerId=await page.locator('#cms-design-node-select').inputValue();
-    await page.locator('#cms-design-structure-actions>summary').click();
+    await openGraphActions();
     await page.getByRole('button',{name:'Добавить внутрь'}).click();
     const extraChildId=await page.locator('#cms-design-node-select').inputValue();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
@@ -1106,7 +1110,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-design-gradient label').filter({hasText:/^Цвет от/}).locator('input').fill('@accent');
     await page.locator('#cms-design-gradient label').filter({hasText:/^Цвет до/}).locator('input').fill('#ffffff');
     assert.equal(await page.locator('#cms-design-structure-actions').evaluate(node=>node.open),false);
-    await page.locator('#cms-design-structure-actions>summary').click();
+    await openGraphActions();
     page.once('dialog',d=>d.accept('Иконка'));
     await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Добавить элемент'}).click();
     await page.locator('#cms-design-graph-dialog label').filter({hasText:/^Векторная иконка/})
@@ -1137,13 +1141,13 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     // Edit a whole AI-authored nested composition without AI, scripts or raw CSS.
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
-    await page.locator('#cms-design-structure-actions>summary').click();
+    await openGraphActions();
     await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Добавить рядом'}).click();
     const newContainer=await page.locator('#cms-design-node-select').inputValue();
-    await page.locator('#cms-design-structure-actions>summary').click();
+    await openGraphActions();
     await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Добавить внутрь'}).click();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
-    await page.locator('#cms-design-structure-actions>summary').click();
+    await openGraphActions();
     await page.locator('#cms-design-move-target').selectOption(newContainer);
     await page.locator('#cms-design-move-placement').selectOption('inside');
     await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Переместить элемент'}).click();
@@ -1163,14 +1167,14 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'clipShape'}).locator('select').selectOption('diagonal');
     await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'backdropBlur'}).locator('input').fill('6');
     await page.locator('#cms-design-node-select').selectOption(newContainer);
-    await page.locator('#cms-design-structure-actions>summary').click();
+    await openGraphActions();
     await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Дублировать группу'}).click();
     const duplicated=await page.locator('#cms-design-node-select').inputValue();
     assert.notEqual(duplicated,newContainer,'Deep duplicate receives a new stable id');
-    await page.locator('#cms-design-structure-actions>summary').click();
+    await openGraphActions();
     await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Собрать в группу'}).click();
     const wrapper=await page.locator('#cms-design-node-select').inputValue();
-    await page.locator('#cms-design-structure-actions>summary').click();
+    await openGraphActions();
     page.once('dialog',d=>d.accept());
     await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Разгруппировать'}).click();
     assert.equal(await page.locator('#cms-design-node-select').inputValue(),duplicated);
@@ -1481,7 +1485,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#sections .nav-entry').last().click();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-node-select').selectOption('sheet-table-ui');
-    await page.locator('#cms-design-structure-actions > summary').click();
+    await openGraphActions();
     await page.locator('#cms-design-table-paste').click();
     await page.locator('#cms-graph-table-file').setInputFiles({
       name:'edited-prices.csv',mimeType:'text/csv',
