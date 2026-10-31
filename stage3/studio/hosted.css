@@ -431,6 +431,24 @@ html[data-stage3-mode="server"] .hosted-login{
 }
 html[data-stage3-mode="server"] .hosted-login p{color:#657c93}
 html[data-stage3-mode="server"] .hosted-gate{background:#ebf1f8f2}
+/* Resource drawers stay as independent disclosures inside a labelled section.
+   Avoid nesting native details: each drawer remains directly clickable. */
+html[data-stage3-mode="server"] .hosted-resources-group{
+  margin:10px 12px 14px;padding:0;border:0;background:transparent;
+  overflow:visible;box-shadow:none;
+}
+html[data-stage3-mode="server"] .hosted-resources-summary{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+  padding:10px 3px 8px;color:#2d4968;font-size:12px;font-weight:750;
+}
+html[data-stage3-mode="server"] .hosted-resources-summary small{
+  max-width:72%;margin-left:auto;text-align:right;color:#7a8da4;
+  font-size:10px;font-weight:500;line-height:1.4;
+}
+html[data-stage3-mode="server"] .hosted-resources-group .hosted-drawers{
+  border-top:1px solid #e6edf5;padding-top:7px;
+}
+
 /* The sidebar is an independent navigation rail, like WordPress admin.
    Long resource drawers scroll inside it instead of sliding under the footer. */
 html[data-stage3-mode="server"] .sidebar{

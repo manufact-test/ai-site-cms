@@ -109,7 +109,8 @@ async function execute(){
   assert.equal(await page.locator('#server-empty-state:visible').count(),1);
   assert.equal(await page.locator('#server-drawer-media').evaluate(node=>node.open),false);
   assert.equal(await page.locator('#server-site-tools').evaluate(node=>node.open),false);
-  assert.equal(await page.locator('#server-resources').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#server-resources').count(),1);
+  assert.equal(await page.locator('#server-drawer-import').evaluate(node=>node.open),false);
   assert.equal(await page.locator('#history-details').evaluate(node=>node.open),false);
   assert.equal(await page.locator('#server-edit-page').count(),1);
   assert.equal(await page.locator('#page-add').isVisible(),true);
@@ -120,9 +121,8 @@ async function execute(){
   assert.equal(await page.locator('#section-add').isVisible(),false,
     'The raw internal component-ID prompt is not exposed');
   await page.evaluate(()=>{
-    for(const id of ['#server-site-tools','#server-resources']){
-      const node=document.querySelector(id);if(node)node.open=true;
-    }
+    const siteTools=document.querySelector('#server-site-tools');
+    if(siteTools)siteTools.open=true;
     for(const node of document.querySelectorAll(
       '#server-tools details,#server-site-tools details,#server-admin-more')){
       node.open=true;node.dispatchEvent(new Event('toggle'));
@@ -419,7 +419,6 @@ async function execute(){
   await page.evaluate(()=>sessionStorage.clear());
   await page.reload();
   // A fresh tab starts with secondary tools collapsed again; reveal import.
-  await page.locator('#server-resources').evaluate(node=>{node.open=true;});
   await page.locator('#server-drawer-import').evaluate(node=>{node.open=true;});
   await page.locator('#server-approved-import:not([disabled])').waitFor();
   await page.evaluate(entries=>{
@@ -557,7 +556,7 @@ async function execute(){
   };
   await page.evaluate(()=>{
     for(const node of document.querySelectorAll(
-      '#server-tools details,#server-site-tools details,#server-admin-more,#server-site-tools,#server-resources'))
+      '#server-tools details,#server-site-tools details,#server-admin-more,#server-site-tools'))
       node.open=false;
   });
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-desktop.png'),fullPage:true});
@@ -634,9 +633,8 @@ async function execute(){
   await page.setViewportSize({width:1400,height:1000});
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
   await page.evaluate(()=>{
-    for(const id of ['#server-site-tools','#server-resources']){
-      const node=document.querySelector(id);if(node)node.open=true;
-    }
+    const siteTools=document.querySelector('#server-site-tools');
+    if(siteTools)siteTools.open=true;
     for(const node of document.querySelectorAll(
       '#server-tools details,#server-site-tools details,#server-admin-more')){
       node.open=true;node.dispatchEvent(new Event('toggle'));

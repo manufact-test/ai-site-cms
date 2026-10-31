@@ -2544,9 +2544,9 @@
     drawer('server-drawer-import','Подключение сайта','Импорт подготовленного сайта и материалы согласования',
       document.querySelector('.site-actions'))
   );
-  const resources=element('details','hosted-resources-group');
+  const resources=element('section','hosted-resources-group');
   resources.id='server-resources';
-  const resourcesSummary=element('summary','hosted-resources-summary');
+  const resourcesSummary=element('div','hosted-resources-summary');
   resourcesSummary.append(
     element('span',null,'Ресурсы и обслуживание'),
     element('small',null,'Медиафайлы, заявки, библиотека, архив, переносы и подключение')
@@ -2558,7 +2558,6 @@
   // levels so upload status is never hidden behind a closed parent.
   for(const trigger of [mediaUpload,videoUpload,fontUpload])
     trigger.addEventListener('click',()=>{
-      resources.open=true;
       $('server-drawer-media').open=true;
     },{capture:true});
 
@@ -2579,7 +2578,7 @@
   const emptyImport=action('Подключить готовый сайт','server-empty-import',()=>{
     const btn=$('server-approved-import');
     if(!btn||btn.disabled)return;
-    resources.open=true;$('server-drawer-import').open=true;btn.click();
+    $('server-drawer-import').open=true;btn.click();
   });
   emptyImport.classList.add('primary');
   const emptyNote=element('p','hosted-empty-note',
@@ -2593,7 +2592,7 @@
   const disclosureKey='manufact-studio-disclosures-v2';
   const disclosures=[
     adminMore,siteTools,...siteTools.querySelectorAll('details.hosted-tool-category'),
-    resources,...drawerRail.querySelectorAll('details.hosted-drawer')
+    ...drawerRail.querySelectorAll('details.hosted-drawer')
   ];
   try{
     const selected=JSON.parse(sessionStorage.getItem(disclosureKey)||'[]');
