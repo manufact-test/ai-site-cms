@@ -910,3 +910,25 @@ button:disabled{opacity:.45}
   #cms-design-graph-dialog .cms-design-advanced-actions-list{grid-template-columns:1fr}
   #cms-design-graph-dialog .cms-design-move-group{grid-template-columns:1fr}
 }
+
+.local-site-tools>summary,.local-tool-category>summary,
+.structure-actions-more>summary,.local-site-tools-content .history-disclosure>summary{
+  list-style:none;
+}
+.local-tool-category>summary::-webkit-details-marker,
+.structure-actions-more>summary::-webkit-details-marker,
+.local-site-tools-content .history-disclosure>summary::-webkit-details-marker{display:none}
+.local-tool-category>summary::after,
+.structure-actions-more>summary::after,
+.local-site-tools-content .history-disclosure>summary::after{
+  content:"+";float:right;color:#8b9db0;font-weight:500;font-size:14px;
+}
+.local-tool-category[open]>summary::after,
+.structure-actions-more[open]>summary::after,
+.local-site-tools-content .history-disclosure[open]>summary::after{content:"−"}
+#cms-design-graph-dialog .cms-design-advanced-actions>summary{list-style:none}
+#cms-design-graph-dialog .cms-design-advanced-actions>summary::-webkit-details-marker{display:none}
+#cms-design-graph-dialog .cms-design-advanced-actions>summary::after{
+  content:"+";float:right;color:#8196ab;font-weight:500;
+}
+#cms-design-graph-dialog .cms-design-advanced-actions[open]>summary::after{content:"−"}
