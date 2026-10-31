@@ -3,6 +3,7 @@
 // Does NOT make HTTP requests, create 301s, edit nav links or change CMS.
 const {auditSite}=require('./analyze.cjs');
 const {checkBlueprint}=require('./blueprint.cjs');
+const GRAPH=require('./graph-authored.cjs');
 const FORMAT='manufact-seo-route-migration-v1';
 function scanAuthoredLinks(site){
  const results=[];
@@ -11,19 +12,13 @@ function scanAuthoredLinks(site){
   const pure=href.split(/[?#]/)[0];
   results.push({pageId:page.id,pagePath:page.path,source:where,href,targetPath:pure});
  };
- function graph(nodes,p,sectionId){
-  if(!Array.isArray(nodes))return;
-  for(const node of nodes){
-   if(node?.type==='button')add(p,p.path,'designGraph:'+sectionId+':'+node.id,node.href);
-   graph(node?.children,p,sectionId);
-  }
- }
  for(const page of site.pages){
   for(const section of page.sections||[]){
-   for(const element of [...(section.elements||[]),...(section.items||[])]){
+   if(section.designGraph){
+    for(const link of GRAPH.links(section))
+     add(page,page.path,'designGraph:'+section.id+':'+link.nodeId+':'+link.fieldPath,link.href);
+   }else for(const element of [...(section.elements||[]),...(section.items||[])])
     add(page,page.path,section.id+':'+element.id,element.values?.['behavior.href']);
-   }
-   graph(section.designGraph?.nodes,page,section.id);
   }
  }
  return results;

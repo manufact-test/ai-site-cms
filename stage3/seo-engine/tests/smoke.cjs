@@ -169,7 +169,7 @@ try{
  const realScreens=original.pages.map((p,i)=>{
   const screenshots=Object.fromEntries(devices.map(d=>{
    const file='page-'+String(i+1).padStart(2,'0')+'-'+d+'.png';
-   return [d,{file,sha256:saveCaptureFile(file),width:widths[d],height:900}];
+   return [d,{file,sha256:saveCaptureFile(file,widths[d]),width:widths[d],height:900}];
   }));
   return {path:p.path,title:p.title||'',screenshots,
    warnings:i===0?['mobile: missing image /assets/not-found.png']:[]};
@@ -460,7 +460,7 @@ try{
  const cleanIntegrity=PUBLISH.review(original,comprehensive);
  assert.deepEqual(cleanIntegrity.findings,[]);
  const indexDrift=structuredClone(original);
- indexDrift.pages[1].seo.robots='noindex';
+ indexDrift.pages[1].seo={title:'',description:'',robots:'noindex'};
  assert.ok(PUBLISH.review(indexDrift,comprehensive).findings.some(x=>x.code==='publication:sitemap-noindex'));
  const incompleteMap=structuredClone(comprehensive);
  incompleteMap.sitemapPaths=['/'];
@@ -877,7 +877,7 @@ try{
  const unsupported=command('review-bundle',{site,blueprint:bp,unknown:'invalid'});
  assert.notEqual(unsupported.status,0);
  const {inspect:inspectEvidence}=require('../lib/html-evidence.cjs');
- const nested=inspect('<html><body><script type="application/ld+json">'+JSON.stringify({
+ const nested=inspectEvidence('<html><body><script type="application/ld+json">'+JSON.stringify({
   '@context':'https://schema.org','@type':'Article',author:{'@type':'Person'}
  })+'</script></body></html>');
  assert.deepEqual(nested.structuredDataTypes,['Article','Person']);

@@ -47,6 +47,7 @@ jobs:
           node stage3/seo-engine/tests/seo-operator-workspace-smoke.cjs
           node stage3/seo-engine/tests/first-site-live-evidence-pipeline-smoke.cjs
           node stage3/seo-engine/tests/public-https-capture-smoke.cjs
+          node stage3/seo-engine/tests/seo-graph-authored-links-smoke.cjs
           node stage3/seo-engine/tests/php-html-capture-smoke.cjs
           node stage3/seo-engine/tests/php-local-delivery-readiness-smoke.cjs
           node stage3/seo-engine/tests/php-local-static-export-smoke.cjs

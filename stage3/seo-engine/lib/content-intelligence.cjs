@@ -2,6 +2,7 @@
 // A content-evidence and information-architecture layer; deterministic and read-only.
 // NOT an NLP model, search-volume service, ranking score or a content generator.
 const {checkBlueprint}=require('./blueprint.cjs');
+const GRAPH=require('./graph-authored.cjs');
 const FORMAT='manufact-seo-content-review-v1';
 const normalize=x=>String(x||'').normalize('NFKC').toLocaleLowerCase().replace(/\s+/g,' ').trim();
 const clip=(s,n=220)=>String(s||'').trim().slice(0,n);
@@ -47,14 +48,20 @@ function extractSection(section,assets){
  function walk(nodes){
   for(const n of nodes||[]){
    const locator={sectionId:section.id,nodeId:n.id};
-   if(['heading','text','button','list-item','disclosure','tab'].includes(n.type))
-    add(n.text,n.type==='button'?'link':n.type==='heading'?'heading':'body',locator);
-   if(n.type==='button'&&relative(n.href)!==null)links.push({toPath:relative(n.href),label:clip(n.text,120),locator});
+   if(['heading','text','button','link','list-item','disclosure','tab'].includes(n.type))
+    add(n.text,['button','link'].includes(n.type)?'link':n.type==='heading'?'heading':'body',locator);
    if(n.type==='image')images.push({assetId:n.assetId,alt:n.alt??'',locator});
    if(n.children)walk(n.children);
   }
  }
- if(section.designGraph)walk(section.designGraph.nodes);
+ if(section.designGraph){
+  walk(section.designGraph.nodes);
+  for(const link of GRAPH.links(section)){
+   const raw=relative(link.href);
+   if(raw!==null)links.push({toPath:raw,label:clip(link.label,120),
+    locator:{sectionId:section.id,nodeId:link.nodeId,fieldPath:link.fieldPath}});
+  }
+ }
  return {id:section.id,component:section.component,pieces,links,images};
 }
 function extract(site){

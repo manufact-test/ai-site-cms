@@ -52,7 +52,7 @@ function auditSite(site,manifests,blueprint){
     if(target&&target.id!==p.id){incoming.set(target.id,incoming.get(target.id)+1);authoredEdges.get(p.id).add(target.id);}
    };
    if(s.designGraph){
-    for(const n of GRAPH.nodes(s))if(n.type==='button')visit(n.href,s.id,null,n.id);
+    for(const link of GRAPH.links(s))visit(link.href,s.id,null,link.nodeId);
    }else for(const el of [...s.elements,...(s.items||[])])
     visit(el.values?.['behavior.href'],s.id,el.id,null);
   }

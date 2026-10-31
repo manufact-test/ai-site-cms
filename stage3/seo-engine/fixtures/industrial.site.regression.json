@@ -76,6 +76,8 @@
         }
       ],
       "seo": {
+        "title": "",
+        "description": "",
         "robots": "noindex"
       }
     },
