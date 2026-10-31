@@ -845,6 +845,7 @@ async function execute(){
   // Real owner edit, not just JSON validation: change a multirow table, add
   // a gallery photo and edit quote attribution inside the existing Studio.
   // The final saved+published PHP output must reflect those exact operations.
+  await page.locator('#server-site-tools-close').click();
   await page.locator('#sections .nav-entry').nth(3).click();
   // The advanced block action is intentionally collapsed in the owner UI.
   // Exercise its real disclosure before using the secondary action.
@@ -1042,6 +1043,11 @@ async function execute(){
     'FAQ delete must target the specified question, not the currently selected index');
   assert.equal(await page.locator('#elements .cms-repeat-row').count(),2);
   assert.equal(await page.locator('#cms-repeat-add').innerText(),'+ Добавить вопрос');
+  // Site-wide SEO lives in its modal toolbox, so reopen it on purpose.
+  await page.locator('#server-site-tools-open').click();
+  await page.locator('#server-site-tools-dialog[open]').waitFor();
+  await page.locator('#server-site-tools').evaluate(node=>{node.open=true;});
+  await page.locator('#server-tool-seo').evaluate(node=>{node.open=true;});
   const seoToolButton=page.locator('#cms-open-seo');
   await seoToolButton.scrollIntoViewIfNeeded();
   const seoToolPointerGeometry=await seoToolButton.evaluate(button=>{
@@ -1062,6 +1068,8 @@ async function execute(){
   await page.locator('#cms-setting-seo-title').fill('FAQ и готовый сайт — SEO');
   await page.locator('#cms-setting-seo-description').fill('Новые вопросы и SEO опубликованы после ручного сохранения');
   await page.locator('#cms-settings-apply').click();
+  if(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open))
+    await page.locator('#server-site-tools-close').click();
   await page.locator('#save').click();
   await page.locator('#server-launch-review').click();
   await page.locator('#server-launch-dialog').waitFor();
