@@ -579,3 +579,12 @@ button:disabled{opacity:.45}
 @media(prefers-reduced-motion:reduce){
   .btn,.viewport,.nav-entry{transition:none!important}
 }
+
+
+/* The owner toolbar can wrap at intermediate widths; avoid covering the
+   sticky tree with an inaccurately fixed 76px offset in that range. */
+@media(min-width:651px) and (max-width:1220px){
+  .topbar{position:relative}
+  .sidebar{top:0;height:100dvh}
+  .inspector{top:0}
+}

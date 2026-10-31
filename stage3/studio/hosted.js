@@ -2448,6 +2448,13 @@
   );
   $('sections').after(drawerRail);
 
+  // Existing Workbench buttons programmatically open the original media
+  // uploaders. Reveal their panel first so upload status is never invisible.
+  for(const trigger of [mediaUpload,videoUpload,fontUpload])
+    trigger.addEventListener('click',()=>{
+      $('server-drawer-media').open=true;
+    },{capture:true});
+
   // Tab-scoped UI preference only. Never persist user/site data or write a draft.
   const disclosureKey='manufact-studio-disclosures-v1';
   const disclosures=[adminMore,...drawerRail.querySelectorAll('details.hosted-drawer')];

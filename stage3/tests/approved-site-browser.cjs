@@ -403,6 +403,8 @@ async function execute(){
     'Both original sealed documents must survive before any media upload');
   await page.evaluate(()=>sessionStorage.clear());
   await page.reload();
+  // A fresh tab starts with secondary tools collapsed again; reveal import.
+  await page.locator('#server-drawer-import').evaluate(node=>{node.open=true;});
   await page.locator('#server-approved-import:not([disabled])').waitFor();
   await page.evaluate(entries=>{
     const selected=entries.map(entry=>{
