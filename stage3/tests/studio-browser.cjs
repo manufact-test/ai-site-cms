@@ -124,6 +124,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       'A real pointer at the site tool action must hit the button: '+JSON.stringify(seoHandoffGeometry));
     await seoHandoffButton.click();
     await page.locator('#cms-seo-handoff-file').setInputFiles(jsonFile({...handoff,siteId:'wrong-project'}));
+    await page.waitForFunction(()=>/другого сайта/.test(
+      document.querySelector('#cms-seo-handoff-status')?.textContent||''));
     assert.match(await page.locator('#cms-seo-handoff-status').innerText(),/другого сайта/);
     await page.locator('#cms-seo-handoff-file').setInputFiles(jsonFile(handoff));
     await page.locator('#cms-seo-handoff-results h4').getByText(handoff.active[0].actionId,{exact:false}).waitFor();
