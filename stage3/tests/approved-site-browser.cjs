@@ -968,8 +968,11 @@ async function execute(){
   assert.match(await publicBackdrop.evaluate(el=>getComputedStyle(el,'::after').backgroundColor),
     /rgba?\(18, 52, 86/,'Published video keeps Workbench tint');
   await visitor.setViewportSize({width:390,height:844});
-  assert.equal(await publicCarousel.locator('.cmsdg-card-slide').first().evaluate(el=>
-    getComputedStyle(el).flexBasis.endsWith('px')&&parseFloat(getComputedStyle(el).flexBasis)>200),true,
+  assert.equal(await publicCarousel.locator('.cmsdg-card-slide').first().evaluate(el=>{
+    const track=el.parentElement;
+    return el.getBoundingClientRect().width>=track.getBoundingClientRect().width*0.9&&
+      track.scrollWidth>track.clientWidth+100;
+  }),true,
     'Phone uses one full-width, scrollable card rather than the desktop two-card row');
   assert.equal(await publicBackdrop.locator('video').evaluate(el=>getComputedStyle(el).display),'none');
   assert.ok((await publicBackdrop.evaluate(el=>getComputedStyle(el).backgroundImage))
