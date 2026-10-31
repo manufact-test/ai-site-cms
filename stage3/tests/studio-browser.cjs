@@ -12,6 +12,25 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
   try{
     const ctx=await browser.newContext({acceptDownloads:true,viewport:{width:1450,height:1000}});
     const page=await ctx.newPage(),errors=[],remote=[];
+    const openLocalTools=async()=>{
+      const group=page.locator('#local-site-tools');
+      if(!(await group.evaluate(node=>node.open)))await group.locator('summary').click();
+      await page.evaluate(()=>document.querySelectorAll('#local-site-tools-content .local-tool-category')
+        .forEach(node=>{node.open=true;}));
+    };
+    const openStructureActions=async()=>{
+      for(const id of ['page-actions-more','section-actions-more']){
+        const group=page.locator('#'+id);
+        if(!(await group.evaluate(node=>node.open)))await group.locator('summary').click();
+      }
+    };
+    const closeEditingExtras=async()=>{
+      await page.evaluate(()=>{
+        for(const id of ['local-site-tools','page-actions-more','section-actions-more']){
+          const node=document.getElementById(id);if(node)node.open=false;
+        }
+      });
+    };
     page.on('pageerror',e=>{errors.push(e.message);console.error('STAGE3 STARTUP ERROR:',e.stack||e.message);});
     page.on('request',r=>{if(/^https?:/i.test(r.url()))remote.push(r.url());});
     await page.goto(pathToFileURL(html).href);
@@ -20,6 +39,11 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#sections .nav-entry').count(),2);
     assert.equal(await page.locator('#history-details').evaluate(node=>node.open),false,
       'Version history stays out of the default editing workspace');
+    assert.equal(await page.locator('#local-site-tools').evaluate(node=>node.open),false,
+      'Site-wide tools are collapsed by default');
+    assert.equal(await page.locator('#page-actions-more').evaluate(node=>node.open),false);
+    assert.equal(await page.locator('#section-actions-more').evaluate(node=>node.open),false);
+    await openLocalTools();await openStructureActions();
     assert.equal(await page.locator('#fields [data-field]').count(),3,
       'Only declared heading fields appear; no generic CSS catalogue');
     // Operator-produced private SEO handoff opens relevant REAL CMS fields.
@@ -184,10 +208,13 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#versions .version').count(),1);
     if(process.env.GITHUB_ACTIONS==='true'){
       const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await closeEditingExtras();
       await page.screenshot({path:path.join(shots,'stage3-desktop-editor.png'),fullPage:true});
+      await openLocalTools();await openStructureActions();
     }
     await page.reload();
     await page.locator('#site-name').getByText('Завод оборудования').waitFor();
+    await openLocalTools();await openStructureActions();
     assert.equal(await canvas.locator('h1').innerText(),'Новое промышленное оборудование');
     await page.locator('[data-bp="mobile"]').click();
     await canvas.locator('h1[style*="font-size:35px"]').waitFor();
@@ -315,8 +342,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#undo').click();
 
     // Real offline repeatable cards: add, edit, clone, reorder and Undo through Studio.
-    page.once('dialog',d=>d.accept('service-grid'));
     await page.locator('#section-add').click();
+    await page.locator('#cms-component-search').fill('Услуги');
+    await page.locator('#cms-component-list [data-component="service-grid"]').click();
     await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
     assert.equal(await page.locator('[data-repeat-id]').count(),2);
     await page.locator('#cms-repeat-add').click();
@@ -337,6 +365,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('[data-repeat-id]').count(),4);
     await page.locator('#save').click();
     await page.reload();
+    await page.locator('#site-name').getByText('Завод оборудования').waitFor();
+    await openLocalTools();await openStructureActions();
     await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
     assert.equal(await page.locator('[data-repeat-id]').count(),4);
 
