@@ -4307,6 +4307,8 @@
       renderAudit();
     }
     function render(){
+      // Keep the owner's chosen advanced-actions state during graph edits.
+      const advancedActionsOpen=Boolean(toolbar.querySelector('#cms-design-structure-actions')?.open);
       root.replaceChildren();toolbar.replaceChildren();
       const rows=all();
       if(!rows.length)return;
@@ -4348,6 +4350,7 @@
       }
       const advancedActions=make('details',undefined,'cms-design-advanced-actions');
       advancedActions.id='cms-design-structure-actions';
+      advancedActions.open=advancedActionsOpen;
       advancedActions.append(make('summary','Действия с элементом'));
       const advancedActionList=make('div',undefined,'cms-design-advanced-actions-list');
       advancedActions.append(advancedActionList);
@@ -5324,7 +5327,8 @@
       }
       undoStack=[];redoStack=[];activeGesture=null;suppressPreviewClick=false;
       title.textContent='Дизайн-композиция · '+(manifest(section)?.label||section.id);
-      dlg.showModal();render();
+      // Each new editing session starts with only the primary controls visible.
+      toolbar.replaceChildren();dlg.showModal();render();
     };
   }
 
