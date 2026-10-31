@@ -218,6 +218,15 @@ function tableMatrix(graph,tableId){
   if(!table||table.type!=='table')fail(tableId,'expected an existing table');
   return table.children.map(row=>row.children.map(cell=>cell.text));
 }
+function tableTsv(graph,tableId,spreadsheetSafe=true){
+  if(typeof spreadsheetSafe!=='boolean')fail('table-export','invalid safety option');
+  return tableMatrix(graph,tableId).map(row=>row.map(value=>{
+    // TSV quoting must preserve literal leading quotes and embedded quotes
+    // on the next import; spreadsheet exports additionally neutralize formulas.
+    const text=spreadsheetSafe&&/^\s*[=+@-]/.test(value)?"'"+value:value;
+    return text.includes('"')?'"'+text.replace(/"/g,'""')+'"':text;
+  }).join('\t')).join('\n');
+}
 function replaceTableMatrix(graph,tableId,matrix,makeId){
   if(!Array.isArray(matrix)||matrix.length<2||matrix.length>10||
     !Array.isArray(matrix[0])||matrix[0].length<2||matrix[0].length>6||
@@ -1380,4 +1389,4 @@ function auditAccessibility(graph,tokensInput){
   return findings;
 }
 
-module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,auditAccessibility,formSlotIds,parseTableMatrix,tableMatrix,replaceTableMatrix,reorderTableColumn,reorderTableRow,parseListLines,listLines,replaceListLines,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,SEQUENCE_EASINGS,ICON_PATHS});
+module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,auditAccessibility,formSlotIds,parseTableMatrix,tableMatrix,tableTsv,replaceTableMatrix,reorderTableColumn,reorderTableRow,parseListLines,listLines,replaceListLines,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,SEQUENCE_EASINGS,ICON_PATHS});

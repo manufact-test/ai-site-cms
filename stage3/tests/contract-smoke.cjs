@@ -643,6 +643,17 @@ test('existing authored table accepts bounded spreadsheet paste without losing I
   assert.equal(g.nodes[0].children.length,2,'Original Graph remains untouched');
   assert.equal(G.replaceTableMatrix(next,'sheet-table',matrix,()=>{throw Error('no new ID expected');}),next,
     'Pasting an unchanged spreadsheet must not create another Undo entry');
+  const quotedGraph=structuredClone(g);
+  quotedGraph.nodes[0].children[1].children[0].text='"Сайт, большой"';
+  quotedGraph.nodes[0].children[1].children[1].text='=HYPERLINK("https://example.test")';
+  const editableTsv=G.tableTsv(quotedGraph,'sheet-table',false);
+  assert.deepEqual(G.parseTableMatrix(editableTsv,'tab'),G.tableMatrix(quotedGraph,'sheet-table'),
+    'Unmodified TSV export is reversible including literal quote characters');
+  const safeTsv=G.tableTsv(quotedGraph,'sheet-table');
+  assert.equal(G.parseTableMatrix(safeTsv,'tab')[1][1],
+    "'=HYPERLINK(\"https://example.test\")",
+    'Clipboard/download TSV neutralizes spreadsheet formulas without changing the Graph');
+  assert.equal(quotedGraph.nodes[0].children[1].children[1].text,'=HYPERLINK("https://example.test")');
   G.validateGraph(next,new Set(),new Set());
   const html=G.render({designTokens:G.DEFAULT_TOKENS,assets:[],language:'ru'},next);
   assert.match(html,/<th scope="row" data-label="Услуга" class="cmsdg-n-sheet-v-a">Дизайн, UX<\/th>/);

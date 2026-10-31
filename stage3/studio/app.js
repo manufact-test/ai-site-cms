@@ -138,10 +138,17 @@
     document.body.append(anchor);anchor.click();anchor.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1200);
   }
-  const safeTableTsv=matrix=>matrix.map(row=>row.map(value=>
-    // An otherwise harmless client-authored string must not become an active
-    // spreadsheet formula when the exported TSV is opened in Excel/Sheets.
-    /^\s*[=+@-]/.test(value)?"'"+value:value).join('\t')).join('\n');
+  function selectGraphTextForCopy(dialog,content){
+    let fallback=dialog.querySelector('[data-graph-copy-fallback]');
+    if(!fallback){
+      fallback=document.createElement('textarea');fallback.readOnly=true;
+      fallback.dataset.graphCopyFallback='true';fallback.className='control';
+      fallback.setAttribute('aria-label','Выделенный текст для ручного копирования');
+      fallback.style.cssText='width:100%;height:70px;white-space:pre';
+      dialog.append(fallback);
+    }
+    fallback.value=content;fallback.focus();fallback.select();
+  }
   // One spreadsheet editor for a REAL existing Design Graph table, shared by
   // the full-page Workbench and the advanced graph Inspector.
   function openGraphTablePaste(graph,tableId,onApply){
@@ -165,7 +172,7 @@
     textarea.style.cssText='width:100%;min-height:180px;white-space:pre;tab-size:4';
     textarea.setAttribute('aria-label','Строки и значения таблицы');
     const before=DESIGN_GRAPH.tableMatrix(graph,tableId);
-    textarea.value=before.map(row=>row.join('\t')).join('\n');
+    textarea.value=DESIGN_GRAPH.tableTsv(graph,tableId,false);
     const status=document.createElement('p');status.id='cms-graph-table-status';
     status.setAttribute('aria-live','polite');
     const fileLabel=document.createElement('label');
@@ -186,19 +193,19 @@
     apply.id='cms-graph-table-apply';
     const cancel=button('Отмена','btn',()=>dialog.close());
     const copyData=button('Скопировать TSV','btn',async()=>{
-      const normalized=safeTableTsv(before);
+      const normalized=DESIGN_GRAPH.tableTsv(graph,tableId);
       try{
         if(!navigator.clipboard?.writeText)throw Error('Clipboard API unavailable');
         await navigator.clipboard.writeText(normalized);
         status.textContent='Исходные данные таблицы скопированы. Можно редактировать их в Excel.';
       }catch(_){
-        textarea.value=normalized;textarea.focus();textarea.select();updatePreview();
+        selectGraphTextForCopy(dialog,normalized);
         status.textContent='Исходные данные выделены — нажмите Ctrl+C для копирования.';
       }
     });
     copyData.id='cms-graph-table-copy';
     const exportData=button('Скачать TSV','btn',()=>downloadGraphText('table.tsv',
-      safeTableTsv(before),'text/tab-separated-values'));
+      DESIGN_GRAPH.tableTsv(graph,tableId),'text/tab-separated-values'));
     exportData.id='cms-graph-table-download';
     actions.append(copyData,exportData,apply,cancel);
     const updatePreview=()=>{
@@ -283,7 +290,7 @@
         await navigator.clipboard.writeText(normalized);
         status.textContent='Исходный список скопирован.';
       }catch(_){
-        textarea.value=normalized;textarea.focus();textarea.select();updatePreview();
+        selectGraphTextForCopy(dialog,normalized);
         status.textContent='Исходный список выделен — нажмите Ctrl+C для копирования.';
       }
     });
