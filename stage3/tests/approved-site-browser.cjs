@@ -1775,6 +1775,9 @@ async function execute(){
   assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
     'Changing draft mobile imagery does not publish the new asset');
 
+  // Sign-out is intentionally inside site-wide tools, not the page editor rail.
+  await page.locator('#server-site-tools-open').click();
+  await page.locator('#server-site-tools-dialog[open]').waitFor();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
   assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
