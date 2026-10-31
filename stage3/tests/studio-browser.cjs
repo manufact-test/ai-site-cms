@@ -1030,11 +1030,13 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-design-gradient label').filter({hasText:/^Угол/}).locator('input').fill('120');
     await page.locator('#cms-design-gradient label').filter({hasText:/^Цвет от/}).locator('input').fill('@accent');
     await page.locator('#cms-design-gradient label').filter({hasText:/^Цвет до/}).locator('input').fill('#ffffff');
-    page.once('dialog',d=>d.accept('icon'));
-    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Тип +'}).click();
+    assert.equal(await page.locator('#cms-design-structure-actions').evaluate(node=>node.open),false);
+    await page.locator('#cms-design-structure-actions>summary').click();
+    page.once('dialog',d=>d.accept('Иконка'));
+    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Добавить элемент'}).click();
     await page.locator('#cms-design-graph-dialog label').filter({hasText:/^Векторная иконка/})
       .locator('select').selectOption('shield');
-    await page.locator('#cms-design-graph-dialog label').filter({hasText:/^Описание для скринридера/})
+    await page.locator('#cms-design-graph-dialog label').filter({hasText:/^Описание иконки/})
       .locator('input').fill('Защитный значок');
     await page.locator('#cms-design-motion summary').click();
     await page.locator('#cms-design-motion label').filter({hasText:/^Эффект/})
@@ -1060,13 +1062,16 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     // Edit a whole AI-authored nested composition without AI, scripts or raw CSS.
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
-    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Рядом'}).click();
+    await page.locator('#cms-design-structure-actions>summary').click();
+    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Добавить рядом'}).click();
     const newContainer=await page.locator('#cms-design-node-select').inputValue();
-    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Вложенный'}).click();
+    await page.locator('#cms-design-structure-actions>summary').click();
+    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Добавить внутрь'}).click();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
+    await page.locator('#cms-design-structure-actions>summary').click();
     await page.locator('#cms-design-move-target').selectOption(newContainer);
     await page.locator('#cms-design-move-placement').selectOption('inside');
-    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Переместить'}).click();
+    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Переместить элемент'}).click();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-title');
     for(const [label,value] of [['fontStyle','italic'],['textTransform','uppercase'],
       ['textWrap','balance'],['textShadow','soft']]){
@@ -1083,13 +1088,16 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'clipShape'}).locator('select').selectOption('diagonal');
     await page.locator('#cms-design-graph-dialog .cms-design-fields label').filter({hasText:'backdropBlur'}).locator('input').fill('6');
     await page.locator('#cms-design-node-select').selectOption(newContainer);
-    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Копировать группу'}).click();
+    await page.locator('#cms-design-structure-actions>summary').click();
+    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Дублировать группу'}).click();
     const duplicated=await page.locator('#cms-design-node-select').inputValue();
     assert.notEqual(duplicated,newContainer,'Deep duplicate receives a new stable id');
-    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Объединить в контейнер'}).click();
+    await page.locator('#cms-design-structure-actions>summary').click();
+    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Собрать в группу'}).click();
     const wrapper=await page.locator('#cms-design-node-select').inputValue();
+    await page.locator('#cms-design-structure-actions>summary').click();
     page.once('dialog',d=>d.accept());
-    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Разобрать контейнер'}).click();
+    await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'Разгруппировать'}).click();
     assert.equal(await page.locator('#cms-design-node-select').inputValue(),duplicated);
     await page.locator('#cms-design-apply').click();
     await page.locator('#cms-design-graph-dialog').waitFor({state:'hidden'});
