@@ -2518,11 +2518,38 @@
       'Черновик #'+state.revision+' сохранён · не обязательно опубликован';
   };
 
+
+  // Do not ask a site owner to read manifest/JSON paths in the ordinary
+  // property Inspector. Keep the original path in a native tooltip for support.
+  const fieldsRoot=$('fields');
+  const simplifyInspector=()=>{
+    for(const note of fieldsRoot.querySelectorAll('.field-path:not([role="alert"])')){
+      if(note.dataset.ownerLabeled)continue;
+      const raw=note.textContent||'';
+      note.title=raw;
+      const breakpointInfo=raw.indexOf(' · ');
+      if(breakpointInfo<0)note.hidden=true;
+      else note.textContent=raw.slice(breakpointInfo+3)
+        .replace(/^desktop\b/,'ПК').replace(/^tablet\b/,'Планшет')
+        .replace(/^mobile\b/,'Телефон');
+      note.dataset.ownerLabeled='true';
+    }
+  };
+  new MutationObserver(simplifyInspector).observe(fieldsRoot,{childList:true,subtree:true});
+  simplifyInspector();
+  $('inspector-caption').textContent='Настройки только выбранного элемента';
+  document.querySelector('.inspector-foot').textContent=
+    'Правки появляются в черновике сразу. Сохранение и публикация — отдельные действия.';
+
   // Familiar shortcut, with an explicit saved-draft action only.
   document.addEventListener('keydown',event=>{
     if((event.ctrlKey||event.metaKey)&&!event.altKey&&!event.shiftKey&&
         event.key.toLowerCase()==='s'&&state.authorized){
       event.preventDefault();
+      const active=document.activeElement;
+      // Existing controls commit on "change", which fires on blur. Flush that
+      // edit before reading the draft/save disabled state.
+      if(active&&['INPUT','TEXTAREA','SELECT'].includes(active.tagName))active.blur();
       if(!$('save').disabled)$('save').click();
     }
   });
@@ -2591,6 +2618,9 @@
     batchApply.disabled=state.busy||!state.siteId||!canEdit()||!inboxSelected.size||
       (batchStage.value==='keep'&&batchPriority.value==='keep');
     batchStage.disabled=batchPriority.disabled=state.busy||!state.siteId||!canEdit();
+    $('server-drawer-import').hidden=!isOwner();
+    $('server-drawer-leads').hidden=!canEdit();
+    $('server-drawer-blocks').hidden=!canEdit();
     deliveryPanel.hidden=!isOwner();
     deliverySave.disabled=!available||!isOwner();deliveryRefresh.disabled=!available||!isOwner();
     deliveryRetry.disabled=!available||!isOwner()||!currentDelivery?.retryable;

@@ -588,3 +588,15 @@ button:disabled{opacity:.45}
   .sidebar{top:0;height:100dvh}
   .inspector{top:0}
 }
+
+
+/* Owner-facing contextual properties: labels first, technical paths only on
+   hover, responsive inheritance still visible when it matters. */
+.inspector .field-list>div{
+  padding:0 0 14px;border-bottom:1px solid #e9eef5;min-width:0;
+}
+.inspector .field-list>div:last-child{border-bottom:0}
+.inspector .field-path:not([role="alert"]){color:#6686a5;line-height:1.4}
+.inspector .field-path[role="alert"]:empty{display:none}
+.inspector .field-list .control{box-shadow:0 1px 2px #16345308}
+.inspector .field-list input[type="color"]{height:44px;padding:5px}
