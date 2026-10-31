@@ -1046,7 +1046,45 @@ async function execute(){
     'FAQ delete must target the specified question, not the currently selected index');
   assert.equal(await page.locator('#elements .cms-repeat-row').count(),2);
   assert.equal(await page.locator('#cms-repeat-add').innerText(),'+ Добавить вопрос');
-  await page.locator('#cms-open-seo').click();
+  const seoToolButton=page.locator('#cms-open-seo');
+  await seoToolButton.scrollIntoViewIfNeeded();
+  const seoToolPointerGeometry=await seoToolButton.evaluate(button=>{
+    const describe=node=>{
+      if(!node)return null;
+      const rect=node.getBoundingClientRect(),style=getComputedStyle(node);
+      return {tag:node.tagName.toLowerCase(),id:node.id||'',
+        className:typeof node.className==='string'?node.className:'',
+        rect:{x:Math.round(rect.x*100)/100,y:Math.round(rect.y*100)/100,
+          top:Math.round(rect.top*100)/100,right:Math.round(rect.right*100)/100,
+          bottom:Math.round(rect.bottom*100)/100,width:Math.round(rect.width*100)/100,
+          height:Math.round(rect.height*100)/100},
+        clientHeight:node.clientHeight,scrollHeight:node.scrollHeight,
+        overflowX:style.overflowX,overflowY:style.overflowY,
+        position:style.position,zIndex:style.zIndex,pointerEvents:style.pointerEvents,
+        flexShrink:style.flexShrink,minHeight:style.minHeight};
+    };
+    const rect=button.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+    const tools=document.querySelector('#server-site-tools'),sidebar=document.querySelector('.sidebar');
+    const hit=document.elementFromPoint(x,y);
+    return {viewport:{width:innerWidth,height:innerHeight,scrollX,scrollY},
+      target:describe(button),center:{x:Math.round(x*100)/100,y:Math.round(y*100)/100},
+      hitIsTarget:hit===button||button.contains(hit),
+      siteToolsFlexShrink:getComputedStyle(tools).flexShrink,
+      siteToolsContentFits:tools.scrollHeight<=tools.clientHeight+1,
+      sidebarCanScroll:sidebar.scrollHeight>sidebar.clientHeight,
+      hit:describe(hit),siteTools:describe(tools),
+      resources:describe(document.querySelector('#server-resources')),sidebar:describe(sidebar)};
+  });
+  console.log('[site-tools-pointer-geometry] '+JSON.stringify(seoToolPointerGeometry));
+  assert.equal(seoToolPointerGeometry.siteToolsFlexShrink,'0',
+    'Expanded site tools must retain their intrinsic height: '+JSON.stringify(seoToolPointerGeometry));
+  assert.equal(seoToolPointerGeometry.siteToolsContentFits,true,
+    'Expanded tool categories must remain inside their panel: '+JSON.stringify(seoToolPointerGeometry));
+  assert.equal(seoToolPointerGeometry.sidebarCanScroll,true,
+    'The sidebar must own overflow for expanded tool categories: '+JSON.stringify(seoToolPointerGeometry));
+  assert.equal(seoToolPointerGeometry.hitIsTarget,true,
+    'A real pointer at the SEO action center must hit the action: '+JSON.stringify(seoToolPointerGeometry));
+  await seoToolButton.click();
   await page.locator('#cms-setting-seo-title').fill('FAQ и готовый сайт — SEO');
   await page.locator('#cms-setting-seo-description').fill('Новые вопросы и SEO опубликованы после ручного сохранения');
   await page.locator('#cms-settings-apply').click();
