@@ -240,8 +240,13 @@ async function execute(){
   await page.locator('#server-launch-finding-list').getByText(/Нужно уточнить мобильный отступ/).waitFor();
   assert.match(await page.locator('#server-launch-finding-list').innerText(),/секция section-highlights/,
     'Retargeting an open review finding preserves the new authored section');
-  assert.match(await page.locator('#server-launch-finding-markers .hosted-launch-finding-marker').first()
-    .getAttribute('aria-label'),/Нужно уточнить мобильный отступ/);
+  const livePinLabel=await page.locator('#server-launch-finding-markers .hosted-launch-finding-marker').first()
+    .getAttribute('aria-label');
+  assert.match(livePinLabel,/Нужно уточнить мобильный отступ/);
+  assert.match(livePinLabel,/у элемента Y/,
+    'A corrected authored target drives the visible marker, rather than stale saved Y');
+  assert.doesNotMatch(livePinLabel,/Y 0:/,
+    'The private note keeps original Y=0 but pin follows the current real PHP section');
   const fixFinding=page.locator('#server-launch-finding-list .hosted-launch-finding')
     .getByRole('button',{name:/Исправить в редакторе/});
   await fixFinding.waitFor();

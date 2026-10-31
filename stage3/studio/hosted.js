@@ -2970,15 +2970,54 @@
       const section=page.sections.find(s=>s.id===sectionEl?.id);
       if(!section)return null;
       let nodeId=null;
-      const nodes=new Set();
-      const walk=entries=>{for(const node of entries||[]){nodes.add(node.id);walk(node.children);}};
+      const nodes=new Map();
+      const walk=entries=>{for(const node of entries||[]){nodes.set(node.id,node.type);walk(node.children);}};
       walk(section.designGraph?.nodes);
       for(let item=el;item&&item!==sectionEl;item=item.parentElement){
+        // CSS-only tab labels/radios live beside their authored tab panels.
+        // Their fixed first-party input identity is still the exact tab node.
+        const tabControl=item.tagName==='LABEL'?item.htmlFor:item.tagName==='INPUT'?item.id:null;
+        const tab=typeof tabControl==='string'&&tabControl.startsWith('cmsdg-tab-')?
+          tabControl.slice('cmsdg-tab-'.length):null;
+        if(tab&&nodes.get(tab)==='tab'){nodeId=tab;break;}
         const candidate=[...item.classList].find(name=>
           name.startsWith('cmsdg-n-')&&nodes.has(name.slice('cmsdg-n-'.length)));
         if(candidate){nodeId=candidate.slice('cmsdg-n-'.length);break;}
+        // Gallery captions/controls belong to the same authored image even
+        // though only the nested <img> carries its cmsdg-n-* class.
+        const photo=typeof item.id==='string'&&item.id.startsWith('cmsdg-photo-')?
+          item.id.slice('cmsdg-photo-'.length):null;
+        if(photo&&nodes.get(photo)==='image'){nodeId=photo;break;}
       }
       return {targetSectionId:section.id,targetNodeId:nodeId};
+    };
+    // Historic Y remains immutable observation evidence. A saved authored ID,
+    // however, can move after an ordinary responsive layout change; remeasure
+    // that ID in the CURRENT real PHP document for markers and navigation.
+    const liveFindingPosition=finding=>{
+      const recorded=finding.scrollY;
+      const page=selectedRow?.current;
+      const doc=frame.contentDocument;
+      if(!page||page.id!==finding.pageId||finding.device!==device||!doc||
+          !previewReady.has(page.id+'|'+device)||
+          doc.querySelector('meta[name="manufact-preview-ticket"]')?.content!==String(request)
+          ||!finding.targetSectionId)return {y:recorded,live:false};
+      const section=doc.getElementById(finding.targetSectionId);
+      if(!section)return {y:recorded,live:false};
+      let target=section;
+      if(finding.targetNodeId){
+        const id=finding.targetNodeId;
+        if(!/^[a-z][a-z0-9-]{2,79}$/.test(id))return {y:recorded,live:false};
+        // A CSS-only tab panel can be hidden while its visible label still
+        // identifies the correct authored tab.
+        target=section.querySelector('label[for="cmsdg-tab-'+id+'"]')||
+          section.querySelector('.cmsdg-n-'+id)||
+          section.querySelector('#cmsdg-photo-'+id);
+        if(!target)return {y:recorded,live:false};
+      }
+      if(!target.getClientRects().length)return {y:recorded,live:false};
+      return {y:Math.max(0,Math.min(60000,Math.round(target.getBoundingClientRect().top+
+        (doc.defaultView?.scrollY||0)))),live:true};
     };
     const unresolvedCount=()=>manualFindings.filter(f=>!f.resolved).length;
     const plainFixList=()=>[
@@ -3006,23 +3045,25 @@
         // accessible controls are on the Studio canvas, never in the PHP HTML.
         const groups=new Map();
         for(const finding of selected.filter(f=>!f.resolved)){
-          const bucket=Math.floor(finding.scrollY*scale/34);
+          const bucket=Math.floor(liveFindingPosition(finding).y*scale/34);
           if(!groups.has(bucket))groups.set(bucket,[]);
           groups.get(bucket).push(finding);
         }
         for(const group of groups.values()){
           const first=group[0];
           const marker=action(group.length===1?'!':String(group.length),'hosted-launch-finding-marker',()=>{
-            viewport.scrollTop=first.scrollY*scale;
+            viewport.scrollTop=liveFindingPosition(first).y*scale;
             findingList.querySelectorAll('.hosted-launch-finding')
               [selected.indexOf(first)]?.scrollIntoView({block:'nearest'});
           });
+          const current=liveFindingPosition(first);
           marker.style.top=Math.max(14,Math.min(draftCanvas.clientHeight-14,
-            Math.round(first.scrollY*scale)))+'px';
+            Math.round(current.y*scale)))+'px';
           marker.title=group.map(f=>f.note).join('\n').slice(0,800);
           marker.setAttribute('aria-label',group.length===1?
-            'Замечание на Y '+first.scrollY+': '+first.note:
-            group.length+' замечаний около Y '+first.scrollY);
+            'Замечание '+(current.live?'у элемента Y ':'на исходной позиции Y ')+
+              current.y+': '+first.note:
+            group.length+' замечаний около Y '+current.y);
           findingMarkers.append(marker);
         }
         if(pickedY!==null){
@@ -3049,7 +3090,7 @@
         const seek=action('К месту','',()=>{
           // Stored position is in real unscaled PHP document CSS pixels.
           const scale=Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1])||1;
-          viewport.scrollTop=finding.scrollY*scale;
+          viewport.scrollTop=liveFindingPosition(finding).y*scale;
         });
         seek.setAttribute('aria-label','Показать место замечания: '+finding.note);
         row.append(seek);
@@ -3119,7 +3160,7 @@
                 ids.add(n.id);walk(n.children);}};walk(pinned.designGraph?.nodes);
                 return ids.has(finding.targetNodeId);})()?finding.targetNodeId:null;
             const target={pageId:finding.pageId,sectionId,device:finding.device,
-              scrollY:finding.scrollY,nodeId};
+              scrollY:liveFindingPosition(finding).y,nodeId};
             dialog.close();
             if(!editor.focusVisualReview(target))
               notice('Не удалось открыть редактирование замечания.',true);
@@ -3242,7 +3283,7 @@
           const next=comparisonRows.find(row=>row.current?.id===finding.pageId);
           if(!next)return;
           pendingFindingJump={pageId:finding.pageId,device:finding.device,
-            scrollY:finding.scrollY};
+            scrollY:finding.scrollY,finding};
           device=finding.device;
           choosePage(next);
         });
@@ -3628,7 +3669,7 @@
         if(pendingFindingJump&&pendingFindingJump.pageId===row.current.id
           &&pendingFindingJump.device===mode){
           const scale=Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1])||1;
-          viewport.scrollTop=pendingFindingJump.scrollY*scale;
+          viewport.scrollTop=liveFindingPosition(pendingFindingJump.finding).y*scale;
           pendingFindingJump=null;
         }
         previewStatus.textContent=errors.length?
