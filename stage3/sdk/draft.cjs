@@ -343,8 +343,10 @@ function structure(raw,manifests,command){
       if(c.footer?.links)c.footer.links=c.footer.links.filter(link=>link.pageId!==page.id);
       if(c.header?.noticePageId===page.id)c.header.noticePageId='';
       if(c.notFoundPageId===page.id)delete c.notFoundPageId;
-      for(const survivor of c.pages)for(const section of survivor.sections)
+      for(const survivor of c.pages)for(const section of survivor.sections){
         if(section.successPageId===page.id)delete section.successPageId;
+        if(section.consentPageId===page.id)delete section.consentPageId;
+      }
       if(c.redirects){
         c.redirects=c.redirects.filter(r=>r.to!==page.path);
         if(!c.redirects.length)delete c.redirects;

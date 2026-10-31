@@ -377,7 +377,7 @@ final class ContractValidator
             self::must(is_array($page['sections']) && array_is_list($page['sections'])
                 && count($page['sections']) >= 1 && count($page['sections']) <= 100, 'Invalid sections');
             foreach ($page['sections'] as $section) {
-                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance', 'formFields', 'formSteps', 'designGraph','sharedKey','deviceVisibility','successPageId']);
+                self::keys($section, ['id', 'component', 'manifestVersion', 'elements', 'items', 'appearance', 'formFields', 'formSteps', 'designGraph','sharedKey','deviceVisibility','successPageId','consentPageId']);
                 if(array_key_exists('deviceVisibility',$section)){
                     $visibility=$section['deviceVisibility'];
                     self::must(is_array($visibility)&&!array_is_list($visibility)&&count($visibility)>0,'Invalid section device visibility');
@@ -511,6 +511,16 @@ final class ContractValidator
                     '404 page cannot contain a form');
         }
         foreach($site['pages'] as $page)foreach($page['sections'] as $section){
+            if(array_key_exists('consentPageId',$section)){
+                $consentId=$section['consentPageId'];
+                $consent=is_string($consentId)?($pageIds[$consentId]??null):null;
+                self::must(in_array($section['component'],['lead-form','lead-form-flex'],true)
+                    &&(!isset($section['designGraph'])||DesignGraph::formSlotIds($section['designGraph'])!==[])
+                    &&$consent!==null&&($consent['path']??'/')!=='/'
+                    &&$consentId!==($site['notFoundPageId']??null)
+                    &&$consentId!==($section['successPageId']??null),
+                    'Form consent page must be an existing non-home information page');
+            }
             if(!array_key_exists('successPageId',$section))continue;
             $targetId=$section['successPageId'];
             $target=is_string($targetId)?($pageIds[$targetId]??null):null;

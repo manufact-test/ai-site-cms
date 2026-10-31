@@ -1854,7 +1854,7 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey','deviceVisibility','successPageId'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey','deviceVisibility','successPageId','consentPageId'],'section');
       if(own(section,'deviceVisibility')){
         const visibility=section.deviceVisibility;
         objectKeys(visibility,['desktop','tablet','mobile'],'section.deviceVisibility');
@@ -1938,6 +1938,15 @@ function validateSite(raw,regInput){
   }
   const pageIds=new Map(raw.pages.map(page=>[page.id,page]));
   for(const page of raw.pages)for(const section of page.sections){
+    if(own(section,'consentPageId')){
+      id(section.consentPageId,'section.consentPageId');
+      const policy=pageIds.get(section.consentPageId);
+      if(!['lead-form','lead-form-flex'].includes(section.component)||
+        (section.designGraph&&GRAPH_HOST.formSlotIds(section.designGraph).length===0)||
+        !policy||policy.path==='/'||policy.id===raw.notFoundPageId||
+        policy.id===section.successPageId)
+        fail('Form consent link must target an existing non-home information page',section.id);
+    }
     if(!own(section,'successPageId'))continue;
     id(section.successPageId,'section.successPageId');
     const target=pageIds.get(section.successPageId);
@@ -2726,8 +2735,10 @@ function structure(raw,manifests,command){
       if(c.footer?.links)c.footer.links=c.footer.links.filter(link=>link.pageId!==page.id);
       if(c.header?.noticePageId===page.id)c.header.noticePageId='';
       if(c.notFoundPageId===page.id)delete c.notFoundPageId;
-      for(const survivor of c.pages)for(const section of survivor.sections)
+      for(const survivor of c.pages)for(const section of survivor.sections){
         if(section.successPageId===page.id)delete section.successPageId;
+        if(section.consentPageId===page.id)delete section.consentPageId;
+      }
       if(c.redirects){
         c.redirects=c.redirects.filter(r=>r.to!==page.path);
         if(!c.redirects.length)delete c.redirects;
@@ -9983,10 +9994,43 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     }
     if(['lead-form','lead-form-flex'].includes(section.component)){
       const targetBox=document.createElement('fieldset');targetBox.id='cms-form-success-settings';
-      const legend=document.createElement('legend');legend.textContent='После успешной отправки формы';
+      const legend=document.createElement('legend');legend.textContent='Согласие и результат заявки';
+      const applyFormPage=(property,value,message)=>{
+        try{
+          const site=cp(session.current);
+          for(const page of site.pages)for(const ownSection of page.sections){
+            if(ownSection.id!==section.id&&(!section.sharedKey||ownSection.sharedKey!==section.sharedKey))continue;
+            if(value)ownSection[property]=value;
+            else delete ownSection[property];
+          }
+          session=D.replaceSite(session,manifests,site,session.revision);
+          draw();notice(message+' Сохранение и публикация отдельно.');
+        }catch(e){notice('Настройка формы отклонена: '+e.message,true);draw();}
+      };
+      const policyLabel=document.createElement('label');policyLabel.textContent='Ссылка на условия обработки данных ';
+      const policyChooser=document.createElement('select');policyChooser.className='control';
+      policyChooser.id='cms-form-consent-page';
+      const policyPages=session.current.pages.filter(page=>page.path!=='/'&&
+        page.id!==session.current.notFoundPageId&&page.id!==section.successPageId);
+      for(const [id,name] of [['','Без ссылки'],...policyPages.map(page=>[page.id,page.title+' · '+page.path])]){
+        const option=document.createElement('option');option.value=id;option.textContent=name;
+        policyChooser.append(option);
+      }
+      if(section.consentPageId&&!policyPages.some(page=>page.id===section.consentPageId)){
+        const invalid=document.createElement('option');invalid.value=section.consentPageId;
+        invalid.textContent='Ранее выбранная страница недоступна';policyChooser.append(invalid);
+      }
+      policyChooser.value=section.consentPageId||'';
+      policyChooser.disabled=Boolean(section.designGraph&&DESIGN_GRAPH.formSlotIds(section.designGraph).length===0);
+      policyChooser.addEventListener('change',()=>applyFormPage('consentPageId',policyChooser.value,
+        'Ссылка рядом с обязательным согласием обновлена в черновике.'));
+      policyLabel.append(policyChooser);
+      const policyHint=document.createElement('small');
+      policyHint.textContent='Ссылка ведёт на настоящую страницу этого сайта и меняет адрес вместе с ней. Содержание документа и текст согласия должен проверить владелец; CMS не генерирует юридические утверждения.';
       const label=document.createElement('label');label.textContent='Страница подтверждения ';
       const chooser=document.createElement('select');chooser.className='control';chooser.id='cms-form-success-page';
       const eligible=session.current.pages.filter(page=>page.path!=='/'&&
+        page.id!==section.consentPageId&&
         page.id!==session.current.notFoundPageId&&page.navigation?.hidden===true&&
         page.seo?.robots==='noindex'&&!page.sections.some(s=>
           ['lead-form','lead-form-flex'].includes(s.component)));
@@ -10001,21 +10045,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       }
       chooser.value=section.successPageId||'';
       chooser.disabled=Boolean(section.designGraph&&DESIGN_GRAPH.formSlotIds(section.designGraph).length===0);
-      chooser.addEventListener('change',()=>{
-        try{
-          const site=cp(session.current);
-          for(const page of site.pages)for(const ownSection of page.sections){
-            if(ownSection.id!==section.id&&(!section.sharedKey||ownSection.sharedKey!==section.sharedKey))continue;
-            if(chooser.value)ownSection.successPageId=chooser.value;
-            else delete ownSection.successPageId;
-          }
-          session=D.replaceSite(session,manifests,site,session.revision);
-          draw();notice('Страница подтверждения изменена в черновике. Публикация отдельно.');
-        }catch(e){notice('Настройка формы отклонена: '+e.message,true);draw();}
-      });
+      chooser.addEventListener('change',()=>applyFormPage('successPageId',chooser.value,
+        'Страница подтверждения изменена в черновике.'));
       label.append(chooser);
       const hint=document.createElement('p');hint.textContent='Только уже созданная скрытая страница с noindex и без форм. Переход выполняется после принятой сервером заявки; при ошибках и устаревшей публикации показывается штатный ответ сервера. Если страницу не выбрать, остаётся штатное подтверждение. Для стороннего HTTPS-хостинга необходимо проверить реальную доставку и маршрут.';
-      targetBox.append(legend,label,hint);row.append(targetBox);
+      targetBox.append(legend,policyLabel,policyHint,label,hint);row.append(targetBox);
     }
     // Device-specific visibility applies to the existing section, not a new template.
     const visibilityPanel=document.createElement('fieldset');visibilityPanel.id='cms-section-device-visibility';

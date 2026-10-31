@@ -440,6 +440,21 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(built.formFields[0].required,true);
     assert.equal(built.formFields[0].fullWidth,true);
     await canvas.locator('.contact').getByText('Номер заказа').waitFor();
+    // The existing form inspector links the required checkbox to a real
+    // information page. The selection is a normal undoable site-draft edit.
+    const consentChoice=page.locator('#cms-form-consent-page');
+    await consentChoice.waitFor();
+    assert.equal(await consentChoice.locator(`option[value="${sourceSite.pages[1].id}"]`).count(),1);
+    await consentChoice.selectOption(sourceSite.pages[1].id);
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex').consentPageId,
+      sourceSite.pages[1].id);
+    await page.locator('#undo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex').consentPageId,undefined);
+    await page.locator('#redo').click();
+    assert.equal(await page.locator('#cms-form-consent-page').inputValue(),sourceSite.pages[1].id);
+    await page.locator('#undo').click(); // Return to the original form-field undo stack.
     await page.locator('#undo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
       .flatMap(p=>p.sections).find(s=>s.component==='lead-form-flex').formFields,undefined);

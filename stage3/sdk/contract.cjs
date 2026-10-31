@@ -410,7 +410,7 @@ function validateSite(raw,regInput){
     if(ids.has(page.id))fail('Duplicate stable ID',page.id);ids.add(page.id);
     if(!Array.isArray(page.sections)||page.sections.length<1||page.sections.length>100)fail('Invalid sections',page.id);
     for(const section of page.sections){
-      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey','deviceVisibility','successPageId'],'section');
+      objectKeys(section,['id','component','manifestVersion','elements','items','appearance','formFields','formSteps','designGraph','sharedKey','deviceVisibility','successPageId','consentPageId'],'section');
       if(own(section,'deviceVisibility')){
         const visibility=section.deviceVisibility;
         objectKeys(visibility,['desktop','tablet','mobile'],'section.deviceVisibility');
@@ -494,6 +494,15 @@ function validateSite(raw,regInput){
   }
   const pageIds=new Map(raw.pages.map(page=>[page.id,page]));
   for(const page of raw.pages)for(const section of page.sections){
+    if(own(section,'consentPageId')){
+      id(section.consentPageId,'section.consentPageId');
+      const policy=pageIds.get(section.consentPageId);
+      if(!['lead-form','lead-form-flex'].includes(section.component)||
+        (section.designGraph&&GRAPH_HOST.formSlotIds(section.designGraph).length===0)||
+        !policy||policy.path==='/'||policy.id===raw.notFoundPageId||
+        policy.id===section.successPageId)
+        fail('Form consent link must target an existing non-home information page',section.id);
+    }
     if(!own(section,'successPageId'))continue;
     id(section.successPageId,'section.successPageId');
     const target=pageIds.get(section.successPageId);

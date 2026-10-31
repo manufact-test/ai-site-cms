@@ -519,6 +519,10 @@
           "$ref": "#/$defs/id",
           "description": "Optional existing hidden noindex form-free page shown only after an accepted lead. Valid on lead-form and lead-form-flex sections."
         },
+        "consentPageId": {
+          "$ref": "#/$defs/id",
+          "description": "Optional existing non-home information page linked from the real form consent checkbox. Valid only on lead-form and lead-form-flex."
+        },
         "designGraph": {
           "$ref": "#/$defs/designGraph"
         }

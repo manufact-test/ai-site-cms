@@ -694,6 +694,22 @@ JS;
                 $formFields .= '</div></fieldset>';
             }
         }
+        $consentCheckbox='<input type="checkbox" name="consent" value="yes" required> ';
+        $consentMarkup='<label class="lead-consent">'.$consentCheckbox.
+            self::label($section,'consent-label').'</label>';
+        if (isset($section['consentPageId'])) {
+            foreach ($site['pages'] as $information) {
+                if ($information['id']!==$section['consentPageId']) continue;
+                // The policy is an already-authored CMS page. Never accept a
+                // visitor-supplied URL or an arbitrary HTML policy fragment.
+                $consentMarkup='<div class="lead-consent">'.
+                    '<label class="lead-consent-check">'.$consentCheckbox.
+                    self::label($section,'consent-label').'</label> '.
+                    '<a class="lead-consent-policy" href="'.self::h($mount.$information['path']).'">'.
+                    self::h($information['title']).'</a></div>';
+                break;
+            }
+        }
         $body = '<h2>' . self::label($section, 'heading') . '</h2>'
             . '<form class="lead-form"'.($steps !== [] ? ' data-multi-step="yes"' : '')
             .' method="post" accept-charset="utf-8" action="' . self::h($action) . '">'
@@ -703,8 +719,7 @@ JS;
             . '<div class="lead-honey" aria-hidden="true"><label>Website <input tabindex="-1" autocomplete="off" type="text" name="website" value=""></label></div>'
             . ($extras['css'] !== '' ? '<style>' . $extras['css'] . '</style>' : '')
             . $formFields
-            . '<label class="lead-consent"><input type="checkbox" name="consent" value="yes" required> '
-            . self::label($section, 'consent-label') . '</label>'
+            . $consentMarkup
             . '<button class="action lead-submit" type="submit">' . self::label($section, 'submit-label') . '</button>'
             . '</form>';
         if ($steps !== [] && !$preview) {
@@ -1102,6 +1117,7 @@ JS;
             . 'article{padding:24px;background:var(--cms-surface);border:1px solid #e1e8f1;border-radius:12px}'
             . '.cmsdg .cmsdg-form-slot .lead-step{border-radius:var(--cmsdg-form-step-radius,12px);padding:var(--cmsdg-form-step-padding,18px);border-color:var(--cmsdg-form-step-border,#dae4ef);background:var(--cmsdg-form-step-bg,transparent)}.cmsdg .cmsdg-form-slot .lead-step-progress{color:var(--cmsdg-form-progress-color,inherit)}'
             . '.showcase-photo{display:block;width:100%;height:auto;max-height:680px;object-fit:contain;border-radius:16px;background:#e4ebf3}'
+            . '.lead-consent:has(.lead-consent-policy){flex-wrap:wrap;gap:8px 12px}.lead-consent-check{display:inline-flex;align-items:flex-start;gap:8px}.lead-consent-policy{font-weight:600;text-decoration:underline;text-underline-offset:2px}.lead-consent-policy:focus-visible{outline:3px solid var(--cms-primary);outline-offset:3px}'
             . '.lead-form{display:grid;gap:16px;max-width:700px}.lead-form .lead-field[hidden],.lead-form .lead-step[hidden],.lead-form .lead-submit[hidden]{display:none!important}.lead-step{display:grid;gap:16px;border:1px solid #dae4ef;border-radius:12px;padding:18px;min-width:0}.lead-step legend{font-weight:700;padding:0 9px}.lead-step legend:focus-visible,.lead-step-nav button:focus-visible{outline:3px solid var(--cms-primary);outline-offset:4px}.lead-step>label{display:grid;gap:6px;font-weight:600}.lead-step-nav{display:none;gap:12px;justify-content:flex-start}.lead-form.is-stepped .lead-step-nav{display:flex}.lead-step-nav button{padding:11px 18px;border:1px solid #a5b3c4;border-radius:8px;background:var(--cms-surface);cursor:pointer}.lead-step-progress{display:none;margin:0;font-weight:600}.lead-form.is-stepped .lead-step-progress{display:block}.lead-form>label{display:grid;gap:6px;font-weight:600}.lead-field{display:grid;gap:6px;font-weight:600}.lead-field>label{display:block}.lead-form input:not([type=checkbox]):not([type=radio]),.lead-form textarea,.lead-form select{padding:12px;border:1px solid #a5b3c4;border-radius:8px;font:inherit;width:100%}.lead-radio-group{display:grid;gap:8px;border:0;margin:0;padding:0}.lead-radio-group legend{font-weight:700;padding:0 0 6px}.lead-radio-option,.lead-checkbox{display:flex!important;grid-template-columns:none;align-items:center;gap:8px;font-weight:400!important}.lead-radio-option input,.lead-checkbox input{width:auto!important;margin:0}.lead-checkbox{align-items:flex-start}.lead-form button{border:0;cursor:pointer}.cmsdg .cmsdg-form-slot .lead-form{gap:var(--cmsdg-form-gap,16px)}.cmsdg .cmsdg-form-slot .lead-step{gap:var(--cmsdg-form-gap,16px)}.cmsdg .cmsdg-form-slot .lead-field{font-weight:var(--cmsdg-form-label-weight,600)}.cmsdg .cmsdg-form-slot .lead-form input:not([type=checkbox]):not([type=radio]),.cmsdg .cmsdg-form-slot .lead-form textarea,.cmsdg .cmsdg-form-slot .lead-form select{padding:var(--cmsdg-form-input-padding,12px);border-radius:var(--cmsdg-form-input-radius,8px);border-color:var(--cmsdg-form-border,#a5b3c4);background:var(--cmsdg-form-input-bg,#fff)}.cmsdg .cmsdg-form-slot .lead-form button[type=submit]{padding:var(--cmsdg-form-button-padding,12px) 18px;border-radius:var(--cmsdg-form-button-radius,10px);background:var(--cmsdg-form-button-bg,var(--cms-primary,#0a5bff));color:var(--cmsdg-form-button-color,#fff)}.lead-consent{display:flex!important;flex-direction:row;align-items:flex-start}.lead-honey{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}'
             . '.cmsdg .cmsdg-form-slot .lead-form{max-width:var(--cmsdg-form-max-width,700px);grid-template-columns:repeat(var(--cmsdg-form-columns,1),minmax(0,1fr))}.cmsdg .cmsdg-form-slot .lead-step{grid-template-columns:repeat(var(--cmsdg-form-columns,1),minmax(0,1fr))}.cmsdg .cmsdg-form-slot .lead-form>.lead-step-progress,.cmsdg .cmsdg-form-slot .lead-form>.lead-step,.cmsdg .cmsdg-form-slot .lead-form>.lead-consent,.cmsdg .cmsdg-form-slot .lead-form>.lead-submit,.cmsdg .cmsdg-form-slot .lead-step>.lead-step-nav,.cmsdg .cmsdg-form-slot .lead-field-message,.cmsdg .cmsdg-form-slot .lead-field-textarea,.cmsdg .cmsdg-form-slot .lead-field-full-width{grid-column:1/-1}.cmsdg .cmsdg-form-slot .lead-form>label:not(.lead-consent),.cmsdg .cmsdg-form-slot .lead-step>label,.cmsdg .cmsdg-form-slot .lead-field{gap:var(--cmsdg-form-label-gap,6px);font-weight:var(--cmsdg-form-label-weight,600);color:var(--cmsdg-form-label-color,inherit)}.cmsdg .cmsdg-form-slot .lead-form input:not([type=checkbox]):not([type=radio]),.cmsdg .cmsdg-form-slot .lead-form textarea,.cmsdg .cmsdg-form-slot .lead-form select{border-width:var(--cmsdg-form-border-width,1px);color:var(--cmsdg-form-input-color,inherit);font-size:var(--cmsdg-form-input-font-size,inherit)}.cmsdg .cmsdg-form-slot .lead-form :is(input,textarea,select):focus-visible{outline:2px solid var(--cmsdg-form-focus-color,var(--cms-primary));outline-offset:2px}.cmsdg .cmsdg-form-slot .lead-form button[type=submit]{font-size:var(--cmsdg-form-button-font-size,inherit);font-weight:var(--cmsdg-form-button-weight,700)}'
             . '.repeat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:20px}.repeat-grid article,.repeat-grid .review,.repeat-grid figure{background:var(--cms-surface);border:1px solid #e1e8f1;padding:24px;margin:0;border-radius:12px}.repeat-grid h3{margin:0 0 12px}.repeat-grid .review blockquote{margin:0 0 16px;font-size:19px}.repeat-grid figcaption{font-size:14px;opacity:.75}.repeat-grid img{max-width:100%;height:auto;max-height:420px;object-fit:contain}.faq{max-width:850px}.faq details{border-bottom:1px solid #d0d8e2;padding:18px}.faq summary{cursor:pointer;font-weight:700}.service-link{display:inline-flex;padding-top:14px}'

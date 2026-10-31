@@ -2563,6 +2563,48 @@ async function stop(){
     }
   }
 
+  // Consent links are sourced from an existing authored page, never from a
+  // visitor URL. The same PHP body and sealed static export must retain the
+  // link when the owner renames that page and republishes.
+  const infoSite=structuredClone(fixture);
+  infoSite.siteId='site-consent-link-ci';
+  infoSite.pages[1].title='Информация & условия';
+  const infoForm=csdk.sectionFrom(richDefs.find(d=>d.id==='lead-form'),'section-consent-link-form');
+  infoForm.consentPageId=infoSite.pages[1].id;
+  infoSite.pages[0].sections.push(infoForm);
+  const madeInfo=await request('POST','/api/sites',{site:infoSite});
+  assert.equal(madeInfo.status,201,JSON.stringify(madeInfo.body));
+  assert.equal((await request('POST','/api/sites/site-consent-link-ci/publish',
+    {expectedRevision:1})).status,200);
+  const originalInfoHtml=(await request('GET','/published/site-consent-link-ci/')).body;
+  assert.match(originalInfoHtml,/class="lead-consent-policy" href="\/published\/site-consent-link-ci\/contact\/">Информация &amp; условия<\/a>/);
+  assert.match(originalInfoHtml,/class="lead-consent-check"><input type="checkbox" name="consent" value="yes" required>/);
+  const infoToken=/name="_token" value="([a-f0-9]{64})"/.exec(originalInfoHtml)?.[1];
+  assert.ok(infoToken);
+  const infoReceipt=await fetch(origin+'/forms/site-consent-link-ci/section-consent-link-form',{
+    method:'POST',headers:{origin,'content-type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({_release:'1',_token:infoToken,website:'',name:'Test visitor',
+      email:'consent@example.test',message:'Request about the service',consent:'yes'})
+  });
+  assert.equal(infoReceipt.status,201,'Policy link does not alter signed form POST behavior');
+  const infoDraft=require('../sdk/draft.cjs').begin(infoSite,richDefs);
+  const movedPolicy=require('../sdk/draft.cjs').structure(infoDraft,richDefs,{
+    action:'updatePage',pageId:infoSite.pages[1].id,path:'/privacy/',
+    title:'Информация & условия',expectedRevision:infoDraft.revision});
+  assert.equal((await request('POST','/api/sites/site-consent-link-ci/save',{
+    expectedRevision:1,site:movedPolicy.current})).status,200);
+  assert.equal((await request('POST','/api/sites/site-consent-link-ci/publish',
+    {expectedRevision:2})).status,200);
+  const renamedInfoHtml=(await request('GET','/published/site-consent-link-ci/')).body;
+  assert.match(renamedInfoHtml,/class="lead-consent-policy" href="\/published\/site-consent-link-ci\/privacy\/">Информация &amp; условия<\/a>/);
+  const infoExport=path.join(dbdir,'consent-policy-static');
+  const policyExport=spawnSync('php',['stage3/server/bin/export-published.php',
+    'site-consent-link-ci',infoExport],{cwd:root,env,encoding:'utf8'});
+  assert.equal(policyExport.status,0,policyExport.stderr);
+  const policyHtml=fs.readFileSync(path.join(infoExport,'index.html'),'utf8');
+  assert.match(policyHtml,/class="lead-consent-policy" href="\/privacy\/">Информация &amp; условия<\/a>/);
+  assert.doesNotMatch(policyHtml,/href="\/published\/site-consent-link-ci\/privacy\/"/);
+
   // A real, accepted lead may reach the designer's own hidden thank-you page.
   // Unaccepted POSTs, an untrusted _return and sites without this opt-in keep
   // their existing collector receipt; no arbitrary caller redirect is allowed.

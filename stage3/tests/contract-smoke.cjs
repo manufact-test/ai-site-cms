@@ -78,6 +78,35 @@ test('per-form authored success destination is noindex, form-free, ID-stable and
   sdk.validateSite(deleted.current,manifests);
 });
 
+test('form consent information link follows an authored page ID through URL changes and deletion',()=>{
+  const D=require('../sdk/draft.cjs'),site=same(initial),policy=site.pages[1];
+  policy.title='Условия обработки данных';
+  const form=sdk.sectionFrom(manifests.find(x=>x.id==='lead-form'),'section-consent-form');
+  form.consentPageId=policy.id;
+  site.pages[0].sections.push(form);
+  sdk.validateSite(site,manifests);
+  const missing=same(site);missing.pages[0].sections.at(-1).consentPageId='page-absent';
+  refuses(()=>sdk.validateSite(missing,manifests),'Foreign policy pages are not accepted');
+  const home=same(site);home.pages[0].sections.at(-1).consentPageId=site.pages[0].id;
+  refuses(()=>sdk.validateSite(home,manifests),'Policy link needs an individual page');
+  const nonForm=same(site);nonForm.pages[0].sections[0].consentPageId=policy.id;
+  refuses(()=>sdk.validateSite(nonForm,manifests),'Only real forms carry consent links');
+  const sameAsThankYou=same(site);
+  sameAsThankYou.pages[1].seo={title:'Спасибо',description:'',robots:'noindex',
+    ogTitle:'',ogDescription:'',ogImage:''};
+  sameAsThankYou.pages[1].navigation={hidden:true,label:'Спасибо'};
+  sameAsThankYou.pages[0].sections.at(-1).successPageId=policy.id;
+  refuses(()=>sdk.validateSite(sameAsThankYou,manifests),'Policy and thank-you must be distinct');
+  const session=D.begin(site,manifests);
+  const renamed=D.structure(session,manifests,{action:'updatePage',pageId:policy.id,
+    path:'/privacy/',title:policy.title,expectedRevision:session.revision});
+  assert.equal(renamed.current.pages[0].sections.at(-1).consentPageId,policy.id);
+  const removed=D.structure(renamed,manifests,{action:'removePage',pageId:policy.id,
+    expectedRevision:renamed.revision});
+  assert.equal(Object.hasOwn(removed.current.pages[0].sections.at(-1),'consentPageId'),false);
+  sdk.validateSite(removed.current,manifests);
+});
+
 test('optional site header is safe, page-ID linked and editable',()=>{
   const X=require('../sdk/draft.cjs'),site=same(initial),target=site.pages.find(p=>p.path!=='/');
   site.header={notice:'Бесплатная консультация',noticePageId:target.id,
