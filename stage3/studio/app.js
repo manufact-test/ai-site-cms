@@ -1074,7 +1074,7 @@
         if(section.designGraph){
           const visit=nodes=>{
             for(const node of nodes){
-              if(['heading','text','button','link','quote','table-cell','table','gallery','list-item','disclosure','tab'].includes(node.type)){
+              if(['heading','text','button','link','quote','table-cell','table','gallery','carousel','list-item','disclosure','tab'].includes(node.type)){
                 const value=String(node.text||'').trim();
                 if(!value)add(page,section,{id:node.id},'graph-text',
                   'Пустой видимый текст композиции: '+node.type,'text');
@@ -1671,7 +1671,7 @@
       const walk=(nodes,depth)=>{
         for(const node of nodes||[]){
           rows.push({node,depth});
-          if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type))walk(node.children,depth+1);
+          if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(node.type))walk(node.children,depth+1);
         }
       };
       if(section?.designGraph)walk(section.designGraph.nodes,0);
@@ -2303,7 +2303,7 @@
           ['text','Текст'],['heading','Заголовок'],['button','Кнопка'],['link','Текстовая ссылка'],['quote','Цитата / отзыв'],
           ['image','Изображение'],['video','Видео MP4'],['icon','Иконка'],
           ['container','Контейнер'],['list','Список пунктов'],['disclosure','Раскрывающаяся панель'],
-          ['tabs','Вкладки'],['gallery','Галерея со свайпом'],['table','Таблица с данными'],['divider','Разделитель'],['popup','Всплывающее окно'],
+          ['tabs','Вкладки'],['gallery','Галерея со свайпом'],['carousel','Лента индивидуальных карточек'],['table','Таблица с данными'],['divider','Разделитель'],['popup','Всплывающее окно'],
           ...(['lead-form','lead-form-flex'].includes(section.component)?[['form-slot','Форма заявки · рабочая']]:[])
         ]){
           const option=document.createElement('option');option.value=type;option.textContent=label;
@@ -2334,6 +2334,13 @@
             node.text='Фотогалерея';node.children=[1,2].map(()=>({
               id:uniqueId('dg-node'),type:'image',assetId:photo.id,alt:photo.alt||'Изображение',styles:{}
             }));
+          }
+          if(type==='carousel'){
+            node.text='Карточки';node.scrollControls=true;
+            node.visibleDesktop=3;node.visibleTablet=2;node.visibleMobile=1;
+            node.children=[1,2,3].map(i=>({id:uniqueId('dg-node'),type:'container',styles:{},
+              children:[{id:uniqueId('dg-node'),type:'heading',level:3,text:'Карточка '+i,styles:{}},
+                {id:uniqueId('dg-node'),type:'text',text:'Индивидуальное содержание',styles:{}}]}));
           }
           if(type==='table'){
             node.text='Сравнение вариантов';
@@ -2423,6 +2430,18 @@
           addPhoto.disabled=!canWrite()||current.children.length>=12;
           graphActions.append(addPhoto);
         }
+        if(current.type==='carousel'){
+          const addCard=workButton('+ Карточка с содержимым',()=>{
+            const i=current.children.length+1;
+            const node={id:uniqueId('dg-node'),type:'container',styles:{},children:[
+              {id:uniqueId('dg-node'),type:'heading',level:3,text:'Карточка '+i,styles:{}},
+              {id:uniqueId('dg-node'),type:'text',text:'Редактируемое содержание',styles:{}}]};
+            editGraphTreeWork({action:'insert',targetId:current.id,placement:'inside',node},node.id);
+          });
+          addCard.id='cms-work-graph-add-carousel-card';
+          addCard.disabled=!canWrite()||current.children.length>=12;
+          graphActions.append(addCard);
+        }
         if(current.type==='table'){
           const addRow=workButton('+ Строка таблицы',()=>{
             const cells=current.children[0].children.map((_,col)=>({
@@ -2473,7 +2492,7 @@
         const findSiblings=(nodes,id)=>{
           for(const node of nodes){
             if(node.id===id)return nodes;
-            if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type)){
+            if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(node.type)){
               const hit=findSiblings(node.children,id);if(hit)return hit;
             }
           }
@@ -2622,7 +2641,7 @@
           return input;
         };
         if(current){
-          if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item','popup'].includes(current.type))
+          if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','disclosure','tab','list-item','popup'].includes(current.type))
             property('Текст', 'text',current.text);
           if(current.type==='form-slot'){
             const layerKey=mode==='tablet'?'formAppearanceTablet':mode==='mobile'?'formAppearanceMobile':'formAppearance';
@@ -2667,6 +2686,17 @@
               property('Колонок на планшете','columnsTablet',current.columnsTablet??2);
               property('Колонок на телефоне','columnsMobile',current.columnsMobile??1);
             }
+          }
+          if(current.type==='carousel'){
+            const note=document.createElement('p');note.className='cms-work-hint';
+            note.textContent='Карточки могут содержать собственные заголовки, изображения, кнопки и другие уже разрешённые элементы. Лента прокручивается свайпом и клавиатурой.';
+            panel.append(note);
+            for(const [field,label] of [['visibleDesktop','Видимых карточек · ПК (1–6)'],
+              ['visibleTablet','Видимых карточек · планшет (1–4)'],
+              ['visibleMobile','Видимых карточек · телефон (1–2)']])
+              property(label,field,current[field]??1);
+            property('Нумерованная навигация','scrollControls',String(!!current.scrollControls),
+              [['false','Только свайп / прокрутка'],['true','Показать переходы']]);
           }
           if(current.type==='table'){
             property('Первый столбец — заголовки строк','rowHeaders',String(!!current.rowHeaders),
@@ -3074,7 +3104,7 @@
             [['',inherit],...Object.keys(session.current.designTokens?.colors||DESIGN_GRAPH.DEFAULT_TOKENS.colors)
               .map(x=>['@'+x,x]),['#ffffff','Белый'],['#000000','Чёрный']]);
           property('Размер текста · '+mode,'fontSize',styles.fontSize??'');
-          if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(current.type)){
+          if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(current.type)){
             property('Внутренний отступ · '+mode,'padding',styles.padding??'');
             property('Шаг элементов · '+mode,'gap',styles.gap??'');
           }
@@ -3945,6 +3975,13 @@
         const item={id:uniqueId('dg-node'),type:'image',assetId:photo.id,alt:photo.alt||'Изображение',styles:{}};
         changeTree({action:'insert',targetId:n.id,placement:'inside',node:item},item.id);
       });
+      if(n.type==='carousel')action('+ Карточка',()=>{
+        const i=n.children.length+1;
+        const item={id:uniqueId('dg-node'),type:'container',styles:{},children:[
+          {id:uniqueId('dg-node'),type:'heading',level:3,text:'Карточка '+i,styles:{}},
+          {id:uniqueId('dg-node'),type:'text',text:'Редактируемое содержание',styles:{}}]};
+        changeTree({action:'insert',targetId:n.id,placement:'inside',node:item},item.id);
+      });
       if(n.type==='table'){
         const paste=action('Вставить из Excel / CSV',()=>openGraphTablePaste(graph,n.id,matrix=>{
           const candidate=DESIGN_GRAPH.replaceTableMatrix(graph,n.id,matrix,
@@ -4004,7 +4041,7 @@
         changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
       });
       action('Тип +',()=>{
-        const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / table / divider / icon / video / disclosure / tabs / list / popup'+
+        const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / carousel / table / divider / icon / video / disclosure / tabs / list / popup'+
           (['lead-form','lead-form-flex'].includes(sourceSection.component)?' / form-slot (рабочая форма)':''),'heading');
         if(type===null)return;
         if(!DESIGN_GRAPH.TYPES.includes(type))return notice('Неизвестный тип',true);
@@ -4021,6 +4058,13 @@
           node.text='Фотогалерея';node.children=[1,2].map(()=>({
             id:uniqueId('dg-node'),type:'image',assetId:first.id,alt:first.alt||'Изображение',styles:{}
           }));
+        }
+        if(type==='carousel'){
+          node.text='Карточки';node.scrollControls=true;
+          node.visibleDesktop=3;node.visibleTablet=2;node.visibleMobile=1;
+          node.children=[1,2,3].map(i=>({id:uniqueId('dg-node'),type:'container',styles:{},
+            children:[{id:uniqueId('dg-node'),type:'heading',level:3,text:'Карточка '+i,styles:{}},
+              {id:uniqueId('dg-node'),type:'text',text:'Содержание карточки',styles:{}}]}));
         }
         if(type==='table'){
           node.text='Таблица сравнения';node.children=[0,1,2].map(row=>({
@@ -4111,7 +4155,7 @@
       }
       const headline=make('h3','Редактирование · '+n.type);root.append(headline);
       const fields=make('div','', 'cms-design-fields');root.append(fields);
-      if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item','popup'].includes(n.type)){
+      if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','disclosure','tab','list-item','popup'].includes(n.type)){
         fields.append(ctl('Текст (сбрасывает акценты)',n.text,value=>{n.text=value;delete n.runs;},'multiline'));
       }
       if(['heading','text'].includes(n.type)){
@@ -4278,6 +4322,17 @@
           fields.append(ctl(label,String(n[key]??defaultValue),value=>{
             n.layout='grid';n[key]=Number(value);
           },'number'));
+      }
+      if(n.type==='carousel'){
+        fields.append(make('p','Каждая карточка — существующий индивидуальный контейнер с редактируемыми элементами. Перетаскивайте, копируйте или меняйте порядок контейнеров в дереве.'));
+        for(const [field,label,limit] of [['visibleDesktop','Карточек на ПК',6],
+          ['visibleTablet','Карточек на планшете',4],['visibleMobile','Карточек на телефоне',2]])
+          fields.append(ctl(label,String(n[field]??1),v=>{
+            n[field]=Math.max(1,Math.min(limit,Number(v)||1));
+          },'number'));
+        fields.append(ctl('Навигация по карточкам',{initial:n.scrollControls?'true':'false',
+          choices:[['false','Только свайп / прокрутка'],['true','Нумерованные переходы']]},
+          value=>{n.scrollControls=value==='true';},'select'));
       }
       if(n.type==='table'){
         fields.append(graphTableMoveControls(n,'cms-design-table',(kind,from,to)=>{
@@ -4869,7 +4924,7 @@
           if(section.designGraph){
             const walk=nodes=>{
               for(const node of nodes){
-                if(['heading','text','button','link','quote','table','table-cell','gallery','list-item','disclosure','tab'].includes(node.type))
+                if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','list-item','disclosure','tab'].includes(node.type))
                   add(page,'graph',null,'text',node.text,
                     'Дизайн-композиция · '+node.type+' · '+node.id,section,{id:node.id});
                 if(node.type==='quote'&&node.cite)
@@ -4968,7 +5023,7 @@
                 return null;
               };
               target=find(sec.designGraph.nodes);
-              if(!target||!['heading','text','button','link','quote','table','table-cell','gallery','list-item','disclosure','tab','image'].includes(target.type))
+              if(!target||!['heading','text','button','link','quote','table','table-cell','gallery','carousel','list-item','disclosure','tab','image'].includes(target.type))
                 throw Error('Элемент композиции больше не существует');
             }else{
               if(sec.designGraph)throw Error('Показан другой источник содержимого');

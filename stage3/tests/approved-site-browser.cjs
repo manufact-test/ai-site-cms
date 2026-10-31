@@ -622,6 +622,28 @@ async function execute(){
   await page.locator('#cms-page-preview[open]').waitFor();
   await page.locator('#cms-work-section').selectOption('section-approved-custom');
   await page.locator('#cms-work-graph-node').selectOption('approved-custom-container');
+  await page.locator('#cms-work-graph-insert-type').selectOption('carousel');
+  await page.locator('#cms-work-graph-insert-placement').selectOption('after');
+  await page.locator('#cms-work-graph-insert').click();
+  const authoredCarousel=await page.evaluate(()=>{
+    const nodes=window.Stage3Editor.getSite().pages[0].sections
+      .find(s=>s.id==='section-approved-custom').designGraph.nodes;
+    return nodes.find(n=>n.type==='carousel');
+  });
+  assert.ok(authoredCarousel&&authoredCarousel.children.length===3,
+    'Workbench inserts an actual typed mixed-content carousel into the existing Design Graph');
+  await page.locator('#cms-work-graph-add-carousel-card').click();
+  await page.locator('#cms-work-graph-node').selectOption(authoredCarousel.id);
+  await page.locator('[data-work-graph-field="visibleDesktop"]').fill('2');
+  await page.locator('[data-work-graph-field="visibleDesktop"]').dispatchEvent('change');
+  await page.locator('#cms-work-graph-node').selectOption(authoredCarousel.id);
+  const carouselState=await page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections
+    .find(s=>s.id==='section-approved-custom').designGraph.nodes.find(n=>n.type==='carousel'));
+  assert.equal(carouselState.children.length,4);
+  assert.equal(carouselState.visibleDesktop,2);
+  assert.equal(carouselState.visibleMobile,1);
+  assert.equal(carouselState.scrollControls,true);
+  await page.locator('#cms-work-graph-node').selectOption('approved-custom-container');
   await page.locator('#cms-work-graph-background-video').selectOption(importedVideo.id);
   await page.locator('#cms-work-backgroundVideo-posterAssetId').selectOption(importedDesktopLogo.id);
   await page.locator('#cms-work-backgroundVideo-tabletPosterAssetId').selectOption(importedMobileLogo.id);
@@ -926,6 +948,13 @@ async function execute(){
   assert.equal(await visitor.locator('link[rel="icon"]').getAttribute('href'),
     '/published/site-approved-browser/assets/'+importedDesktopLogo.id+'.png');
   assert.equal(await visitor.locator('link[rel="icon"]').getAttribute('type'),'image/png');
+  const publicCarousel=visitor.locator('.cmsdg-card-carousel');
+  assert.equal(await publicCarousel.locator('.cmsdg-card-slide').count(),4,
+    'Published individual card carousel preserves its four editable mixed-content cards');
+  assert.equal(await publicCarousel.locator('.cmsdg-card-nav a').count(),4);
+  assert.equal(await publicCarousel.locator('.cmsdg-card-track').evaluate(el=>
+    getComputedStyle(el).scrollSnapType),'x mandatory');
+  assert.match(await publicCarousel.getAttribute('style'),/--cmsdg-card-desktop:2/);
   const publicBackdrop=visitor.locator('.cmsdg-n-approved-custom-container > .cmsdg-video-backdrop');
   await publicBackdrop.locator('video[autoplay][muted][loop] source[type="video/mp4"]')
     .waitFor({state:'attached'});
@@ -939,6 +968,9 @@ async function execute(){
   assert.match(await publicBackdrop.evaluate(el=>getComputedStyle(el,'::after').backgroundColor),
     /rgba?\(18, 52, 86/,'Published video keeps Workbench tint');
   await visitor.setViewportSize({width:390,height:844});
+  assert.equal(await publicCarousel.locator('.cmsdg-card-slide').first().evaluate(el=>
+    getComputedStyle(el).flexBasis.endsWith('px')&&parseFloat(getComputedStyle(el).flexBasis)>200),true,
+    'Phone uses one full-width, scrollable card rather than the desktop two-card row');
   assert.equal(await publicBackdrop.locator('video').evaluate(el=>getComputedStyle(el).display),'none');
   assert.ok((await publicBackdrop.evaluate(el=>getComputedStyle(el).backgroundImage))
     .includes(importedMobileLogo.id+'.png'),'Mobile view uses the chosen poster');

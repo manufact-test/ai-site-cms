@@ -2400,6 +2400,43 @@ test('grid gallery captions, native lightbox and safe click-actions',()=>{
   assert.match(G.render(site,section.designGraph),/cmsdg-gallery-item/);
 });
 
+test('individual mixed-content card carousel is responsive, navigable and typed',()=>{
+  const G=require('../sdk/design-graph.cjs'),site=same(initial);
+  const section=sdk.sectionFrom(reg.get('custom-section'),'section-card-carousel');
+  const card=(i)=>({id:'card-layout-'+i,type:'container',semanticTag:'article',styles:{padding:16},
+    children:[{id:'card-heading-'+i,type:'heading',level:3,text:'История '+i,styles:{}},
+      {id:'card-copy-'+i,type:'text',text:'Доказательство и факты '+i,styles:{}},
+      {id:'card-action-'+i,type:'button',text:'Смотреть кейс '+i,href:'/cases/',styles:{}}]});
+  const carousel={id:'project-cards',type:'carousel',text:'Истории наших клиентов & проекты',
+    scrollControls:true,visibleDesktop:3,visibleTablet:2,visibleMobile:1,
+    styles:{padding:12},children:[card('a'),card('b'),card('c')]};
+  section.designGraph={version:1,id:'graph-card-carousel',nodes:[carousel]};
+  site.pages[0].sections.push(section);sdk.validateSite(site,manifests);
+  const html=G.render(site,section.designGraph);
+  assert.match(html,/role="region" aria-roledescription="carousel" aria-label="Истории наших клиентов &amp; проекты"/);
+  assert.match(html,/--cmsdg-card-desktop:3;--cmsdg-card-tablet:2;--cmsdg-card-mobile:1/);
+  assert.match(html,/href="#cmsdg-card-card-layout-b"/);
+  assert.match(html,/<article class="cmsdg-n-card-layout-a">/);
+  assert.match(html,/<h3 class="cmsdg-n-card-heading-a">История a<\/h3>/);
+  assert.match(html,/\.cmsdg-card-slide\{flex:0 0 calc/);
+  assert.match(html,/@media\(max-width:600px\).*?--cmsdg-card-mobile/s);
+  let next=G.editTree(section.designGraph,{action:'insert',targetId:'project-cards',placement:'inside',node:card('d')});
+  G.validateGraph(next,new Set(),new Set());
+  assert.equal(next.nodes[0].children.length,4);
+  const a=next.nodes[0].children[0];
+  next=G.editTree(next,{action:'move',nodeId:a.id,targetId:'card-layout-d',placement:'after'});
+  assert.equal(next.nodes[0].children[3].id,a.id);
+  carousel.visibleMobile=3;refuses(()=>sdk.validateSite(site,manifests));carousel.visibleMobile=1;
+  carousel.scrollControls='true';refuses(()=>sdk.validateSite(site,manifests));carousel.scrollControls=true;
+  carousel.children[0].type='text';refuses(()=>sdk.validateSite(site,manifests));carousel.children[0].type='container';
+  carousel.children[1].children=[];refuses(()=>sdk.validateSite(site,manifests));carousel.children[1].children=card('b').children;
+  carousel.text='<script>\n';refuses(()=>sdk.validateSite(site,manifests));carousel.text='Истории клиентов';
+  sdk.validateSite(site,manifests);
+  const schema=read('schemas/site-v1.schema.json');
+  assert.ok(schema.$defs.designNode.properties.type.enum.includes('carousel'));
+  assert.equal(schema.$defs.designNode.properties.visibleMobile.maximum,2);
+});
+
 test('135 mandatory requirements keep evidence and honest owner acceptance',()=>{
   const ledger=read('mandatory-coverage.json');
   assert.equal(ledger.totalRequired,135);

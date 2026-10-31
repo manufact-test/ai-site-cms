@@ -1681,6 +1681,7 @@
             "link",
             "quote",
             "gallery",
+            "carousel",
             "table",
             "table-row",
             "table-cell"
@@ -1864,6 +1865,24 @@
         },
         "lightbox": {
           "type": "boolean"
+        },
+        "scrollControls": {
+          "type": "boolean"
+        },
+        "visibleDesktop": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "visibleTablet": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "visibleMobile": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
         },
         "caption": {
           "type": "string",

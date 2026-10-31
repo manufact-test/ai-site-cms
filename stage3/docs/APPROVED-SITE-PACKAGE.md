@@ -1177,3 +1177,29 @@ Review export/import, revision carry, history and private backup-v2 preserve the
 Importing a JSON visual report from an **older saved revision** keeps each unresolved observation even if its referenced section/Graph node was later deleted: only the obsolete target link is removed, the original Y and note remain, and Studio reports how many links were dropped. A JSON report claiming the **current revision** with a foreign section/node is still rejected rather than silently accepting a forged binding. A not-yet-upgraded review table likewise stores imported notes as Y-only. Archived reports cannot reinstate owner approval or trusted reviewer identity.
 
 If the authored section or node subsequently moves vertically, the red Studio issue pin and **К месту / Исправить в редакторе** use its *current position in the loaded real PHP draft* for the chosen desktop/tablet/mobile width. The original recorded Y is deliberately retained for history and JSON evidence, not silently overwritten. If the target is missing, hidden, or unavailable in that preview, navigation falls back to the original Y. Historic observations do not automatically become resolved or visually accepted when a linked element moves.
+
+#### Mixed-content card carousel from an individual approved design (31 October 2026)
+
+Use a typed `carousel` when the **specific approved** desktop/tablet/mobile design calls for a horizontal row of review cards, case studies or other mixed content. Unlike `gallery` (image-only), every slide must be a normal `container` with at least one authored child and can contain original headings, copy, media and CTAs with their existing node IDs and per-device styling. This is not a catalog of card templates and has no automatic rotation.
+
+```json
+{
+  "id": "client-story-carousel",
+  "type": "carousel",
+  "text": "Истории клиентов",
+  "scrollControls": true,
+  "visibleDesktop": 3,
+  "visibleTablet": 2,
+  "visibleMobile": 1,
+  "children": [
+    {"id":"story-card-one","type":"container","semanticTag":"article","children":[
+      {"id":"story-title-one","type":"heading","level":3,"text":"Первый проект"}
+    ]},
+    {"id":"story-card-two","type":"container","semanticTag":"article","children":[
+      {"id":"story-title-two","type":"heading","level":3,"text":"Второй проект"}
+    ]}
+  ]
+}
+```
+
+The example is deliberately minimal; it belongs inside an actual approved `designGraph.nodes` of the right custom section, together with the client's own card text, media, buttons, geometry and colors. Its `visibleDesktop` maximum is 6, tablet 4 and mobile 2, each integer at least 1. There must be 2–12 cards, each with content; the visible count can exceed the actual slide count but normally should not. The owner adds a `carousel` or a slide in the existing Workbench or Graph Inspector; all changes are ordinary draft/Undo/Save/Publish actions. The published track supports touch/trackpad scrolling, keyboard focus and native CSS scroll snap; optional numbered links navigate to individual stable slide IDs. The static Studio preview is not a separate interactive library and is not equivalent to testing the actual published design. Compare the client's three original mockups and every card's accessible name, action, focus and mobile overflow before manual acceptance.

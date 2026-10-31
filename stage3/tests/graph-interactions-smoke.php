@@ -456,4 +456,30 @@ $invalidForm=$formSite;
 $invalidForm['pages'][0]['sections'][2]['designGraph']['nodes'][0]['children'][1]['href']='https://untrusted.example/';
 try{$validator->validate($invalidForm);throw new RuntimeException('Form slot external action accepted');}
 catch(InvalidArgumentException $expected){}
+$carouselSite=$site;
+$carouselSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'graph-story-carousel','type'=>'carousel','text'=>'Клиентские проекты & результаты',
+    'scrollControls'=>true,'visibleDesktop'=>3,'visibleTablet'=>2,'visibleMobile'=>1,
+    'children'=>array_map(static fn(int $index):array=>[
+        'id'=>'graph-story-card-'.$index,'type'=>'container','semanticTag'=>'article','children'=>[
+            ['id'=>'graph-story-title-'.$index,'type'=>'heading','level'=>3,'text'=>'Проект '.$index],
+            ['id'=>'graph-story-copy-'.$index,'type'=>'text','text'=>'Описание проекта'],
+            ['id'=>'graph-story-link-'.$index,'type'=>'button','text'=>'Посмотреть проект','href'=>'/']
+        ]],range(1,3))];
+$validator->validate($carouselSite);
+$carouselHtml=PublicRenderer::html($carouselSite,'/');
+graphTest(str_contains($carouselHtml,'aria-roledescription="carousel" aria-label="Клиентские проекты &amp; результаты"')&&
+    str_contains($carouselHtml,'--cmsdg-card-desktop:3;--cmsdg-card-tablet:2;--cmsdg-card-mobile:1')&&
+    str_contains($carouselHtml,'href="#cmsdg-card-graph-story-card-2"')&&
+    str_contains($carouselHtml,'<article class="cmsdg-n-graph-story-card-1">')&&
+    str_contains($carouselHtml,'scroll-snap-type:x mandatory'),
+    'PHP published mixed-content card carousel with keyboard navigation and responsive CSS');
+$invalidCarousel=$carouselSite;
+$invalidCarousel['pages'][0]['sections'][2]['designGraph']['nodes'][7]['visibleMobile']=3;
+try{$validator->validate($invalidCarousel);throw new RuntimeException('Unsafe mobile carousel card count accepted');}
+catch(InvalidArgumentException $expected){}
+$invalidCarousel=$carouselSite;
+$invalidCarousel['pages'][0]['sections'][2]['designGraph']['nodes'][7]['children'][0]['type']='text';
+try{$validator->validate($invalidCarousel);throw new RuntimeException('Non-container carousel slide accepted');}
+catch(InvalidArgumentException $expected){}
 echo "Native PHP interactive Graph renderer, validation and escaped output: OK\n";

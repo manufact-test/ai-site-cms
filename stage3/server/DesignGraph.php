@@ -300,7 +300,7 @@ final class DesignGraph
                 self::check(!array_intersect(['formAppearance','formAppearanceTablet','formAppearanceMobile'],array_keys($node)),
                     'form appearance only allowed on form slots');
             self::check(is_string($id)&&preg_match(self::IDENT,$id)===1&&!isset($ids[$id])
-                &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup','form-slot'],true),
+                &&in_array($type,['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','carousel','table','table-row','table-cell','popup','form-slot'],true),
                 'invalid or duplicate node');
             $ids[$id]=true;
             if(array_key_exists('semanticTag',$node))self::check($type==='container'&&in_array($node['semanticTag'],['div','article','section','aside'],true),'invalid semantic container tag');
@@ -386,11 +386,13 @@ final class DesignGraph
             self::check(($type!=='table-row'||$parentType==='table')&&($parentType!=='table'||$type==='table-row')
                 &&($type!=='table-cell'||$parentType==='table-row')&&
                 ($parentType!=='table-row'||$type==='table-cell')
-                &&($parentType!=='gallery'||$type==='image'),'invalid table/gallery hierarchy');
+                &&($parentType!=='gallery'||$type==='image')
+                &&($parentType!=='carousel'||$type==='container'),'invalid content-group hierarchy');
             self::check(($type==='list'||!array_key_exists('ordered',$node))&&($type!=='list'||!array_key_exists('ordered',$node)||is_bool($node['ordered'])),'invalid ordered-list flag');
             self::check(($type!=='list-item'||$parentType==='list')&&($parentType!=='list'||$type==='list-item'),'invalid list hierarchy');
             self::check(($type!=='tab'||$parentType==='tabs')&&($parentType!=='tabs'||$type==='tab'),'invalid tabs hierarchy');
-            self::check($type==='gallery'||!array_intersect(['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile'],array_keys($node)),'gallery setting on another node');
+            self::check($type==='gallery'||!array_intersect(['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile'],array_keys($node)),'gallery setting on another node');
+            self::check(in_array($type,['gallery','carousel'],true)||!array_intersect(['scrollControls','visibleDesktop','visibleTablet','visibleMobile'],array_keys($node)),'scroll setting on another node');
             self::check($type==='table'||!array_intersect(['tableLayoutTablet','tableLayoutMobile','rowHeaders','tableAppearance','tableAppearanceTablet','tableAppearanceMobile'],array_keys($node)),'table layout on another node');
             if(array_key_exists('caption',$node))self::check($type==='image'&&is_string($node['caption'])&&strlen($node['caption'])<=240&&preg_match('/[\\x00-\\x1f]/',$node['caption'])!==1,'invalid photo caption');
             if($type==='gallery'){
@@ -410,6 +412,17 @@ final class DesignGraph
                     preg_match('/[\x00-\x1f]/',$node['text'])!==1&&
                     !array_intersect(['href','assetId','alt','level','icon','loop','posterAssetId','ordered'],array_keys($node)),
                     'invalid gallery label');
+            } elseif($type==='carousel'){
+                self::check(is_string($node['text']??null)&&strlen($node['text'])<=120&&trim($node['text'])!==''&&
+                    preg_match('/[\x00-\x1f]/',$node['text'])!==1&&
+                    !array_intersect(['href','assetId','alt','level','icon','loop','posterAssetId','ordered'],array_keys($node)),
+                    'invalid carousel accessible label');
+                self::check(!array_key_exists('scrollControls',$node)||is_bool($node['scrollControls']),
+                    'invalid carousel controls');
+                foreach(['visibleDesktop'=>6,'visibleTablet'=>4,'visibleMobile'=>2] as $key=>$max)
+                    if(array_key_exists($key,$node))self::check(self::integer($node[$key],1,$max),'invalid carousel visible cards');
+                foreach(($node['children']??[]) as $card)
+                    self::check(is_array($card['children']??null)&&count($card['children'])>0,'carousel cards need authored content');
             } elseif($type==='table'){
                 self::check(!array_key_exists('rowHeaders',$node)||is_bool($node['rowHeaders']),'invalid table row headers');
                 foreach(['tableAppearance','tableAppearanceTablet','tableAppearanceMobile'] as $key)
@@ -542,13 +555,13 @@ final class DesignGraph
                 foreach ($node['states'] as $name=>$style)
                     self::style($style,$tokens,$id.'/'.$name,true);
             }
-            if (!in_array($type,['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'],true))
+            if (!in_array($type,['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'],true))
                 self::check(!isset($node['children']),'non-container children');
             else {
                 $childCount=is_array($node['children']??null)?count($node['children']):-1;
-                $min=in_array($type,['tabs','gallery','table'],true)?2:
+                $min=in_array($type,['tabs','gallery','carousel','table'],true)?2:
                     (in_array($type,['disclosure','tab','list','table-row','popup'],true)?1:0);
-                $max=match($type){'tabs'=>8,'list'=>24,'gallery'=>12,'table'=>10,'table-row'=>6,default=>30};
+                $max=match($type){'tabs'=>8,'list'=>24,'gallery','carousel'=>12,'table'=>10,'table-row'=>6,default=>30};
                 self::check(isset($node['children'])&&is_array($node['children'])&&
                     array_is_list($node['children'])&&$childCount>=$min&&$childCount<=$max,
                     'invalid content-group children');
@@ -905,6 +918,18 @@ final class DesignGraph
                         $body.='<figure class="cmsdg-gallery-item" id="cmsdg-photo-'.$child['id'].'">'.$trigger.$caption.$scrollNav.$popup.'</figure>';
                     }
                     return '<div class="'.$cls.' cmsdg-gallery'.($grid?' cmsdg-gallery-grid':'').' cmsdg-gallery-shape-'.($n['photoShape']??'natural').' cmsdg-gallery-tablet-'.($n['photoShapeTablet']??$n['photoShape']??'natural').' cmsdg-gallery-mobile-'.($n['photoShapeMobile']??$n['photoShapeTablet']??$n['photoShape']??'natural').'" role="region" aria-roledescription="gallery" aria-label="'.self::h($n['text']).'" tabindex="0"'.$vars.'>'.$body.'</div>';
+                case 'carousel':
+                    $vars=' style="--cmsdg-card-desktop:'.($n['visibleDesktop']??1).
+                        ';--cmsdg-card-tablet:'.($n['visibleTablet']??1).
+                        ';--cmsdg-card-mobile:'.($n['visibleMobile']??1).'"';
+                    $cards='';$nav='';
+                    foreach($n['children'] as $index=>$child){
+                        $cards.='<div class="cmsdg-card-slide" id="cmsdg-card-'.$child['id'].'">'.$visit($child).'</div>';
+                        if(!empty($n['scrollControls']))$nav.='<a href="#cmsdg-card-'.$child['id'].'" aria-label="'.self::h($n['text']).' · '.($index+1).'">'.($index+1).'</a>';
+                    }
+                    return '<section class="'.$cls.' cmsdg-card-carousel" role="region" aria-roledescription="carousel" aria-label="'.self::h($n['text']).'"'.$vars.'>'.
+                        '<div class="cmsdg-card-track" tabindex="0">'.$cards.'</div>'.
+                        ($nav!==''?'<nav class="cmsdg-card-nav" aria-label="'.self::h($n['text']).'">'.$nav.'</nav>':'').'</section>';
                 case 'table':
                     $first=$visit($n['children'][0]);$rest='';
                     foreach(array_slice($n['children'],1) as $row)$rest.=$visit($row);
@@ -1035,12 +1060,19 @@ final class DesignGraph
             .$scope.' img,'.$scope.' video{max-width:100%;height:auto;object-position:var(--cmsdg-object-x,50%) var(--cmsdg-object-y,50%)}'
             .$scope.' svg{display:inline-block;vertical-align:middle;flex:none}'
              .$scope.' .cmsdg-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}'
-            .$scope.' .cmsdg-table-scroll:focus-visible,'.$scope.' .cmsdg-gallery:focus-visible{outline:3px solid #1868d3;outline-offset:2px}'
+            .$scope.' .cmsdg-table-scroll:focus-visible,'.$scope.' .cmsdg-gallery:focus-visible,'.$scope.' .cmsdg-card-track:focus-visible{outline:3px solid #1868d3;outline-offset:2px}'
             .$scope.' .cmsdg-table{border-collapse:collapse;width:100%;min-width:480px}'
             .$scope.' .cmsdg-table th,'.$scope.' .cmsdg-table td{padding:var(--cmsdg-table-cell-padding,12px) 16px;border:1px solid var(--cmsdg-table-border,#c6cdd7);text-align:start}'
             .$scope.' .cmsdg-table th{font-weight:700;background:var(--cmsdg-table-header-bg,#f2f5f9);color:var(--cmsdg-table-header-color,inherit)}'
             .'@media(min-width:601px) and (max-width:900px){'.$tableCardsCss($scope.' .cmsdg-tablet-cards').'}'
             .'@media(max-width:600px){'.$tableCardsCss($scope.' .cmsdg-mobile-cards').'}'
+            .$scope.' .cmsdg-card-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:4px;padding:4px 2px 12px;overscroll-behavior-inline:contain}'
+            .$scope.' .cmsdg-card-slide{flex:0 0 calc((100% - (var(--cmsdg-card-desktop) - 1)*16px)/var(--cmsdg-card-desktop));min-width:0;scroll-snap-align:start;scroll-margin-block:24px}'
+            .'@media(max-width:900px){'.$scope.' .cmsdg-card-slide{flex-basis:calc((100% - (var(--cmsdg-card-tablet) - 1)*16px)/var(--cmsdg-card-tablet))}}'
+            .'@media(max-width:600px){'.$scope.' .cmsdg-card-slide{flex-basis:calc((100% - (var(--cmsdg-card-mobile) - 1)*16px)/var(--cmsdg-card-mobile))}}'
+            .$scope.' .cmsdg-card-nav{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:8px}'
+            .$scope.' .cmsdg-card-nav a{display:grid;place-items:center;min-width:40px;min-height:40px;padding:4px 8px;color:inherit;border:1px solid currentColor;border-radius:8px;text-decoration:none}'
+            .$scope.' .cmsdg-card-nav a:focus-visible{outline:3px solid #1868d3;outline-offset:2px}'
             .$scope.' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'
             .$scope.' .cmsdg-gallery>.cmsdg-gallery-item{flex:0 0 min(82%,420px);scroll-snap-align:start;min-width:0;max-width:100%;margin:0;border-radius:10px;overflow:hidden}'
             .$scope.' .cmsdg-gallery[style*="--cmsdg-visible-desktop"]>.cmsdg-gallery-item{flex-basis:calc((100% - (var(--cmsdg-visible-desktop) - 1)*16px)/var(--cmsdg-visible-desktop));max-width:100%}'

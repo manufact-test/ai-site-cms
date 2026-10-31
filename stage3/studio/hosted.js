@@ -4306,7 +4306,7 @@
               const walk=children=>{
                 for(const node of children){
                   nodes++;
-                  if(['heading','text','button','link','quote','gallery','table','table-cell',
+                  if(['heading','text','button','link','quote','gallery','carousel','table','table-cell',
                     'list-item','disclosure','tab'].includes(node.type))textNodes++;
                   if(['image','video'].includes(node.type)||node.backgroundMedia||node.backgroundVideo)
                     mediaNodes++;

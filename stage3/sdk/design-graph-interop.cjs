@@ -39,7 +39,7 @@ function flattenGraph(graph){
     childrenByParent.set(parentId,nodes.map(node=>node.id));
     nodes.forEach((node,index)=>{
       entries.set(node.id,{node,parentId,index});
-      if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type)&&Array.isArray(node.children))visit(node.children,node.id);
+      if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row'].includes(node.type)&&Array.isArray(node.children))visit(node.children,node.id);
     });
   };
   visit(graph.nodes,'$root');return {entries,childrenByParent};
@@ -59,7 +59,7 @@ function validateBindings(bindings,section){
     seen.add(signature);
     const node=index.get(binding.nodeId).node;
     if(property==='href'?(!['button','link','image'].includes(node.type)||!own(node,'href')):
-      (!['heading','text','button','link','quote','disclosure','tab','list-item','table','table-cell','gallery'].includes(node.type)||typeof node.text!=='string'))
+      (!['heading','text','button','link','quote','disclosure','tab','list-item','table','table-cell','gallery','carousel'].includes(node.type)||typeof node.text!=='string'))
       fail('Binding property is incompatible with its graph node');
     const source=binding.source;
     if(!object(source)||Object.keys(source).some(k=>!['slot','itemId','field'].includes(k))||
@@ -166,7 +166,7 @@ function graphStats(graph){
     if(node.type==='image'||node.type==='video'||node.backgroundMedia)out.mediaNodes++;
     for(const layer of [node.styles||{},...Object.values(node.responsive||{}),...Object.values(node.states||{})])
       Object.keys(layer).forEach(key=>keys.add(key));
-    if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type))visit(node.children);
+    if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row'].includes(node.type))visit(node.children);
   });
   visit(graph.nodes);out.styleKeys=Array.from(keys).sort();return out;
 }

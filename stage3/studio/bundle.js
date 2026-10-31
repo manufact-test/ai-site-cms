@@ -39,7 +39,7 @@ const ICON_PATHS=Object.freeze({
  "package":"<path d=\"m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10\"/>"
 });
 const MOTIONS=['none','fade-in','fade-up','slide-left','zoom-in'];
-const TYPES=['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','table','table-row','table-cell','popup','form-slot'];
+const TYPES=['container','heading','text','button','image','divider','icon','video','disclosure','tabs','tab','list','list-item','link','quote','gallery','carousel','table','table-row','table-cell','popup','form-slot'];
 const STYLE_KEYS=['display','columns','direction','align','justify','gap','padding','radius',
   'color','background','fontSize','fontWeight','lineHeight','maxWidth','position','top','left',
   'opacity','borderColor','borderWidth','textAlign','order','hidden','rowGap','columnGap',
@@ -511,6 +511,7 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
     if(node.type==='table-cell'&&parentType!=='table-row')fail(node.id,'cell must belong to row');
     if(parentType==='table-row'&&node.type!=='table-cell')fail(node.id,'row accepts only cells');
     if(parentType==='gallery'&&node.type!=='image')fail(node.id,'gallery accepts only images');
+    if(parentType==='carousel'&&node.type!=='container')fail(node.id,'carousel accepts only authored container cards');
     if(node.type==='list-item'&&parentType!=='list')fail(node.id,'list item must belong to list');
     if(parentType==='list'&&node.type!=='list-item')fail(node.id,'list accepts only list items');
     if(node.type==='tab'&&parentType!=='tabs')fail(node.id,'tab must belong to tabs');
@@ -519,7 +520,8 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
     if(node.type==='quote'&&own(node,'cite')&&
       (typeof node.cite!=='string'||node.cite.length>160||/[\x00-\x1f]/.test(node.cite)))
       fail(node.id,'invalid quote attribution');
-    if(node.type!=='gallery'&&['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile'].some(k=>own(node,k)))fail(node.id,'gallery settings on other node');
+    if(node.type!=='gallery'&&['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile'].some(k=>own(node,k)))fail(node.id,'gallery settings on other node');
+    if(!['gallery','carousel'].includes(node.type)&&['scrollControls','visibleDesktop','visibleTablet','visibleMobile'].some(k=>own(node,k)))fail(node.id,'scroll settings on other node');
     if(node.type!=='table'&&['tableLayoutTablet','tableLayoutMobile','rowHeaders','tableAppearance','tableAppearanceTablet','tableAppearanceMobile'].some(k=>own(node,k)))
       fail(node.id,'table layout on another node');
     if(own(node,'caption')&&(node.type!=='image'||typeof node.caption!=='string'||node.caption.length>240||/[\x00-\x1f]/.test(node.caption)))fail(node.id,'invalid gallery photo caption');
@@ -537,6 +539,15 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       if(typeof node.text!=='string'||!node.text.trim()||node.text.length>120||
         /[\x00-\x1f]/.test(node.text)||['href','assetId','alt','level','icon','loop','posterAssetId','ordered'].some(k=>own(node,k)))
         fail(node.id,'invalid gallery label');
+    }else if(node.type==='carousel'){
+      if(typeof node.text!=='string'||!node.text.trim()||node.text.length>120||
+        /[\x00-\x1f]/.test(node.text)||
+        ['href','assetId','alt','level','icon','loop','posterAssetId','ordered'].some(k=>own(node,k)))
+        fail(node.id,'invalid carousel accessible label');
+      if(own(node,'scrollControls')&&typeof node.scrollControls!=='boolean')
+        fail(node.id,'invalid carousel controls');
+      for(const [key,max] of [['visibleDesktop',6],['visibleTablet',4],['visibleMobile',2]])
+        if(own(node,key)&&!number(node[key],1,max))fail(node.id,'invalid carousel visible card count');
     }else if(node.type==='table'){
       if(own(node,'rowHeaders')&&typeof node.rowHeaders!=='boolean')fail(node.id,'invalid row header flag');
       for(const key of ['tableAppearance','tableAppearanceTablet','tableAppearanceMobile'])
@@ -641,11 +652,11 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       keys(node.states,['hover','focus','active'],node.id+'/states');
       for(const [state,st] of Object.entries(node.states))validateStyle(st,tokens,node.id+'/'+state,'state');
     }
-    if(!['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type)&&own(node,'children'))fail(node.id,'noncontainer children');
-    if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type)){
-      const min=node.type==='tabs'||node.type==='gallery'||node.type==='table'?2:
+    if(!['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(node.type)&&own(node,'children'))fail(node.id,'noncontainer children');
+    if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(node.type)){
+      const min=['tabs','gallery','carousel','table'].includes(node.type)?2:
         ['tab','disclosure','list','table-row','popup'].includes(node.type)?1:0;
-      const max=node.type==='tabs'?8:node.type==='list'?24:node.type==='gallery'?12:
+      const max=node.type==='tabs'?8:node.type==='list'?24:['gallery','carousel'].includes(node.type)?12:
         node.type==='table'?10:node.type==='table-row'?6:30;
       if(!Array.isArray(node.children)||node.children.length<min||node.children.length>max)
         fail(node.id,'invalid content-group children');
@@ -655,6 +666,8 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
           fail(node.id,'table must be rectangular with 2-6 columns');
       }
       if(own(node,'sequence'))validateSequence(node.sequence,node.children,node.id+'/sequence');
+      if(node.type==='carousel'&&node.children.some(child=>!Array.isArray(child.children)||!child.children.length))
+        fail(node.id,'carousel cards need authored content');
       node.children.forEach(n=>visit(n,depth+1,node.type));
     }
   }
@@ -701,8 +714,9 @@ function editTree(graph,operation){
         (node.type==='list-item'&&parentType!=='list')||(parentType==='list'&&node.type!=='list-item')||
         (node.type==='table-row'&&parentType!=='table')||(parentType==='table'&&node.type!=='table-row')||
         (node.type==='table-cell'&&parentType!=='table-row')||(parentType==='table-row'&&node.type!=='table-cell')||
-        (parentType==='gallery'&&node.type!=='image')||(node.type==='popup'&&depth!==0))fail('edit','invalid group hierarchy');
-      if(['tabs','gallery','table'].includes(node.type)&&(!Array.isArray(node.children)||node.children.length<2))
+        (parentType==='gallery'&&node.type!=='image')||
+        (parentType==='carousel'&&node.type!=='container')||(node.type==='popup'&&depth!==0))fail('edit','invalid group hierarchy');
+      if(['tabs','gallery','carousel','table'].includes(node.type)&&(!Array.isArray(node.children)||node.children.length<2))
         fail('edit','group must contain at least two items');
       if(['tab','disclosure','list','table-row','popup'].includes(node.type)&&(!Array.isArray(node.children)||!node.children.length))
         fail('edit','interactive panel needs content');
@@ -713,9 +727,9 @@ function editTree(graph,operation){
         found.has(node.id)||!TYPES.includes(node.type)||depth>8||found.size>=90)
         fail('edit','invalid node, duplicated id or graph limit');
       found.set(node.id,{node,items,depth});
-      if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type)){
+      if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(node.type)){
         if(!Array.isArray(node.children)||node.children.length>(node.type==='tabs'?8:node.type==='list'?24:
-          node.type==='gallery'?12:node.type==='table'?10:node.type==='table-row'?6:30))fail('edit','container limit');
+          ['gallery','carousel'].includes(node.type)?12:node.type==='table'?10:node.type==='table-row'?6:30))fail('edit','container limit');
         node.children.forEach(child=>visit(child,node.children,depth+1,node.type));
       }else if(own(node,'children'))fail('edit','invalid child owner');
     };
@@ -725,7 +739,7 @@ function editTree(graph,operation){
   const before=scan(),source=operation.action==='insert'?null:before.get(operation.nodeId);
   if(operation.action!=='insert'&&!source)fail('edit','missing selected node');
   const descendants=[];
-  const walk=(node)=>{descendants.push(node);if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type))node.children.forEach(walk);};
+  const walk=(node)=>{descendants.push(node);if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(node.type))node.children.forEach(walk);};
   if(source)walk(source.node);
   if(operation.action==='duplicate'){
     if(!Array.isArray(operation.ids)||operation.ids.length!==descendants.length||
@@ -733,7 +747,7 @@ function editTree(graph,operation){
        new Set(operation.ids).size!==operation.ids.length)fail('edit','invalid replacement ids');
     const copy=JSON.parse(JSON.stringify(source.node));
     let idx=0;
-    const rewrite=(node)=>{node.id=operation.ids[idx++];if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type))node.children.forEach(rewrite);};
+    const rewrite=(node)=>{node.id=operation.ids[idx++];if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(node.type))node.children.forEach(rewrite);};
     rewrite(copy);
     source.items.splice(source.items.indexOf(source.node)+1,0,copy);
   }else if(operation.action==='insert'){
@@ -741,7 +755,7 @@ function editTree(graph,operation){
     if(!target||!['before','after','inside'].includes(operation.placement)||
        !object(operation.node))fail('edit','invalid insertion');
     if(operation.placement==='inside'){
-      if(!['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(target.node.type))fail('edit','destination not a container');
+      if(!['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(target.node.type))fail('edit','destination not a container');
       target.node.children.push(JSON.parse(JSON.stringify(operation.node)));
     }else{
       target.items.splice(target.items.indexOf(target.node)+(operation.placement==='after'?1:0),
@@ -752,7 +766,7 @@ function editTree(graph,operation){
     if(!target||!['before','after','inside'].includes(operation.placement)||
        descendants.some(n=>n.id===operation.targetId))
       fail('edit','invalid destination or cycle');
-    if(operation.placement==='inside'&&!['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(target.node.type))
+    if(operation.placement==='inside'&&!['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(target.node.type))
       fail('edit','destination not a container');
     source.items.splice(source.items.indexOf(source.node),1);
     if(operation.placement==='inside')target.node.children.push(source.node);
@@ -1110,6 +1124,16 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       }).join('');
       return '<div class="'+cls+' cmsdg-gallery'+(grid?' cmsdg-gallery-grid':'')+' cmsdg-gallery-shape-'+(n.photoShape||'natural')+' cmsdg-gallery-tablet-'+(n.photoShapeTablet||n.photoShape||'natural')+' cmsdg-gallery-mobile-'+(n.photoShapeMobile||n.photoShapeTablet||n.photoShape||'natural')+'" role="region" aria-roledescription="gallery" aria-label="'+attr(n.text)+'" tabindex="0"'+variables+'>'+content+'</div>';
     }
+    if(n.type==='carousel'){
+      const vars=' style="--cmsdg-card-desktop:'+(n.visibleDesktop??1)+
+        ';--cmsdg-card-tablet:'+(n.visibleTablet??1)+
+        ';--cmsdg-card-mobile:'+(n.visibleMobile??1)+'"';
+      const cards=n.children.map(child=>'<div class="cmsdg-card-slide" id="cmsdg-card-'+child.id+'">'+visit(child)+'</div>').join('');
+      const nav=n.scrollControls?'<nav class="cmsdg-card-nav" aria-label="'+attr(n.text)+'">'+
+        n.children.map((child,index)=>'<a href="#cmsdg-card-'+child.id+'" aria-label="'+attr(n.text)+' · '+(index+1)+'">'+(index+1)+'</a>').join('')+'</nav>':'';
+      return '<section class="'+cls+' cmsdg-card-carousel" role="region" aria-roledescription="carousel" aria-label="'+attr(n.text)+'"'+vars+'>'+
+        '<div class="cmsdg-card-track" tabindex="0">'+cards+'</div>'+nav+'</section>';
+    }
     if(n.type==='table'){
       const tablet=n.tableLayoutTablet||'scroll',mobile=n.tableLayoutMobile||tablet;
       const selector=scope+' .cmsdg-table-owner-'+n.id;
@@ -1223,12 +1247,19 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     scope+'{min-width:0;max-width:none;padding:0;min-height:0}'+scope+' *{box-sizing:border-box;min-width:0}'+
     scope+' img,'+scope+' video{max-width:100%;height:auto;object-position:var(--cmsdg-object-x,50%) var(--cmsdg-object-y,50%)}'+scope+' svg{display:inline-block;vertical-align:middle;flex:none}'+
     scope+' .cmsdg-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}'+
-    scope+' .cmsdg-table-scroll:focus-visible,'+scope+' .cmsdg-gallery:focus-visible{outline:3px solid #1868d3;outline-offset:2px}'+
+    scope+' .cmsdg-table-scroll:focus-visible,'+scope+' .cmsdg-gallery:focus-visible,'+scope+' .cmsdg-card-track:focus-visible{outline:3px solid #1868d3;outline-offset:2px}'+
     scope+' .cmsdg-table{border-collapse:collapse;width:100%;min-width:480px}'+
     scope+' .cmsdg-table th,'+scope+' .cmsdg-table td{padding:var(--cmsdg-table-cell-padding,12px) 16px;border:1px solid var(--cmsdg-table-border,#c6cdd7);text-align:start}'+
     scope+' .cmsdg-table th{font-weight:700;background:var(--cmsdg-table-header-bg,#f2f5f9);color:var(--cmsdg-table-header-color,inherit)}'+
     '@media(min-width:601px) and (max-width:900px){'+tableCardsCss(scope+' .cmsdg-tablet-cards')+'}'+
     '@media(max-width:600px){'+tableCardsCss(scope+' .cmsdg-mobile-cards')+'}'+
+    scope+' .cmsdg-card-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:4px;padding:4px 2px 12px;overscroll-behavior-inline:contain}'+
+    scope+' .cmsdg-card-slide{flex:0 0 calc((100% - (var(--cmsdg-card-desktop) - 1)*16px)/var(--cmsdg-card-desktop));min-width:0;scroll-snap-align:start;scroll-margin-block:24px}'+
+    '@media(max-width:900px){'+scope+' .cmsdg-card-slide{flex-basis:calc((100% - (var(--cmsdg-card-tablet) - 1)*16px)/var(--cmsdg-card-tablet))}}'+
+    '@media(max-width:600px){'+scope+' .cmsdg-card-slide{flex-basis:calc((100% - (var(--cmsdg-card-mobile) - 1)*16px)/var(--cmsdg-card-mobile))}}'+
+    scope+' .cmsdg-card-nav{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:8px}'+
+    scope+' .cmsdg-card-nav a{display:grid;place-items:center;min-width:40px;min-height:40px;padding:4px 8px;color:inherit;border:1px solid currentColor;border-radius:8px;text-decoration:none}'+
+    scope+' .cmsdg-card-nav a:focus-visible{outline:3px solid #1868d3;outline-offset:2px}'+
     scope+' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'+
     scope+' .cmsdg-gallery>.cmsdg-gallery-item{flex:0 0 min(82%,420px);scroll-snap-align:start;min-width:0;max-width:100%;margin:0;border-radius:10px;overflow:hidden}'+
     scope+' .cmsdg-gallery[style*="--cmsdg-visible-desktop"]>.cmsdg-gallery-item{flex-basis:calc((100% - (var(--cmsdg-visible-desktop) - 1)*16px)/var(--cmsdg-visible-desktop));max-width:100%}'+
@@ -1388,7 +1419,7 @@ function auditAccessibility(graph,tokensInput){
         if(ratio<minimum)add('low-contrast','warning',node,
           'Контраст текста '+ratio.toFixed(2)+':1; ориентир WCAG AA — не менее '+minimum.toFixed(1)+':1.');
       }
-      if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type)&&Array.isArray(node.children))walk(node.children,{color,backgrounds,fontSize,fontWeight});
+      if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(node.type)&&Array.isArray(node.children))walk(node.children,{color,backgrounds,fontSize,fontWeight});
     }
   };
   if(!graph||!Array.isArray(graph.nodes)){
@@ -2960,7 +2991,7 @@ function flattenGraph(graph){
     childrenByParent.set(parentId,nodes.map(node=>node.id));
     nodes.forEach((node,index)=>{
       entries.set(node.id,{node,parentId,index});
-      if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type)&&Array.isArray(node.children))visit(node.children,node.id);
+      if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row'].includes(node.type)&&Array.isArray(node.children))visit(node.children,node.id);
     });
   };
   visit(graph.nodes,'$root');return {entries,childrenByParent};
@@ -2980,7 +3011,7 @@ function validateBindings(bindings,section){
     seen.add(signature);
     const node=index.get(binding.nodeId).node;
     if(property==='href'?(!['button','link','image'].includes(node.type)||!own(node,'href')):
-      (!['heading','text','button','link','quote','disclosure','tab','list-item','table','table-cell','gallery'].includes(node.type)||typeof node.text!=='string'))
+      (!['heading','text','button','link','quote','disclosure','tab','list-item','table','table-cell','gallery','carousel'].includes(node.type)||typeof node.text!=='string'))
       fail('Binding property is incompatible with its graph node');
     const source=binding.source;
     if(!object(source)||Object.keys(source).some(k=>!['slot','itemId','field'].includes(k))||
@@ -3087,7 +3118,7 @@ function graphStats(graph){
     if(node.type==='image'||node.type==='video'||node.backgroundMedia)out.mediaNodes++;
     for(const layer of [node.styles||{},...Object.values(node.responsive||{}),...Object.values(node.states||{})])
       Object.keys(layer).forEach(key=>keys.add(key));
-    if(['container','disclosure','tabs','tab','list','gallery','table','table-row'].includes(node.type))visit(node.children);
+    if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row'].includes(node.type))visit(node.children);
   });
   visit(graph.nodes);out.styleKeys=Array.from(keys).sort();return out;
 }
@@ -4258,7 +4289,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(section.designGraph){
           const visit=nodes=>{
             for(const node of nodes){
-              if(['heading','text','button','link','quote','table-cell','table','gallery','list-item','disclosure','tab'].includes(node.type)){
+              if(['heading','text','button','link','quote','table-cell','table','gallery','carousel','list-item','disclosure','tab'].includes(node.type)){
                 const value=String(node.text||'').trim();
                 if(!value)add(page,section,{id:node.id},'graph-text',
                   'Пустой видимый текст композиции: '+node.type,'text');
@@ -4855,7 +4886,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const walk=(nodes,depth)=>{
         for(const node of nodes||[]){
           rows.push({node,depth});
-          if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type))walk(node.children,depth+1);
+          if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(node.type))walk(node.children,depth+1);
         }
       };
       if(section?.designGraph)walk(section.designGraph.nodes,0);
@@ -5487,7 +5518,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           ['text','Текст'],['heading','Заголовок'],['button','Кнопка'],['link','Текстовая ссылка'],['quote','Цитата / отзыв'],
           ['image','Изображение'],['video','Видео MP4'],['icon','Иконка'],
           ['container','Контейнер'],['list','Список пунктов'],['disclosure','Раскрывающаяся панель'],
-          ['tabs','Вкладки'],['gallery','Галерея со свайпом'],['table','Таблица с данными'],['divider','Разделитель'],['popup','Всплывающее окно'],
+          ['tabs','Вкладки'],['gallery','Галерея со свайпом'],['carousel','Лента индивидуальных карточек'],['table','Таблица с данными'],['divider','Разделитель'],['popup','Всплывающее окно'],
           ...(['lead-form','lead-form-flex'].includes(section.component)?[['form-slot','Форма заявки · рабочая']]:[])
         ]){
           const option=document.createElement('option');option.value=type;option.textContent=label;
@@ -5518,6 +5549,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             node.text='Фотогалерея';node.children=[1,2].map(()=>({
               id:uniqueId('dg-node'),type:'image',assetId:photo.id,alt:photo.alt||'Изображение',styles:{}
             }));
+          }
+          if(type==='carousel'){
+            node.text='Карточки';node.scrollControls=true;
+            node.visibleDesktop=3;node.visibleTablet=2;node.visibleMobile=1;
+            node.children=[1,2,3].map(i=>({id:uniqueId('dg-node'),type:'container',styles:{},
+              children:[{id:uniqueId('dg-node'),type:'heading',level:3,text:'Карточка '+i,styles:{}},
+                {id:uniqueId('dg-node'),type:'text',text:'Индивидуальное содержание',styles:{}}]}));
           }
           if(type==='table'){
             node.text='Сравнение вариантов';
@@ -5607,6 +5645,18 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           addPhoto.disabled=!canWrite()||current.children.length>=12;
           graphActions.append(addPhoto);
         }
+        if(current.type==='carousel'){
+          const addCard=workButton('+ Карточка с содержимым',()=>{
+            const i=current.children.length+1;
+            const node={id:uniqueId('dg-node'),type:'container',styles:{},children:[
+              {id:uniqueId('dg-node'),type:'heading',level:3,text:'Карточка '+i,styles:{}},
+              {id:uniqueId('dg-node'),type:'text',text:'Редактируемое содержание',styles:{}}]};
+            editGraphTreeWork({action:'insert',targetId:current.id,placement:'inside',node},node.id);
+          });
+          addCard.id='cms-work-graph-add-carousel-card';
+          addCard.disabled=!canWrite()||current.children.length>=12;
+          graphActions.append(addCard);
+        }
         if(current.type==='table'){
           const addRow=workButton('+ Строка таблицы',()=>{
             const cells=current.children[0].children.map((_,col)=>({
@@ -5657,7 +5707,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const findSiblings=(nodes,id)=>{
           for(const node of nodes){
             if(node.id===id)return nodes;
-            if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(node.type)){
+            if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(node.type)){
               const hit=findSiblings(node.children,id);if(hit)return hit;
             }
           }
@@ -5806,7 +5856,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           return input;
         };
         if(current){
-          if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item','popup'].includes(current.type))
+          if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','disclosure','tab','list-item','popup'].includes(current.type))
             property('Текст', 'text',current.text);
           if(current.type==='form-slot'){
             const layerKey=mode==='tablet'?'formAppearanceTablet':mode==='mobile'?'formAppearanceMobile':'formAppearance';
@@ -5851,6 +5901,17 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
               property('Колонок на планшете','columnsTablet',current.columnsTablet??2);
               property('Колонок на телефоне','columnsMobile',current.columnsMobile??1);
             }
+          }
+          if(current.type==='carousel'){
+            const note=document.createElement('p');note.className='cms-work-hint';
+            note.textContent='Карточки могут содержать собственные заголовки, изображения, кнопки и другие уже разрешённые элементы. Лента прокручивается свайпом и клавиатурой.';
+            panel.append(note);
+            for(const [field,label] of [['visibleDesktop','Видимых карточек · ПК (1–6)'],
+              ['visibleTablet','Видимых карточек · планшет (1–4)'],
+              ['visibleMobile','Видимых карточек · телефон (1–2)']])
+              property(label,field,current[field]??1);
+            property('Нумерованная навигация','scrollControls',String(!!current.scrollControls),
+              [['false','Только свайп / прокрутка'],['true','Показать переходы']]);
           }
           if(current.type==='table'){
             property('Первый столбец — заголовки строк','rowHeaders',String(!!current.rowHeaders),
@@ -6258,7 +6319,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             [['',inherit],...Object.keys(session.current.designTokens?.colors||DESIGN_GRAPH.DEFAULT_TOKENS.colors)
               .map(x=>['@'+x,x]),['#ffffff','Белый'],['#000000','Чёрный']]);
           property('Размер текста · '+mode,'fontSize',styles.fontSize??'');
-          if(['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(current.type)){
+          if(['container','disclosure','tabs','tab','list','gallery','carousel','table','table-row','popup'].includes(current.type)){
             property('Внутренний отступ · '+mode,'padding',styles.padding??'');
             property('Шаг элементов · '+mode,'gap',styles.gap??'');
           }
@@ -7129,6 +7190,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const item={id:uniqueId('dg-node'),type:'image',assetId:photo.id,alt:photo.alt||'Изображение',styles:{}};
         changeTree({action:'insert',targetId:n.id,placement:'inside',node:item},item.id);
       });
+      if(n.type==='carousel')action('+ Карточка',()=>{
+        const i=n.children.length+1;
+        const item={id:uniqueId('dg-node'),type:'container',styles:{},children:[
+          {id:uniqueId('dg-node'),type:'heading',level:3,text:'Карточка '+i,styles:{}},
+          {id:uniqueId('dg-node'),type:'text',text:'Редактируемое содержание',styles:{}}]};
+        changeTree({action:'insert',targetId:n.id,placement:'inside',node:item},item.id);
+      });
       if(n.type==='table'){
         const paste=action('Вставить из Excel / CSV',()=>openGraphTablePaste(graph,n.id,matrix=>{
           const candidate=DESIGN_GRAPH.replaceTableMatrix(graph,n.id,matrix,
@@ -7188,7 +7256,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
       });
       action('Тип +',()=>{
-        const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / table / divider / icon / video / disclosure / tabs / list / popup'+
+        const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / carousel / table / divider / icon / video / disclosure / tabs / list / popup'+
           (['lead-form','lead-form-flex'].includes(sourceSection.component)?' / form-slot (рабочая форма)':''),'heading');
         if(type===null)return;
         if(!DESIGN_GRAPH.TYPES.includes(type))return notice('Неизвестный тип',true);
@@ -7205,6 +7273,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           node.text='Фотогалерея';node.children=[1,2].map(()=>({
             id:uniqueId('dg-node'),type:'image',assetId:first.id,alt:first.alt||'Изображение',styles:{}
           }));
+        }
+        if(type==='carousel'){
+          node.text='Карточки';node.scrollControls=true;
+          node.visibleDesktop=3;node.visibleTablet=2;node.visibleMobile=1;
+          node.children=[1,2,3].map(i=>({id:uniqueId('dg-node'),type:'container',styles:{},
+            children:[{id:uniqueId('dg-node'),type:'heading',level:3,text:'Карточка '+i,styles:{}},
+              {id:uniqueId('dg-node'),type:'text',text:'Содержание карточки',styles:{}}]}));
         }
         if(type==='table'){
           node.text='Таблица сравнения';node.children=[0,1,2].map(row=>({
@@ -7295,7 +7370,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       }
       const headline=make('h3','Редактирование · '+n.type);root.append(headline);
       const fields=make('div','', 'cms-design-fields');root.append(fields);
-      if(['heading','text','button','link','quote','table','table-cell','gallery','disclosure','tab','list-item','popup'].includes(n.type)){
+      if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','disclosure','tab','list-item','popup'].includes(n.type)){
         fields.append(ctl('Текст (сбрасывает акценты)',n.text,value=>{n.text=value;delete n.runs;},'multiline'));
       }
       if(['heading','text'].includes(n.type)){
@@ -7462,6 +7537,17 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           fields.append(ctl(label,String(n[key]??defaultValue),value=>{
             n.layout='grid';n[key]=Number(value);
           },'number'));
+      }
+      if(n.type==='carousel'){
+        fields.append(make('p','Каждая карточка — существующий индивидуальный контейнер с редактируемыми элементами. Перетаскивайте, копируйте или меняйте порядок контейнеров в дереве.'));
+        for(const [field,label,limit] of [['visibleDesktop','Карточек на ПК',6],
+          ['visibleTablet','Карточек на планшете',4],['visibleMobile','Карточек на телефоне',2]])
+          fields.append(ctl(label,String(n[field]??1),v=>{
+            n[field]=Math.max(1,Math.min(limit,Number(v)||1));
+          },'number'));
+        fields.append(ctl('Навигация по карточкам',{initial:n.scrollControls?'true':'false',
+          choices:[['false','Только свайп / прокрутка'],['true','Нумерованные переходы']]},
+          value=>{n.scrollControls=value==='true';},'select'));
       }
       if(n.type==='table'){
         fields.append(graphTableMoveControls(n,'cms-design-table',(kind,from,to)=>{
@@ -8053,7 +8139,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           if(section.designGraph){
             const walk=nodes=>{
               for(const node of nodes){
-                if(['heading','text','button','link','quote','table','table-cell','gallery','list-item','disclosure','tab'].includes(node.type))
+                if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','list-item','disclosure','tab'].includes(node.type))
                   add(page,'graph',null,'text',node.text,
                     'Дизайн-композиция · '+node.type+' · '+node.id,section,{id:node.id});
                 if(node.type==='quote'&&node.cite)
@@ -8152,7 +8238,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                 return null;
               };
               target=find(sec.designGraph.nodes);
-              if(!target||!['heading','text','button','link','quote','table','table-cell','gallery','list-item','disclosure','tab','image'].includes(target.type))
+              if(!target||!['heading','text','button','link','quote','table','table-cell','gallery','carousel','list-item','disclosure','tab','image'].includes(target.type))
                 throw Error('Элемент композиции больше не существует');
             }else{
               if(sec.designGraph)throw Error('Показан другой источник содержимого');
