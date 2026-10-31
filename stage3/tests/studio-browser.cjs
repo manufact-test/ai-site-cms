@@ -1283,6 +1283,79 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       'Full-page workbench edits the actual typed Graph form appearance');
     assert.equal(workFormChanged.designGraph.nodes[0].children[1].formAppearance?.labelGap,11);
 
+    // A site owner can paste a real Excel/Sheets grid into the existing authored
+    // table; IDs/styles and the ordinary Graph Draft/Undo flow are preserved.
+    await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+    const sheetSite=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));
+    const sheetDef=JSON.parse(fs.readFileSync(path.join(root,'components/custom-section.json'),'utf8'));
+    const sheetSec=require('../sdk/contract.cjs').sectionFrom(sheetDef,'section-sheet-editor');
+    sheetSec.designGraph={version:1,id:'graph-sheet-editor',nodes:[{
+      id:'sheet-table-ui',type:'table',text:'Тарифы',tableLayoutMobile:'cards',children:[
+        {id:'sheet-head-ui',type:'table-row',children:[
+          {id:'sheet-head-a-ui',type:'table-cell',text:'Услуга'},
+          {id:'sheet-head-b-ui',type:'table-cell',text:'Цена'}]},
+        {id:'sheet-row-ui',type:'table-row',children:[
+          {id:'sheet-value-a-ui',type:'table-cell',text:'Сайт'},
+          {id:'sheet-value-b-ui',type:'table-cell',text:'200',styles:{color:'@accent'}}]}
+      ]},{id:'sheet-list-ui',type:'list',ordered:true,children:[
+        {id:'sheet-list-one-ui',type:'list-item',text:'Планирование'},
+        {id:'sheet-list-two-ui',type:'list-item',text:'Запуск'}
+      ]}]};
+    sheetSite.pages[0].sections.push(sheetSec);
+    await page.evaluate(site=>window.Stage3Editor.replace(site),sheetSite);
+    await page.locator('#pages .nav-entry').first().click();
+    await page.locator('#sections .nav-entry').last().click();
+    await page.locator('#section-design-graph').click();
+    await page.locator('#cms-design-node-select').selectOption('sheet-table-ui');
+    await page.locator('#cms-design-table-paste').click();
+    await page.locator('#cms-graph-table-data').fill('Услуга\tЦена\tСрок\nСайт\t250\t3 дня\nМагазин\t500\t5 дней');
+    assert.match(await page.locator('#cms-graph-table-status').innerText(),/3 строк × 3 столбцов/);
+    await page.locator('#cms-graph-table-apply').click();
+    await page.locator('#cms-graph-table-paste').waitFor({state:'detached'});
+    await page.locator('#cms-design-undo').click();
+    assert.equal(await page.frameLocator('#cms-design-preview-frame').locator('tbody tr').count(),1);
+    await page.locator('#cms-design-redo').click();
+    assert.equal(await page.frameLocator('#cms-design-preview-frame').locator('tbody tr').count(),2);
+    await page.locator('#cms-design-table-column').selectOption('1');
+    await page.locator('#cms-design-table-column-previous').click();
+    assert.equal(await page.frameLocator('#cms-design-preview-frame').locator('thead th').first().innerText(),'Цена');
+    await page.locator('#cms-design-undo').click();
+    await page.locator('#cms-design-table-row').selectOption('2');
+    await page.locator('#cms-design-table-row-previous').click();
+    assert.equal(await page.frameLocator('#cms-design-preview-frame').locator('tbody tr').first().locator('td').first().innerText(),'Магазин');
+    await page.locator('#cms-design-undo').click();
+    await page.locator('#cms-design-node-select').selectOption('sheet-list-ui');
+    await page.locator('#cms-design-list-paste').click();
+    await page.locator('#cms-graph-list-data').fill('Планирование\nВёрстка\nЗапуск');
+    await page.locator('#cms-graph-list-apply').click();
+    await page.locator('#cms-design-apply').click();
+    const pasted=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
+      .find(s=>s.id==='section-sheet-editor').designGraph.nodes[0];
+    assert.equal(pasted.children[1].children[1].id,'sheet-value-b-ui');
+    assert.equal(pasted.children[1].children[1].text,'250');
+    assert.deepEqual(pasted.children[1].children[1].styles,{color:'@accent'});
+    const pastedList=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
+      .find(s=>s.id==='section-sheet-editor').designGraph.nodes[1];
+    assert.equal(pastedList.ordered,true);
+    assert.equal(pastedList.children[0].id,'sheet-list-one-ui');
+    assert.equal(pastedList.children[2].text,'Запуск');
+    await page.locator('#cms-open-page-preview').click();
+    await page.locator('#cms-work-graph-node').selectOption('sheet-table-ui');
+    await page.locator('#cms-work-graph-table-paste').click();
+    await page.locator('#cms-graph-table-data').fill('Услуга\tЦена\tСрок\nСайт\t300\t3 дня\nМагазин\t500\t5 дней');
+    await page.locator('#cms-graph-table-apply').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
+      .find(s=>s.id==='section-sheet-editor').designGraph.nodes[0].children[1].children[1].text,'300');
+    await page.locator('#undo').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
+      .find(s=>s.id==='section-sheet-editor').designGraph.nodes[0].children[1].children[1].text,'250');
+    await page.locator('#cms-work-graph-table-column').selectOption('1');
+    await page.locator('#cms-work-graph-table-column-previous').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
+      .find(s=>s.id==='section-sheet-editor').designGraph.nodes[0].children[0].children[0].text,'Цена');
+    await page.locator('#undo').click();
+    await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+
     // Real native Chromium interaction, without adding a custom public runtime.
     const graphHost=require('../sdk/design-graph.cjs');
     const nativeSite=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));

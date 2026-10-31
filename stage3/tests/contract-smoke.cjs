@@ -601,6 +601,93 @@ test('Rich individual Design Graph layout: rectangular tables, gallery assets, l
     targetId:'rich-quote',placement:'after'}),'Reject detached table rows');
 });
 
+test('existing authored table accepts bounded spreadsheet paste without losing IDs or cell styles',()=>{
+  const G=require('../sdk/design-graph.cjs');
+  const cell=(id,text)=>({id,type:'table-cell',text,styles:{}});
+  const g={version:1,id:'spreadsheet-graph',nodes:[{id:'sheet-table',type:'table',
+    rowHeaders:true,tableLayoutMobile:'cards',text:'Параметры',children:[
+      {id:'sheet-header',type:'table-row',styles:{},children:[cell('sheet-h-a','Услуга'),cell('sheet-h-b','Цена')]},
+      {id:'sheet-first-row',type:'table-row',styles:{},children:[
+        cell('sheet-v-a','Вёрстка'),{...cell('sheet-v-b','200'),styles:{color:'@accent'}}]}
+    ]}]};
+  const source='\uFEFFУслуга\tЦена\tПримечание\n"Дизайн, UX"\t"200"\t"Клиент сказал ""ок"""\nРазработка\t350\tВ срок\n';
+  const matrix=G.parseTableMatrix(source);
+  assert.deepEqual(matrix,[['Услуга','Цена','Примечание'],['Дизайн, UX','200','Клиент сказал "ок"'],
+    ['Разработка','350','В срок']]);
+  let index=0;
+  const next=G.replaceTableMatrix(g,'sheet-table',matrix,()=>`sheet-generated-${++index}`);
+  assert.deepEqual(G.tableMatrix(next,'sheet-table'),matrix);
+  assert.equal(next.nodes[0].children[1].children[1].id,'sheet-v-b');
+  assert.deepEqual(next.nodes[0].children[1].children[1].styles,{color:'@accent'});
+  assert.equal(next.nodes[0].children[0].id,'sheet-header');
+  assert.equal(next.nodes[0].children[2].children.length,3);
+  const movedColumn=G.reorderTableColumn(next,'sheet-table',1,2);
+  assert.deepEqual(G.tableMatrix(movedColumn,'sheet-table')[0],['Услуга','Примечание','Цена']);
+  assert.equal(movedColumn.nodes[0].children[1].children[2].id,'sheet-v-b',
+    'Column reordering moves all matching cells, not just one value');
+  assert.equal(movedColumn.nodes[0].children[1].children[2].styles.color,'@accent');
+  assert.equal(next.nodes[0].children[1].children[1].id,'sheet-v-b');
+  refuses(()=>G.reorderTableColumn(next,'sheet-table',0,1),
+    'Explicit semantic row headings lock the first column');
+  const movedRow=G.reorderTableRow(next,'sheet-table',2,1);
+  assert.equal(movedRow.nodes[0].children[0].id,'sheet-header');
+  assert.equal(movedRow.nodes[0].children[1].children[0].text,'Разработка');
+  assert.equal(next.nodes[0].children[1].children[0].text,'Дизайн, UX');
+  refuses(()=>G.reorderTableRow(next,'sheet-table',0,1),'Cannot move table header into data rows');
+  assert.equal(G.reorderTableRow(next,'sheet-table',1,1),next);
+  const shortened=G.replaceTableMatrix(next,'sheet-table',[['Услуга','Цена'],['Сайт','999']]);
+  assert.equal(shortened.nodes[0].children.length,2);
+  assert.equal(shortened.nodes[0].children[1].children[1].id,'sheet-v-b');
+  assert.equal(shortened.nodes[0].children[1].children[1].styles.color,'@accent');
+  assert.equal(next.nodes[0].children.length,3,'Shrinking a pasted table must not mutate its source');
+  assert.equal(g.nodes[0].children.length,2,'Original Graph remains untouched');
+  assert.equal(G.replaceTableMatrix(next,'sheet-table',matrix,()=>{throw Error('no new ID expected');}),next,
+    'Pasting an unchanged spreadsheet must not create another Undo entry');
+  G.validateGraph(next,new Set(),new Set());
+  const html=G.render({designTokens:G.DEFAULT_TOKENS,assets:[],language:'ru'},next);
+  assert.match(html,/<th scope="row" data-label="Услуга" class="cmsdg-n-sheet-v-a">Дизайн, UX<\/th>/);
+  assert.match(html,/Клиент сказал &quot;ок&quot;/);
+  assert.deepEqual(G.parseTableMatrix('Название;Цена\n"Сайт; большой";"1,200"','semicolon'),
+    [['Название','Цена'],['Сайт; большой','1,200']]);
+  assert.deepEqual(G.parseTableMatrix('Параметр\tЗначение\nЭкран\t17"'),
+    [['Параметр','Значение'],['Экран','17"']]);
+  for(const bad of [
+    'Одна колонка\nОдна колонка','А\tБ\n1','A\tB\n1\t2\t3',
+    'A,B\n"Строка\nвнутри",2','A,B\n"без закрытия,2',
+    Array.from({length:11},()=> 'A\tB').join('\n'),
+    'A\tB\n<script>\tстрока\u0000'])
+    refuses(()=>G.parseTableMatrix(bad),'Malformed table paste rejected');
+  refuses(()=>G.replaceTableMatrix(g,'sheet-table',matrix,()=> 'sheet-v-a'),
+    'Duplicate generated node ID must fail atomically');
+});
+
+test('existing authored content list accepts paste of bounded lines while preserving ordered flag and IDs',()=>{
+  const G=require('../sdk/design-graph.cjs');
+  const g={version:1,id:'pasted-list-graph',nodes:[{id:'list-steps',type:'list',ordered:true,children:[
+    {id:'step-one',type:'list-item',text:'Исследование',styles:{color:'@accent'}},
+    {id:'step-two',type:'list-item',text:'Проектирование',styles:{}}
+  ]}]};
+  const lines=G.parseListLines('\uFEFFИсследование\r\nДизайн\r\nВёрстка\r\n');
+  assert.deepEqual(lines,['Исследование','Дизайн','Вёрстка']);
+  const result=G.replaceListLines(g,'list-steps',lines,()=> 'step-three');
+  assert.deepEqual(G.listLines(result,'list-steps'),lines);
+  assert.equal(result.nodes[0].ordered,true);
+  assert.equal(result.nodes[0].children[0].id,'step-one');
+  assert.equal(result.nodes[0].children[1].id,'step-two');
+  assert.equal(result.nodes[0].children[2].id,'step-three');
+  assert.deepEqual(result.nodes[0].children[0].styles,{color:'@accent'});
+  assert.equal(g.nodes[0].children.length,2);
+  const shorter=G.replaceListLines(result,'list-steps',['Дизайн']);
+  assert.equal(shorter.nodes[0].children.length,1);
+  assert.equal(shorter.nodes[0].children[0].id,'step-one');
+  assert.equal(result.nodes[0].children.length,3,'List reduction is also immutable');
+  G.validateGraph(result,new Set(),new Set());
+  assert.equal(G.replaceListLines(result,'list-steps',lines),result);
+  for(const bad of ['', 'A\n\nB','A\u0000B',Array.from({length:25},()=> 'A').join('\n')])
+    refuses(()=>G.parseListLines(bad),'Invalid list paste rejected');
+  refuses(()=>G.replaceListLines(g,'list-steps',lines,()=> 'step-one'),'ID collision rejected');
+});
+
 test('Individual artwork: responsive backgrounds, safe media actions and stateful styling',()=>{
   const G=require('../sdk/design-graph.cjs');
   const picture=id=>({id,src:'/assets/'+id+'.png',mime:'image/png',

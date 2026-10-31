@@ -142,6 +142,172 @@ function tableAppearanceCSS(appearance,tokens,at){
     (TABLE_APPEARANCE_COLORS.includes(key)?resolve(value,'colors',tokens,at+'/'+key):
       String(value)+(key==='labelWidth'?'%':'px'))).join(';');
 }
+
+// A bounded spreadsheet bridge for an EXISTING authored table. It changes only
+// table-cell text and rectangular row/column structure; never CSS or HTML.
+function parseTableMatrix(source,format='auto'){
+  if(typeof source!=='string'||source.length>12000||!source.trim())
+    fail('table-paste','expected 1–12000 text characters');
+  if(!['auto','tab','comma','semicolon'].includes(format))fail('table-paste','unknown separator');
+  const input=source.replace(/^\uFEFF/,'');
+  const firstLine=input.split(/\r?\n/,1)[0];
+  const separator=format==='tab'?'\t':format==='comma'?',':format==='semicolon'?';':
+    firstLine.includes('\t')?'\t':
+      (firstLine.match(/;/g)||[]).length>(firstLine.match(/,/g)||[]).length?';':',';
+  const rows=[];let row=[],cell='',quoted=false,afterQuote=false,atStart=true;
+  const finishCell=()=>{
+    const value=cell.trim();
+    if(value.length>1600||/[\x00-\x1f\x7f]/.test(value))fail('table-paste','invalid cell text');
+    row.push(value);cell='';quoted=false;afterQuote=false;atStart=true;
+  };
+  const finishRow=()=>{
+    finishCell();rows.push(row);row=[];
+    if(rows.length>10)fail('table-paste','maximum 10 rows');
+  };
+  for(let i=0;i<input.length;i++){
+    const char=input[i];
+    if(quoted){
+      if(char==='"'){
+        if(input[i+1]==='"'){cell+='"';i++;}
+        else{quoted=false;afterQuote=true;}
+      }else{
+        if(char==='\r'||char==='\n')fail('table-paste','line breaks inside cells are not supported');
+        cell+=char;
+      }
+      continue;
+    }
+    if(char==='"'){
+      // Bare quotes are ordinary text in a copied TSV cell; a quote in the
+      // FIRST position instead starts RFC-style quoted CSV/TSV content.
+      if(!atStart){cell+='"';continue;}
+      quoted=true;atStart=false;continue;
+    }
+    if(char===separator){finishCell();continue;}
+    if(char==='\r'||char==='\n'){
+      if(char==='\r'&&input[i+1]==='\n')i++;
+      finishRow();continue;
+    }
+    if(afterQuote){if(char===' ')continue;fail('table-paste','text after closing quote');}
+    cell+=char;atStart=false;
+  }
+  if(quoted)fail('table-paste','unclosed quote');
+  if(row.length||cell||!rows.length)finishRow();
+  if(rows.at(-1)?.length===1&&rows.at(-1)[0]===''&&rows.length>2)rows.pop();
+  const columns=rows[0]?.length||0;
+  if(rows.length<2||rows.length>10||columns<2||columns>6||
+    rows.some(r=>r.length!==columns))fail('table-paste','expected 2–10 equal rows and 2–6 columns');
+  return rows;
+}
+function findGraphNode(graph,nodeId){
+  const find=nodes=>{for(const node of nodes){
+    if(node.id===nodeId)return node;
+    if(node.children){const match=find(node.children);if(match)return match;}
+  }return null;};
+  return find(graph?.nodes||[]);
+}
+function tableMatrix(graph,tableId){
+  const table=findGraphNode(graph,tableId);
+  if(!table||table.type!=='table')fail(tableId,'expected an existing table');
+  return table.children.map(row=>row.children.map(cell=>cell.text));
+}
+function replaceTableMatrix(graph,tableId,matrix,makeId){
+  if(!Array.isArray(matrix)||matrix.length<2||matrix.length>10||
+    !Array.isArray(matrix[0])||matrix[0].length<2||matrix[0].length>6||
+    matrix.some(row=>!Array.isArray(row)||row.length!==matrix[0].length||
+      row.some(value=>typeof value!=='string'||value.length>1600||/[\x00-\x1f\x7f]/.test(value))))
+    fail('table-paste','invalid rectangular matrix');
+  const before=tableMatrix(graph,tableId);
+  if(JSON.stringify(before)===JSON.stringify(matrix))return graph;
+  const copy=structuredClone(graph);
+  const table=findGraphNode(copy,tableId);
+  let needIds=false;
+  table.children=matrix.map((values,r)=>{
+    const existing=table.children[r];
+    if(!existing)needIds=true;
+    const row=existing||{id:null,type:'table-row',styles:{},children:[]};
+    row.children=values.map((value,c)=>{
+      const prior=existing?.children[c];
+      if(!prior)needIds=true;
+      return prior?{...prior,text:value}:{id:null,type:'table-cell',styles:{},text:value};
+    });
+    return row;
+  });
+  if(needIds&&typeof makeId!=='function')fail('table-paste','ID factory required for added rows or columns');
+  const ids=new Set();
+  const collect=nodes=>nodes.forEach(node=>{ids.add(node.id);if(node.children)collect(node.children);});
+  collect(graph.nodes);
+  const allocate=()=>{
+    const id=makeId();
+    if(typeof id!=='string'||!IDENT.test(id)||ids.has(id))fail('table-paste','invalid new node ID');
+    ids.add(id);return id;
+  };
+  for(const row of table.children){
+    if(row.id===null)row.id=allocate();
+    for(const cell of row.children)if(cell.id===null)cell.id=allocate();
+  }
+  return copy;
+}
+function reorderTableColumn(graph,tableId,from,to){
+  const table=findGraphNode(graph,tableId);
+  if(!table||table.type!=='table')fail(tableId,'expected an existing table');
+  const width=table.children[0].children.length;
+  if(!number(from,0,width-1)||!number(to,0,width-1))
+    fail('table-reorder','column index outside the table');
+  if(from===to)return graph;
+  if(table.rowHeaders&&(from===0||to===0))
+    fail('table-reorder','first semantic row-heading column must stay first');
+  const copy=structuredClone(graph),target=findGraphNode(copy,tableId);
+  for(const row of target.children){
+    const [cell]=row.children.splice(from,1);
+    row.children.splice(to,0,cell);
+  }
+  return copy;
+}
+function reorderTableRow(graph,tableId,from,to){
+  const table=findGraphNode(graph,tableId);
+  if(!table||table.type!=='table')fail(tableId,'expected an existing table');
+  const max=table.children.length-1;
+  // Row zero is a semantic header, never a draggable data row.
+  if(!number(from,1,max)||!number(to,1,max))
+    fail('table-reorder','header row cannot move');
+  if(from===to)return graph;
+  const copy=structuredClone(graph),target=findGraphNode(copy,tableId);
+  const [row]=target.children.splice(from,1);
+  target.children.splice(to,0,row);
+  return copy;
+}
+function parseListLines(source){
+  if(typeof source!=='string'||source.length>24000||!source.trim())
+    fail('list-paste','expected nonempty text up to 24000 characters');
+  const items=source.replace(/^\uFEFF/,'').split(/\r?\n/).map(line=>line.trim());
+  while(items.at(-1)==='')items.pop();
+  if(!items.length||items.length>24||items.some(line=>!line||line.length>3000||/[\x00-\x1f\x7f]/.test(line)))
+    fail('list-paste','expected 1–24 nonempty lines, max 3000 characters each');
+  return items;
+}
+function listLines(graph,listId){
+  const list=findGraphNode(graph,listId);
+  if(!list||list.type!=='list')fail(listId,'expected an existing list');
+  return list.children.map(item=>item.text);
+}
+function replaceListLines(graph,listId,lines,makeId){
+  if(!Array.isArray(lines)||!lines.length||lines.length>24||
+    lines.some(value=>typeof value!=='string'||!value.trim()||value.length>3000||
+      /[\x00-\x1f\x7f]/.test(value)))fail('list-paste','invalid list lines');
+  if(JSON.stringify(listLines(graph,listId))===JSON.stringify(lines))return graph;
+  const copy=structuredClone(graph),list=findGraphNode(copy,listId),prior=list.children;
+  const ids=new Set();
+  const collect=nodes=>nodes.forEach(node=>{ids.add(node.id);if(node.children)collect(node.children);});
+  collect(graph.nodes);
+  list.children=lines.map((text,index)=>{
+    if(prior[index])return {...prior[index],text};
+    if(typeof makeId!=='function')fail('list-paste','ID factory required for new items');
+    const id=makeId();
+    if(typeof id!=='string'||!IDENT.test(id)||ids.has(id))fail('list-paste','invalid new node ID');
+    ids.add(id);return {id,type:'list-item',text,styles:{}};
+  });
+  return copy;
+}
 function validateStyle(style,tokens,at,mode='base'){
   keys(style,STYLE_KEYS,at);
   const enums={
@@ -1206,7 +1372,7 @@ function auditAccessibility(graph,tokensInput){
   return findings;
 }
 
-module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,auditAccessibility,formSlotIds,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,SEQUENCE_EASINGS,ICON_PATHS});
+module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,auditAccessibility,formSlotIds,parseTableMatrix,tableMatrix,replaceTableMatrix,reorderTableColumn,reorderTableRow,parseListLines,listLines,replaceListLines,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,SEQUENCE_EASINGS,ICON_PATHS});
 
 return module.exports;})();
 const CONTRACT=(()=>{const module={exports:{}};const require=name=>{if(name==='./design-graph.cjs')return DESIGN_GRAPH;throw Error('Unknown contract import');};
@@ -3115,6 +3281,193 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   function button(text,cls,onClick){
     const n=document.createElement('button');n.type='button';
     n.textContent=text;n.className=cls;n.addEventListener('click',onClick);return n;
+  }
+  // One spreadsheet editor for a REAL existing Design Graph table, shared by
+  // the full-page Workbench and the advanced graph Inspector.
+  function openGraphTablePaste(graph,tableId,onApply){
+    const dialog=document.createElement('dialog');dialog.id='cms-graph-table-paste';
+    dialog.className='cms-settings-dialog';
+    const heading=document.createElement('h2');heading.textContent='Таблица · массовое редактирование';
+    const help=document.createElement('p');help.textContent=
+      'Вставьте строки из Excel / Google Sheets (включая первую строку заголовков). '+
+      'От 2 до 10 строк, от 2 до 6 колонок. Существующие ячейки сохраняют свои ID и оформление. '+
+      'Изменения попадут только в черновик; можно отменить.';
+    const label=document.createElement('label');label.textContent='Разделитель';
+    const separator=document.createElement('select');separator.id='cms-graph-table-separator';
+    separator.className='control';
+    for(const [value,text] of [['auto','Определить автоматически'],['tab','Табуляция (Excel / Sheets)'],
+      ['comma','Запятая (CSV)'],['semicolon','Точка с запятой (CSV)']]){
+      const option=document.createElement('option');option.value=value;option.textContent=text;separator.append(option);
+    }
+    label.append(separator);
+    const textarea=document.createElement('textarea');textarea.id='cms-graph-table-data';
+    textarea.className='control';textarea.rows=10;textarea.maxLength=12000;
+    textarea.style.cssText='width:100%;min-height:180px;white-space:pre;tab-size:4';
+    textarea.setAttribute('aria-label','Строки и значения таблицы');
+    const before=DESIGN_GRAPH.tableMatrix(graph,tableId);
+    textarea.value=before.map(row=>row.join('\t')).join('\n');
+    const status=document.createElement('p');status.id='cms-graph-table-status';
+    status.setAttribute('aria-live','polite');
+    const preview=document.createElement('div');preview.id='cms-graph-table-preview';
+    preview.style.cssText='overflow-x:auto;max-height:260px;overflow-y:auto';
+    const actions=document.createElement('div');actions.className='modal-actions';
+    const apply=button('Применить в черновик','btn primary',()=>{
+      try{
+        const matrix=DESIGN_GRAPH.parseTableMatrix(textarea.value,separator.value);
+        if(onApply(matrix)!==false)dialog.close();
+      }catch(error){status.textContent='Не применено: '+error.message;apply.disabled=true;}
+    });
+    apply.id='cms-graph-table-apply';
+    const cancel=button('Отмена','btn',()=>dialog.close());
+    const copyData=button('Скопировать TSV','btn',async()=>{
+      const normalized=DESIGN_GRAPH.tableMatrix(graph,tableId).map(row=>row.join('\t')).join('\n');
+      try{
+        if(!navigator.clipboard?.writeText)throw Error('Clipboard API unavailable');
+        await navigator.clipboard.writeText(normalized);
+        status.textContent='Исходные данные таблицы скопированы. Можно редактировать их в Excel.';
+      }catch(_){
+        textarea.value=normalized;textarea.focus();textarea.select();updatePreview();
+        status.textContent='Исходные данные выделены — нажмите Ctrl+C для копирования.';
+      }
+    });
+    copyData.id='cms-graph-table-copy';
+    actions.append(copyData,apply,cancel);
+    const updatePreview=()=>{
+      preview.replaceChildren();
+      try{
+        const matrix=DESIGN_GRAPH.parseTableMatrix(textarea.value,separator.value);
+        const changed=JSON.stringify(matrix)!==JSON.stringify(before);
+        const removedRows=Math.max(0,before.length-matrix.length);
+        const removedColumns=Math.max(0,before[0].length-matrix[0].length);
+        const table=document.createElement('table');table.style.cssText='border-collapse:collapse;min-width:100%';
+        for(const [r,values] of matrix.entries()){
+          const tr=document.createElement('tr');
+          for(const [c,value] of values.entries()){
+            const cell=document.createElement(r===0?'th':'td');cell.textContent=value;
+            cell.style.cssText='border:1px solid #bdc9d6;padding:6px 9px;text-align:start';
+            if(before[r]?.[c]!==value)cell.style.background='#eaf7f0';
+            tr.append(cell);
+          }
+          table.append(tr);
+        }
+        preview.append(table);
+        status.textContent=matrix.length+' строк × '+matrix[0].length+' столбцов · '+
+          (changed?'будут изменены':'без изменений')+
+          (removedRows?' · удалятся строки: '+removedRows:'')+
+          (removedColumns?' · удалятся столбцы: '+removedColumns:'');
+        apply.disabled=!changed;
+      }catch(error){status.textContent='Проверьте данные: '+error.message;apply.disabled=true;}
+    };
+    textarea.addEventListener('input',updatePreview);
+    separator.addEventListener('change',updatePreview);
+    dialog.addEventListener('close',()=>dialog.remove());
+    dialog.append(heading,help,label,textarea,status,preview,actions);
+    document.body.append(dialog);updatePreview();dialog.showModal();textarea.focus();
+  }
+  function openGraphListPaste(graph,listId,onApply){
+    const dialog=document.createElement('dialog');dialog.id='cms-graph-list-paste';
+    dialog.className='cms-settings-dialog';
+    const heading=document.createElement('h2');heading.textContent='Список · массовое редактирование';
+    const help=document.createElement('p');help.textContent=
+      'Одна строка — один пункт. Можно вставить из документа или таблицы. '+
+      'Максимум 24 пункта. Порядок, старые ID и индивидуальные стили сохраняются по позиции; '+
+      'после применения доступна отмена.';
+    const textarea=document.createElement('textarea');textarea.id='cms-graph-list-data';
+    textarea.className='control';textarea.rows=10;textarea.maxLength=24000;
+    textarea.style.cssText='width:100%;min-height:180px';
+    textarea.setAttribute('aria-label','Пункты списка построчно');
+    const before=DESIGN_GRAPH.listLines(graph,listId);
+    textarea.value=before.join('\n');
+    const status=document.createElement('p');status.id='cms-graph-list-status';
+    status.setAttribute('aria-live','polite');
+    const preview=document.createElement('div');preview.id='cms-graph-list-preview';
+    preview.style.cssText='overflow:auto;max-height:250px';
+    const apply=button('Применить в черновик','btn primary',()=>{
+      try{
+        const lines=DESIGN_GRAPH.parseListLines(textarea.value);
+        if(onApply(lines)!==false)dialog.close();
+      }catch(error){status.textContent='Не применено: '+error.message;apply.disabled=true;}
+    });
+    apply.id='cms-graph-list-apply';
+    const cancel=button('Отмена','btn',()=>dialog.close());
+    const actions=document.createElement('div');actions.className='modal-actions';
+    const copyData=button('Скопировать пункты','btn',async()=>{
+      const normalized=before.join('\n');
+      try{
+        if(!navigator.clipboard?.writeText)throw Error('Clipboard API unavailable');
+        await navigator.clipboard.writeText(normalized);
+        status.textContent='Исходный список скопирован.';
+      }catch(_){
+        textarea.value=normalized;textarea.focus();textarea.select();updatePreview();
+        status.textContent='Исходный список выделен — нажмите Ctrl+C для копирования.';
+      }
+    });
+    copyData.id='cms-graph-list-copy';
+    actions.append(copyData,apply,cancel);
+    const updatePreview=()=>{
+      preview.replaceChildren();
+      try{
+        const lines=DESIGN_GRAPH.parseListLines(textarea.value);
+        const list=document.createElement('ol');
+        for(const [index,text] of lines.entries()){
+          const item=document.createElement('li');item.textContent=text;
+          if(before[index]!==text)item.style.background='#eaf7f0';
+          list.append(item);
+        }
+        preview.append(list);
+        const changed=JSON.stringify(lines)!==JSON.stringify(before);
+        status.textContent=lines.length+' пунктов · '+(changed?'будут изменены':'без изменений')+
+          (lines.length<before.length?' · удалятся пункты: '+(before.length-lines.length):'');
+        apply.disabled=!changed;
+      }catch(error){status.textContent='Проверьте пункты: '+error.message;apply.disabled=true;}
+    };
+    textarea.addEventListener('input',updatePreview);
+    dialog.addEventListener('close',()=>dialog.remove());
+    dialog.append(heading,help,textarea,status,preview,actions);
+    document.body.append(dialog);updatePreview();dialog.showModal();textarea.focus();
+  }
+  const tableMoveSelection=new Map();
+  function graphTableMoveControls(table,prefix,onMove,enabled=true){
+    const panel=document.createElement('div');panel.className='cms-work-graph-actions';
+    const title=document.createElement('strong');title.textContent='Порядок строк и столбцов';
+    panel.append(title);
+    const saved=tableMoveSelection.get(table.id)||{column:0,row:1};
+    const create=kind=>{
+      const limit=kind==='column'?table.children[0].children.length-1:table.children.length-1;
+      const min=kind==='column'?0:1;
+      const selector=document.createElement('select');selector.className='control';
+      selector.id=prefix+'-'+kind;
+      selector.setAttribute('aria-label',kind==='column'?'Переставить столбец':'Переставить строку данных');
+      for(let index=min;index<=limit;index++){
+        const option=document.createElement('option');option.value=String(index);
+        const label=kind==='column'?table.children[0].children[index].text:
+          table.children[index].children[0].text;
+        option.textContent=(kind==='column'?'Столбец ':'Строка ')+(index+1)+' · '+label.slice(0,35);
+        selector.append(option);
+      }
+      selector.value=String(Math.max(min,Math.min(limit,saved[kind])));
+      const left=button(kind==='column'?'← Столбец':'↑ Строка','btn small',()=>move(-1));
+      const right=button(kind==='column'?'→ Столбец':'↓ Строка','btn small',()=>move(1));
+      left.id=prefix+'-'+kind+'-previous';right.id=prefix+'-'+kind+'-next';
+      const refresh=()=>{
+        const selected=Number(selector.value);
+        const firstLocked=kind==='column'&&table.rowHeaders;
+        left.disabled=!enabled||selected<=min||(firstLocked&&selected===1);
+        right.disabled=!enabled||selected>=limit||(firstLocked&&selected===0);
+        selector.disabled=!enabled;
+        saved[kind]=selected;tableMoveSelection.set(table.id,saved);
+      };
+      const move=direction=>{
+        const from=Number(selector.value),to=from+direction;
+        if(to<min||to>limit)return;
+        saved[kind]=to;tableMoveSelection.set(table.id,saved);
+        if(onMove(kind,from,to)===false){saved[kind]=from;tableMoveSelection.set(table.id,saved);}
+      };
+      selector.addEventListener('change',refresh);refresh();
+      const row=document.createElement('div');row.className='cms-work-graph-insert';
+      row.append(selector,left,right);return row;
+    };
+    panel.append(create('column'),create('row'));return panel;
   }
   function drawTree(){
     $('pages').replaceChildren();
@@ -5100,7 +5453,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             editGraphWork(node=>{node.ordered=!node.ordered;});
           });
           toggleList.id='cms-work-graph-list-ordered';toggleList.disabled=!canWrite();
-          graphActions.append(addListItem,toggleList);
+          const pasteList=workButton('Вставить пункты списком',()=>openGraphListPaste(section.designGraph,current.id,
+            lines=>mutateGraphWork(({section:edited})=>{
+              edited.designGraph=DESIGN_GRAPH.replaceListLines(edited.designGraph,current.id,lines,
+                ()=>uniqueId('dg-node'));
+            })));
+          pasteList.id='cms-work-graph-list-paste';pasteList.disabled=!canWrite();
+          graphActions.append(addListItem,toggleList,pasteList);
         }
         if(current.type==='gallery'){
           const addPhoto=workButton('+ Фото в галерею',()=>{
@@ -5137,7 +5496,19 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           }));
           removeColumn.id='cms-work-graph-table-remove-column';
           removeColumn.disabled=!canWrite()||current.children[0].children.length<=2;
-          graphActions.append(addRow,addColumn,removeColumn);
+          const paste=workButton('Вставить из Excel / CSV',()=>openGraphTablePaste(section.designGraph,current.id,
+            matrix=>mutateGraphWork(({section:edited})=>{
+              edited.designGraph=DESIGN_GRAPH.replaceTableMatrix(edited.designGraph,current.id,matrix,
+                ()=>uniqueId('dg-node'));
+            })));
+          paste.id='cms-work-graph-table-paste';paste.disabled=!canWrite();
+          const move=graphTableMoveControls(current,'cms-work-graph-table',
+            (kind,from,to)=>mutateGraphWork(({section:edited})=>{
+              edited.designGraph=kind==='column'
+                ?DESIGN_GRAPH.reorderTableColumn(edited.designGraph,current.id,from,to)
+                :DESIGN_GRAPH.reorderTableRow(edited.designGraph,current.id,from,to);
+            }),canWrite());
+          graphActions.append(addRow,addColumn,removeColumn,paste,move);
         }
         if(current.type==='tabs'){
           const addTab=workButton('+ Вкладка',()=>{
@@ -6433,6 +6804,17 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const item={id:uniqueId('dg-node'),type:'list-item',text:'Новый пункт',styles:{}};
         changeTree({action:'insert',targetId:n.id,placement:'inside',node:item},item.id);
       });
+      if(n.type==='list'){
+        const paste=action('Вставить пункты списком',()=>openGraphListPaste(graph,n.id,lines=>{
+          const candidate=DESIGN_GRAPH.replaceListLines(graph,n.id,lines,
+            ()=>uniqueId('dg-node'));
+          DESIGN_GRAPH.validateGraph(candidate,new Set(session.current.assets.map(a=>a.id)),
+            new Set(),tokens,new Map(session.current.assets.map(a=>[a.id,a.mime])));
+          if(candidate!==graph){recordHistory();graph=candidate;render();}
+          return true;
+        }));
+        paste.id='cms-design-list-paste';
+      }
       if(n.type==='gallery')action('+ Фото',()=>{
         const photo=session.current.assets.find(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
         if(!photo)return notice('Сначала загрузите фотографию',true);
@@ -6440,6 +6822,15 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         changeTree({action:'insert',targetId:n.id,placement:'inside',node:item},item.id);
       });
       if(n.type==='table'){
+        const paste=action('Вставить из Excel / CSV',()=>openGraphTablePaste(graph,n.id,matrix=>{
+          const candidate=DESIGN_GRAPH.replaceTableMatrix(graph,n.id,matrix,
+            ()=>uniqueId('dg-node'));
+          DESIGN_GRAPH.validateGraph(candidate,new Set(session.current.assets.map(a=>a.id)),
+            new Set(),tokens,new Map(session.current.assets.map(a=>[a.id,a.mime])));
+          if(candidate!==graph){recordHistory();graph=candidate;render();}
+          return true;
+        }));
+        paste.id='cms-design-table-paste';
         action('+ Строка',()=>{
           const row={id:uniqueId('dg-node'),type:'table-row',styles:{},
             children:n.children[0].children.map((_,i)=>({
@@ -6765,6 +7156,17 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           },'number'));
       }
       if(n.type==='table'){
+        fields.append(graphTableMoveControls(n,'cms-design-table',(kind,from,to)=>{
+          try{
+            const candidate=kind==='column'
+              ?DESIGN_GRAPH.reorderTableColumn(graph,n.id,from,to)
+              :DESIGN_GRAPH.reorderTableRow(graph,n.id,from,to);
+            DESIGN_GRAPH.validateGraph(candidate,new Set(session.current.assets.map(a=>a.id)),
+              new Set(),tokens,new Map(session.current.assets.map(a=>[a.id,a.mime])));
+            if(candidate!==graph){recordHistory();graph=candidate;render();}
+            return true;
+          }catch(error){notice('Порядок не изменён: '+error.message,true);return false;}
+        }));
         fields.append(ctl('Первый столбец · заголовки строк',{initial:n.rowHeaders?'true':'false',choices:[
           ['false','Обычные ячейки'],['true','Заголовки строк (доступность)']]},value=>{
           n.rowHeaders=value==='true';

@@ -139,6 +139,172 @@ function tableAppearanceCSS(appearance,tokens,at){
     (TABLE_APPEARANCE_COLORS.includes(key)?resolve(value,'colors',tokens,at+'/'+key):
       String(value)+(key==='labelWidth'?'%':'px'))).join(';');
 }
+
+// A bounded spreadsheet bridge for an EXISTING authored table. It changes only
+// table-cell text and rectangular row/column structure; never CSS or HTML.
+function parseTableMatrix(source,format='auto'){
+  if(typeof source!=='string'||source.length>12000||!source.trim())
+    fail('table-paste','expected 1–12000 text characters');
+  if(!['auto','tab','comma','semicolon'].includes(format))fail('table-paste','unknown separator');
+  const input=source.replace(/^\uFEFF/,'');
+  const firstLine=input.split(/\r?\n/,1)[0];
+  const separator=format==='tab'?'\t':format==='comma'?',':format==='semicolon'?';':
+    firstLine.includes('\t')?'\t':
+      (firstLine.match(/;/g)||[]).length>(firstLine.match(/,/g)||[]).length?';':',';
+  const rows=[];let row=[],cell='',quoted=false,afterQuote=false,atStart=true;
+  const finishCell=()=>{
+    const value=cell.trim();
+    if(value.length>1600||/[\x00-\x1f\x7f]/.test(value))fail('table-paste','invalid cell text');
+    row.push(value);cell='';quoted=false;afterQuote=false;atStart=true;
+  };
+  const finishRow=()=>{
+    finishCell();rows.push(row);row=[];
+    if(rows.length>10)fail('table-paste','maximum 10 rows');
+  };
+  for(let i=0;i<input.length;i++){
+    const char=input[i];
+    if(quoted){
+      if(char==='"'){
+        if(input[i+1]==='"'){cell+='"';i++;}
+        else{quoted=false;afterQuote=true;}
+      }else{
+        if(char==='\r'||char==='\n')fail('table-paste','line breaks inside cells are not supported');
+        cell+=char;
+      }
+      continue;
+    }
+    if(char==='"'){
+      // Bare quotes are ordinary text in a copied TSV cell; a quote in the
+      // FIRST position instead starts RFC-style quoted CSV/TSV content.
+      if(!atStart){cell+='"';continue;}
+      quoted=true;atStart=false;continue;
+    }
+    if(char===separator){finishCell();continue;}
+    if(char==='\r'||char==='\n'){
+      if(char==='\r'&&input[i+1]==='\n')i++;
+      finishRow();continue;
+    }
+    if(afterQuote){if(char===' ')continue;fail('table-paste','text after closing quote');}
+    cell+=char;atStart=false;
+  }
+  if(quoted)fail('table-paste','unclosed quote');
+  if(row.length||cell||!rows.length)finishRow();
+  if(rows.at(-1)?.length===1&&rows.at(-1)[0]===''&&rows.length>2)rows.pop();
+  const columns=rows[0]?.length||0;
+  if(rows.length<2||rows.length>10||columns<2||columns>6||
+    rows.some(r=>r.length!==columns))fail('table-paste','expected 2–10 equal rows and 2–6 columns');
+  return rows;
+}
+function findGraphNode(graph,nodeId){
+  const find=nodes=>{for(const node of nodes){
+    if(node.id===nodeId)return node;
+    if(node.children){const match=find(node.children);if(match)return match;}
+  }return null;};
+  return find(graph?.nodes||[]);
+}
+function tableMatrix(graph,tableId){
+  const table=findGraphNode(graph,tableId);
+  if(!table||table.type!=='table')fail(tableId,'expected an existing table');
+  return table.children.map(row=>row.children.map(cell=>cell.text));
+}
+function replaceTableMatrix(graph,tableId,matrix,makeId){
+  if(!Array.isArray(matrix)||matrix.length<2||matrix.length>10||
+    !Array.isArray(matrix[0])||matrix[0].length<2||matrix[0].length>6||
+    matrix.some(row=>!Array.isArray(row)||row.length!==matrix[0].length||
+      row.some(value=>typeof value!=='string'||value.length>1600||/[\x00-\x1f\x7f]/.test(value))))
+    fail('table-paste','invalid rectangular matrix');
+  const before=tableMatrix(graph,tableId);
+  if(JSON.stringify(before)===JSON.stringify(matrix))return graph;
+  const copy=structuredClone(graph);
+  const table=findGraphNode(copy,tableId);
+  let needIds=false;
+  table.children=matrix.map((values,r)=>{
+    const existing=table.children[r];
+    if(!existing)needIds=true;
+    const row=existing||{id:null,type:'table-row',styles:{},children:[]};
+    row.children=values.map((value,c)=>{
+      const prior=existing?.children[c];
+      if(!prior)needIds=true;
+      return prior?{...prior,text:value}:{id:null,type:'table-cell',styles:{},text:value};
+    });
+    return row;
+  });
+  if(needIds&&typeof makeId!=='function')fail('table-paste','ID factory required for added rows or columns');
+  const ids=new Set();
+  const collect=nodes=>nodes.forEach(node=>{ids.add(node.id);if(node.children)collect(node.children);});
+  collect(graph.nodes);
+  const allocate=()=>{
+    const id=makeId();
+    if(typeof id!=='string'||!IDENT.test(id)||ids.has(id))fail('table-paste','invalid new node ID');
+    ids.add(id);return id;
+  };
+  for(const row of table.children){
+    if(row.id===null)row.id=allocate();
+    for(const cell of row.children)if(cell.id===null)cell.id=allocate();
+  }
+  return copy;
+}
+function reorderTableColumn(graph,tableId,from,to){
+  const table=findGraphNode(graph,tableId);
+  if(!table||table.type!=='table')fail(tableId,'expected an existing table');
+  const width=table.children[0].children.length;
+  if(!number(from,0,width-1)||!number(to,0,width-1))
+    fail('table-reorder','column index outside the table');
+  if(from===to)return graph;
+  if(table.rowHeaders&&(from===0||to===0))
+    fail('table-reorder','first semantic row-heading column must stay first');
+  const copy=structuredClone(graph),target=findGraphNode(copy,tableId);
+  for(const row of target.children){
+    const [cell]=row.children.splice(from,1);
+    row.children.splice(to,0,cell);
+  }
+  return copy;
+}
+function reorderTableRow(graph,tableId,from,to){
+  const table=findGraphNode(graph,tableId);
+  if(!table||table.type!=='table')fail(tableId,'expected an existing table');
+  const max=table.children.length-1;
+  // Row zero is a semantic header, never a draggable data row.
+  if(!number(from,1,max)||!number(to,1,max))
+    fail('table-reorder','header row cannot move');
+  if(from===to)return graph;
+  const copy=structuredClone(graph),target=findGraphNode(copy,tableId);
+  const [row]=target.children.splice(from,1);
+  target.children.splice(to,0,row);
+  return copy;
+}
+function parseListLines(source){
+  if(typeof source!=='string'||source.length>24000||!source.trim())
+    fail('list-paste','expected nonempty text up to 24000 characters');
+  const items=source.replace(/^\uFEFF/,'').split(/\r?\n/).map(line=>line.trim());
+  while(items.at(-1)==='')items.pop();
+  if(!items.length||items.length>24||items.some(line=>!line||line.length>3000||/[\x00-\x1f\x7f]/.test(line)))
+    fail('list-paste','expected 1–24 nonempty lines, max 3000 characters each');
+  return items;
+}
+function listLines(graph,listId){
+  const list=findGraphNode(graph,listId);
+  if(!list||list.type!=='list')fail(listId,'expected an existing list');
+  return list.children.map(item=>item.text);
+}
+function replaceListLines(graph,listId,lines,makeId){
+  if(!Array.isArray(lines)||!lines.length||lines.length>24||
+    lines.some(value=>typeof value!=='string'||!value.trim()||value.length>3000||
+      /[\x00-\x1f\x7f]/.test(value)))fail('list-paste','invalid list lines');
+  if(JSON.stringify(listLines(graph,listId))===JSON.stringify(lines))return graph;
+  const copy=structuredClone(graph),list=findGraphNode(copy,listId),prior=list.children;
+  const ids=new Set();
+  const collect=nodes=>nodes.forEach(node=>{ids.add(node.id);if(node.children)collect(node.children);});
+  collect(graph.nodes);
+  list.children=lines.map((text,index)=>{
+    if(prior[index])return {...prior[index],text};
+    if(typeof makeId!=='function')fail('list-paste','ID factory required for new items');
+    const id=makeId();
+    if(typeof id!=='string'||!IDENT.test(id)||ids.has(id))fail('list-paste','invalid new node ID');
+    ids.add(id);return {id,type:'list-item',text,styles:{}};
+  });
+  return copy;
+}
 function validateStyle(style,tokens,at,mode='base'){
   keys(style,STYLE_KEYS,at);
   const enums={
@@ -1203,4 +1369,4 @@ function auditAccessibility(graph,tokensInput){
   return findings;
 }
 
-module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,auditAccessibility,formSlotIds,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,SEQUENCE_EASINGS,ICON_PATHS});
+module.exports=Object.freeze({validateTokens,validateStyle,validateGraph,baseGraph,editTree,render,auditAccessibility,formSlotIds,parseTableMatrix,tableMatrix,replaceTableMatrix,reorderTableColumn,reorderTableRow,parseListLines,listLines,replaceListLines,DEFAULT_TOKENS,TYPES,STYLE_KEYS,MOTIONS,SEQUENCE_EASINGS,ICON_PATHS});
