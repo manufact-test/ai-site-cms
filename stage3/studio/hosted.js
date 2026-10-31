@@ -485,13 +485,18 @@
     if(!mediaBatchBusy)mediaBatchDialog.close();
   });
   let mediaBatchFiles=[],mediaBatchUrls=[],mediaBatchBusy=false;
+  const resetMediaBatch=()=>{
+    for(const url of mediaBatchUrls)URL.revokeObjectURL(url);
+    mediaBatchUrls=[];mediaBatchFiles=[];
+    mediaBatchRows.replaceChildren();mediaBatchProgress.textContent='';
+  };
   mediaBatchDialog.addEventListener('cancel',event=>{
     if(mediaBatchBusy)event.preventDefault();
   });
   mediaBatchDialog.addEventListener('close',()=>{
-    mediaBatchFiles=[];mediaBatchRows.replaceChildren();mediaBatchProgress.textContent='';
-    for(const url of mediaBatchUrls)URL.revokeObjectURL(url);
-    mediaBatchUrls=[];
+    // Dialog `close` is an asynchronous event. A new drop/file selection can
+    // already have reopened this same dialog; never clear the NEW queue.
+    if(!mediaBatchDialog.open)resetMediaBatch();
   });
   mediaBatchDialog.append(element('h2',null,'Пакетная загрузка изображений'),
     element('p',null,'Проверьте каждый файл и описание для доступности и SEO. '+
@@ -1698,8 +1703,7 @@
       if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size<1||file.size>1000000)
         throw Error('«'+file.name+'»: нужен PNG/JPEG/WebP размером до 1 МБ');
     }
-    mediaBatchFiles=files;
-    mediaBatchRows.replaceChildren();
+    resetMediaBatch();mediaBatchFiles=files;
     for(const [index,file] of files.entries()){
       const row=element('div','hosted-media-batch-row');row.dataset.batchIndex=String(index);
       const thumbnail=element('img');thumbnail.alt='';thumbnail.loading='lazy';
