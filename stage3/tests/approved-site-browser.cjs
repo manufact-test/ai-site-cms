@@ -104,14 +104,18 @@ async function execute(){
   await page.locator('#server-signin').click();
   await page.locator('#server-login').waitFor({state:'hidden'});
 
-  // The owner now starts with a clear page/section tree. Expand secondary
-  // disclosures for the existing exhaustive transport/backup regression path.
+  // The owner starts in the page editor. Site-wide tools are outside the
+  // navigation tree and appear only after the single explicit launcher.
   assert.equal(await page.locator('#server-empty-state:visible').count(),1);
-  assert.equal(await page.locator('#server-drawer-media').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#server-site-tools-dialog').count(),1);
+  assert.equal(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open),false);
   assert.equal(await page.locator('#server-site-tools').evaluate(node=>node.open),false);
-  assert.equal(await page.locator('#server-resources').count(),1);
+  assert.equal(await page.locator('#server-site-tools').evaluate(node=>!!node.closest('.sidebar')),false);
+  assert.equal(await page.locator('#server-resources').evaluate(node=>!!node.closest('.sidebar')),false);
   assert.equal(await page.locator('#server-drawer-import').evaluate(node=>node.open),false);
   assert.equal(await page.locator('#history-details').evaluate(node=>node.open),false);
+  await page.locator('#server-site-tools-open').click();
+  await page.locator('#server-site-tools-dialog[open]').waitFor();
   assert.equal(await page.locator('#server-edit-page').count(),1);
   assert.equal(await page.locator('#page-add').isVisible(),true);
   assert.equal(await page.locator('#page-rename').isVisible(),false,
@@ -419,6 +423,8 @@ async function execute(){
   await page.evaluate(()=>sessionStorage.clear());
   await page.reload();
   // A fresh tab starts with secondary tools collapsed again; reveal import.
+  await page.locator('#server-site-tools-open').click();
+  await page.locator('#server-site-tools-dialog[open]').waitFor();
   await page.locator('#server-drawer-import').evaluate(node=>{node.open=true;});
   await page.locator('#server-approved-import:not([disabled])').waitFor();
   await page.evaluate(entries=>{
@@ -559,6 +565,12 @@ async function execute(){
       '#server-tools details,#server-site-tools details,#server-admin-more,#server-site-tools'))
       node.open=false;
   });
+  await page.locator('#server-site-tools-close').click();
+  await page.waitForFunction(()=>!document.querySelector('#server-site-tools-dialog')?.open);
+  await page.waitForFunction(()=>document.querySelector('#preview')?.contentDocument
+    ?.querySelectorAll('[data-cms-section-id]').length>=2);
+  assert.equal(await page.locator('#canvas-title').innerText(),imported.pages[0].title,
+    'Main canvas shows the full selected page, not an isolated block preview');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-desktop.png'),fullPage:true});
   await page.setViewportSize({width:1024,height:900});
   await assertNoHorizontalOverflow('Studio at 1024px');
@@ -598,6 +610,12 @@ async function execute(){
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-mobile.png'),fullPage:true});
   // Native dialogs must be named from their visible heading and return focus
   // to the launcher after Escape, without replacing the browser focus trap.
+  await page.locator('#server-site-tools-open').click();
+  await page.locator('#server-site-tools-dialog[open]').waitFor();
+  if(!(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open))){
+    await page.locator('#server-site-tools-open').click();
+    await page.locator('#server-site-tools-dialog[open]').waitFor();
+  }
   await page.locator('#server-site-tools').evaluate(node=>{node.open=true;});
   await page.locator('#server-tool-navigation').evaluate(node=>{node.open=true;});
   await page.locator('#cms-menu-open').click();
@@ -609,6 +627,7 @@ async function execute(){
   await page.waitForFunction(()=>!document.querySelector('#cms-menu-editor')?.open);
   assert.equal(await page.evaluate(()=>document.activeElement?.id),'cms-menu-open',
     'Closing the menu dialog with Escape must return focus to its launcher');
+  await page.locator('#server-site-tools-close').click();
 
   await page.locator('#server-edit-page').click();
   await page.locator('#cms-page-preview[open]').waitFor();
@@ -632,6 +651,8 @@ async function execute(){
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-mobile.png'),fullPage:true});
   await page.setViewportSize({width:1400,height:1000});
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
+  await page.locator('#server-site-tools-open').click();
+  await page.locator('#server-site-tools-dialog[open]').waitFor();
   await page.evaluate(()=>{
     const siteTools=document.querySelector('#server-site-tools');
     if(siteTools)siteTools.open=true;
@@ -702,50 +723,22 @@ async function execute(){
   const approvalVaultButton=page.locator('#server-approved-vault-open');
   await approvalVaultButton.scrollIntoViewIfNeeded();
   const approvalPointerGeometry=await approvalVaultButton.evaluate(button=>{
-    const describe=node=>{
-      if(!node)return null;
-      const rect=node.getBoundingClientRect(),style=getComputedStyle(node);
-      return {
-        tag:node.tagName.toLowerCase(),id:node.id||'',className:typeof node.className==='string'?node.className:'',
-        rect:{x:Math.round(rect.x*100)/100,y:Math.round(rect.y*100)/100,
-          top:Math.round(rect.top*100)/100,right:Math.round(rect.right*100)/100,
-          bottom:Math.round(rect.bottom*100)/100,width:Math.round(rect.width*100)/100,
-          height:Math.round(rect.height*100)/100},
-        clientHeight:node.clientHeight,scrollHeight:node.scrollHeight,scrollTop:node.scrollTop,
-        overflowX:style.overflowX,overflowY:style.overflowY,position:style.position,
-        zIndex:style.zIndex,pointerEvents:style.pointerEvents,display:style.display,
-        flexShrink:style.flexShrink,minHeight:style.minHeight
-      };
-    };
     const rect=button.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
-    const ancestors=[];
-    for(let node=button;node;node=node.parentElement)ancestors.push(describe(node));
-    return {
-      viewport:{width:innerWidth,height:innerHeight,scrollX,scrollY},
-      target:describe(button),center:{x:Math.round(x*100)/100,y:Math.round(y*100)/100},
-      hitIsTarget:(()=>{const hit=document.elementFromPoint(x,y);return hit===button||button.contains(hit);})(),
-      resourceFlexShrink:getComputedStyle(document.querySelector('#server-resources')).flexShrink,
-      resourceContentFits:(()=>{const node=document.querySelector('#server-resources');return node.scrollHeight<=node.clientHeight+1;})(),
-      sidebarCanScroll:(()=>{const node=document.querySelector('.sidebar');return node.scrollHeight>node.clientHeight;})(),
-      hit:describe(document.elementFromPoint(x,y)),
-      hitStack:document.elementsFromPoint(x,y).slice(0,6).map(describe),
-      ancestors,
-      sidebar:describe(document.querySelector('.sidebar')),
-      resources:describe(document.querySelector('#server-resources')),
-      drawerRail:describe(document.querySelector('#server-tools')),
-      importDrawer:describe(document.querySelector('#server-drawer-import')),
-      siteActions:describe(document.querySelector('#server-drawer-import .site-actions'))
-    };
+    const dialog=document.querySelector('#server-site-tools-dialog');
+    const hit=document.elementFromPoint(x,y),dialogRect=dialog.getBoundingClientRect();
+    return {dialogOpen:dialog.open,dialogOverflow:getComputedStyle(dialog).overflowY,
+      target:{x:Math.round(rect.x*100)/100,y:Math.round(rect.y*100)/100,
+        width:Math.round(rect.width*100)/100,height:Math.round(rect.height*100)/100},
+      insideDialog:x>=dialogRect.left&&x<=dialogRect.right&&y>=dialogRect.top&&y<=dialogRect.bottom,
+      hitIsTarget:hit===button||button.contains(hit)};
   });
   console.log('[approved-vault-pointer-geometry] '+JSON.stringify(approvalPointerGeometry));
-  assert.equal(approvalPointerGeometry.resourceFlexShrink,'0',
-    'The resources card must not shrink and clip its expanded controls: '+JSON.stringify(approvalPointerGeometry));
-  assert.equal(approvalPointerGeometry.resourceContentFits,true,
-    'All expanded resource controls must remain inside their card: '+JSON.stringify(approvalPointerGeometry));
-  assert.equal(approvalPointerGeometry.sidebarCanScroll,true,
-    'The sidebar must own the overflow when resource drawers are expanded: '+JSON.stringify(approvalPointerGeometry));
+  assert.equal(approvalPointerGeometry.dialogOpen,true,
+    'The owner resource panel must be opened from the dedicated tools dialog');
+  assert.equal(approvalPointerGeometry.insideDialog,true,
+    'The archive action must remain inside the visible dialog');
   assert.equal(approvalPointerGeometry.hitIsTarget,true,
-    'A real pointer at the button center must hit the approved-vault button: '+JSON.stringify(approvalPointerGeometry));
+    'A real pointer at the archive action center must hit the action: '+JSON.stringify(approvalPointerGeometry));
   await approvalVaultButton.click();
   await page.locator('#server-approval-vault-rows img').first().waitFor();
   assert.equal(await page.locator('#server-approval-vault-rows img').count(),3,
@@ -861,10 +854,13 @@ async function execute(){
   await page.locator('#section-design-graph').click();
   await page.locator('#cms-design-graph-dialog').waitFor();
   await page.locator('#cms-design-node-select').selectOption('approved-rich-table');
+  await page.locator('#cms-design-structure-actions>summary').click();
   await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Строка',exact:true}).click();
   await page.locator('#cms-design-node-select').selectOption('approved-rich-table');
+  await page.locator('#cms-design-structure-actions>summary').click();
   await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Столбец',exact:true}).click();
   await page.locator('#cms-design-node-select').selectOption('approved-rich-gallery');
+  await page.locator('#cms-design-structure-actions>summary').click();
   await page.locator('#cms-design-graph-dialog').getByRole('button',{name:'+ Фото',exact:true}).click();
   await page.locator('#cms-design-node-select').selectOption('approved-rich-quote');
   await page.locator('#cms-design-graph-dialog label')
@@ -1049,39 +1045,17 @@ async function execute(){
   const seoToolButton=page.locator('#cms-open-seo');
   await seoToolButton.scrollIntoViewIfNeeded();
   const seoToolPointerGeometry=await seoToolButton.evaluate(button=>{
-    const describe=node=>{
-      if(!node)return null;
-      const rect=node.getBoundingClientRect(),style=getComputedStyle(node);
-      return {tag:node.tagName.toLowerCase(),id:node.id||'',
-        className:typeof node.className==='string'?node.className:'',
-        rect:{x:Math.round(rect.x*100)/100,y:Math.round(rect.y*100)/100,
-          top:Math.round(rect.top*100)/100,right:Math.round(rect.right*100)/100,
-          bottom:Math.round(rect.bottom*100)/100,width:Math.round(rect.width*100)/100,
-          height:Math.round(rect.height*100)/100},
-        clientHeight:node.clientHeight,scrollHeight:node.scrollHeight,
-        overflowX:style.overflowX,overflowY:style.overflowY,
-        position:style.position,zIndex:style.zIndex,pointerEvents:style.pointerEvents,
-        flexShrink:style.flexShrink,minHeight:style.minHeight};
-    };
     const rect=button.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
-    const tools=document.querySelector('#server-site-tools'),sidebar=document.querySelector('.sidebar');
-    const hit=document.elementFromPoint(x,y);
-    return {viewport:{width:innerWidth,height:innerHeight,scrollX,scrollY},
-      target:describe(button),center:{x:Math.round(x*100)/100,y:Math.round(y*100)/100},
-      hitIsTarget:hit===button||button.contains(hit),
-      siteToolsFlexShrink:getComputedStyle(tools).flexShrink,
-      siteToolsContentFits:tools.scrollHeight<=tools.clientHeight+1,
-      sidebarCanScroll:sidebar.scrollHeight>sidebar.clientHeight,
-      hit:describe(hit),siteTools:describe(tools),
-      resources:describe(document.querySelector('#server-resources')),sidebar:describe(sidebar)};
+    const dialog=document.querySelector('#server-site-tools-dialog');
+    const dialogRect=dialog.getBoundingClientRect(),hit=document.elementFromPoint(x,y);
+    return {dialogOpen:dialog.open,insideDialog:x>=dialogRect.left&&x<=dialogRect.right&&
+      y>=dialogRect.top&&y<=dialogRect.bottom,hitIsTarget:hit===button||button.contains(hit)};
   });
   console.log('[site-tools-pointer-geometry] '+JSON.stringify(seoToolPointerGeometry));
-  assert.equal(seoToolPointerGeometry.siteToolsFlexShrink,'0',
-    'Expanded site tools must retain their intrinsic height: '+JSON.stringify(seoToolPointerGeometry));
-  assert.equal(seoToolPointerGeometry.siteToolsContentFits,true,
-    'Expanded tool categories must remain inside their panel: '+JSON.stringify(seoToolPointerGeometry));
-  assert.equal(seoToolPointerGeometry.sidebarCanScroll,true,
-    'The sidebar must own overflow for expanded tool categories: '+JSON.stringify(seoToolPointerGeometry));
+  assert.equal(seoToolPointerGeometry.dialogOpen,true,
+    'The SEO action must be accessed through the tools dialog');
+  assert.equal(seoToolPointerGeometry.insideDialog,true,
+    'The SEO action must remain inside the visible dialog');
   assert.equal(seoToolPointerGeometry.hitIsTarget,true,
     'A real pointer at the SEO action center must hit the action: '+JSON.stringify(seoToolPointerGeometry));
   await seoToolButton.click();
@@ -1703,7 +1677,10 @@ async function execute(){
   await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="mobile"]').click();
   await page.locator('#cms-work-graph-media > summary').click();
   await page.locator('#server-work-graph-upload').waitFor();
-  assert.equal(await page.locator('#server-work-graph-update-alt').isChecked(),false);
+  assert.equal(await page.locator('#server-work-graph-update-alt').count(),0,
+    'Image descriptions are edited as text fields, not technical checkboxes');
+  assert.equal(await page.locator('#server-work-graph-public-alt').inputValue(),'Графическое оформление',
+    'The public image description is shown as a normal editable property');
   const originalDesktop=await page.evaluate(()=>{
     const graph=window.Stage3Editor.getSite().pages[0].sections
       .find(section=>section.id==='section-approved-custom').designGraph;
