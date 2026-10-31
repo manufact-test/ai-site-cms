@@ -2557,7 +2557,14 @@
     nav.addEventListener('click',event=>{
       const clicked=event.target instanceof Element?event.target.closest('.nav-entry'):null;
       if(!clicked)return;
-      requestAnimationFrame(()=>nav.querySelector('.nav-entry.active')?.focus({preventScroll:true}));
+      requestAnimationFrame(()=>{
+        const active=nav.querySelector('.nav-entry.active');
+        if(!active)return;
+        const navRect=nav.getBoundingClientRect(),itemRect=active.getBoundingClientRect();
+        if(itemRect.left<navRect.left)nav.scrollLeft-=navRect.left-itemRect.left;
+        else if(itemRect.right>navRect.right)nav.scrollLeft+=itemRect.right-navRect.right;
+        active.focus({preventScroll:true});
+      });
     },{capture:true});
   };
   enhanceTreeNavigation($('pages'),'page');
@@ -2964,7 +2971,10 @@
   document.querySelector('.inspector-foot').textContent=
     'Правки появляются в черновике сразу. Сохранение и публикация — отдельные действия.';
 
-  // Familiar shortcut, with an explicit saved-draft action only.
+  // Familiar shortcuts are exposed to assistive technology; saving remains
+  // explicit and never changes publication state.
+  $('save').setAttribute('aria-keyshortcuts','Control+S Meta+S');
+  $('save').title='Сохранить черновик · Ctrl+S / ⌘S';
   document.addEventListener('keydown',event=>{
     if((event.ctrlKey||event.metaKey)&&!event.altKey&&!event.shiftKey&&
         event.key.toLowerCase()==='s'&&state.authorized){

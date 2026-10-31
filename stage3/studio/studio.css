@@ -576,7 +576,7 @@ button:disabled{opacity:.45}
   #pages,#sections{
     display:flex;flex-wrap:nowrap;gap:7px;
     overflow-x:auto;overflow-y:hidden;
-    padding:5px 14px 9px;
+    padding:7px 14px 9px;
     scroll-snap-type:x proximity;scroll-padding-inline:14px;
     overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;
     scrollbar-width:thin;scrollbar-color:#b8c9dc transparent;

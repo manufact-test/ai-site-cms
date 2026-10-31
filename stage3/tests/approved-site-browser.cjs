@@ -548,6 +548,19 @@ async function execute(){
   assert.equal(mobileTreeLayout.overflowX,'auto','Mobile section tree must scroll internally');
   assert.ok(mobileTreeLayout.scrollWidth>mobileTreeLayout.clientWidth,
     'Long block lists must scroll inside the tree, not extend the page: '+JSON.stringify(mobileTreeLayout));
+  const sectionSearch=page.locator('#server-search-sections');
+  await sectionSearch.fill('FAQ');
+  await sectionSearch.press('Enter');
+  await page.waitForFunction(()=>document.activeElement?.matches('#sections .nav-entry.active[aria-current="location"]'));
+  const activeSectionVisible=await page.evaluate(()=>{
+    const nav=document.querySelector('#sections'),active=document.activeElement;
+    const navRect=nav.getBoundingClientRect(),itemRect=active.getBoundingClientRect();
+    return itemRect.left>=navRect.left-1&&itemRect.right<=navRect.right+1;
+  });
+  assert.ok(activeSectionVisible,'Keyboard search must scroll the selected mobile block into view');
+  await sectionSearch.press('Escape');
+  await page.locator('#sections .nav-entry').first().click();
+  assert.equal(await page.locator('#save').getAttribute('aria-keyshortcuts'),'Control+S Meta+S');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-mobile.png'),fullPage:true});
   await page.setViewportSize({width:1400,height:1000});
   await page.locator('#server-edit-page').click();
