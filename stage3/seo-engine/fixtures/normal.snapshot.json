@@ -1,0 +1,22 @@
+{
+  "format": "manufact-seo-html-snapshot-v1",
+  "siteId": "site-neighborhood-guide",
+  "pages": [
+    {
+      "id": "page-guide",
+      "path": "/",
+      "html": "<!doctype html><html lang=\"ru\"><head><title>Городской справочник занятий</title><meta name=\"description\" content=\"Категории городских занятий\"><link rel=\"canonical\" href=\"/\"></head><body><main><h1>Выберите занятие</h1><p>Найдите категорию.</p><a href=\"/help/\">Инструкция по справочнику</a><img src=\"/pic.jpg\" alt=\"\"></main></body></html>"
+    },
+    {
+      "id": "page-help",
+      "path": "/help/",
+      "html": "<!doctype html><html lang=\"ru\"><head><title>Как пользоваться справочником</title><meta name=\"description\" content=\"Помощь в навигации\"></head><body><main><h1>Как пользоваться</h1><p>Выбирайте раздел.</p><a href=\"/\">К категориям занятий</a></main></body></html>"
+    }
+  ],
+  "sitemapPaths": [
+    "/",
+    "/help/"
+  ],
+  "robotsTxt": "User-agent: *\nAllow: /\n",
+  "completeness": "complete"
+}

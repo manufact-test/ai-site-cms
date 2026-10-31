@@ -1,0 +1,337 @@
+'use strict';
+// Compare two *local, operator-provided* first-site report bundles.
+// No CMS writes. "Not observed" is never a verified fix or release approval.
+const fs=require('node:fs'),path=require('node:path');
+const FORMAT='manufact-seo-first-site-report-delta-v1';
+const SOURCE='manufact-seo-first-site-check-v1';
+const BUNDLE='manufact-seo-review-bundle-v1';
+const MAX_SUMMARY=800000,MAX_BUNDLE=42000000;
+const GROUPS=['localPhpHead','localPhpNavigation','localPhpGraph','localPhpComponents',
+ 'localPhpForms','localPhpMedia','localPhpPublication','localPhpTheme',
+ 'localPhpSemantics','localPhpFootprint','localPhpStaticExport',
+ 'deliveryEvidence','mediaEvidence','deliveryReadiness','visualReview','approvalArchive','publicStaticParity','publicMediaBytes'];
+const GATES={
+ 'local-php-head-indexation-or-origin':'localPhpHead',
+ 'local-php-semantic-and-route-integrity':'localPhpSemantics',
+ 'local-php-semantic-accessibility-review':'localPhpSemantics',
+ 'local-php-payload-performance-review':'localPhpFootprint',
+ 'local-php-static-export-parity':'localPhpStaticExport',
+ 'captured-delivery-conflict':'deliveryEvidence',
+ 'captured-og-media-conflict':'mediaEvidence',
+ 'owner-form-delivery-configuration':'deliveryReadiness',
+ 'owner-form-notification-intent':'deliveryReadiness',
+ 'unresolved-owner-visual-review':'visualReview',
+ 'owner-visual-review-unavailable':'visualReview',
+ 'owner-approved-prototype-archive-incomplete':'approvalArchive',
+ 'owner-approved-prototype-archive-review':'approvalArchive',
+ 'public-static-deployment-drift':'publicStaticParity',
+ 'public-static-deployment-coverage':'publicStaticParity',
+ 'public-static-csp-blocks-site':'publicStaticParity',
+ 'public-static-csp-review':'publicStaticParity',
+ 'public-static-media-sha256-integrity':'publicMediaBytes',
+ 'local-php-theme-parity':'localPhpTheme',
+ 'local-php-navigation-parity':'localPhpNavigation',
+ 'local-php-design-graph-parity':'localPhpGraph',
+ 'local-php-component-parity':'localPhpComponents',
+ 'local-php-form-markup':'localPhpForms',
+ 'local-php-media-integrity':'localPhpMedia',
+ 'local-php-published-seo-conflict':'localPhpPublication',
+ 'php-published-broken-images':'phpCapture'
+};
+const safe=(x,max=250)=>String(x??'').replace(/[\u0000-\u001f\u007f]/g,' ')
+ .replace(/[|]/g,' / ').replace(/[\x60*_<>{}\[\]#]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
+function file(folder,name,max){
+ const target=path.join(folder,name);
+ const st=fs.lstatSync(target);
+ if(!st.isFile()||st.isSymbolicLink()||st.size<10||st.size>max)
+  throw Error('Previous local first-site report has invalid '+name);
+ return JSON.parse(fs.readFileSync(target,'utf8'));
+}
+function read(folder){
+ const root=fs.realpathSync(path.resolve(folder));
+ if(!fs.statSync(root).isDirectory())throw Error('Previous first-site report is not a directory');
+ const summary=file(root,'summary.json',MAX_SUMMARY),bundle=file(root,'bundle.json',MAX_BUNDLE);
+ if(summary?.format!==SOURCE||bundle?.format!==BUNDLE||
+    !summary.siteId||summary.siteId!==bundle.siteId||
+    summary.sourceSiteSha256!==bundle.approvedSiteSource?.fileSha256||
+    !bundle.readOnly||!Array.isArray(bundle.release?.blockers))
+  throw Error('Prior first-site report is not a coherent original generated report');
+ return Object.freeze({root,summary,bundle});
+}
+const ident=x=>JSON.stringify([
+ x.code||'',x.pageId||'',x.path||'',x.sectionId||'',x.graphNodeId||'',
+ x.assetId||'',x.field||'',x.device||'',x.expectedPath||'',
+ x.href||'',x.fragment||'',x.targetPageId||'',x.elementId||'',x.property||''
+]);
+function findings(bundle,groups=GROUPS,includeCapture=true){
+ const all=[];
+ for(const group of groups){
+  const arr=bundle[group]?.findings;
+  if(arr===null||arr===undefined)continue;
+  if(!Array.isArray(arr)||arr.length>15000)throw Error('Invalid local findings group '+group);
+  for(const issue of arr){
+   if(!issue||typeof issue.code!=='string'||!['error','warning','recommendation'].includes(issue.severity))
+    throw Error('Invalid local PHP finding in '+group);
+   all.push({group,...issue});
+  }
+ }
+ if(includeCapture&&bundle.phpCapture?.findings)for(const issue of bundle.phpCapture.findings){
+  if(!issue||typeof issue.code!=='string')throw Error('Invalid previous PHP screenshot finding');
+  all.push({group:'phpCapture',...issue});
+ }
+ return all;
+}
+function diff(before,after){
+ const beforeBy=new Map(),afterBy=new Map();
+ const add=(map,f)=>{const key=f.group+'|'+ident(f);
+  const previous=map.get(key);
+  if(previous){previous.count++;previous.records.push(f);}
+  else map.set(key,{key,record:f,count:1,records:[f]});
+ };
+ before.forEach(f=>add(beforeBy,f));after.forEach(f=>add(afterBy,f));
+ const added=[],notObserved=[],persistent=[],changedSeverity=[];
+ for(const key of new Set([...beforeBy.keys(),...afterBy.keys()])){
+  const a=beforeBy.get(key),b=afterBy.get(key);
+  if(a&&b){
+   const count=Math.min(a.count,b.count);
+   persistent.push({key,count,code:b.record.code,severity:b.record.severity,
+    group:b.record.group,pageId:b.record.pageId||null,sectionId:b.record.sectionId||null});
+   if(a.record.severity!==b.record.severity)
+    changedSeverity.push({key,from:a.record.severity,to:b.record.severity,count});
+  }
+  const shrink=(a?.count??0)-(b?.count??0);
+  if(shrink>0)notObserved.push({...a.record,occurrences:shrink});
+  if(shrink<0)added.push({...b.record,occurrences:-shrink});
+ }
+ return {added,notObserved,persistent,changedSeverity};
+}
+function build(previous,currentSummary,currentBundle){
+ if(!previous||currentSummary?.format!==SOURCE||currentBundle?.format!==BUNDLE||
+    !currentBundle.readOnly||!Array.isArray(currentBundle.release?.blockers))
+  throw Error('First-site progress requires prior and current generated local reports');
+ const prior=previous.summary,pb=previous.bundle;
+ if(currentSummary.siteId!==prior.siteId||currentBundle.siteId!==prior.siteId||
+    currentSummary.sourceSiteSha256!==prior.sourceSiteSha256||
+    currentSummary.packageVersion!==prior.packageVersion||
+    currentSummary.origin!==prior.origin)
+  throw Error('Comparing different approved packages, site IDs or localhost origins is not safe');
+ const oldExportVersion=pb.localPhpStaticExport?.publishedVersion??null;
+ const newExportVersion=currentBundle.localPhpStaticExport?.publishedVersion??null;
+ // A static export attached to a different CMS published version is a different
+ // observation cohort. Never call its disappearing findings verified repairs.
+ const exportVersionComparable=oldExportVersion!==null&&oldExportVersion===newExportVersion;
+ const oldPublicOrigin=prior.publicTranscript?.httpsOriginClaim??null;
+ const newPublicOrigin=currentSummary.publicTranscript?.httpsOriginClaim??null;
+ const publicOriginComparable=Boolean(oldPublicOrigin&&oldPublicOrigin===newPublicOrigin);
+ const ownerDeliveryComparable=Boolean(pb.deliveryReadiness&&currentBundle.deliveryReadiness&&
+   pb.deliveryReadiness.pinnedPublishedVersion===currentBundle.deliveryReadiness.pinnedPublishedVersion);
+ const ownerVisualComparable=Boolean(pb.visualReview&&currentBundle.visualReview&&
+  pb.visualReview.sourceRevisionClaim===currentBundle.visualReview.sourceRevisionClaim&&
+  pb.visualReview.ownerApiAvailable===currentBundle.visualReview.ownerApiAvailable);
+ const ownerApprovalComparable=Boolean(pb.approvalArchive&&currentBundle.approvalArchive&&
+  pb.approvalArchive.sourceHashReadFromVerifiedHandoff===true&&
+  typeof pb.approvalArchive.sealedPackageSha256==='string'&&
+  pb.approvalArchive.sealedPackageSha256===currentBundle.approvalArchive.sealedPackageSha256&&
+  currentBundle.approvalArchive.sourceHashReadFromVerifiedHandoff===true);
+ const staticDeploymentComparable=Boolean(pb.publicStaticParity&&currentBundle.publicStaticParity&&
+  pb.publicStaticParity.comparable&&currentBundle.publicStaticParity.comparable&&
+  pb.publicStaticParity.claimedPublicOrigin===currentBundle.publicStaticParity.claimedPublicOrigin&&
+  pb.publicStaticParity.verifiedStaticPublishedVersion===currentBundle.publicStaticParity.verifiedStaticPublishedVersion&&
+  Boolean(pb.publicStaticParity.verifiedStaticManifestSha256)&&
+  pb.publicStaticParity.verifiedStaticManifestSha256===currentBundle.publicStaticParity.verifiedStaticManifestSha256);
+ const publicMediaBytesComparable=Boolean(pb.publicMediaBytes&&currentBundle.publicMediaBytes&&
+  pb.publicMediaBytes.officialStaticManifestSha256===currentBundle.publicMediaBytes.officialStaticManifestSha256&&
+  pb.publicMediaBytes.origin===currentBundle.publicMediaBytes.origin);
+ const groupComparable=key=>key==='localPhpStaticExport'?exportVersionComparable:
+  key==='publicMediaBytes'?publicMediaBytesComparable:
+  key==='publicStaticParity'?staticDeploymentComparable:
+  key==='deliveryReadiness'?ownerDeliveryComparable:
+  key==='visualReview'?ownerVisualComparable:
+  key==='approvalArchive'?ownerApprovalComparable:
+  ['deliveryEvidence','mediaEvidence'].includes(key)?publicOriginComparable:true;
+ const commonGroups=GROUPS.filter(key=>pb[key]&&currentBundle[key]&&groupComparable(key));
+ const groupsOnlyPrior=GROUPS.filter(key=>pb[key]&&(!currentBundle[key]||!groupComparable(key)));
+ const groupsOnlyCurrent=GROUPS.filter(key=>currentBundle[key]&&(!pb[key]||!groupComparable(key)));
+ const screenshotsComparable=Boolean(pb.phpCapture&&currentBundle.phpCapture);
+ const screenshotEvidenceChanged=Boolean(pb.phpCapture)!==Boolean(currentBundle.phpCapture);
+ const priorFindings=findings(pb,commonGroups,screenshotsComparable);
+ const newFindings=findings(currentBundle,commonGroups,screenshotsComparable);
+ const changed=diff(priorFindings,newFindings);
+ const previousGates=new Set(pb.release.blockers.map(x=>x.gateId));
+ const latestGates=new Set(currentBundle.release.blockers.map(x=>x.gateId));
+ const gateComparable=id=>!GATES[id]||
+    (GATES[id]==='phpCapture'?screenshotsComparable:commonGroups.includes(GATES[id]));
+ const newGates=[...latestGates].filter(x=>!previousGates.has(x)&&gateComparable(x));
+ const gatesNotObserved=[...previousGates].filter(x=>!latestGates.has(x)&&gateComparable(x));
+ const incomparableGates=[...new Set([...previousGates,...latestGates])]
+  .filter(x=>!gateComparable(x));
+ const persistentGates=[...latestGates].filter(x=>previousGates.has(x));
+ const olderHeads=new Map((pb.localPhpHead?.pages||[]).map(p=>[p.pageId,p]));
+ const etagDrifts=[],etagContentConflicts=[];
+ for(const latest of currentBundle.localPhpHead?.pages||[]){
+  const old=olderHeads.get(latest.pageId);
+  if(!old||old.path!==latest.path||!old.etag||!latest.etag||
+     !old.phpHtmlSha256||!latest.phpHtmlSha256)continue;
+  const etagChanged=old.etag!==latest.etag;
+  const htmlChanged=old.phpHtmlSha256!==latest.phpHtmlSha256;
+  if(etagChanged||htmlChanged){
+   const observation={pageId:latest.pageId,path:latest.path,
+    etagChanged,htmlChanged,previousEtag:old.etag,currentEtag:latest.etag,
+    // Hash fingerprints are evidence, not an authentication of served PHP code.
+    previousHtmlSha256:old.phpHtmlSha256,currentHtmlSha256:latest.phpHtmlSha256};
+   etagDrifts.push(observation);
+   if(!etagChanged&&htmlChanged)etagContentConflicts.push(observation);
+  }
+ }
+ // Only cross-compare PUBLIC HTML/ETag when the same official static
+ // manifest SHA and HTTPS host were reviewed in both observations.
+ const publicCacheDrifts=[],publicSameEtagDifferentHtml=[];
+ if(staticDeploymentComparable){
+  const previousPublic=new Map((pb.publicStaticParity.pages||[]).map(p=>[p.pageId,p]));
+  for(const next of currentBundle.publicStaticParity.pages||[]){
+   const old=previousPublic.get(next.pageId);
+   if(!old||old.path!==next.path||!old.publicHtmlSha256||!next.publicHtmlSha256)continue;
+   const htmlChanged=old.publicHtmlSha256!==next.publicHtmlSha256;
+   const etagComparable=Boolean(old.publicEtag&&next.publicEtag);
+   const etagChanged=etagComparable?old.publicEtag!==next.publicEtag:null;
+   if(htmlChanged||etagChanged===true){
+    const change={pageId:next.pageId,path:next.path,
+     publicHtmlChanged:htmlChanged,etagComparable,etagChanged,
+     oldHtmlSha256:old.publicHtmlSha256,newHtmlSha256:next.publicHtmlSha256};
+    publicCacheDrifts.push(change);
+    if(htmlChanged&&etagComparable&&!etagChanged)
+     publicSameEtagDifferentHtml.push(change);
+   }
+  }
+ }
+ const previousVersion=prior.publishedVersion??null;
+ const currentVersion=currentSummary.publishedVersion??null;
+ const summary=Object.freeze({
+  comparedSameSealedSource:true,comparedSameLocalMount:true,
+  beforePublishedVersion:previousVersion,afterPublishedVersion:currentVersion,
+  previousObservedFindings:priorFindings.length,currentObservedFindings:newFindings.length,
+  newFindingOccurrences:changed.added.reduce((n,x)=>n+x.occurrences,0),
+  noLongerObservedOccurrences:changed.notObserved.reduce((n,x)=>n+x.occurrences,0),
+  persistentFindingOccurrences:changed.persistent.reduce((n,x)=>n+x.count,0),
+  changedSeverityGroups:changed.changedSeverity.length,
+  previousBlockingGates:previousGates.size,currentBlockingGates:latestGates.size,
+  newlyBlockingGates:newGates.length,blockingGatesNoLongerObserved:gatesNotObserved.length,
+  comparedGroups:commonGroups.length,
+  newlyInstrumentedGroups:groupsOnlyCurrent.length,
+  noLongerInstrumentedGroups:groupsOnlyPrior.length,
+  screenshotCaptureCoverageChanged:screenshotEvidenceChanged,
+  staticExportVersionsComparable:exportVersionComparable,
+  staticExportCohortChanged:oldExportVersion!==newExportVersion,
+  publicEvidenceOriginsComparable:publicOriginComparable,
+  publicEvidenceOriginChanged:oldPublicOrigin!==newPublicOrigin,
+  ownerDeliveryConfigurationComparable:ownerDeliveryComparable,
+  publicStaticDeploymentComparable:staticDeploymentComparable,
+  publicMediaBytesComparable,
+  observedPhpEtagOrHtmlChanges:etagDrifts.length,
+  sameEtagButDifferentHtml:etagContentConflicts.length,
+  publicHtmlOrEtagChanges:publicCacheDrifts.length,
+  samePublicEtagButDifferentHtml:publicSameEtagDifferentHtml.length,
+  operatorConfirmedFixes:0,actualWrites:0,automaticRelease:false
+ });
+ const lines=['# First-site technical report comparison — not release approval','',
+  'Same sealed site.json SHA256 and local mount; previous CMS published version: '+
+    (previousVersion??'unknown')+'; current version: '+(currentVersion??'unknown')+'.',
+  '',
+  'Previous observed PHP findings: '+summary.previousObservedFindings+
+   '; current: '+summary.currentObservedFindings+'.',
+  'New finding occurrences: '+summary.newFindingOccurrences+
+   '; no longer observed: '+summary.noLongerObservedOccurrences+
+   '; persistent occurrences: '+summary.persistentFindingOccurrences+'.',
+  'Blocking gates: '+summary.previousBlockingGates+' → '+summary.currentBlockingGates+'.',
+  'Recorded PUBLIC static HTML/ETag changes (same official manifest and host only): '+
+   publicCacheDrifts.length+'; unchanged public ETag with different body: '+
+   publicSameEtagDifferentHtml.length+' (check CDN edge cache).',
+  'Recorded PHP ETag / HTML byte changes on comparable routes: '+etagDrifts.length+
+   '; same ETag with changed HTML: '+etagContentConflicts.length+' (check server cache and version).',
+  'Comparable evidence groups: '+commonGroups.length+
+   '; only present in prior: '+groupsOnlyPrior.length+
+   '; only present in current: '+groupsOnlyCurrent.length+'.',
+  'Screenshot evidence scope changed: '+(screenshotEvidenceChanged?'YES, excluded from finding delta':'no')+'.',
+  'Static export version: '+(oldExportVersion??'none')+' → '+(newExportVersion??'none')+
+   '; comparable: '+(exportVersionComparable?'yes':'NO; no exported finding auto-closure')+'.',
+  'Public transcript origins: '+safe(oldPublicOrigin||'none')+' → '+safe(newPublicOrigin||'none')+
+   '; comparable: '+(publicOriginComparable?'yes (caller supplied)':'NO; missing or changed origin')+'.',
+  'Public media digests cohort: '+(publicMediaBytesComparable?'same official manifest and public host':
+   'not comparable; manifest, host or evidence changed')+'.',
+  'Public static deployment cohort: '+(staticDeploymentComparable?'same public origin/export published version':
+   'not comparable; one release/host/scope changed')+'.',
+  'Owner sealed approval archive cohort: '+(ownerApprovalComparable?
+   'same verified sealed source fingerprint':'not comparable; missing or changed archive evidence')+'.',
+  'Owner visual findings revision cohort: '(ownerVisualComparable?
+   'same published source revision and schema availability':
+   'not comparable; visual notes belong to other revision or review availability differs')+'.',
+  'Owner delivery configuration cohort: '+(ownerDeliveryComparable?'same published version, snapshot only':
+   'not comparable; version or delivery status availability changed')+'.',
+  '',
+  '## ETag / HTML correlation (local PHP only)','',
+  ...etagDrifts.slice(0,40).map(x=>'- '+safe(x.path,100)+': ETag changed '+
+   (x.etagChanged?'YES':'no')+'; SHA256 HTML changed '+(x.htmlChanged?'YES':'no')+'.'),
+  'ETag values here are only locally observed HTTP cache identifiers. They are not published revision identity or public HTTPS proof.','',
+  '## Public static HTTPS cache observations','',
+  ...publicCacheDrifts.slice(0,40).map(x=>'- '+safe(x.path,100)+
+   ': HTML SHA256 changed '+(x.publicHtmlChanged?'YES':'no')+
+   '; public ETag changed '+(x.etagComparable?(x.etagChanged?'YES':'no'):'not observed')+'.'),
+  'Public HTTP transcripts are operator-provided; cached versions and CDN routes are not independently authenticated by saved evidence.','',
+  '## New PHP evidence issues',''];
+ for(const x of changed.added.slice(0,45))
+  lines.push('- '+safe(x.group,70)+' '+safe(x.code,100)+' · '+safe(x.path||x.pageId,130)+
+   (x.sectionId?' · '+safe(x.sectionId,80):'')+
+   ' · '+safe(x.message,180)+' (x'+x.occurrences+')');
+ if(!changed.added.length)lines.push('- None observed in these captured groups.');
+ lines.push('','## Previously seen, not present in current local capture','',
+  '**These are not confirmed fixes.** The served PHP build is not cryptographically attested; changed coverage or an invalid earlier report can give false improvement.');
+ for(const x of changed.notObserved.slice(0,45))
+  lines.push('- '+safe(x.group,70)+' '+safe(x.code,100)+' · '+safe(x.path||x.pageId,130)+
+   ' (previous count not observed: '+x.occurrences+')');
+ if(!changed.notObserved.length)lines.push('- None.');
+ lines.push('','## Technical release blockers','',
+  '- Newly present: '+(newGates.map(x=>safe(x,120)).join(', ')||'none')+'.',
+  '- No longer present: '+(gatesNotObserved.map(x=>safe(x,120)).join(', ')||'none')+'.',
+  '- Still present: '+(persistentGates.map(x=>safe(x,120)).join(', ')||'none')+'.',
+  '- Incomparable because technical evidence scope changed: '+(incomparableGates.map(x=>safe(x,120)).join(', ')||'none')+'.',
+  '','## Required operator check','',
+  '- [ ] Confirm both captured versions correspond to the intended CMS published release and equivalent PHP server configuration.',
+  '- [ ] Compare changed actual PHP HTML plus desktop/tablet/mobile screenshots for the affected pages.',
+  '- [ ] Recheck real forms (POST, delivery) and public HTTPS separately.',
+  '- [ ] Accept or reject fixes manually. No automatic closure, publish or deployment.',
+  '');
+ const result={format:FORMAT,siteId:prior.siteId,readOnly:true,
+  comparisonCoverage:{
+   comparedGroups:commonGroups,
+   noLongerInstrumented:groupsOnlyPrior,
+   newlyInstrumented:groupsOnlyCurrent,
+   screenshotCaptureComparable:screenshotsComparable,
+   screenshotCaptureCoverageChanged:screenshotEvidenceChanged,
+   staticExportVersionComparable:exportVersionComparable,
+   priorStaticExportVersion:oldExportVersion,
+   currentStaticExportVersion:newExportVersion,
+   ownerDeliveryConfigurationComparable:ownerDeliveryComparable,
+   ownerVisualReviewComparable:ownerVisualComparable,
+   ownerApprovalArchiveComparable:ownerApprovalComparable,
+   publicStaticDeploymentComparable:staticDeploymentComparable,
+   publicMediaBytesComparable,
+   publicEvidenceOriginComparable:publicOriginComparable,
+   oldPublicOrigin,newPublicOrigin
+  },
+  comparedFromSourceSha256:prior.sourceSiteSha256,
+  previousCaptureAt:prior.capturedAt,currentCaptureAt:currentSummary.capturedAt,
+  summary,findings:changed,
+  phpCacheObservations:{etagDrifts,etagContentConflicts,
+   observedServedRevisionAuthenticated:false},
+  publicStaticCacheObservations:{
+   comparable:staticDeploymentComparable,
+   publicCacheDrifts,publicSameEtagDifferentHtml,
+   independentlyAuthenticated:false},
+  gates:{newlyPresent:newGates,noLongerPresent:gatesNotObserved,
+    persistent:persistentGates,notComparable:incomparableGates},
+  markdown:lines.join('\n'),
+  manualFixesVerified:false,phpBuildIdentityVerified:false,publicHttpsVerified:false,
+  releaseAuthorized:false};
+ return Object.freeze(result);
+}
+module.exports=Object.freeze({FORMAT,read,build,diff,findings});

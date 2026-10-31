@@ -1,0 +1,230 @@
+'use strict';
+/* One offline private operator workspace for first launch and post-launch SEO.
+ * Reuses existing verified-shape cockpit renderers without changing CMS/runtime.
+ */
+const LAUNCH=require('./first-site-launch-cockpit.cjs');
+const SEARCH=require('./search-ops-dashboard.cjs');
+const INDEX=require('./search-indexing-view.cjs');
+const HUMAN=require('./first-site-live-acceptance-view.cjs');
+const ACTIONS=require('./first-site-live-followup-view.cjs');
+const CRAWL=require('./seo-workspace-crawl-panel.cjs');
+const LEAD=require('./seo-lead-readiness.cjs');
+const LEAD_VIEW=require('./seo-lead-readiness-view.cjs');
+const FORMAT='manufact-seo-operator-workspace-v1';
+const esc=x=>String(x??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+ .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+function build(input){
+ if(!input||typeof input!=='object'||Array.isArray(input)||
+  !input.firstSite&&!input.search&&!input.indexing&&!input.crawl)throw Error('Operator workspace needs launch, search, indexing or crawl inputs');
+ const first=input.firstSite||null,search=input.search||null,indexing=input.indexing||null;
+ const human=input.liveAcceptance||null,desk=input.operatorDesk||null;
+ const crawl=input.crawl?CRAWL.build({...input.crawl,indexing,
+  indexingReportSha256:input.crawl.indexingReportSha256||null}):null;
+ if(crawl&&search){
+  if(search.history.publicOrigin!==crawl.base)throw Error('Crawl and Search History need identical HTTPS public origin');
+  const rawBlueprint=crawl.sourceIdentity.originalBlueprintFileSha256;
+  if(rawBlueprint&&rawBlueprint!==search.history.blueprintSha256)
+   throw Error('Crawl and Search History need the same original approved Blueprint bytes');
+ }
+ if(desk&&desk.href!=='../live-acceptance-template/LIVE-ACCEPTANCE-DESK.html')
+  throw Error('Unexpected private operator desk link');
+ if(human&&(!first?.summary||!first.postDeploy||!human.report||!human.contract))
+  throw Error('Human acceptance needs a first-site source, public post-deploy report and exact original lead contract');
+ if(first&&!first.summary||search&&!search.history)throw Error('Operator workspace input missing report source');
+ const launch=first?LAUNCH.render(first.summary,first.bundle||null,first.postDeploy||null,
+  first.operatorReview||null,first.summarySha):null;
+ const visibility=search?SEARCH.render(search.history,search.historySha,search.decisions||null,search.releases||null):null;
+ const indexed=indexing?INDEX.render(indexing):null;
+ const manual=human?HUMAN.render(human.report,human.contract,human.contractSha,first,
+  first.summarySha,first.postDeploySha):null;
+ const queue=manual?ACTIONS.render(human.report,{summary:first.summary,
+  bundle:first.bundle,postDeploy:first.postDeploy}):null;
+ const siteId=launch?.siteId||visibility?.summary.siteId||indexed?.summary.siteId||manual?.siteId||crawl?.siteId;
+ if([launch?.siteId,visibility?.summary.siteId,indexed?.summary.siteId,manual?.siteId,crawl?.siteId].filter(Boolean).some(x=>x!==siteId))
+  throw Error('Cannot combine launch, search and indexing evidence from different customer sites');
+ if(indexed&&visibility&&indexing.blueprintSha256!==search.history.blueprintSha256)
+  throw Error('Search History and URL Indexing reports need the same approved Blueprint bytes');
+ const leadReadiness=LEAD.build({siteId,first,launch,search,visibility,indexing,indexed,
+  indexingSourceSha256:input.indexingReportSha256||input.crawl?.indexingReportSha256||null,
+  crawl,human,manual,queue});
+ const leadView=LEAD_VIEW.render(leadReadiness);
+ const sections=[
+  {href:'lead-readiness.html',name:'First Client — SEO Lead Readiness & Handoff',
+   sub:'Source-bound first-release blockers, missing original evidence and post-launch manual SEO gates in ONE lead worklist',
+   state:leadReadiness.summary.preLaunchBlocked+' BLOCKED · '+
+    leadReadiness.summary.preLaunchMissing+' MISSING · NEVER AUTOMATIC GO',kind:'lead'},
+  ...(desk?[{href:desk.href,name:'Fill browser and form acceptance',
+   sub:'Private offline operator editor, then run human-review session with exported JSON',
+   state:'MANUAL ACTION REQUIRED',kind:'desk'}]:[]),
+  ...(launch?[{href:'launch.html',name:'First Site Launch Cockpit',
+   sub:'First-release technical blockers, PHP/static evidence, public HTTPS observations and mandatory human checks',
+   state:launch.disposition,kind:'launch',counts:launch.summary}]:[]),
+  ...(visibility?[{href:'search.html',name:'Search Operations Dashboard',
+   sub:'Search Console periods, private editorial tasks, page trends and optional owner-declared release follow-up',
+   state:'OBSERVATIONAL SEO DATA — HUMAN REVIEW',kind:'search',counts:visibility.summary}]:[]),
+  ...(crawl?[{href:'crawl.html',name:'Crawl & Search Delivery',
+   sub:'Robots, sitemap, crawler regressions, GSC co-observations, optional historical CrUX field evidence and private proposals; SHA256-pinned manual queue',
+   state:'P0 '+crawl.counts.P0+' · P1 '+crawl.counts.P1+' · UNAPPROVED',kind:'crawl'}]:[]),
+  ...(crawl?.renderedContent?[{href:'rendered-content.html',name:'Rendered Content — HTTP vs Browser DOM',
+   sub:'Desktop/tablet/mobile H1, substantive main text, responsive overflow, internal link/fragment checks, image/timing/JSON-LD; browser provenance unverified',
+   state:'P0 '+crawl.renderedContent.summary.P0+' · P1 '+crawl.renderedContent.summary.P1+
+    ' · responsive unknown '+(crawl.renderedContent.summary.responsiveUnknownPairs??'n/a')+
+    ' · MANUAL REVIEW',kind:'crawl'}]:[]),
+  ...(crawl?.structuredData?[{href:'structured-data.html',name:'Structured Data — Live JSON-LD QA',
+   sub:'Actual public HTML schema.org types, fact claims, BreadcrumbList and canonical URL mismatches; never auto-publish',
+   state:'P0 '+crawl.structuredData.summary.P0+' · P1 '+crawl.structuredData.summary.P1+
+    ' · UNVERIFIED',kind:'crawl'}]:[]),
+  ...(crawl?.publicFollowup?[{href:'crawl-public-followup.html',name:'Public HTTPS — Crawl CMS Fix Evidence',
+   sub:'Original operator HTTP transcript aligned with current SEO tasks; conflicts, unknowns and never automatic closure',
+   state:'CONFLICT '+crawl.publicFollowup.summary.conflict+' · UNKNOWN '+
+    crawl.publicFollowup.summary.unknown+' · NOT VERIFIED',kind:'crawl'}]:[]),
+  ...(crawl?.cmsRecheck?[{href:'crawl-cms-recheck.html',name:'Crawl CMS — Follow-up and Evidence Delta',
+   sub:'Before/after source-pinned manual tasks, what persists, new P0 and owner-reported completion still observed',
+   state: 'NEW P0 '+crawl.cmsRecheck.summary.newCriticalP0+' · STILL OPEN '+
+    crawl.cmsRecheck.summary.persistent+' · NOT VERIFIED',kind:'crawl'}]:[]),
+  ...(indexed?[{href:'indexing.html',name:'URL Indexing Intelligence',
+   sub:'Approved Blueprint robots, operator-supplied indexed/excluded URL observations and manual indexability checks',
+   state:'INDEX STATUS — OPERATOR REPORTED',kind:'indexing',counts:indexed.summary}]:[]),
+  ...(queue?[{href:'next-actions.html',name:'Fixes and missing evidence',
+   sub:'P0/P1 route-specific work queue, owners, receipts needed and independent final signoff',
+   state:queue.summary.urgent+' urgent · '+queue.summary.pending+' pending',kind:'actions'}]:[]),
+  ...(manual?[{href:'human.html',name:'Real-World Human Acceptance',
+   sub:'Source-bound browser/page/device and actual form POST operator attestations; never an automatic release approval',
+   state:manual.status,kind:'human',counts:manual.summary}]:[])
+ ];
+ const next=[
+  ...(desk?['Open the private editor card, inspect real browser and authorized POST/delivery, export JSON and run human-review.']:[]),
+  ...(launch?.summary.blockingGates?['Resolve '+launch.summary.blockingGates+
+   ' original first-site technical gate(s) using the real PHP/CMS and first-site-check runbook.']:[]),
+  ...(launch&&!first.postDeploy?['Only the lead may publish the site; then collect actual public HTTPS/media evidence and run post-deploy verification.']:[]),
+  ...(launch&&first.postDeploy?['Independently verify published host provenance and complete three-device, POST/notification and client signoff checks.']:[]),
+  ...(visibility?.summary.tasks?['Have the owner/editor review '+visibility.summary.tasks+
+   ' observed SEO task(s); no copy or CMS change is automatically authorized.']:[]),
+  ...(indexed?.summary.actions?['Inspect '+indexed.summary.actions+' indexing anomaly or mapping prompt(s) manually in live URL Inspection.']:[]),
+  ...(crawl?['Review '+crawl.counts.P0+' P0 and '+crawl.counts.P1+
+   ' P1 crawl/search-delivery investigations, verify original SHA256 and actual HTTPS before any lead-owned change.']:[]),
+  ...(crawl?.candidate?['Never upload the DRAFT-ONLY robots/sitemap files from this private workspace; route them through separate owner and lead approval.']:[]),
+  ...(crawl?.cmsReview?['Open crawl.html → existing CMS / publisher mapping; authenticate selected Site v1 revision, inspect proposed editor/hosting tasks and owner overrides before any Save.']:[]),
+  ...(queue?[queue.summary.urgent+' urgent and '+queue.summary.pending+
+   ' pending specific actions: open next-actions.html to assign fixes and gather new source-bound evidence.']:[]),
+  ...(manual?['Review original private human/browser/form evidence independently; operator checkmarks do not prove a real authenticated customer signoff.']:[]),
+  ...(launch&&!visibility?['After launch and real Search Console data accumulation, add the private Search History to this workspace.']:[]),
+  ...(!launch&&visibility?['For first-site technical acceptance add the existing first-site-check summary and optional post-deploy evidence.']:[])
+ ];
+ const cards=sections.map(s=>'<a class="card" href="'+s.href+'"><div class="kicker">'+
+  (s.kind==='lead'?'FIRST CLIENT LEAD HANDOFF':s.kind==='desk'?'OPERATOR ACTION':s.kind==='crawl'?'CRAWL / SEARCH DELIVERY':s.kind==='launch'?'LAUNCH OPERATIONS':s.kind==='indexing'?'URL INDEXING':s.kind==='human'?'HUMAN ACCEPTANCE':s.kind==='actions'?'P0 / P1 QUEUE':'POST-LAUNCH SEARCH')+'</div><h2>'+esc(s.name)+'</h2>'+
+  '<p>'+esc(s.sub)+'</p><span class="state">'+esc(s.state)+'</span><span class="go">Open private report →</span></a>').join('');
+ const css=[
+ ':root{--back:#f3f7fa;--ink:#172f45;--muted:#5c7182;--line:#dbe5eb}',
+ '*{box-sizing:border-box}body{margin:0;font:15px/1.65 system-ui,Segoe UI,Arial,sans-serif;background:var(--back);color:var(--ink)}',
+ 'main{max-width:1150px;margin:auto;padding:28px 22px 85px}.hero{border-radius:25px;background:linear-gradient(128deg,#102b41,#145f70);color:white;padding:39px}',
+ '.eyebrow{font-weight:800;color:#9fdfd7;letter-spacing:.13em;text-transform:uppercase;font-size:12px}.hero h1{font-size:clamp(26px,4vw,42px);letter-spacing:-.035em;line-height:1.2;margin:12px 0}',
+ '.hero p{color:#d4e8e9;max-width:850px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:19px}',
+ '.card{display:flex;flex-direction:column;background:white;border-radius:19px;border:1px solid var(--line);padding:26px;text-decoration:none;color:inherit;min-height:278px;box-shadow:0 9px 24px #183a560a}',
+ '.card:hover,.card:focus-visible{border-color:#158e82;outline:2px solid #158e82;outline-offset:2px}',
+ '.kicker{font-size:12px;letter-spacing:.1em;font-weight:800;color:#127c74}.card h2{font-size:22px;line-height:1.25;margin:13px 0 7px}.card p{color:var(--muted);margin:0 0 13px}',
+ '.state{font-size:11px;font-weight:700;color:#895c1d;background:#fff4d7;padding:5px 9px;border-radius:11px;align-self:start}',
+ '.go{margin-top:auto;padding-top:19px;color:#0d746b;font-weight:750}.panel{background:white;border:1px solid var(--line);border-radius:17px;padding:27px;margin-top:18px}',
+ '.panel h2{margin:0 0 12px}.panel li{margin:11px 0}.notice{border-left:3px solid #177b75;background:#edf7f6;padding:13px;margin-top:15px;color:#355f64}',
+ 'footer{color:var(--muted);font-size:12px;padding:24px 3px}',
+ '@media(max-width:700px){main{padding:13px}.hero{padding:23px}.grid{grid-template-columns:1fr}.panel{padding:20px}}',
+ '@media print{body{background:white}.hero{background:white;color:black;border:1px solid #ddd}.hero p,.eyebrow{color:#444}.card{box-shadow:none}}'
+ ].join('');
+ const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'+
+  '<meta name="robots" content="noindex,nofollow,noarchive">'+
+  '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">'+
+  '<title>MANUFACT — Private Client SEO Workspace</title><style>'+css+'</style></head><body><main>'+
+  '<header class="hero"><div class="eyebrow">MANUFACT · OWNER-ONLY OPERATIONS</div><h1>Client SEO Workspace</h1>'+
+  '<p>Site: '+esc(siteId)+'. Local technical acceptance and post-launch search observations in one private workspace.</p>'+
+  '<p>All source records are operator supplied. This is not a connected CMS application, client approval or public deployment.</p></header>'+
+  '<div class="grid">'+cards+'</div><section class="panel"><h2>Recommended next manual steps</h2><ol>'+
+  next.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ol>'+
+  '<p class="notice">No automated publication, SEO content edits, verification of Google property ownership, real form delivery or client signoff.</p></section>'+
+  '<footer>Private local report bundle · No network calls · Input hashes recorded separately · Do not upload or commit.</footer></main></body></html>';
+ return {format:FORMAT,readOnly:true,siteId,homeHtml:html,
+  leadReadinessHtml:leadView.html,leadReadinessMarkdown:leadView.markdown,
+  leadReadinessJson:JSON.stringify(leadReadiness,null,2)+'\n',
+  launchHtml:launch?.html||null,
+  searchHtml:visibility?.html||null,indexingHtml:indexed?.html||null,
+  crawlHtml:crawl?.html||null,crawlLeadMarkdown:crawl?.markdown||null,
+  crawlCandidateRobots:crawl?.candidate?input.crawl.proposedRobots:null,
+  crawlCandidateSitemap:crawl?.candidate?input.crawl.proposedSitemap:null,
+  crawlEvidence:crawl?{...crawl.sourceIdentity,overview:crawl.overview}:null,
+  crawlCmsHtml:crawl?.cmsView?.html||null,
+  crawlCmsMarkdown:crawl?.cmsView?.markdown||null,
+  crawlCmsJson:crawl?.cmsReview?JSON.stringify(crawl.cmsReview,null,2)+'\n':null,
+  crawlCmsDecisionsTemplate:crawl?.cmsTemplate?JSON.stringify(crawl.cmsTemplate,null,2)+'\n':null,
+  crawlCmsDecisionDeskHtml:crawl?.cmsDecisionDeskHtml||null,
+  crawlCmsRecheckHtml:crawl?.cmsRecheckView?.html||null,
+  crawlCmsRecheckMarkdown:crawl?.cmsRecheckView?.markdown||null,
+  crawlCmsRecheckJson:crawl?.cmsRecheck?JSON.stringify(crawl.cmsRecheck,null,2)+'\n':null,
+  crawlPublicFollowupHtml:crawl?.publicFollowupView?.html||null,
+  crawlPublicFollowupMarkdown:crawl?.publicFollowupView?.markdown||null,
+  crawlPublicFollowupJson:crawl?.publicFollowup?JSON.stringify(crawl.publicFollowup,null,2)+'\n':null,
+  structuredDataHtml:crawl?.structuredDataView?.html||null,
+  structuredDataMarkdown:crawl?.structuredDataView?.markdown||null,
+  structuredDataJson:crawl?.structuredData?JSON.stringify(crawl.structuredData,null,2)+'\n':null,
+  renderedContentHtml:crawl?.renderedContentView?.html||null,
+  renderedContentMarkdown:crawl?.renderedContentView?.markdown||null,
+  renderedContentJson:crawl?.renderedContent?JSON.stringify(crawl.renderedContent,null,2)+'\n':null,
+  fieldPerformanceHtml:crawl?.fieldPerformanceView?.html||null,
+  fieldPerformanceMarkdown:crawl?.fieldPerformanceView?.markdown||null,
+  fieldPerformanceJson:crawl?.fieldPerformance?JSON.stringify(crawl.fieldPerformance,null,2)+'\n':null,
+  humanHtml:manual?.html||null,nextActionsHtml:queue?.html||null,
+  overview:{leadReadinessIncluded:true,
+   leadPreLaunchBlocked:leadReadiness.summary.preLaunchBlocked,
+   leadPreLaunchMissing:leadReadiness.summary.preLaunchMissing,
+   leadPostLaunchDeferred:leadReadiness.summary.postLaunchDeferred,
+   nextActionsIncluded:!!queue,
+   nextActionsUrgent:queue?.summary.urgent??null,nextActionsPending:queue?.summary.pending??null,
+   operatorDeskIncluded:!!desk,launchIncluded:!!launch,searchIncluded:!!visibility,indexingIncluded:!!indexed,
+   crawlIncluded:!!crawl,crawlP0:crawl?.counts.P0??null,crawlP1:crawl?.counts.P1??null,
+   firstClientApprovedRoutes:crawl?.routeCoverage?.summary.approvedPages??null,
+   firstClientRoutesMissingPreLaunchEvidence:
+    crawl?.routeCoverage?.summary.preLaunchEvidenceIncomplete??null,
+   firstClientRoutesWithThreeDevicePairs:
+    crawl?.routeCoverage?.summary.renderedThreeDevicePairs??null,
+   internationalHreflangIncluded:!!crawl?.hreflang,
+   internationalHreflangP1:crawl?.hreflang?.summary.P1??null,
+   internationalHreflangRenderedMutations:
+    crawl?.hreflang?.summary.renderedMutatedPairs??null,
+   crawlCandidateIncluded:!!crawl?.candidate,crawlManualHolds:crawl?.candidate?.holds??null,
+   crawlCmsImplementationIncluded:!!crawl?.cmsReview,
+   crawlCmsManualActions:crawl?.cmsReview?.summary.totalManualActions??null,
+   crawlCmsDriftPages:crawl?.cmsReview?.summary.driftPages??null,
+   crawlCmsRecheckIncluded:!!crawl?.cmsRecheck,
+   crawlCmsRecheckNewP0:crawl?.cmsRecheck?.summary.newCriticalP0??null,
+   crawlCmsRecheckStillObserved:crawl?.cmsRecheck?.summary.persistent??null,
+   crawlCmsReportedCompleteStillObserved:crawl?.cmsRecheck?.summary.completedReportedStillObserved??null,
+   crawlPublicFollowupIncluded:!!crawl?.publicFollowup,
+   crawlPublicFollowupConflict:crawl?.publicFollowup?.summary.conflict??null,
+   crawlPublicFollowupUnknown:crawl?.publicFollowup?.summary.unknown??null,
+   crawlPublicFollowupAlignedNotVerified:crawl?.publicFollowup?.summary.alignedNotVerified??null,
+   schemaSemanticQAIncluded:!!crawl?.structuredData,
+   schemaSemanticQAP0:crawl?.structuredData?.summary.P0??null,
+   schemaSemanticQAP1:crawl?.structuredData?.summary.P1??null,
+   schemaSemanticQAUninspected:crawl?.structuredData?.summary.uninspectedPages??null,
+   renderedContentIncluded:!!crawl?.renderedContent,
+   renderedContentP0:crawl?.renderedContent?.summary.P0??null,
+   renderedContentCompared:crawl?.renderedContent?.summary.fullyComparedPages??null,
+   renderedLinkGraphObservedScopes:crawl?.renderedContent?.summary.publishedGraphObservedScopes??null,
+   renderedLinkGraphOrphanRoutes:crawl?.renderedContent?.summary.publishedGraphStrongOrphans??null,
+   renderedLinkGraphUnreachableRoutes:crawl?.renderedContent?.summary.publishedGraphStrongUnreachable??null,
+   renderedDuplicateMainPairs:crawl?.renderedContent?.summary.publishedDuplicateMainPairs??null,
+   renderedDuplicateMetadataPairs:crawl?.renderedContent?.summary.publishedDuplicateMetadataPairs??null,
+   renderedCollisionProvisionalSignals:crawl?.renderedContent?.summary.publishedCollisionCandidateSignals??null,
+   fieldPerformanceIncluded:!!crawl?.fieldPerformance,
+   fieldPerformancePoor:crawl?.fieldPerformance?.summary.poorMetricValues??null,
+   fieldPerformanceUnknown:crawl?.fieldPerformance?.summary.unknownMetricValues??null,
+   humanAcceptanceIncluded:!!manual,humanAcceptanceStatus:manual?.status??null,
+   indexingActionCount:indexed?.summary.actions??null,
+   technicalBlockers:launch?.summary.blockingGates??null,
+   postDeploySupplied:launch?.summary.postDeployEvidenceSupplied??false,
+   searchActionCount:visibility?.summary.tasks??null,
+   releaseAuthorized:false,clientApprovalAuthenticated:false},
+  limitations:['All modules read operator-supplied evidence only.',
+   'Reports are private local HTML, NEVER customer static-site exports.',
+   'Crawl candidate files are UNAPPROVED working copies only; never deploy or upload.',
+   'Manual work remains with lead; no CMS Save/Publish, PR, merge, deploy or form testing.']};
+}
+module.exports=Object.freeze({FORMAT,build});

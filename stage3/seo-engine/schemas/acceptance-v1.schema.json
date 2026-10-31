@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Version-bound three-static-image prototype and human acceptance evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "siteId",
+    "blueprintSha256",
+    "siteSha256",
+    "prototype",
+    "checks"
+  ],
+  "properties": {
+    "format": {
+      "const": "manufact-seo-acceptance-v1"
+    },
+    "siteId": {
+      "type": "string"
+    },
+    "blueprintSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "siteSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "prototype": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revision",
+        "images",
+        "approvedBy",
+        "approvedAt",
+        "evidenceReference"
+      ],
+      "properties": {
+        "revision": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "images": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "device",
+              "artifact",
+              "sha256"
+            ],
+            "properties": {
+              "device": {
+                "enum": [
+                  "desktop",
+                  "tablet",
+                  "mobile"
+                ]
+              },
+              "artifact": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "sha256": {
+                "type": "string",
+                "maxLength": 64
+              }
+            }
+          }
+        },
+        "approvedBy": {
+          "type": "string",
+          "maxLength": 180
+        },
+        "approvedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidenceReference": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "status",
+          "reviewedBy",
+          "reviewedAt",
+          "evidenceReference",
+          "note"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "prototype-approval",
+              "visual-fidelity",
+              "behavior",
+              "published-host",
+              "structured-data",
+              "performance",
+              "overrides-and-rollback"
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "reviewedBy": {
+            "type": "string",
+            "maxLength": 180
+          },
+          "reviewedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidenceReference": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "format": "manufact-seo-delivery-evidence-v1",
+  "siteId": "site-industrial-demo",
+  "origin": "https://cms-example.test/",
+  "capturedAt": "2026-10-28T10:00:00Z",
+  "pages": [
+    {
+      "id": "page-home",
+      "path": "/",
+      "requestUrl": "https://cms-example.test/",
+      "responseUrl": "https://cms-example.test/",
+      "status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=utf-8"
+      },
+      "html": "<!doctype html><html lang=\"ru\"><head><meta charset=\"utf-8\"><title>Главная | Завод оборудования</title><meta name=\"description\" content=\"\"><meta property=\"og:title\" content=\"Главная | Завод оборудования\"><meta property=\"og:description\" content=\"\"><link rel=\"canonical\" href=\"/\"></head><body><main><h1>Производим технологическое оборудование</h1><p>Подробности доступны в нашей команде.</p><a href=\"/contact/\">Узнать контакты компании</a></main></body></html>"
+    },
+    {
+      "id": "page-contact",
+      "path": "/contact/",
+      "requestUrl": "https://cms-example.test/contact/",
+      "responseUrl": "https://cms-example.test/contact/",
+      "status": 200,
+      "headers": {
+        "Content-Type": "text/html; charset=utf-8"
+      },
+      "html": "<!doctype html><html lang=\"ru\"><head><meta charset=\"utf-8\"><title>Контакты | Завод оборудования</title><meta name=\"description\" content=\"\"><meta property=\"og:title\" content=\"Контакты | Завод оборудования\"><meta property=\"og:description\" content=\"\"><link rel=\"canonical\" href=\"/contact/\"></head><body><main><h1>Свяжитесь с нами</h1><p>Подробности доступны в нашей команде.</p><a href=\"/\">Главная страница</a></main></body></html>"
+    }
+  ],
+  "robots": {
+    "status": 200,
+    "url": "https://cms-example.test/robots.txt",
+    "contentType": "text/plain",
+    "body": "User-agent: *\nAllow: /\n"
+  },
+  "sitemap": {
+    "status": 200,
+    "url": "https://cms-example.test/sitemap.xml",
+    "contentType": "application/xml",
+    "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"><url><loc>https://cms-example.test/</loc></url><url><loc>https://cms-example.test/contact/</loc></url></urlset>"
+  }
+}

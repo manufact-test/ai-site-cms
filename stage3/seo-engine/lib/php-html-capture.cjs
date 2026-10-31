@@ -1,0 +1,306 @@
+'use strict';
+// Read-only PHP HTML observation for the FIRST SEALED Stage 3 site.
+// Only explicit 127.0.0.1 HTTP mount, no redirects, no execution, no public fetch.
+// The result is compatible with the existing SEO HTML snapshot reports.
+const http=require('node:http');
+const fs=require('node:fs');
+const path=require('node:path');
+const crypto=require('node:crypto');
+const BRIDGE=require('./approved-site-bridge.cjs');
+const ACCEPTANCE=require('./acceptance.cjs');
+const LOCAL=require('./php-local-publication.cjs');
+const LOCAL_MEDIA=require('./php-local-media.cjs');
+const LOCAL_HEAD=require('./php-local-head.cjs');
+const LOCAL_FORMS=require('./php-local-forms.cjs');
+const LOCAL_COMPONENTS=require('./php-local-components.cjs');
+const LOCAL_GRAPH=require('./php-local-graph.cjs');
+const LOCAL_NAVIGATION=require('./php-local-navigation.cjs');
+const LOCAL_THEME=require('./php-local-theme.cjs');
+const LOCAL_SEMANTICS=require('./php-local-semantics.cjs');
+const LOCAL_FOOTPRINT=require('./php-local-footprint.cjs');
+const STATIC_EXPORT=require('./php-local-static-export.cjs');
+const CAPTURE_FORMAT='manufact-seo-loopback-php-html-v1';
+const SNAPSHOT_FORMAT='manufact-seo-html-snapshot-v1';
+const SHA=/^[a-f0-9]{64}$/;
+const MAX_PAGE=450000,MAX_TOTAL=18000000,MAX_PAGES=60;
+const accepted=new WeakSet();
+const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
+function fail(message){throw Error('SEO PHP HTML capture: '+message);}
+function baseUrl(raw,siteId){
+ let u;
+ try{u=new URL(raw);}catch{fail('invalid origin URL');}
+ if(u.protocol!=='http:'||u.hostname!=='127.0.0.1'||!u.port||
+   u.username||u.password||u.search||u.hash||
+   u.pathname!=='/published/'+siteId+'/')
+  fail('only the explicit 127.0.0.1 published-site mount is supported');
+ return u.href;
+}
+function pageUrl(base,pagePath){
+ if(typeof pagePath!=='string'||!/^\/(?:[a-z0-9-]+\/)*$/.test(pagePath))
+  fail('unexpected Site v1 page path');
+ const address=new URL(pagePath.slice(1),base);
+ if(!address.href.startsWith(base)||address.origin!==new URL(base).origin)
+  fail('page URL escapes the approved loopback mount');
+ return address;
+}
+function pageName(index){return 'page-'+String(index+1).padStart(3,'0')+'.html';}
+function boundedHtml(bytes){
+ if(!Buffer.isBuffer(bytes)||bytes.length<25||bytes.length>MAX_PAGE)
+  fail('HTML body missing or too large');
+ const html=bytes.toString('utf8');
+ if(Buffer.byteLength(html,'utf8')!==bytes.length||html.includes('\uFFFD')||
+  !/<!doctype\s+html|<html\b/i.test(html)||!/<head\b/i.test(html)||
+  !/<\/head\s*>/i.test(html))
+  fail('HTML must be a complete UTF-8 document with head');
+ return html;
+}
+function getHtml(url){
+ return new Promise((resolve,reject)=>{
+  const req=http.get({
+    hostname:'127.0.0.1',port:Number(url.port),path:url.pathname,
+    agent:false,timeout:10000,
+    headers:{'Accept':'text/html','Accept-Encoding':'identity','User-Agent':'AI-Site-CMS-SEO-Local-Review/1.0'}
+  },res=>{
+    if(res.statusCode!==200){res.resume();reject(Error('HTTP '+res.statusCode+' at '+url.pathname));return;}
+    const ct=String(res.headers['content-type']||'').toLowerCase();
+    if(!/^text\/html(?:\s*;|$)/.test(ct)||/charset\s*=\s*(?:"?)(?!utf-8|utf8)/.test(ct)){
+      res.resume();reject(Error('Non-UTF-8 HTML Content-Type at '+url.pathname));return;
+    }
+    if(res.headers['content-encoding']&&res.headers['content-encoding']!=='identity'){
+      res.resume();reject(Error('Unexpected compressed HTML response'));return;
+    }
+    const chunks=[];let n=0;res.on('data',chunk=>{
+      n+=chunk.length;if(n>MAX_PAGE){res.destroy(Error('HTML exceeds per-page byte limit'));return;}
+      chunks.push(chunk);
+    });
+    res.on('error',reject);res.on('end',()=>resolve({
+      bytes:Buffer.concat(chunks),contentType:ct,status:200,
+      headers:LOCAL_HEAD.headersOf(res)
+    }));
+  });
+  req.on('timeout',()=>req.destroy(Error('Loopback HTML GET timed out')));
+  req.on('error',reject);
+ });
+}
+function getAuxiliary(url,limit){
+ return new Promise((resolve,reject)=>{
+  const req=http.get({hostname:'127.0.0.1',port:Number(url.port),path:url.pathname,
+   agent:false,timeout:10000,
+   headers:{'Accept':'text/plain, application/xml','Accept-Encoding':'identity',
+    'User-Agent':'AI-Site-CMS-SEO-Local-Review/1.0'}},res=>{
+    if(res.headers['content-encoding']&&res.headers['content-encoding']!=='identity'){
+     res.resume();reject(Error('Compressed local SEO resource unsupported'));return;
+    }
+    const chunks=[];let bytes=0;
+    res.on('data',chunk=>{
+     bytes+=chunk.length;
+     if(bytes>limit){res.destroy(Error('Local SEO response exceeds bounded limit'));return;}
+     chunks.push(chunk);
+    });
+    res.on('error',reject);
+    res.on('end',()=>resolve({status:res.statusCode,
+     contentType:String(res.headers['content-type']||'').slice(0,150),
+     location:String(res.headers.location||'').slice(0,2048),
+     bytes:Buffer.concat(chunks)}));
+   });
+  req.on('timeout',()=>req.destroy(Error('Local SEO GET timed out')));
+  req.on('error',reject);
+ });
+}
+function snapshot(site,source,entries,base,capturedAt,publication=null){
+ const pages=Object.freeze(entries.map(({record,bytes})=>Object.freeze({
+   id:record.pageId,path:record.path,html:boundedHtml(bytes)
+ })));
+ return Object.freeze({format:SNAPSHOT_FORMAT,siteId:site.siteId,completeness:'complete',
+  mountPath:'/published/'+site.siteId+'/',
+  pages,
+  ...(publication?.robotsStatus===200?{robotsTxt:publication.robotsTxt}:{}),
+  ...(publication?.parsedSitemapComplete?{
+    sitemapPaths:publication.parsedSitemapPaths,sitemapCompleteness:'complete'
+  }:{}),
+  ...(publication?.verifiedRedirectPaths?.length?{
+    redirectPaths:publication.verifiedRedirectPaths
+  }:{}),
+  source:'local-loopback-published-php-html',
+  sourceRevisionAuthenticated:false,localHttpOnly:true});
+}
+function inspect(manifest,site,source,folder,staticExportFolder=null){
+ if(!BRIDGE.isVerifiedSource(source)||source.siteId!==site.siteId||
+    source.siteRevisionFingerprint!==ACCEPTANCE.fingerprint(site))
+  fail('requires the original verified Approved Site v2 source');
+ if(!manifest||manifest.format!==CAPTURE_FORMAT||
+   manifest.siteId!==site.siteId||manifest.sourceSiteSha256!==source.fileSha256||
+   manifest.sourceSiteFingerprint!==source.siteRevisionFingerprint||
+   manifest.packageVersion!==source.packageVersion||
+   !Array.isArray(manifest.pages)||manifest.pages.length!==site.pages.length||
+   typeof manifest.capturedAt!=='string'||
+   !/^\d{4}-\d\d-\d\dT/.test(manifest.capturedAt)||
+   Number.isNaN(Date.parse(manifest.capturedAt)))
+  fail('manifest is not bound to the sealed source');
+ baseUrl(manifest.baseUrl,site.siteId);
+ const root=fs.realpathSync(folder),seen=new Set(),entries=[];let total=0;
+ const external=manifest.publication?LOCAL.records(site,manifest.baseUrl,manifest.publication):[];
+ const mediaFiles=manifest.media?LOCAL_MEDIA.inventory(site,manifest.baseUrl).map(x=>x.file):[];
+ const allowed=new Set(['manifest.json',...site.pages.map((_,i)=>pageName(i)),
+  ...external.map(item=>item.file),...mediaFiles]);
+ const listing=fs.readdirSync(root);
+ if(listing.length!==allowed.size||listing.some(name=>!allowed.has(name)))
+  fail('unexpected or missing HTML evidence file');
+ for(let i=0;i<site.pages.length;i++){
+  const p=site.pages[i],record=manifest.pages[i],file=pageName(i);
+  if(!record||record.pageId!==p.id||record.path!==p.path||
+    record.file!==file||record.url!==pageUrl(manifest.baseUrl,p.path).href||
+    record.status!==200||typeof record.contentType!=='string'||
+    !/^text\/html(?:\s*;|$)/i.test(record.contentType)||
+    !SHA.test(record.sha256)||!Number.isSafeInteger(record.bytes)||
+    record.bytes<25||record.bytes>MAX_PAGE||seen.has(file)||
+    record.headers!==undefined&&!LOCAL_HEAD.assertHeaders(record.headers))
+   fail('unexpected route/response/filename at page '+p.id);
+  seen.add(file);
+  const requested=path.resolve(root,file);
+  if(fs.lstatSync(requested).isSymbolicLink())fail('symlinked HTML evidence file '+p.id);
+  const dest=fs.realpathSync(requested);
+  if(!dest.startsWith(root+path.sep))fail('HTML file escaped evidence directory');
+  const stat=fs.statSync(dest);
+  if(!stat.isFile()||stat.size!==record.bytes)fail('HTML size differs at '+p.id);
+  total+=stat.size;if(total>MAX_TOTAL)fail('HTML capture exceeds total budget');
+  const bytes=fs.readFileSync(dest);
+  if(sha(bytes)!==record.sha256)fail('HTML hash differs at '+p.id);
+  boundedHtml(bytes);entries.push({record,bytes});
+ }
+ const checkedPageHtmlBytes=total;
+ const auxBytes=new Map();let publication=null;
+ for(const item of external){
+  const file=path.join(root,item.file);
+  if(fs.lstatSync(file).isSymbolicLink())fail('symlinked PHP SEO endpoint evidence');
+  const resolved=fs.realpathSync(file);
+  if(!resolved.startsWith(root+path.sep))fail('local SEO endpoint file escapes root');
+  const stat=fs.statSync(resolved);
+  if(!stat.isFile()||stat.size!==item.bytes)fail('PHP SEO endpoint response size mismatch');
+  total+=stat.size;if(total>MAX_TOTAL+1000000)fail('PHP SEO endpoint total budget exceeded');
+  const bytes=fs.readFileSync(resolved);
+  if(sha(bytes)!==item.sha256)fail('PHP SEO endpoint content digest mismatch');
+  auxBytes.set(item.file,bytes);
+ }
+ if(manifest.publication){
+  publication=LOCAL.review(site,manifest.baseUrl,manifest.publication,auxBytes);
+  // Preserve exact observed robots bytes separately from static snapshot metadata.
+  if(publication.robotsStatus===200)
+   publication=Object.freeze({...publication,robotsTxt:auxBytes.get('robots.txt').toString('utf8')});
+ }
+ const checkedSnapshot=snapshot(site,source,entries,manifest.baseUrl,manifest.capturedAt,publication);
+ const localHead=LOCAL_HEAD.review(site,checkedSnapshot,manifest.pages,publication);
+ const localForms=LOCAL_FORMS.review(site,checkedSnapshot,source.publishedVersion??null);
+  const localComponents=LOCAL_COMPONENTS.review(site,checkedSnapshot);
+  const localGraph=LOCAL_GRAPH.review(site,checkedSnapshot);
+  const localNavigation=LOCAL_NAVIGATION.review(site,checkedSnapshot);
+  const localTheme=LOCAL_THEME.review(site,checkedSnapshot);
+ const localSemantics=LOCAL_SEMANTICS.review(site,checkedSnapshot);
+ const localMedia=manifest.media?
+  LOCAL_MEDIA.inspect(site,manifest.baseUrl,manifest.media,root,checkedSnapshot,
+   publication?.declaredPublicOrigin||null,source.sealedMediaSha256):null;
+ const localFootprint=localMedia?LOCAL_FOOTPRINT.review(site,checkedSnapshot,localMedia):null;
+ const localStaticExport=staticExportFolder?
+  STATIC_EXPORT.review(staticExportFolder,site,checkedSnapshot,localMedia,source.publishedVersion):null;
+ const result=Object.freeze({
+  format:CAPTURE_FORMAT,siteId:site.siteId,packageVersion:source.packageVersion,
+  sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
+  capturedAt:manifest.capturedAt,baseUrl:manifest.baseUrl,pageCount:entries.length,
+  checkedHtmlBytes:checkedPageHtmlBytes,
+  checkedAuxiliaryBytes:total-checkedPageHtmlBytes,sha256VerifiedAtRead:true,
+  loopbackHttp200Count:entries.length,sourceRevisionAuthenticated:false,
+  realPublicHttpsChecked:false,formsChecked:false,formMarkupChecked:true,visualParityChecked:false,
+  publication,localMedia,localHead,localForms,localComponents,localGraph,localNavigation,localTheme,localSemantics,localFootprint,localStaticExport,
+  snapshot:checkedSnapshot,
+  limitations:'Read-only local PHP HTTP 200 and byte-checked HTML. Cannot prove the served revision matches saved Site v1, operator identity, client approval, public HTTPS or successful forms.'
+ });
+ accepted.add(result);
+ return result;
+}
+function read(folder,site,source,staticExportFolder=null){
+ const root=fs.realpathSync(folder);
+ const file=path.join(root,'manifest.json');
+ if(fs.realpathSync(file)!==file)fail('manifest.json must be an ordinary file in evidence folder');
+ const stat=fs.statSync(file);
+ // A complete Site v1 may declare up to 300 originals and three variants each;
+ // the bound must fit all 1,200 SHA256 media receipts without becoming unbounded.
+ if(!stat.isFile()||stat.size<50||stat.size>1000000)fail('invalid manifest.json');
+ return inspect(JSON.parse(fs.readFileSync(file,'utf8')),site,source,root,staticExportFolder);
+}
+async function capture(sealedFolder,rawOrigin,output,publishedRecord=null){
+ const approved=BRIDGE.load(sealedFolder);
+ const {site,source}=publishedRecord?BRIDGE.reconcile(approved,publishedRecord.site,publishedRecord.version,publishedRecord.review??null):approved;
+ if(!Array.isArray(site.pages)||!site.pages.length||site.pages.length>MAX_PAGES)
+  fail('expected 1–60 Site v1 pages');
+ const base=baseUrl(rawOrigin,site.siteId);
+ const root=fs.realpathSync(sealedFolder),out=path.resolve(output);
+ const parent=fs.realpathSync(path.dirname(out));
+ if(parent===root||parent.startsWith(root+path.sep)||
+    out===root||out.startsWith(root+path.sep)||fs.existsSync(out))
+  fail('capture output must be a new directory outside the immutable sealed package');
+ // First acquire every response; do not leave a partial evidence directory
+ // when the PHP server is missing, redirects, or a page is malformed.
+ const entries=[];let total=0;
+ for(let i=0;i<site.pages.length;i++){
+  const p=site.pages[i],url=pageUrl(base,p.path);
+  const response=await getHtml(url);
+  boundedHtml(response.bytes);
+  total+=response.bytes.length;if(total>MAX_TOTAL)fail('total HTML budget exceeded');
+  entries.push({record:{pageId:p.id,path:p.path,file:pageName(i),
+   url:url.href,status:200,contentType:response.contentType,headers:response.headers,
+   bytes:response.bytes.length,
+   sha256:sha(response.bytes)},bytes:response.bytes});
+ }
+ const publication={robots:null,sitemap:null,redirects:[]},additional=[];
+ const captureResource=async(kind,index,url,from=null,to=null)=>{
+  const maximum=kind==='sitemap'?750000:kind==='robots'?250000:4096;
+  const response=await getAuxiliary(url,maximum);
+  total+=response.bytes.length;
+  if(total>MAX_TOTAL+1000000)fail('Local PHP SEO endpoint total budget exceeded');
+  const item={file:LOCAL.resourceName(kind,index),url:url.href,
+   status:response.status,contentType:response.contentType,
+   bytes:response.bytes.length,sha256:sha(response.bytes),
+   ...(kind==='redirect'?{from,to,location:response.location}:{})};
+  additional.push({record:item,bytes:response.bytes});
+  return item;
+ };
+ publication.robots=await captureResource('robots',null,new URL('robots.txt',base));
+ publication.sitemap=await captureResource('sitemap',null,new URL('sitemap.xml',base));
+ for(const [i,alias] of (site.redirects||[]).entries())
+  publication.redirects.push(await captureResource('redirect',i,pageUrl(base,alias.from),
+   alias.from,alias.to));
+ const observedMedia=await LOCAL_MEDIA.acquire(site,base);
+ const manifest={format:CAPTURE_FORMAT,siteId:site.siteId,
+  sourceSiteSha256:source.fileSha256,sourceSiteFingerprint:source.siteRevisionFingerprint,
+  packageVersion:source.packageVersion,capturedAt:new Date().toISOString(),baseUrl:base,
+  pages:entries.map(x=>x.record),publication,media:observedMedia.manifest};
+ fs.mkdirSync(out,{mode:0o700});
+ for(const x of [...entries,...additional,...observedMedia.files])fs.writeFileSync(path.join(out,x.record.file),x.bytes,{flag:'wx',mode:0o600});
+ fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx',mode:0o600});
+ const imported=read(out,site,source);
+ return {output:out,siteId:site.siteId,pages:imported.pageCount,
+  bytes:imported.checkedHtmlBytes,localSeoBytes:imported.checkedAuxiliaryBytes,
+  localHttp200:imported.loopbackHttp200Count,
+  robotsStatus:imported.publication.robotsStatus,sitemapStatus:imported.publication.sitemapStatus,
+  localRedirectsCaptured:imported.publication.redirectResponses,
+  localSeoFindings:imported.publication.findings.length,
+  localHeadFindings:imported.localHead.findings.length,
+  localFormFindings:imported.localForms.findings.length,
+  localTypedComponentsChecked:imported.localComponents.checkedTypedSections,
+  localComponentFindings:imported.localComponents.findings.length,
+  localGraphNodesChecked:imported.localGraph.checkedNodes,
+  localGraphFindings:imported.localGraph.findings.length,
+  localNavPagesChecked:imported.localNavigation.checkedPages,
+  localNavFindings:imported.localNavigation.findings.length,
+  localThemePagesChecked:imported.localTheme.checkedPages,
+  localThemeFindings:imported.localTheme.findings.length,
+  localSemanticLinksChecked:imported.localSemantics.checkedLinks,
+  localSemanticFindings:imported.localSemantics.findings.length,
+  localFootprintFindings:imported.localFootprint?.findings.length??null,
+  localMediaAssets:imported.localMedia.capturedResources,
+  localMediaBytes:imported.localMedia.savedBodyBytes,
+  localMediaFindings:imported.localMedia.findings.length,
+  publicHttpsChecked:false,readyToPublish:false};
+}
+function isVerified(x){return accepted.has(x);}
+module.exports=Object.freeze({CAPTURE_FORMAT,capture,read,inspect,isVerified,baseUrl,pageUrl});

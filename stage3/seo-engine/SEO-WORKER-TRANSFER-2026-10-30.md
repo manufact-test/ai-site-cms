@@ -1,0 +1,205 @@
+## 31 October 2026 — final worker transfer after GitHub delivery
+
+Authoritative lead note: [SEO-FIRST-CLIENT-LEAD-TRANSFER-2026-10-31.md](SEO-FIRST-CLIENT-LEAD-TRANSFER-2026-10-31.md). The previous three functional SEO commits were uploaded, exact Git trees verified and GitHub HEAD confirmed `1317bc6403ed6f435bbb3af0bb44cb3179efa844` before this documentation commit. Any older assertions below that commits are local-only are superseded. Next necessary step is lead-owned integration and a genuine authorized first-client release/HTTPS/Chromium/human pilot, not another synthetic feature sprint.
+
+## 31 October 2026 — independent SEO transfer: actual published cross-route duplicates
+
+The original private HTTP-to-DOM QA now detects repeated live-output SEO title+description or substantial main content **between different approved indexable canonical routes**, across already approved original public HTTP plus desktop/tablet/mobile rendered DOM. Four usable scopes yield P1 manual candidate; single-field, partial or JS-only evidence stays P2/unknown. Browser v2 mismatch/blocked/error/unstable source is withheld. New [PUBLISHED-CONTENT-COLLISION-QA.md](PUBLISHED-CONTENT-COLLISION-QA.md) details conservative thresholds and privacy: text/fingerprints remain in memory and do not enter reports. The same Crawl queue, both-route P1 matrix and Operator Workspace consume findings; no new API/CLI/dashboard, real client, Google result, CMS change, PR, merge or deploy. Five focused offline real Node smoke tests passed, including mocked Playwright. Local branch now has three SEO-only functional commits absent from remote unless independently confirmed; previously verified remote HEAD `8bb8d7f99cea486b98fd8ab9795774a89846e7da`, push was denied without explicit authorization. Main lead alone integrates and runs first owner-approved same-release customer pilot.
+
+## 31 October 2026 — latest SEO worker transfer: published internal-link graph
+
+The existing rendered-content audit and **one** private SEO Operator Workspace now reconcile approved indexable/canonical route reachability from `/` across actual saved HTTP markup and desktop/tablet/mobile DOM. P1 orphan/unreachable assertions require all four complete source graphs; a partial Chromium pilot is **unknown**, and mobile/desktop graph divergence is P2 manual review. New [PUBLISHED-LINK-GRAPH-QA.md](PUBLISHED-LINK-GRAPH-QA.md) explains source safety, unchanged pilot CLI and Node smoke. This work is **local-only at present**: preceding hreflang SHA `29ad11fbae823fbe7a87620653afbb6a416dc0ff` could not be pushed because remote-write approval was denied; last verified GitHub HEAD `8bb8d7f99cea486b98fd8ab9795774a89846e7da`. Do not tell the main integrator the new files are in GitHub until an explicitly authorized push succeeds. All edits remain strictly in `stage3/seo-engine/**`, no PR/merge/deploy/CMS/CI.
+
+## 31 October 2026 — new independent SEO transfer: complete international annotation sources
+
+The worker confirmed `feature/site-seo-engine` baseline `8bb8d7f99cea486b98fd8ab9795774a89846e7da`, then expanded **the same** `seo-hreflang-qa.cjs` and original bounded public HTTP collector to inspect **three equivalent hreflang carriers**: HTML head, captured HTTP `Link` response header, and directly enumerated XHTML links in XML sitemap `urlset`. Same-method approved-route reciprocity and cross-method locale conflicts enter the existing private Crawl Workspace/route matrix; no new config, fetch, CLI or dashboard. A single method or no alternates on a monolingual website is allowed; missing header fields/child sitemaps/external-language targets stay unverified. Seven focused synthetic real Node smoke programs passed on checkout (see latest handoff); real Chromium, actual approved client revision and Google data were not tested. Read [HREFLANG-PUBLIC-RENDERED-QA.md](HREFLANG-PUBLIC-RENDERED-QA.md), [INTEGRATION-HANDOFF.md](INTEGRATION-HANDOFF.md) and the new front matter of [SEO-WORKER-NEXT-CHAT-2026-10-31.md](SEO-WORKER-NEXT-CHAT-2026-10-31.md). Verify final GitHub branch HEAD after commit; lead alone integrates, captures real client evidence and publishes.
+
+## 31 October 2026 — SEO worker functional extension, desktop/tablet/mobile
+
+Latest additive feature: [RENDERED-FIRST-CLIENT-UX-QA.md](RENDERED-FIRST-CLIENT-UX-QA.md). Existing approved, sandboxed Chromium capture now optionally stores numeric-only source-bound responsive, navigation timing/FCP/resource and main text footprint observations. Existing HTTP/rendered DOM QA detects restricted Blueprint internal link rel attributes, noncrawlable anchor growth, source-safe cross-page fragment targets and potential mobile text loss. No raw customer text/resource URLs/fragment strings in reports, no new browser authorization/scope, no Google or WCAG certification. Old v2/v1 remains accepted, with new evidence unknown when absent. Existing Workspace and lead-readiness human gate extended, no new panel. Main integrator is sole owner of merge and first real customer run; independent worker changes strictly SEO subtree, never PR/merge/deploy.
+
+## 31 October 2026 — independent SEO worker: semantic JSON-LD runtime comparison
+
+Added [RENDERED-STRUCTURED-DATA-QA.md](RENDERED-STRUCTURED-DATA-QA.md): reuse existing bounded Structured Data inspection for source-pinned HTTP and desktop/tablet/mobile rendered DOM, detect unchanged-type owner claim mutations, unconfirmed/unapproved entity injections, canonical/breadcrumb/context errors and incomplete semantic evidence. Existing rendered-content QA, private report, lead readiness and the **one** Operator Workspace receive P0/P1/P2 directly. No private values or claim hashes emitted, no invented Google or approval facts. This worker obtained checkout at `f16b782c8ccd6ec47bb16c46f4dcedc32c3f51f3`; focused Node smokes really ran, while real Chromium, CI and customer pilot have **not**. Sole lead integrator continues to own deployment/merge. Branch boundary `stage3/seo-engine/**` only.
+
+## 31 October 2026 — final small SEO media QA hardening and worker handoff
+
+The `browser-image-loading-v1` first-screen hero heuristic now measures the **clipped visible viewport intersection**, not the original full element rectangle. This eliminates large-hero false positives when a massive offscreen image shows only a few pixels at the fold. Added a synthetic `img` regression in `tests/seo-browser-image-observation-smoke.cjs`, updated [RENDERED-IMAGE-LOADING-QA.md](RENDERED-IMAGE-LOADING-QA.md), and prepared [SEO-WORKER-NEXT-CHAT-2026-10-31.md](SEO-WORKER-NEXT-CHAT-2026-10-31.md). Independent worker changes stay under `stage3/seo-engine/**`; previous committed Node/Chromium/client integration **not** marked passed. Main developer remains sole integrator; no PR/merge/deploy.
+
+## 31 October 2026 — browser image loading / first-viewport SEO QA
+
+NEW independent SEO feature: [RENDERED-IMAGE-LOADING-QA.md](RENDERED-IMAGE-LOADING-QA.md). Reuses the already approved and bounded Chromium rendered-source collector, v2 source-pinned DOM artifact, same private HTTP-to-DOM audit, and existing single SEO Operator Workspace. Each desktop/tablet/mobile capture now optionally measures 13 bounded `img` counters: visibly broken/pending images, large first-screen failures, above-fold `loading=lazy`, missing alt/dimension attributes, and >1.5× apparent upscaling. The collector double-samples to flag changing image state as unknown and invalidates image/CSS observations if the DOM changes. V2 old evidence without image counts remains valid/unknown. P1 for broken visible/large hero candidates; P2 for lazy above-fold, attributes, upscale, pending/unknown. Never identifies Google LCP/CLS or live provenance; no asset URLs or alt content in counters. Changes solely in `stage3/seo-engine/**`, no PR/merge/deploy; lead performs final integration and real customer pilot. Synthetic V8 observation checked; full Node/Chromium/live site must be separately confirmed.
+
+## 31 October 2026 — source-pinned computed CSS visibility SEO QA
+
+NEW first-client SEO block: [RENDERED-VISIBILITY-QA.md](RENDERED-VISIBILITY-QA.md). Existing public Chromium capture now observes bounded CSS layout visibility for H1, H2–H6 headings, main and approved CTA/navigation anchors at desktop/tablet/mobile. Two snapshots 250 ms apart flag changing CSS as unknown. The v2 DOM artifact optionally records source-hash-bound CSS counts; old v2/v1 without CSS remains accepted and marked CSS unknown. The existing private rendered-content audit/Workspace reports P1 CSS-hidden H1/main/all H2–H6/CTAs; P2 partial secondary headings, collapsed navigation and visible aria-hidden/inert content. No text/foreign URLs in CSS metrics, no second panel, no source authenticity/Google/release claim. All edits strictly `stage3/seo-engine/**`, lead integrator owns merge/deployment. Focused smoke added but complete checkout/real Chromium not run in this restricted environment.
+
+## 30 October 2026 — Chromium rendered-source first-client pilot collector
+
+**Delivered in SEO worker branch only:** [RENDERED-CAPTURE-PILOT.md](RENDERED-CAPTURE-PILOT.md). This extends the existing read-only HTTP-to-DOM reconciliation with an **explicitly operator-run Chromium collector**; it is not a CMS feature, a site template or a new operator dashboard.
+
+- `lib/seo-rendered-capture.cjs`: approved Blueprint/Site/public-HTTPS triple validation, public-only DNS/IPv4 pin, sandboxed isolated Playwright Chromium contexts, explicit GET/HEAD same-mount routing, WebSocket/service-worker and unsafe navigation blocks, 80-requests-per-device budget, full desktop/tablet/mobile DOM serialization. Refuses invalid or mutable input envelopes.
+- `bin/capture-rendered-public.cjs`: operator CLI requires `--blueprint --site --public-http --origin --out`; source-hashed no-overwrite private artifact plus redacted integrity receipt. Never run without a human-approved real public host.
+- `schemas/viewport-capture-v2.schema.json`: strict schema with raw original HTTP capture file SHA256 **and** browser main-response-body SHA256 per page/device, explicit booleans for unmatched HTML, JavaScript errors, blocked requests, and DOM stability. No server or Google provenance is claimed.
+- `lib/seo-rendered-content-audit.cjs`: backward-compatible v1/v2 intake. For v2, a changed browser main response or unsettled DOM fails closed to P1/uninspected; existing private static HTML/Markdown report now shows browser source match, drift, blocked-request, JS error and unstable DOM counts.
+- `tests/seo-rendered-capture-smoke.cjs`: focused offline Node smoke with mocked browser, no network. The checkout test and a real authorized Chromium/site pilot **still require execution**; this note does not claim they passed.
+
+Offline first-site preflight: pass `--mode preflight` with all source flags to validate approved sources, mount, selected IDs, browser loader and private target without DNS, Chromium launch, writing output, HTTP requests or publishing; this does **not** verify runtime sandbox or real host.
+
+Optional first-page pilot: CLI `--page-ids` selects 1–8 approved Blueprint IDs. The receipt labels partial coverage and the existing audit marks all unselected pages uninspected; never interpret a subset as full SEO acceptance.
+
+Operator flow: existing `capture-public-https.cjs` → new `capture-rendered-public.cjs` → existing `review-rendered-content.cjs` or existing Operator Workspace `crawl.renderedCapture`. These are source observations only: no Google rendering, owner source revision, approval, publish/deploy or release signoff is authenticated. All original DOM stays outside Git; main developer is the only integrator.
+
+## 30 October 2026 — Rendered Content / HTTP-to-DOM SEO Reconciliation (independent worker)
+
+**NEW coherent pilot block:** `lib/seo-rendered-content-audit.cjs`, `lib/seo-rendered-content-view.cjs`, `bin/review-rendered-content.cjs`, `tests/seo-rendered-content-smoke.cjs` and [RENDERED-CONTENT-QA.md](RENDERED-CONTENT-QA.md). Compares original approved Blueprint + owner Site v1 + captured public HTTPS HTML against operator-provided desktop/tablet/mobile **rendered DOM**, strictly matching exact site ID, route and HTTPS mount. Checks critical canonical/noindex JavaScript mutation, metadata/title/lang mutation, missing H1/main, approved CTA/internal destinations, JSON-LD root-type shifts and evidence gaps. Only original file SHA256, stable IDs/route and counts appear in private reports; no original customer markup/claims or deployment. Legacy `static-html` method is explicitly not a real rendered source. Source revision, browser and Google provenance remain **UNVERIFIED**.
+
+The **existing** SEO Operator Workspace now accepts optional `crawl.renderedCapture` alongside `publicCapture`, original `cmsBlueprint` and `cmsSite`. It links `rendered-content.html/.md/.json` in the same private workspace and includes hashes in `LEAD-PACKET-INTEGRITY.json`. Source-bound Lead Readiness gets a **13th** human gate `rendered-seo-content-parity`, P0 BLOCKED, absent/incomplete evidence NEEDS-EVIDENCE, otherwise LEAD-REVIEW-REQUIRED — never release GO. No CMS, PHP, main, CI, PR, merge or production change. See the workflow doc for the exact CLI, input contract and limitations.
+
+**Verification honesty:** core diagnostic exercised in **isolated actual Node in-memory** with real Blueprint/HTML/head parsers (clean source pair 0 findings; changed title/canonical/H1 detected). Entire checkout smoke `node stage3/seo-engine/tests/seo-rendered-content-smoke.cjs` and CI have **not** been run on the SEO branch. Lead developer must run integrated Node smoke before pilot. Sole integration owner remains `feature/stage3-ai-site-contract`.
+
+---
+
+# MANUFACT AI Site CMS — SEO Worker Final Transfer, 30 October 2026
+
+**Repository:** https://github.com/manufact-test/ai-site-cms
+
+**Current independent SEO worker branch:** `feature/site-seo-engine`. **Strict ownership:** `stage3/seo-engine/**` ONLY. The CMS lead is the **sole integrator** and works separately in `feature/stage3-ai-site-contract`. **Neither branch is a public release.** Do not touch PHP, Studio, SDK, stage3 bin, root package.json, main, GitHub Actions or the lead branch; no PR, auto-merge, deploy, real HTTP POST, external Google API, or copying private customer evidence into the repository.
+
+**Work pace:** user expects a substantial, roughly 30-minute functional block per "продолжаем", not tiny fixes or endless synthetic tests. Do significant useful engineering, focused verification and good docs in one pass; do not pretend elapsed time, complete CI, live acceptance or production GO.
+
+## 1. Live branch and CI snapshot (dated, refresh every new turn)
+
+At 2026-10-30 handoff, the SEO branch was at functional-and-guide checkpoint `b2200f14f0a67963f3295201d33288710b472a5c`; after committing these final transfer documents the HEAD is necessarily newer. **ALWAYS fetch live HEAD before writes; do not treat these SHA strings as branch locks.**
+
+**Final GitHub recheck on 2026-10-30:** lead HEAD `85824750e7a48d7b07734a4fccfd29937645cd43` has [Actions run 41053644247](https://github.com/manufact-test/ai-site-cms/actions/runs/41053644247) **completed SUCCESS**; the previous lead commit `aad8597103ccbfb0c455142b8b39f713417e5376` completed [run 41053303999](https://github.com/manufact-test/ai-site-cms/actions/runs/41053303999) **success**. Earlier, [run 41053045175](https://github.com/manufact-test/ai-site-cms/actions/runs/41053045175) on old lead commit `fa40f9cf03ce87c23499e97a0f557959cc3b5cff` failed in job `contract`, step `Server syntax and one full HTTP persistence/publish E2E`. Do not treat that historical failure as the CURRENT status or assume that a future, unverified commit has passed. This is the **lead's own branch**, not proof the SEO worker caused any issue; never modify lead-owned files. The SEO branch had **no GitHub Actions runs** at the last check; full Node CI cannot be inferred. Refresh both heads and both CI statuses at the start of the next chat.
+
+## 2. The bigger SEO subsystem already in this worker branch
+
+The subtree is broad. Avoid duplicating what exists:
+
+- Original `lib/blueprint.cjs` v1 authoritative private SEO Brief → canonical Blueprint compiler/checker; semantic page/SEO/fact/section/CTA/link and Schema.org candidate contracts.
+- `bin/seo-blueprint-studio.cjs` and `lib/blueprint-studio.cjs`: full offline responsive operator editor, draft import/export, preview of page link graph/architecture and previous Blueprint baseline. `BLUEPRINT-STUDIO-QUICKSTART.md`.
+- `bin/compare-seo-blueprints.cjs`, `lib/blueprint-change-*.cjs`, `lib/blueprint-decision-editor.cjs`, `bin/review-blueprint-decisions.cjs`: plan-to-plan before/after impact, routes, canonicals, robot changes, schema facts, future redirect probes, P0/P1/P2 tasks, offline Decision Desk and strict source-bound human decision check. `BLUEPRINT-CHANGE-REVIEW.md`.
+- Existing extensive Site v1 and approved sealed-v2 read-only adapters, PHP loopback SEO/HTML/media/form/head checks, verified static upload ZIP, Apache/Netlify/Cloudflare rewrite/header previews, public HTTPS/media byte verifier, CDN drift, first-site launch cockpit, operator workspace, private lead relay, actual browser/device/form acceptance templates, and release/source version checks. These are lead-controlled acceptance **evidence**, not automatic publication.
+- Offline Google Search Console Search Performance, manual history/cohorts, Indexing Intelligence from operator-normalized rows, indexing history, CMS implementation work packets, search operations and manual release follow-up; never equate operator CSV status with authenticated current Google indexation.
+- New 30 Oct crawl search-delivery intelligence: `lib/crawl-policy.cjs`, `lib/crawl-policy-view.cjs`, `bin/review-crawl-policy.cjs`: original operator-supplied robots/sitemap policy against exact approved Blueprint routes. Googlebot/Bingbot/wildcard rule-specific decisions, sitemap-index unexpanded restrictions, optional complete/sample coverage, noindex/canonical mismatches, protected XML parsing, private HTML/JSON/Markdown and original-source manifest.
+- `lib/crawl-policy-delta.cjs`, `lib/crawl-policy-delta-view.cjs`, `bin/compare-crawl-policy.cjs`: same-Blueprint before/after original robots/sitemap comparison with new Googlebot blocks, lost indexable sitemap URLs, agent-rule/pointer changes, P0/P1/P2 manual work. No invented public claims.
+- `lib/crawl-indexing-correlation.cjs`, `lib/crawl-indexing-view.cjs`, `bin/correlate-crawl-indexing.cjs`: exact Blueprint byte SHA + operator-declared GSC indexing rows + original robots/sitemap → manual co-observation investigation. Does **not** establish causation or Google-authenticated status. `CRAWL-POLICY-WORKFLOW.md` and `SEARCH-INDEXING-WORKFLOW.md`.
+
+## 3. Final functional pass — new Crawl Repair Planner
+
+**Why:** the crawler modules could diagnose problems, but the lead still lacked usable proposed repair files. New safe, private, no-deployment authoring bridge:
+
+- `lib/crawl-repair-planner.cjs`: reconciles **operator-supplied** Site v1 against exact canonical Blueprint (all stable IDs, page routes, robots and canonical). Refuses malformed Site v1 format/schema, differing/missing/extra pages, robots/canonical mismatch, and redirects that shadow approved canonical indexable pages.
+- Generates **proposed** `sitemap.xml` with only self-canonical `index` Blueprint routes, absolute mount-aware HTTPS locs, stable order, safe XML escaping and **NO invented lastmod**.
+- Keeps original `robots.txt` policy. Optional `--allow-page-ids page-contact` and `--agents Googlebot,Bingbot` propose exact `Allow: /mounted/path/$` rules **only inside existing unambiguous single-agent groups**, after explicit operator selection. Never fabricates a new agent group or rewrites wildcard/shared/duplicate groups; noindex or canonical alias targets are refused. Missing sitemap pointer can be appended; conflicting existing pointers are preserved with manual hold.
+- Re-analyzes original vs candidate source policy with the existing authentic `crawl-policy.cjs` and `crawl-policy-delta.cjs`. Tracks intended unblocks, unexpected restored access and newly denied pages. Ambiguity results in human holds. Even all-green private candidate says `releaseAuthorized:false`.
+- `lib/crawl-repair-view.cjs`: no-script CSP-protected, escaped private responsive report showing source previews, proposed rules, route inventory, holds and the false release authorization.
+- `bin/prepare-crawl-repair.cjs`: accepts **four distinct original private sources** (Blueprint v1, Site v1, robots, sitemap) and HTTPS base; checks normalized absolute paths, file sizes, no symlinks/checkout input, atomic output, no overwrite and rehashes every original before promoting. Emits `index.html`, `PROPOSED-robots.txt`, `PROPOSED-sitemap.xml`, `CRAWL-REPAIR-PLAN.json/.md`, `SOURCE-MANIFEST.json` and `PRIVATE-README.md`. These are **NOT** a deployable static upload or official CMS files.
+- Tests: `tests/crawl-repair-smoke.cjs` and `tests/crawl-repair-cli-smoke.cjs`. Workflow manual: `CRAWL-REPAIR-WORKFLOW.md`.
+
+**End-to-end command example:**
+
+```bash
+node stage3/seo-engine/bin/prepare-crawl-repair.cjs \
+  --blueprint /ABS/private/approved-blueprint.json \
+  --site /ABS/private/current-site-v1.json \
+  --robots /ABS/private/original-robots.txt \
+  --sitemap /ABS/private/original-sitemap.xml \
+  --base https://site.example/ \
+  --allow-page-ids page-contact \
+  --agents Googlebot \
+  --out /ABS/private/NEW-repair-plan
+```
+
+Optional `--scope sample` for partial original sitemap and `--add-sitemap-pointer no`. Omit `--allow-page-ids` for sitemap-only suggestions. The actual owner authorization, implementation and subsequent public HTTPS/GSC review must be performed by the lead separately.
+
+## 4. What was actually verified, and what was not
+
+- Current core repair smoke **PASSED** in isolated JavaScript V8 adapter executing the actual GitHub module source, with simulated Node crypto/URL/Buffer/FS. The smoke includes exact single-agent patching, wildcard/shared-group manual holds, two agent modes, full vs partial vs sitemap-index handling, noindex refusal, mismatching Site v1 rejection, redirect collision rejection, and private HTML CSP.
+- A full two-module CLI staging flow **PASSED** in V8 with synthetic Node filesystem/crypto: 7 private output files, no overwrite, original-site mismatch rejection. Not a real Node execution.
+- `tests/crawl-repair-cli-smoke.cjs` was committed to run *real* Node child processes after the lead/next SEO worker has an integrated checkout, but has **not** been executed here.
+- Previous crawl policy, delta, crawler/GSC correlation module smoke and combined CLI flows were also checked with V8 adapters. Not full Node CI.
+- No SEO worker GitHub Actions run, no real client site/Google data, real frontend browser, real DNS/TLS/HTTP, file upload or client authorization was verified. Do not imply otherwise.
+
+## 5. Mandatory next-chat behavior and priorities
+
+1. At session start check live GitHub SEO branch, lead branch and latest Actions, and read this transfer plus `INTEGRATION-HANDOFF.md`, `CRAWL-REPAIR-WORKFLOW.md`, `CRAWL-POLICY-WORKFLOW.md`, `BLUEPRINT-CHANGE-REVIEW.md`, `BLUEPRINT-STUDIO-QUICKSTART.md`.
+2. Preserve SEO-only scope. Lead remains sole integrator. If full Node checkout is accessible, run focused new Node smoke and fix genuine blockers **inside SEO subtree**; do not spend an entire user-requested big pass on repeated tests.
+3. **Best next substantial product task:** integrate existing crawl policy/regression/correlation/repair original-source output into the existing private **SEO Operator Workspace** as one coherent launch/search-delivery panel, source-bound by Blueprint/site/public origin, with visible P0/P1/manual holds and next lead actions. Avoid creating another disconnected report/parallel CMS editor. The unified cockpit must never approve publishing or turn draft robots files into deployable official ZIP.
+4. Second priority: make high-value first-client SEO editing handoff actionable against the actual CMS model under existing lead-owned interfaces. Focus on real functionality and owner workflows rather than expanding the count of synthetic regressions.
+5. Every pass: commit **only `stage3/seo-engine/**`** on `feature/site-seo-engine`, use expected SHA, GitHub Compare to confirm zero outside-scope changes, update docs, check both heads and CI truthfully. Never silently integrate.
+6. If real customer/local/public evidence is missing, finish the independent code/product part; describe the external dependency without asking repeated questions.
+
+## 6. Suggested exact first commands for the next chat
+
+```bash
+node stage3/seo-engine/tests/crawl-repair-smoke.cjs
+node stage3/seo-engine/tests/crawl-repair-cli-smoke.cjs
+node stage3/seo-engine/tests/crawl-policy-smoke.cjs
+node stage3/seo-engine/tests/crawl-policy-regression-smoke.cjs
+node stage3/seo-engine/tests/crawl-indexing-correlation-smoke.cjs
+```
+
+All of these remain **local testing**, not customer acceptance. For the actual workflow see `CRAWL-REPAIR-WORKFLOW.md`. A complete combined lead handoff is in `INTEGRATION-HANDOFF.md`.
+
+
+## Worker continuation update — unified crawl operator workspace
+
+Following the earlier `e688834` crawl repair handoff, the SEO worker implemented the next substantial planned feature **inside the existing operator workspace**: `lib/seo-workspace-crawl-panel.cjs`, changes to `lib/seo-operator-workspace.cjs`, `bin/build-seo-operator-workspace.cjs`, and `tests/seo-workspace-crawl-smoke.cjs`. The private report accepts original crawl policy, optional original-source policy regression, optional original-source GSC indexing correlation and optional four-file repair dossier with **actual proposed byte SHA256 checks**. It shows combined P0/P1/P2 manual investigations, unapproved candidate text previews, private lead Markdown and source fingerprints. Enforces siteId, HTTPS mount and canonical Blueprint/source hash consistency; does not authenticate real Site v1, Google or host. It never merges, publishes or marks GO. See [CRAWL-WORKSPACE-INTEGRATION.md](CRAWL-WORKSPACE-INTEGRATION.md).
+
+**Verification:** isolated V8 JavaScript syntax passed on changed modules and the new smoke source; a V8 composition test of the real panel and operator landing page passed for crawl-only with HTML escaping, P0 task and no release. **Actual Node CLI/subprocess smoke, full CI, client HTTPS and real approval are still unverified.** The new real Node smoke is committed for lead/full-checkout execution. Consult GitHub HEAD after this doc update; do not treat older SHA as current. Keep worker-only scope.
+
+### CI and source verification snapshot after this continuation (2026-10-30)
+
+At the latest GitHub check, worker branch had **no Actions runs**; SEO changes were verified with isolated V8 syntax checks plus actual module composition using a simulated crypto adapter, including both the crawl-only and original-source policy + regression + candidate flows, correct unapproved output, escaping, P0/P1 and rejection of modified candidate text. The real Node-focused smoke remains committed but **unexecuted** by this worker environment.
+
+CMS lead branch advanced independently to `7677a1d40dbe7b15298083a3175f77c699bb7129`: [run 41064327572](https://github.com/manufact-test/ai-site-cms/actions/runs/41064327572) **FAILED** in job `contract` / step `Server syntax and one full HTTP persistence/publish E2E`, specifically PHP `DesignGraph.php:66` `editorial-php-card/style invalid gridTracks` from `stage3/tests/graph-interactions-smoke.php:306`. Its separate `technology-runtime` job **SUCCEEDED**. The earlier lead SHA `85824750e7a48d7b07734a4fccfd29937645cd43` [run 41053644247](https://github.com/manufact-test/ai-site-cms/actions/runs/41053644247) **PASSED**. These lead CI failures are outside SEO worker ownership; do not modify PHP, server tests or lead branch in SEO worker. Refresh live SHA and CI on handoff, as lead may commit at any time.
+
+GitHub Compare from previous SEO HEAD `e688834806ae5cb28024d27c37a0ca58955457f0` showed only **nine changed files**, all in `stage3/seo-engine/**`. The lead integrates independently.
+
+
+## Next substantial independent worker pass — CMS-targeted crawl action map (30 October 2026)
+
+The operator now has a **practical implementation bridge, not a duplicate module**: `lib/crawl-cms-implementation.cjs` + `lib/crawl-cms-implementation-view.cjs`, integrated into the existing `lib/seo-workspace-crawl-panel.cjs`, `lib/seo-operator-workspace.cjs` and `bin/build-seo-operator-workspace.cjs`. Optional same-private-workspace `crawl.cmsBlueprint`/ `crawl.cmsSite` original files generate `crawl-cms.html`, `crawl-cms-worklist.md` and read-only JSON. It differentiates Site v1 SEO-field drift, absent/extra IDs and routes, robots/sitemap publisher issues, canonical implementation constraints, redirect collisions, GSC manual inspections, and candidate holds. It verifies the exact source SHA256/canonical Blueprint and refuses mixed raw Site v1 / repair-manifest / GSC versions. No CMS/editor/host writes, no automatic content or draft file release. See [CRAWL-CMS-HANDOFF.md](CRAWL-CMS-HANDOFF.md).
+
+Added `tests/crawl-cms-workspace-smoke.cjs` with the actual industrial Blueprint fixture, drifted synthetic Site v1, Googlebot block, missing complete XML sitemap URL, extra page, conflicting redirect, CLI private output and mutation refusal. **Worker verification:** V8 syntax and actual module-composition check passed for Blueprint→Site drift→P0/P1 tasks→same Workspace renderer. The real Node smoke/CI and live customer acceptance were not executed in this independent GitHub-only environment. The lead must run them after integration. The older next-chat priorities remain unchanged: first real customer evidence after lead integration, then follow any actual blockers rather than repetitive synthetic test loops.
+
+
+Additional improvement within the same batch: explicit `crawl-cms:<sha256-prefix>` task IDs, responsible workstream (`CMS_EDITOR`, `PUBLISHER_LEAD`, `SEO_OPERATOR`, `OWNER_AND_LEAD`) and per-task evidence checklist for lead; `readyToImplement:false` on every task. This remains a human queue, not executable CMS patch/owner approval.
+
+
+## Subsequent substantial functional pass — CRAWL/CMS human decisions + actual recheck workflow
+
+New `lib/crawl-cms-lifecycle.cjs` enforces exact original worklist SHA256 and human ledger source, checks all task IDs/states, prevents fake public verification, and compares independent before/after operator worklists for persistent, newly observed, same issue with changed evidence, and absent-but-NOT-verified observations. It elevates owner-reported completion still observed and changed/new P0. `lib/crawl-cms-recheck-view.cjs` exposes that in offline CSP HTML/Markdown; `lib/crawl-cms-decision-desk.cjs` adds a substantive browser-only local editor, filters, local validation, import/export with pinned CSP script hash; `bin/recheck-crawl-cms-work.cjs` provides standalone template/recheck private CLI with refusal of repository inputs, symlinks, overwrites, mixed ledgers and source changes. All are used by the existing single Operator Workspace through optional `crawl.cmsBaseline`/`crawl.cmsDecisions` while keeping the current original Blueprint/Site v1.
+
+Existing `lib/crawl-cms-implementation.cjs` now exports stable `issueKey` distinct from task ID and original crawler agents/complete-sample scope/sitemap kind; comparisons refuse known scope mismatches, mark legacy insufficient scope unknown, NEVER auto-close task or promote to release. New smoke `tests/crawl-cms-lifecycle-smoke.cjs` tests prior completed task still observed, issue disappeared without authenticated verification, changed-topic task not inheriting decisions, scope mismatch, private CLI/worksheet and source-pin errors. Full details: [CRAWL-CMS-LIFECYCLE.md](CRAWL-CMS-LIFECYCLE.md).
+
+**Verification:** syntax/isolated V8 checks only in this GitHub-only worker; full real Node CLI smoke, GitHub Actions on SEO branch, actual public host, client signoff and GSC authentication remain UNVERIFIED. Run essential Node smokes after lead integration; do not confuse lead branch CI with SEO validation. Same scope and single integrator rules still apply.
+
+**Follow-up verification addendum:** actual GitHub source modules were checked in V8 (real compiler + lifecycle + offline Decision Desk + existing Workspace) with a synthetic crypto adapter; a simulated Node `fs`/`path` run of `bin/recheck-crawl-cms-work.cjs` produced four template files and seven follow-up files, source SHA ledger, no-overwrite and stale-decision refusal. **This is NOT real Node, Chrome or GitHub Actions CI**. Lead must execute the committed real-Node smokes before any client rollout.
+
+
+## Subsequent independent SEO worker pass — public HTTPS confirmation of manual crawl/CMS fixes
+
+New `lib/crawl-cms-public-followup.cjs`, `lib/crawl-cms-public-followup-view.cjs`, standalone `bin/review-crawl-public-fixes.cjs`, `tests/crawl-cms-public-followup-smoke.cjs`, integrated into **existing** private `seo-operator-workspace` / `seo-workspace-crawl-panel` using `crawl.publicCapture`. This reuses the project's READ-ONLY public GET transcript, original delivery evidence analyzer, approved Blueprint, Site v1 and robots/sitemap parser; no new crawler/network client. Each manual CMS work packet is correlated by stable task ID with supplied public robots, sitemap, canonical page response/meta, X-Robots-Tag, title/description/OG. The three possible results are aligned-but-NOT-verified, still-conflicting or insufficient. Route/owner source revisions, client signoff and Google indexing remain **unauthenticated**, no auto-closure. Independent delivery HTTP errors displayed separately. Standalone CLI private bounded files, SHA256 source ledger, atomic no-overwrite output, and HTML with no script/external assets. See [CRAWL-PUBLIC-FOLLOWUP.md](CRAWL-PUBLIC-FOLLOWUP.md).
+
+Real-Node smoke is committed for lead; independent SEO worker V8 syntax/source checks do NOT constitute real Node or customer acceptance. Refresh current branch and CI when continuing. Continue substantial independent SEO functionality but avoid duplicating CMS, PHP, studio, publisher or already available public HTTPS collector.
+
+
+**Last public-capture hardening:** refuse a mixed/deployed-while-capturing root recheck as proof of any task clearance, and refuse a canonical 200 redirect-collision fix when the negative-route probe indicates SPA soft-404. Existing delivery errors are independently surfaced. The real-Node smoke includes these conditions for lead checkout; no SEO-branch Actions or authenticated customer host test was executed here.
+
+
+## Later independent SEO functional pass — complete first-client lead readiness + unsigned bundle integrity
+
+New `lib/seo-lead-readiness.cjs` creates 11 deterministic lead-only gates from the **existing** compiled launch, Search History, URL Indexing, Crawl/CMS, public HTTP follow-up and human acceptance reports. Clear separate prelaunch `BLOCKED` / `NEEDS-EVIDENCE` / `LEAD-REVIEW-REQUIRED` and postlaunch `POST-LAUNCH-DEFERRED` (GSC and historical observations); no false percentage complete and no permission for CMS Save, release, owner signoff or Google assertions. `lib/seo-lead-readiness-view.cjs` produces offline CSP HTML/Markdown/JSON; source pins include original first-site, approved Blueprint/Site, crawl policy, public HTTP, human lead contract, Search History and (if provided) Indexing report raw SHA256. Local public delivery errors and unknown fix observations cannot quietly become GO. The SAME `lib/seo-operator-workspace.cjs` builds the lead card automatically, no extra config or second dashboard.
+
+New `lib/seo-private-lead-integrity.cjs` and `bin/verify-seo-lead-packet.cjs` verify **unsigned local SHA256** of every generated private output, exact filenames, symlink refusal, no unexpected files and original workspace source hashes. This is protected local byte **consistency**, NOT a signed provenance record. `bin/build-seo-operator-workspace.cjs` emits `LEAD-PACKET-INTEGRITY.json` alongside `workspace-manifest.json`, preventing unknown edits after handoff. `tests/seo-lead-readiness-smoke.cjs` is the focused Node smoke for lead to run; real Node/CI integration and actual client site remain UNVERIFIED in isolated SEO worker. All changes strictly under `stage3/seo-engine/**` on `feature/site-seo-engine`; lead branch and CMS are not touched. Full workflow: [FIRST-CLIENT-LEAD-READINESS.md](FIRST-CLIENT-LEAD-READINESS.md).
+
+
+## Final big pass before transferring to next SEO worker — per-client semantic JSON-LD auditing
+
+New standalone `lib/seo-structured-data-audit.cjs` and private `bin/review-structured-data.cjs`: actual per-client JSON-LD semantic check on original operator-supplied public HTTPS HTML; compares known published types with **that site's** approved Blueprint `schemaCandidates`/owner fact eligibility, canonical/host/mount and BreadcrumbList position/tail, flags malformed JSON-LD/@context/URLs and owner-unverified review/price/offer/address claims. It is **not** a website layout/template library; no schema is autogenerated and no page is edited. No automatic rich-result eligibility assertion. New `lib/seo-structured-data-view.cjs` no-script CSP private HTML; `tests/seo-structured-data-smoke.cjs` committed real Node test. Existing `seo-workspace-crawl-panel.cjs`, `seo-operator-workspace.cjs`, `build-seo-operator-workspace.cjs`, `seo-lead-readiness.cjs` and `seo-private-lead-integrity.cjs` were extended to reuse existing `crawl.publicCapture` and generate a schema panel, exact private output SHA256 receipt and 12th lead-only readiness gate. Existing `public-static-head.cjs` only did same-head parity; it remains unchanged. V8 actual-source test confirmed clean original Organization example = 0 findings; risky rating/offer and invalid foreign BreadcrumbList = 4 P1 issues; missing page stays unknown; no underlying claim values copied. This is NOT a real Node test or authenticated public host inspection. Main developer stays sole integrator.
+
+**Next SEO worker must read this file and `STRUCTURED-DATA-QA.md`, verify the latest branch HEAD and continue only within `stage3/seo-engine/**`. First action should be one focused full real-Node/CI regression once an integrated checkout is accessible, not dozens of repeated mock tests. Prefer new substantial, customer-useful SEO functionality if a material gap remains (or help lead's first-client pilot) rather than another dashboard or generic website templates. Never PR/merge/deploy or mutate lead branch.**

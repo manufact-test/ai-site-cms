@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Caller-supplied media response evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "siteId",
+    "origin",
+    "resources"
+  ],
+  "properties": {
+    "format": {
+      "const": "manufact-seo-media-evidence-v1"
+    },
+    "siteId": {
+      "type": "string"
+    },
+    "origin": {
+      "type": "string",
+      "format": "uri"
+    },
+    "completeness": {
+      "enum": [
+        "partial",
+        "complete"
+      ]
+    },
+    "resources": {
+      "type": "array",
+      "maxItems": 400,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assetId",
+          "url",
+          "status",
+          "contentType"
+        ],
+        "properties": {
+          "assetId": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          },
+          "contentType": {
+            "type": "string",
+            "maxLength": 150
+          },
+          "contentLength": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  }
+}

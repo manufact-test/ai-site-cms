@@ -1,0 +1,703 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Read-only original public Chromium rendered SEO capture v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "siteId",
+    "origin",
+    "capturedAt",
+    "publicCaptureRawSha256",
+    "browser",
+    "pages",
+    "httpSourceAuthenticated",
+    "browserProvenanceAuthenticated",
+    "sourceRevisionAuthenticated",
+    "googleRenderingVerified",
+    "releaseAuthorized"
+  ],
+  "properties": {
+    "format": {
+      "const": "manufact-seo-viewport-evidence-v2"
+    },
+    "siteId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,79}$"
+    },
+    "origin": {
+      "type": "string",
+      "format": "uri"
+    },
+    "capturedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "publicCaptureRawSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine",
+        "requestPolicy",
+        "ephemeralContext"
+      ],
+      "properties": {
+        "engine": {
+          "const": "chromium-playwright"
+        },
+        "requestPolicy": {
+          "const": "same-origin-GET-HEAD-no-websocket"
+        },
+        "ephemeralContext": {
+          "const": true
+        }
+      }
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 60,
+      "items": {
+        "$ref": "#/$defs/page"
+      }
+    },
+    "httpSourceAuthenticated": {
+      "const": false
+    },
+    "browserProvenanceAuthenticated": {
+      "const": false
+    },
+    "sourceRevisionAuthenticated": {
+      "const": false
+    },
+    "googleRenderingVerified": {
+      "const": false
+    },
+    "releaseAuthorized": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "html",
+        "htmlSha256",
+        "requestUrl",
+        "responseUrl",
+        "status",
+        "viewport",
+        "collectedAt",
+        "blockedRequests",
+        "blockedReasons",
+        "pageErrors",
+        "stableMarkup",
+        "serverResponseSha256",
+        "matchesOriginalHttpBody"
+      ],
+      "properties": {
+        "method": {
+          "const": "rendered-dom"
+        },
+        "html": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 250000
+        },
+        "htmlSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "requestUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "responseUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "status": {
+          "const": 200
+        },
+        "viewport": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "width",
+            "height"
+          ],
+          "properties": {
+            "width": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "collectedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "blockedRequests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pageErrors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stableMarkup": {
+          "type": "boolean"
+        },
+        "serverResponseSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "matchesOriginalHttpBody": {
+          "type": "boolean"
+        },
+        "blockedReasons": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "offOrigin",
+            "outsideMount",
+            "unsafeMethod",
+            "unapprovedNavigation",
+            "requestBudget",
+            "other"
+          ],
+          "properties": {
+            "offOrigin": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "outsideMount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unsafeMethod": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unapprovedNavigation": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "requestBudget": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "other": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "visibility": {
+          "$ref": "#/$defs/cssVisibility"
+        },
+        "media": {
+          "$ref": "#/$defs/mediaObservation"
+        },
+        "responsive": {
+          "$ref": "#/$defs/responsiveObservation"
+        },
+        "timing": {
+          "$ref": "#/$defs/timingObservation"
+        },
+        "textFootprint": {
+          "$ref": "#/$defs/textObservation"
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "captures"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{2,79}$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/(?:[a-z0-9-]+/)*$"
+        },
+        "captures": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "desktop",
+            "tablet",
+            "mobile"
+          ],
+          "properties": {
+            "desktop": {
+              "$ref": "#/$defs/capture"
+            },
+            "tablet": {
+              "$ref": "#/$defs/capture"
+            },
+            "mobile": {
+              "$ref": "#/$defs/capture"
+            }
+          }
+        }
+      }
+    },
+    "cssTally": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "layoutVisible",
+        "visiblyExcluded"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "layoutVisible": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "visiblyExcluded": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        }
+      }
+    },
+    "cssRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "anchors",
+        "layoutVisible",
+        "visiblyExcluded"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/(?:[a-z0-9-]+/)*$"
+        },
+        "anchors": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "layoutVisible": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "visiblyExcluded": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        }
+      }
+    },
+    "cssVisibility": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "status",
+            "checkedAt",
+            "htmlSha256",
+            "h1",
+            "main",
+            "secondaryHeadings",
+            "routes"
+          ],
+          "properties": {
+            "method": {
+              "const": "computed-css-layout-v1"
+            },
+            "status": {
+              "const": "observed"
+            },
+            "checkedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "htmlSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "h1": {
+              "$ref": "#/$defs/cssTally"
+            },
+            "main": {
+              "$ref": "#/$defs/cssTally"
+            },
+            "secondaryHeadings": {
+              "$ref": "#/$defs/cssTally"
+            },
+            "routes": {
+              "type": "array",
+              "maxItems": 60,
+              "items": {
+                "$ref": "#/$defs/cssRoute"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "status",
+            "checkedAt",
+            "reason"
+          ],
+          "properties": {
+            "method": {
+              "const": "computed-css-layout-v1"
+            },
+            "status": {
+              "const": "unavailable"
+            },
+            "checkedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "reason": {
+              "enum": [
+                "sampling-error",
+                "element-limit",
+                "dom-changed-during-sampling",
+                "css-changing-during-sampling"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "mediaCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "visible",
+        "visibleFailed",
+        "visiblePending",
+        "aboveFold",
+        "aboveFoldLazy",
+        "largeAboveFold",
+        "largeAboveFoldFailed",
+        "largeAboveFoldLazy",
+        "visibleMissingAlt",
+        "visibleEmptyAlt",
+        "visibleMissingDimensions",
+        "visibleUpscaled"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "visible": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "visibleFailed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "visiblePending": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "aboveFold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "aboveFoldLazy": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "largeAboveFold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "largeAboveFoldFailed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "largeAboveFoldLazy": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "visibleMissingAlt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "visibleEmptyAlt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "visibleMissingDimensions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "visibleUpscaled": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "mediaObservation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "status",
+            "checkedAt",
+            "htmlSha256",
+            "counts"
+          ],
+          "properties": {
+            "method": {
+              "const": "browser-image-loading-v1"
+            },
+            "status": {
+              "const": "observed"
+            },
+            "checkedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "htmlSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "counts": {
+              "$ref": "#/$defs/mediaCounts"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "status",
+            "checkedAt",
+            "reason"
+          ],
+          "properties": {
+            "method": {
+              "const": "browser-image-loading-v1"
+            },
+            "status": {
+              "const": "unavailable"
+            },
+            "checkedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "reason": {
+              "enum": [
+                "sampling-error",
+                "element-limit",
+                "dom-changed-during-sampling",
+                "image-state-changing-during-sampling"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "responsiveCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "viewportMetaPresent",
+        "viewportMetaDeviceWidth",
+        "viewportMetaMultiple",
+        "viewportMetaFixedWidth",
+        "viewportMetaZoomRestricted",
+        "horizontalOverflowPx",
+        "prominentVisible",
+        "prominentClipped",
+        "interactiveVisible",
+        "interactiveUnder24",
+        "interactiveUnder44",
+        "interactiveMissingName",
+        "textBlocksVisible",
+        "textBlocksUnder12",
+        "largeFixedOverlayCandidates"
+      ],
+      "properties": {
+        "viewportMetaPresent": {"type":"integer","minimum":0,"maximum":1},
+        "viewportMetaDeviceWidth": {"type":"integer","minimum":0,"maximum":1},
+        "viewportMetaMultiple": {"type":"integer","minimum":0,"maximum":1},
+        "viewportMetaFixedWidth": {"type":"integer","minimum":0,"maximum":1},
+        "viewportMetaZoomRestricted": {"type":"integer","minimum":0,"maximum":1},
+        "horizontalOverflowPx": {"type":"integer","minimum":0,"maximum":200000},
+        "prominentVisible": {"type":"integer","minimum":0,"maximum":1600},
+        "prominentClipped": {"type":"integer","minimum":0,"maximum":1600},
+        "interactiveVisible": {"type":"integer","minimum":0,"maximum":1800},
+        "interactiveUnder24": {"type":"integer","minimum":0,"maximum":1800},
+        "interactiveUnder44": {"type":"integer","minimum":0,"maximum":1800},
+        "interactiveMissingName": {"type":"integer","minimum":0,"maximum":1800},
+        "textBlocksVisible": {"type":"integer","minimum":0,"maximum":1600},
+        "textBlocksUnder12": {"type":"integer","minimum":0,"maximum":1600},
+        "largeFixedOverlayCandidates": {"type":"integer","minimum":0,"maximum":3500}
+      }
+    },
+    "responsiveObservation": {
+      "oneOf": [
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","htmlSha256","counts"],
+          "properties":{
+            "method":{"const":"browser-responsive-layout-v1"},
+            "status":{"const":"observed"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "htmlSha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+            "counts":{"$ref":"#/$defs/responsiveCounts"}
+          }
+        },
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","reason"],
+          "properties":{
+            "method":{"const":"browser-responsive-layout-v1"},
+            "status":{"const":"unavailable"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "reason":{"enum":["sampling-error","element-limit",
+              "dom-changed-during-sampling","layout-changing-during-sampling"]}
+          }
+        }
+      ]
+    },
+    "timingCounts": {
+      "type":"object",
+      "additionalProperties":false,
+      "required":["responseStartMs","responseEndMs","domContentLoadedMs",
+        "loadEventEndMs","firstContentfulPaintMs","resourceCount","resourceTransferBytes"],
+      "properties":{
+        "responseStartMs":{"type":"integer","minimum":1,"maximum":120000},
+        "responseEndMs":{"type":"integer","minimum":1,"maximum":120000},
+        "domContentLoadedMs":{"type":"integer","minimum":1,"maximum":120000},
+        "loadEventEndMs":{"type":"integer","minimum":1,"maximum":120000},
+        "firstContentfulPaintMs":{"oneOf":[{"type":"integer","minimum":0,"maximum":120000},{"type":"null"}]},
+        "resourceCount":{"type":"integer","minimum":0,"maximum":250},
+        "resourceTransferBytes":{"type":"integer","minimum":0,"maximum":50000000}
+      }
+    },
+    "timingObservation": {
+      "oneOf":[
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","htmlSha256","counts"],
+          "properties":{
+            "method":{"const":"browser-navigation-timing-v1"},
+            "status":{"const":"observed"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "htmlSha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+            "counts":{"$ref":"#/$defs/timingCounts"}
+          }
+        },
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","reason"],
+          "properties":{
+            "method":{"const":"browser-navigation-timing-v1"},
+            "status":{"const":"unavailable"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "reason":{"enum":["sampling-error","navigation-timing-unavailable",
+              "resource-limit","dom-changed-during-sampling",
+              "timing-changing-during-sampling"]}
+          }
+        }
+      ]
+    },
+    "textCounts": {
+      "type":"object",
+      "additionalProperties":false,
+      "required":["mainRegions","mainRawTextChars","mainRenderedTextChars",
+        "mainRenderedWords","textBlocks","visibleTextBlocks","hiddenTextBlocks"],
+      "properties":{
+        "mainRegions":{"type":"integer","minimum":0,"maximum":5},
+        "mainRawTextChars":{"type":"integer","minimum":0,"maximum":250000},
+        "mainRenderedTextChars":{"type":"integer","minimum":0,"maximum":250000},
+        "mainRenderedWords":{"type":"integer","minimum":0,"maximum":250000},
+        "textBlocks":{"type":"integer","minimum":0,"maximum":1500},
+        "visibleTextBlocks":{"type":"integer","minimum":0,"maximum":1500},
+        "hiddenTextBlocks":{"type":"integer","minimum":0,"maximum":1500}
+      }
+    },
+    "textObservation": {
+      "oneOf":[
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","htmlSha256","counts"],
+          "properties":{
+            "method":{"const":"browser-main-text-footprint-v1"},
+            "status":{"const":"observed"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "htmlSha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+            "counts":{"$ref":"#/$defs/textCounts"}
+          }
+        },
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","reason"],
+          "properties":{
+            "method":{"const":"browser-main-text-footprint-v1"},
+            "status":{"const":"unavailable"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "reason":{"enum":["sampling-error","element-limit",
+              "dom-changed-during-sampling","text-changing-during-sampling"]}
+          }
+        }
+      ]
+    }
+  }
+}

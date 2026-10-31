@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Compiled SEO blueprint v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "siteId",
+    "title",
+    "language",
+    "region",
+    "audience",
+    "goal",
+    "facts",
+    "research",
+    "pages",
+    "unresolved",
+    "notes"
+  ],
+  "properties": {
+    "format": {
+      "const": "manufact-seo-blueprint-v1"
+    },
+    "version": {
+      "const": 1
+    },
+    "siteId": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string"
+    },
+    "region": {
+      "type": "string"
+    },
+    "audience": {
+      "type": "string"
+    },
+    "goal": {
+      "type": "string"
+    },
+    "facts": {
+      "type": "array"
+    },
+    "research": {
+      "type": "array"
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "path",
+          "name",
+          "intent",
+          "seo",
+          "sections",
+          "links",
+          "schemaCandidates",
+          "responsive"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "intent": {
+            "type": "object"
+          },
+          "seo": {
+            "type": "object",
+            "required": [
+              "title",
+              "description",
+              "robots",
+              "ogTitle",
+              "ogDescription",
+              "canonicalPath"
+            ]
+          },
+          "sections": {
+            "type": "array"
+          },
+          "links": {
+            "type": "array"
+          },
+          "schemaCandidates": {
+            "type": "array"
+          },
+          "responsive": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "unresolved": {
+      "type": "array"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

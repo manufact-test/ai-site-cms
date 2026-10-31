@@ -1,0 +1,116 @@
+## Specific technical gates in human action queue
+
+The source-bound private `next-actions.html` now includes exact original PHP gate IDs/descriptions and published HTTPS/media blocker codes and concise reasons whenever they are present. They are taken from the same owner-published PHP bundle and public report already validated by the launch cockpit; release identity is checked again, and this detail never changes the authoritative P0/P1 counts or the non-authorizing status. The page links locally to `launch.html` for full technical evidence. The offline editor additionally requires submitted and destination evidence identifiers of at least three characters, matching the strict Node reviewer, so operators are not misled by successful local validation of invalid one-character references.
+
+## 30 October 2026 — operator action queue in private workspace
+
+When a valid source-bound human acceptance review is supplied to the offline SEO Operator Workspace, it now independently builds the action queue from verified per-page/browser/manual and PHP-form claims; a new `next-actions.html` displays P0 failures, P1 missing checks, exact pages/viewports/form sections, owners, and evidence needed. `index.html` shows an actionable summary link and counts. The queue is **derived** from the human review already checked against the original PHP source bundle; no externally supplied next-actions JSON can override it. The page has no script, network or private receipt links and always retains owner signoff. The integration runner's `human-review` phase automatically generates this page alongside `human.html`. Standalone private workspace generation also supports it when human review is attached. This is not authenticated client approval or production deployment.
+
+## Form failure before any POST is legal evidence (not fictitious success)
+
+A tested form can fail **before a network POST exists** (inert submit button, JavaScript exception, client validation defect). In `version:2` private operator records, such a `state:"failed"` entry requires an operator, timestamp, general `evidenceRef` and failure notes, but **may leave `submissionEvidenceRef` blank**. Successful entries still require independent POST and destination-side receipts. The report now separates `operatorFormObservations` (all reviewed form attempts), `operatorFormPostReceipts` / `submittedFormEvidenceReceipts` (actual operator-claimed submitted POST proofs), and `confirmedFormDeliveryReceipts` (actual operator-claimed destination checks). A no-POST failure is flagged as urgent, not counted as submitted. The offline desk and HTML report use the same distinction. No claims are automatically authenticated or granted release permission.
+
+## Private dashboard: verified per-page/browser manual task completeness
+
+The existing `human.html` SEO Operator Workspace now independently reconstructs the expected desktop/tablet/mobile tasks for **every original PHP page** plus all global manual checks. It refuses reports where aggregate counts mask omitted, duplicated, substituted or unexpectedly reordered task identities. Pending and failed browser/manual tasks are displayed individually with their route/viewport; no private evidence references are echoed. This complements the new `LIVE-ACCEPTANCE-NEXT-ACTIONS.json/.md` owner work queue and the exact per-form evidence matrix. The panel remains an operator-only, offline claim — no independent visual proof, real POST, authenticated recipient delivery or client authorization.
+
+## Actionable human acceptance remediation (new private output)
+
+The `first-site-live-acceptance.cjs review` action now also saves `LIVE-ACCEPTANCE-NEXT-ACTIONS.json` and `.md`. Based on original source-bound page/device/manual task statuses and each actual PHP form section, the queue names failed/pending checks, owner, priority (`P0` observed failure / source technical blockers; `P1` pending manual work), and evidence required. It always retains a separate independent owner/client authorization task even if all operator boxes are ticked. The plan contains no form payload, HMAC, recipient addresses, operator notes or private receipt URLs; it has `readOnly:true` and `releaseAuthorized:false`. A pass in this plan never proves a real POST or client approval.
+
+## Offline browser/mobile first-site acceptance desk (version 2)
+
+The private `first-site-live-acceptance.cjs template` CLI now writes **`LIVE-ACCEPTANCE-DESK.html`** in its private output directory. Open it locally on the operator's computer (never upload it). It renders every source-bound page × desktop/tablet/mobile and manual check, as well as every original PHP form section; operator can mark pass/fail, provide dates, separate POST and delivery evidence references, and download a filled JSON. Existing private drafts for the SAME pinned site/version/ZIP can be re-imported; foreign revisions, extra tasks and unknown form sections are refused. Responsive offline HTML uses a hash-locked local script and CSP denying network connections. The UI does not send POSTs or auto-verify proof. The **authoritative** review remains `first-site-live-acceptance.cjs review --filled /ABS/private/filled.json ...`; only that validation produces a report, never release GO. The generated HTML and filled data are private operational files and must remain outside GitHub.
+
+## 30 October 2026 — independent form POST and delivery receipts (version 2)
+
+A manually asserted successful form POST is **not** a delivery check. The private live human acceptance template is now `version:2`. Each `formTests[]` record must include `submissionEvidenceRef` for a real authorized HTTP POST; `state:"passed"` additionally requires a **distinct** `deliveryEvidenceRef`, a `deliveryChannel` (`email`, `telegram`, `persistence`, `webhook`, `other`) and a `deliveryObservedAt` date not earlier than the POST observation. Failed forms may contain notes but cannot claim successful delivery. An incomplete passed form is rejected rather than being counted as success. Private summary and HTML expose only aggregate counts, not the underlying receipt references. Forms still have to match the exact PHP `page`+`sectionId`. `version:1` edited input is intentionally rejected; regenerate the template and fill genuine evidence after lead integration. No network POST or actual delivery is conducted by the SEO Engine.
+
+### Private human form-testing worksheet
+
+The existing `first-site-live-acceptance.cjs template` action now emits `LIVE-FORM-POST-WORKSHEET.md` next to the machine JSON. It lists each **real PHP sectionId by public route**, plus a separate operator task to verify authorized POST, visible browser state, persistence/notification receipt and private proof. The worksheet contains no POST data and is intentionally unfilled. Copy exact `page`/`sectionId` into `formTests[]` with genuine private evidence. Every unseen form remains missing; no public form requests are generated by this tool.
+
+## 29 October 2026 — exact PHP form-instance acceptance
+
+The original PHP audit `bundle.json.localPhpForms.pages[].formInstances` now contains **only** the Site v1 sectionId for each verified lead form observed in the page's actual local PHP HTML, never POST data, HMAC markers, recipients or private tokens. Human operator templates include `required.formRefsByPage` (route → exact section IDs). Each `formTests[].formRef` MUST equal the original sectionId on that route. Fabricated references no longer count; unidentifiable, duplicated, extra or missing PHP form instances require repair and recapture before creating a human template.
+
+The private review emits `checks.perFormChecks` with passed/failed/missing for **every** form and the local HTML workspace shows individual missing sections; aggregate form counts cannot substitute another form. Legacy private evidence without these section identities must be regenerated. No automatic browser, authorized POST, inbox/delivery verification, release, deploy, client approval or CMS modification is performed. The lead must independently authenticate all real-world receipts and get client approval.
+
+## Final worker handoff update — 29 October 2026
+
+**New actual client-acceptance functionality:** The original local PHP audit `seo-report/bundle.json -> localPhpForms.pages` now controls the mandatory number of **real form POST receipts per public page**, not just a site-wide total. The private human acceptance template pins the PHP bundle SHA256, identifies form expectations per route and rejects receipts on pages where no form was observed, duplicated route+form IDs, and excess receipts. The private `human.html` workspace displays each source-bound page's actual confirmed/expected receipt count and refuses manipulated totals. An all-pass operator attestation still does **not** prove real client signature or grant deployment authorization.
+
+**Session integrity:** New `lib/first-site-session-source-pin.cjs` and smoke freeze all direct private owner/evidence inputs, original PHP summary/bundle, upload manifest and public ZIP before local/public HTTPS stages and rehash them before writing `INTEGRATION-SESSION.json`. If any input changes, the **new private session** is discarded rather than presenting stale mixed-release evidence. Standalone real-world human CLI also rechecks the edited observations and re-verifies ZIP + static upload bytes before promoting its reviewed output. No public POST, CMS write, merge, PR or hosting deploy.
+
+**Mandatory next action:** The lead branch still does not contain these SEO workflow files; only the CMS lead should integrate the SEO subtree and run focused Node smokes, followed by a real owner-published Site v1 / Approved Site v2 / PHP/HTTPS/browser/form client acceptance. No worker CI runs or full Node live client verification can be claimed. See [SEO-WORKER-FINAL-TRANSFER-2026-10-29.md](SEO-WORKER-FINAL-TRANSFER-2026-10-29.md) and [FIRST-SITE-LEAD-QUICKSTART.md](FIRST-SITE-LEAD-QUICKSTART.md).
+
+## Actual per-page form inventory — 29.10.2026 (replaces aggregate-only counting)
+
+The private `first-site-live-acceptance.cjs` now requires the original immutable `candidate/seo-report/bundle.json` in addition to `summary.json`. It reads `bundle.localPhpForms.pages[].path/actualForms`, validates each public content route against the SHA256-verified upload inventory and checks that summed forms equal the local PHP aggregate. The template records `pinned.originalPhpReviewBundleSha256` and `required.formOccurrencesByPage`.
+
+After manual authorized production POST tests, `formTests[]` must include distinct `page + formRef` entries for **each observed PHP form on its own published route**. One page's extra checks cannot compensate for an untested form on another page. `checks.missingFormPages[]` and `checks.perPageFormReceipts{}` show precise deficits; the private `human.html` has a per-page list. A form receipt assigned to a public page with zero forms is rejected. No receipt can be counted twice.
+
+The operator signs each genuine browser/form observation; the tool never performs a POST or checks recipient inboxes. Source-side JS/HTML observations are not proof of delivery, TLS origin, privacy consent, client approval, or final GO. Changing original bundle, ZIP, public static files, contract or filled evidence during a review makes the tool refuse and discard its new output.
+
+**Important:** This requires a fresh private human acceptance template from the updated CLI. An older aggregate-only edited template must be regenerated; never silently migrate old passes to a new release.
+
+# First-site LIVE human acceptance — browser, forms and client
+
+The manual acceptance matrix is a practical checklist for actual approved production websites, NOT a second SEO report engine. It reads a source-pinned public-phase lead relay plus the existing PHP/static and actual observed public HTTPS verification. All operator evidence remains private, and each review returns releaseAuthorized:false.
+
+## Prepare
+The public integration session creates live-acceptance-template/live-acceptance-template.json automatically. To rebuild a blank fresh template:
+~~~bash
+node stage3/seo-engine/bin/first-site-live-acceptance.cjs template --candidate /ABS/private/local/candidate --contract /ABS/private/public/lead-relay/INTEGRATION-CONTRACT.json --post-deploy /ABS/private/public/post-deploy/post-deploy-summary.json --out /ABS/private/NEW-template
+~~~
+All paths must be private and outside GitHub; no overwrite or symlink source. The tool checks original candidate/PHP summary SHA256, static upload inventory, independent ZIP CRC32/SHA256, exact lead relay SHA references, owner version and post-deploy report SHA256 before creating anything.
+
+## Edit the complete ORIGINAL template privately
+Public content page routes are derived from the verified upload inventory; fallback redirects and 404 are excluded. Each page gets independent desktop/tablet/mobile tasks. Seven required manual checks cover host TLS/DNS/source provenance, client design, keyboard/JS interactions, privacy/consent, full form POST coverage, client approval and rollback.
+
+All generated pinned/required fields must stay untouched. Each task initially has state unreviewed, observedAt:null, checkedBy:"", evidenceRef:"", notes:"". For actually checked tasks, change state to passed or failed, supply operator, YYYY-MM-DD date and PRIVATE evidence reference. A failed task also needs a reason. An unchecked item must remain unreviewed.
+
+Example REAL form receipt entry (append to formTests array; do not replace other fields):
+~~~json
+{
+  "page":"/contact/",
+  "formRef":"lead-main",
+  "state":"passed",
+  "observedAt":"2026-10-29",
+  "checkedBy":"Site lead",
+  "evidenceRef":"private://actual-post-notification-receipt",
+  "notes":""
+}
+~~~
+No secrets, HMAC, submission content, email addresses or recipient private details in the editable file. Each real form must be submitted with consent and checked for persistence and recipient notification by the authorized lead. Distinct page+formRef pairs are required; duplicate rows cannot count twice.
+
+Actual PHP forms.markupObserved is a workload estimate, not an authenticated unique form inventory. Therefore the manual real-form-inventory task remains mandatory regardless of POST receipt count.
+
+## Review
+~~~bash
+node stage3/seo-engine/bin/first-site-live-acceptance.cjs review --candidate /ABS/private/local/candidate --contract /ABS/private/public/lead-relay/INTEGRATION-CONTRACT.json --post-deploy /ABS/private/public/post-deploy/post-deploy-summary.json --filled /ABS/private/edited-live-acceptance.json --out /ABS/private/NEW-reviewed-acceptance
+~~~
+Output: live-acceptance-review.json/md and privacy note. All original private evidence remains untouched. Unknown/removed/duplicate tasks, stale SHA, wrong site/version/ZIP/post report, missing operator/date/private receipt or failed form are refused or explicitly flagged.
+
+Statuses:
+- TECHNICAL-EVIDENCE-BLOCKED: original public technical match is not proven.
+- HUMAN-OBSERVATIONS-FAILED: explicit failed browser, accessibility, privacy, approval or form check.
+- HUMAN-EVIDENCE-INCOMPLETE: pending page/device/manual tasks or missing real form POST receipts.
+- OPERATOR-ATTESTED-REQUIRES-OWNER-AUTHORIZATION: complete *operator assertion* for the exact release, NEVER an automatic GO.
+
+The CLI does not perform real browser, HTTPS/TLS authentication, POST, inbox/Telegram testing, client signature, host write, PR or merge. The lead independently checks original operator receipts and obtains approval; changed versions/hosting require new snapshots and new attestation. Never commit these files.
+
+## Unified manual human acceptance in the private SEO workspace (29.10.2026)
+
+After the actual operator completes the private live browser/device/form template, run first-site-live-acceptance.cjs review on the exact public lead relay and post-deploy summary. The resulting live-acceptance-review.json can be added to the existing unified private SEO Operator Workspace, along with the **original** lead relay contract, by adding the optional sibling config:
+
+~~~json
+"liveAcceptance": {
+  "report": "/ABS/private/actual-live-acceptance-review.json",
+  "contract": "/ABS/private/actual-public-phase-lead-relay/INTEGRATION-CONTRACT.json"
+}
+~~~
+
+It MUST be accompanied by firstSite.summary and firstSite.postDeploy from the SAME original PHP/source and public release; exact raw SHA256 of the human report's lead contract, PHP summary and postDeploy report are compared. The workspace adds human.html with checked/pending/failed tasks and actual POST receipt counts, never an automatic GO. Offline claims remain subject to independent real TLS, screenshots, mail/Telegram delivery and client signoff.
+
+The one-command first-site integration runner supports optional search-phase keys liveAcceptanceReview and liveAcceptanceContract **together**. This permits a single later private workspace including local launch, public technical evidence, human acceptance, real indexing and Search History, only when each source identity agrees. If the human review is not available, omit both keys and proceed with observational GSC reports without fabricating acceptance.

@@ -37,6 +37,16 @@ jobs:
           node --check stage3/tests/contract-smoke.cjs
           node --check stage3/tests/design-graph-interop-smoke.cjs
           node stage3/tests/contract-smoke.cjs
+      - name: SEO Engine focused first-client contracts (offline only)
+        run: |
+          node stage3/seo-engine/tests/seo-hreflang-smoke.cjs
+          node stage3/seo-engine/tests/seo-rendered-content-smoke.cjs
+          node stage3/seo-engine/tests/seo-rendered-capture-smoke.cjs
+          node stage3/seo-engine/tests/seo-workspace-crawl-smoke.cjs
+          node stage3/seo-engine/tests/seo-first-client-coverage-smoke.cjs
+          node stage3/seo-engine/tests/seo-operator-workspace-smoke.cjs
+          node stage3/seo-engine/tests/first-site-live-evidence-pipeline-smoke.cjs
+          node stage3/seo-engine/tests/public-https-capture-smoke.cjs
       - name: Verify standalone browser bundle matches contract SDK exactly
         run: |
           node --check stage3/studio/build.cjs

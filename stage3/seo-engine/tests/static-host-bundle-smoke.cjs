@@ -1,0 +1,114 @@
+'use strict';
+// Verify real filesystem staging in a temporary directory, while replacing
+// ONLY the upstream CMS static-release trust source with a controlled fixture.
+// No network, deployment or CMS mutation.
+const assert=require('node:assert/strict'),fs=require('node:fs'),
+ path=require('node:path'),crypto=require('node:crypto'),
+ os=require('node:os'),vm=require('node:vm');
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+const PREVIEW=require('../lib/static-host-preview.cjs');
+const ZIP=require('../lib/static-upload-zip.cjs');
+const VERIFY=require('../lib/static-upload-zip-verify.cjs');
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'cms-seo-static-stage-'));
+try{
+ const source=path.join(root,'official'),site={siteId:'pilot',language:'en',
+  pages:[{path:'/'},{path:'/about/'}],redirects:[{from:'/old/',to:'/about/'}]};
+ fs.mkdirSync(source);
+ const inputs={
+  'index.html':'<!doctype html><html><body><main>Home</main></body></html>',
+  'about/index.html':'<!doctype html><html><body><main>About</main></body></html>',
+  'old/index.html':'<!doctype html><html><head><meta name="robots" content="noindex,follow"></head><body>Moved</body></html>',
+  'assets/logo.webp':'RIFF-public-media-fixture',
+  'robots.txt':'User-agent: *\nAllow: /\n',
+  'sitemap.xml':'<urlset></urlset>'
+ };
+ for(const [name,body] of Object.entries(inputs)){
+  const p=path.join(source,name);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,body);
+ }
+ const releaseManifest={format:'manufact-ai-static-site-v1',siteId:'pilot',
+  publishedVersion:4,sourceRevision:'rev-4',publicOrigin:'https://pilot.example',
+  pages:[{path:'/',file:'index.html',sha256:sha(inputs['index.html'])},
+   {path:'/about/',file:'about/index.html',sha256:sha(inputs['about/index.html'])}],
+  redirects:[{from:'/old/',to:'/about/',file:'old/index.html',sha256:sha(inputs['old/index.html'])}],
+  assets:[{id:'logo',file:'assets/logo.webp',mime:'image/webp',
+   sha256:sha(inputs['assets/logo.webp'])}],
+  searchFiles:{'robots.txt':sha(inputs['robots.txt']),'sitemap.xml':sha(inputs['sitemap.xml'])}
+ };
+ const meta=Buffer.from(JSON.stringify(releaseManifest)+'\n');
+ fs.writeFileSync(path.join(source,'release-manifest.json'),meta);
+ const release={siteId:'pilot',publishedVersion:4,sourceRevision:'rev-4',
+  origin:'https://pilot.example',manifestSha256:sha(meta),
+  recordsVerified:Object.keys(inputs).length,findings:[]};
+ const redirects={apache:{content:'RewriteEngine On\nRewriteRule ^old/$ /about/ [R=301,L]\n'},
+  nginx:{content:'location = /old/ { return 301 /about/; }\n'},
+  netlify:{content:'/old/  /about/  301!\n'},
+  cloudflarePages:{content:'/old/  /about/  301\n'}};
+ const STATIC={isVerified:x=>x===release,
+  read:()=>{if(sha(fs.readFileSync(path.join(source,'release-manifest.json')))!==release.manifestSha256)
+   throw Error('official manifest changed');return release}};
+ const src=fs.readFileSync(path.join(__dirname,'../lib/static-host-bundle.cjs'),'utf8');
+ const mod={exports:{}};
+ vm.runInNewContext('(function(require,module,exports,Buffer){'+src+'\n})',
+  {URL,console})((name)=>name==='node:fs'?fs:name==='node:path'?path:
+   name==='node:crypto'?crypto:name==='./php-local-static-export.cjs'?STATIC:
+   name==='./static-host-rewrites.cjs'?{build:()=>({origin:release.origin,...redirects})}:
+   name==='./static-host-headers.cjs'?{build:()=>({content:'/*\n  X-Content-Type-Options: nosniff\n'})}:
+   name==='./static-host-preview.cjs'?PREVIEW:
+   (()=>{throw Error('Unexpected require '+name)})(),mod,mod.exports,Buffer);
+ const B=mod.exports;
+ const inv=B.inventory(site,release,source,'cloudflare-pages');
+ assert.equal(inv.expectedUploadFileCount,10);
+ assert.ok(!inv.records.some(r=>r.file==='release-manifest.json'));
+ const output=path.join(root,'cloudflare-out'),actual=B.prepare(site,release,source,output,'cloudflare-pages');
+ assert.equal(actual.files,10);
+ assert.equal(actual.actualHostWrites,0);
+ assert.ok(fs.existsSync(path.join(output,'public','_redirects')));
+ assert.ok(fs.existsSync(path.join(output,'public','_headers')));
+ const publicMarker=JSON.parse(fs.readFileSync(path.join(output,'public','ai-site-release.json'),'utf8'));
+ assert.equal(publicMarker.publishedVersion,4);
+ assert.equal(publicMarker.officialManifestSha256,release.manifestSha256);
+ assert.ok(!Object.hasOwn(publicMarker,'sourceRevision'));
+ const notFound=fs.readFileSync(path.join(output,'public','404.html'),'utf8');
+ assert.ok(notFound.includes('noindex,follow'));
+ assert.ok(notFound.includes('href="/"'));
+ assert.ok(!fs.existsSync(path.join(output,'public','release-manifest.json')));
+ assert.ok(!fs.existsSync(path.join(output,'public','upload-inventory.json')));
+ const ledger=JSON.parse(fs.readFileSync(path.join(output,'upload-inventory.json'),'utf8'));
+ assert.equal(ledger.sourceManifestIncludedInPublicRoot,false);
+ assert.equal(ledger.filesVerified,10);
+ const preview=PREVIEW.load(output);
+ assert.equal(PREVIEW.route(preview,'GET','/').status,200);
+ assert.equal(PREVIEW.route(preview,'GET','/about/').status,200);
+ assert.equal(PREVIEW.route(preview,'GET','/ai-site-release.json').status,200);
+ assert.equal(PREVIEW.route(preview,'HEAD','/robots.txt').status,200);
+ assert.equal(PREVIEW.route(preview,'GET','/old/').status,301);
+ assert.equal(PREVIEW.route(preview,'GET','/old/').headers.Location,'/about/');
+ assert.equal(PREVIEW.route(preview,'GET','/absent/').status,404);
+ assert.equal(PREVIEW.route(preview,'GET','/release-manifest.json').status,404);
+ assert.equal(PREVIEW.route(preview,'POST','/').status,405);
+ assert.equal(preview.liveRewriteVerified,false);
+ const packaged=ZIP.zip(output,path.join(root,'public-upload.zip'));
+ const secondZip=ZIP.zip(output,path.join(root,'repeat-public-upload.zip'));
+ const verifiedZip=VERIFY.verify(packaged.output,output);
+ assert.equal(packaged.sha256,secondZip.sha256);
+ assert.equal(packaged.sha256,verifiedZip.sha256);
+ assert.equal(verifiedZip.fileCount,actual.files);
+ assert.equal(verifiedZip.operatorPrivateFilesIncluded,false);
+ assert.ok(!fs.readFileSync(packaged.output).includes('release-manifest.json'));
+ const corruptedArchive=path.join(root,'corrupted.zip');
+ const corrupt=fs.readFileSync(packaged.output);
+ corrupt[41]^=0xff;
+ fs.writeFileSync(corruptedArchive,corrupt);
+ assert.throws(()=>VERIFY.verify(corruptedArchive,output),/ZIP|SHA256|CRC32|central|header|checksum/);
+ assert.throws(()=>B.prepare(site,release,source,output,'cloudflare-pages'),/overwrite/);
+ assert.throws(()=>B.inventory(site,release,source,'unsupported'),/supported provider/);
+ const second=path.join(root,'nginx-out');
+ B.prepare(site,release,source,second,'nginx');
+ assert.ok(fs.existsSync(path.join(second,'nginx-redirects.conf')));
+ assert.ok(!fs.existsSync(path.join(second,'public','_redirects')));
+ fs.appendFileSync(path.join(output,'public','about','index.html'),'corrupted');
+ assert.throws(()=>PREVIEW.load(output),/changed or escaped/);
+ fs.appendFileSync(path.join(source,'assets/logo.webp'),'tamper');
+ assert.throws(()=>B.inventory(site,release,source,'apache'),/changed since SHA256/);
+ console.log('Static upload: copy root/aliases/assets/search; host redirects; strip private manifest; SHA256 anti-tamper PASS');
+}finally{fs.rmSync(root,{recursive:true,force:true});}

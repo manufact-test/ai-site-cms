@@ -1,0 +1,86 @@
+{
+  "format": "manufact-seo-analysis-v1",
+  "version": 1,
+  "mode": "html-snapshot",
+  "siteId": "site-bad-example",
+  "issues": [
+    {
+      "code": "html:broken-link",
+      "severity": "error",
+      "pageId": "page-guide",
+      "path": "/",
+      "message": "Local link target /missing/ is absent from snapshot."
+    },
+    {
+      "code": "html:missing-alt-attribute",
+      "severity": "error",
+      "pageId": "page-guide",
+      "path": "/",
+      "message": "Image has no alt attribute (decorative images need alt=\"\")."
+    },
+    {
+      "code": "html:missing-title",
+      "severity": "error",
+      "pageId": "page-guide",
+      "path": "/",
+      "message": "HTML document has no nonempty title."
+    },
+    {
+      "code": "html:heading-skip",
+      "severity": "warning",
+      "pageId": "page-guide",
+      "path": "/",
+      "message": "Heading jumps from H2 to H4."
+    },
+    {
+      "code": "html:missing-h1",
+      "severity": "warning",
+      "pageId": "page-guide",
+      "path": "/",
+      "message": "No H1 found."
+    },
+    {
+      "code": "html:noindex-sitemap",
+      "severity": "warning",
+      "pageId": "page-guide",
+      "path": "/",
+      "message": "Noindex page appears in supplied sitemap list."
+    },
+    {
+      "code": "html:generic-anchor",
+      "severity": "recommendation",
+      "pageId": "page-guide",
+      "path": "/",
+      "message": "Context-free anchor \"Подробнее\" may be unclear."
+    },
+    {
+      "code": "html:missing-description",
+      "severity": "recommendation",
+      "pageId": "page-guide",
+      "path": "/",
+      "message": "No meta description (Google may generate one)."
+    },
+    {
+      "code": "html:missing-description",
+      "severity": "recommendation",
+      "pageId": "page-help",
+      "path": "/help/",
+      "message": "No meta description (Google may generate one)."
+    },
+    {
+      "code": "html:unlinked-page",
+      "severity": "recommendation",
+      "pageId": "page-help",
+      "path": "/help/",
+      "message": "No incoming internal anchors in supplied snapshot."
+    }
+  ],
+  "capabilities": {
+    "siteContract": "not provided",
+    "htmlSnapshot": true,
+    "parser": "static heuristic (not DOM, not rendered JS)",
+    "robotsSitemap": "supplied artifacts only; HTTP rules not fetched",
+    "measuredPerformance": false
+  },
+  "disclaimer": "Static checks only. No keyword volume, ranking, accessibility certification or field Core Web Vitals measurements."
+}
