@@ -460,14 +460,85 @@ async function execute(){
   // Actual Chromium renders of the OWNER Studio (synthetic CI content only).
   // These go into the existing screenshot artifact, not a new UI/test system;
   // they are evidence for later human visual review, never owner sign-off.
+  // The page/section tree exposes the current location to assistive technology
+  // and keeps keyboard focus on the selected item after the existing redraw.
+  await page.waitForFunction(()=>document.querySelectorAll('#pages .nav-entry[aria-current="page"]').length===1&&
+    document.querySelectorAll('#sections .nav-entry[aria-current="location"]').length===1);
+  assert.equal(await page.locator('#pages .nav-entry[aria-current="page"]').count(),1);
+  assert.equal(await page.locator('#sections .nav-entry[aria-current="location"]').count(),1);
+  const secondPage=page.locator('#pages .nav-entry').last();
+  await secondPage.focus();
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>document.activeElement?.matches('#pages .nav-entry.active[aria-current="page"]'));
+  const lastSection=page.locator('#sections .nav-entry').last();
+  await lastSection.focus();
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>document.activeElement?.matches('#sections .nav-entry.active[aria-current="location"]'));
+  const firstPage=page.locator('#pages .nav-entry').first();
+  await firstPage.focus();
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>document.activeElement?.matches('#pages .nav-entry.active[aria-current="page"]'));
+  const tabletDevice=page.locator('.canvas-toolbar .devices [data-bp="tablet"]');
+  const desktopDevice=page.locator('.canvas-toolbar .devices [data-bp="desktop"]');
+  await tabletDevice.click();
+  await page.waitForFunction(()=>document.querySelector('.canvas-toolbar .devices [data-bp="tablet"]')?.getAttribute('aria-pressed')==='true');
+  assert.equal(await desktopDevice.getAttribute('aria-pressed'),'false');
+  await desktopDevice.click();
+  await page.waitForFunction(()=>document.querySelector('.canvas-toolbar .devices [data-bp="desktop"]')?.getAttribute('aria-pressed')==='true');
+  await page.locator('.skip-link').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'main-content',
+    'Skip link must move keyboard focus to the main editor workspace');
+  await page.evaluate(()=>window.scrollTo(0,0));
+
+  const contrastSamples=await page.evaluate(()=>{
+    const linear=c=>{c/=255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;};
+    const luminance=value=>{
+      const m=value.match(/[\\d.]+/g)?.map(Number)||[0,0,0];
+      return .2126*linear(m[0])+.7152*linear(m[1])+.0722*linear(m[2]);
+    };
+    const background=element=>{
+      for(let node=element;node;node=node.parentElement){
+        const color=getComputedStyle(node).backgroundColor;
+        if(color&&color!=='transparent'&&color!=='rgba(0, 0, 0, 0)')return color;
+      }
+      return 'rgb(255, 255, 255)';
+    };
+    return ['.eyebrow','.subdued','.nav-title','.field-path:not([role="alert"])']
+      .map(selector=>document.querySelector(selector))
+      .filter(Boolean).map(element=>{
+        const fg=getComputedStyle(element).color,bg=background(element);
+        const a=luminance(fg),b=luminance(bg),ratio=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+        return {selector:element.className,color:fg,background:bg,ratio};
+      });
+  });
+  assert.ok(contrastSamples.length>=3,'Representative owner UI text must be present for contrast review');
+  assert.ok(contrastSamples.every(sample=>sample.ratio>=4.5),
+    'Small owner UI text must meet WCAG AA contrast: '+JSON.stringify(contrastSamples));
+
   const studioScreenDir=path.join(root,'stage3/studio/out');
   fs.mkdirSync(studioScreenDir,{recursive:true});
+  const assertNoHorizontalOverflow=async label=>{
+    const metrics=await page.evaluate(()=>({
+      viewport:document.documentElement.clientWidth,
+      document:document.documentElement.scrollWidth,
+      body:document.body.scrollWidth
+    }));
+    assert.ok(metrics.document<=metrics.viewport+1&&metrics.body<=metrics.viewport+1,
+      label+' must not create page-level horizontal scrolling: '+JSON.stringify(metrics));
+  };
   await page.evaluate(()=>{
     for(const node of document.querySelectorAll('#server-tools details,#server-admin-more'))
       node.open=false;
   });
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-desktop.png'),fullPage:true});
+  await page.setViewportSize({width:1024,height:900});
+  await assertNoHorizontalOverflow('Studio at 1024px');
+  await page.setViewportSize({width:768,height:900});
+  await assertNoHorizontalOverflow('Studio at 768px');
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-tablet.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});
+  await assertNoHorizontalOverflow('Studio at 390px');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-mobile.png'),fullPage:true});
   await page.setViewportSize({width:1400,height:1000});
   await page.locator('#server-edit-page').click();
@@ -477,7 +548,16 @@ async function execute(){
     return !!frame?.contentDocument?.querySelector('[data-cms-section-id],section[id]');
   });
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-desktop.png'),fullPage:true});
+  await page.setViewportSize({width:768,height:900});
+  await assertNoHorizontalOverflow('Workbench at 768px');
+  await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="tablet"]').click();
+  await page.waitForFunction(()=>!!document.querySelector('#cms-page-preview-frame')?.contentDocument?.querySelector('[data-cms-section-id],section[id]'));
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-tablet.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});
+  await assertNoHorizontalOverflow('Workbench at 390px');
+  const mobileDialogBox=await page.locator('#cms-page-preview').boundingBox();
+  assert.ok(mobileDialogBox&&mobileDialogBox.x>=0&&mobileDialogBox.x+mobileDialogBox.width<=391,
+    'Workbench dialog must remain inside the phone viewport');
   await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="mobile"]').click();
   await page.waitForFunction(()=>!!document.querySelector('#cms-page-preview-frame')?.contentDocument?.querySelector('[data-cms-section-id],section[id]'));
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-mobile.png'),fullPage:true});

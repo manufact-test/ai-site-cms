@@ -8,6 +8,7 @@
 <script src="./bundle.js" defer></script>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Перейти к рабочей области</a>
 <div class="shell">
 <header class="topbar">
  <div class="brand"><span class="brand-icon">M<span class="spark">✦</span></span><div><strong>AI Site CMS</strong><small>MANUFACT · STAGE 3 / ISOLATED STUDIO</small></div></div>
@@ -19,14 +20,14 @@
  </div>
 </header>
 <div class="workspace">
-<aside class="sidebar">
+<aside class="sidebar" aria-label="Навигация и структура сайта">
  <div class="panel-top"><span class="eyebrow">РАБОЧИЙ ПРОЕКТ</span><h1 id="site-name">Загрузка…</h1><p class="subdued">Структура сайта</p></div>
  <div class="site-actions"><button class="btn small" id="import" title="Открыть код и поля сайта, разработанного отдельно от CMS">Импорт сайта (JSON)</button><input type="file" id="import-file" accept=".json,application/json" hidden></div>
  <div class="nav-title">СТРАНИЦЫ</div><nav id="pages" aria-label="Страницы"></nav>
  <div class="nav-title">БЛОКИ СТРАНИЦЫ</div><nav id="sections" aria-label="Блоки"></nav>
  <div class="sidebar-bottom"><span class="live-dot"></span>Работает локально и без сети<div class="subdued">Это изолированный прототип редактора. Не публикация и не Hostinger.</div></div>
 </aside>
-<main class="center">
+<main class="center" id="main-content" tabindex="-1">
  <div class="canvas-toolbar"><div><span class="eyebrow">ПРЕДПРОСМОТР БЛОКА</span><h2 id="canvas-title">Выберите блок</h2><p class="subdued" id="canvas-caption">Сайт не опубликован</p></div>
  <div class="devices" role="group" aria-label="Ширина экрана">
   <button class="device active" data-bp="desktop">ПК</button><button class="device" data-bp="tablet">Планшет</button><button class="device" data-bp="mobile">Телефон</button>
@@ -35,9 +36,9 @@
  <div class="canvas-footer"><span>Только выбранный блок · Без внешних запросов</span><span id="changes-count">0 изменений</span></div>
  <section class="history"><div class="history-heading"><h3>Сохранённые версии</h3><div><button class="btn small" id="export">Экспорт JSON</button><button class="btn small" id="export-factory-handoff" hidden>Экспорт D7 handoff</button><button class="btn small" id="reset">Пример заново</button></div></div><div id="interop-status" class="interop-status" role="status" aria-live="polite" hidden></div><div id="versions" class="versions"></div></section>
 </main>
-<aside class="inspector">
+<aside class="inspector" aria-labelledby="inspector-title">
  <div class="inspector-top"><span class="eyebrow">НАСТРОЙКИ КОМПОНЕНТА</span><h2 id="inspector-title">Элементы</h2><p class="subdued" id="inspector-caption">Только параметры из манифеста</p></div>
- <div id="elements" class="element-list" aria-label="Элементы выбранного блока"></div>
+ <div id="elements" class="element-list" role="group" aria-label="Элементы выбранного блока"></div>
  <div id="fields" class="field-list"></div>
  <div class="inspector-foot">Ненужные свойства не показываются. Изменения видны сразу, но не сохраняются без команды.</div>
 </aside>

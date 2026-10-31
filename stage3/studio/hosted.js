@@ -2542,7 +2542,26 @@
   navObserver.observe($('sections'),{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
   syncContext();
 
-
+  // Keep the current location announced and keyboard focus stable when the
+  // existing editor redraws its page/section buttons after a selection.
+  const enhanceTreeNavigation=(nav,current)=>{
+    const sync=()=>{
+      for(const item of nav.querySelectorAll('.nav-entry')){
+        if(item.classList.contains('active'))item.setAttribute('aria-current',current);
+        else item.removeAttribute('aria-current');
+      }
+    };
+    const observer=new MutationObserver(sync);
+    observer.observe(nav,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+    sync();
+    nav.addEventListener('click',event=>{
+      const clicked=event.target instanceof Element?event.target.closest('.nav-entry'):null;
+      if(!clicked)return;
+      requestAnimationFrame(()=>nav.querySelector('.nav-entry.active')?.focus({preventScroll:true}));
+    },{capture:true});
+  };
+  enhanceTreeNavigation($('pages'),'page');
+  enhanceTreeNavigation($('sections'),'location');
 
 
   // Find an authored page by title/URL or a block on the selected page.
@@ -2554,6 +2573,10 @@
     field.type='search';field.id='server-search-'+kind;
     field.placeholder=placeholder;field.autocomplete='off';
     field.setAttribute('aria-label',labelText);
+    if(kind==='pages'){
+      field.setAttribute('aria-keyshortcuts','/');
+      field.title='Нажмите / вне поля ввода, чтобы перейти к поиску страниц';
+    }
     const wrap=element('div','hosted-tree-search');
     const result=element('small','hosted-tree-search-result');
     result.id='server-search-'+kind+'-status';
