@@ -853,6 +853,11 @@ async function execute(){
   // a gallery photo and edit quote attribution inside the existing Studio.
   // The final saved+published PHP output must reflect those exact operations.
   await page.locator('#sections .nav-entry').nth(3).click();
+  // The advanced block action is intentionally collapsed in the owner UI.
+  // Exercise its real disclosure before using the secondary action.
+  assert.equal(await page.locator('#server-section-actions').evaluate(node=>node.open),false);
+  await page.locator('#server-section-actions>summary').click();
+  assert.equal(await page.locator('#section-design-graph').isVisible(),true);
   await page.locator('#section-design-graph').click();
   await page.locator('#cms-design-graph-dialog').waitFor();
   await page.locator('#cms-design-node-select').selectOption('approved-rich-table');
