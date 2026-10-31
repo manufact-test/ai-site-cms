@@ -6,7 +6,7 @@
 
 - GitHub: **https://github.com/manufact-test/ai-site-cms**.
 - Твоя рабочая ветка: **`feature/site-seo-engine`**.
-- Последний базовый SHA **до финального коммита текущего SEO-захода**: `c256ed48bc69660b004ed06147f0da18356fa0c3`. **Сразу получи актуальный HEAD ветки из GitHub** — после этого захода должен быть более новый коммит. Проверь diff новых коммитов, если они есть.
+- Последний подтверждённый SHA **до нового трёхканального hreflang-захода**: `8bb8d7f99cea486b98fd8ab9795774a89846e7da`. **Сразу получи актуальный HEAD ветки из GitHub** — после этого захода должен быть более новый коммит. Проверь diff новых коммитов, если они есть.
 - Главный разработчик самостоятельно работает в **`feature/stage3-ai-site-contract`**. **Он единственный интегратор.** Ты не меняешь его ветку и не объединяешь изменения сам.
 - **Все изменения строго внутри `stage3/seo-engine/**`.** Запрещено менять CMS, PHP, Studio, SDK, CI, `main`, ветку главного разработчика. Никаких PR, merge, публикаций и деплоя.
 
@@ -33,7 +33,7 @@
 
 Реализованы SEO Blueprint/архитектура, семантика и контент, внутренняя перелинковка, GSC Performance и URL Indexing, Crawl Policy, robots/sitemap, CMS SEO-задачи и повторные проверки, HTTPS и метаданные/canonical/robots, JSON-LD semantic QA, единый приватный SEO Operator Workspace, First-Site Lead Readiness, приватный SHA256-манифест, браузерный Chromium desktop/tablet/mobile с ограничением сети, HTTP-vs-DOM сверка, CSS-видимость, загрузка изображений, отзывчивость/навигация/текст/timing, фрагменты и ссылки, полевые исторические CrUX LCP/INP/CLS и единая маршрутная матрица для первого клиента.
 
-Последний SEO-заход расширил **тот же** Crawl Workspace проверкой международных HTML-head `rel=alternate hreflang` ссылок и отличий после настоящего source-paired DOM. Проверяются конфликты языковых URL, отсутствие обратной ссылки между двумя обследованными утверждёнными страницами, self-reference и canonical/noindex target, некорректные ссылки, внешние и неподтверждённые направления. **Отсутствие hreflang у одноязычного сайта не ошибка. Внешний языковой домен допустим.** Проверка не сканирует внешние сайты и не проверяет HTTP Link/sitemap-варианты hreflang, реальные языковые версии и Google. Никакого второго dashboard, никакого CMS API. Прежде чем расширять эту область, изучи новый документ и модуль.
+Последний SEO-заход расширил **тот же** Crawl Workspace до всех трёх Google-описанных методов международного `hreflang`: HTML-head `rel=alternate hreflang`, HTTP-заголовок `Link` и XHTML-аннотации в прямом XML sitemap `urlset`. Проверяются конфликты языковых URL **между методами**, обратные ссылки между двумя обследованными утверждёнными страницами внутри каждого метода, self-reference, canonical/noindex target, изменения HTML после source-paired DOM, некорректные ссылки, внешние и неподтверждённые направления. **Одноязычному сайту hreflang не обязателен. Внешний языковой домен допустим. Одного метода достаточно.** Sitemap index и старый HTML transcript без Link-header остаются unknown; внешние сайты не сканируются, реальные языковые версии и Google не подтверждаются. Никакого второго dashboard, никакого CMS API. Прежде чем расширять эту область, изучи документ и модуль.
 
 ## 4. Главное направление на следующий заход
 
@@ -51,7 +51,7 @@
 
 ## 6. Что подтверждено последним заходом
 
-В последнем функциональном блоке реально пройдены шесть Node smoke-программ на полноценном checkout: `seo-hreflang-smoke.cjs`, `seo-structured-data-smoke.cjs`, `seo-rendered-content-smoke.cjs`, `seo-workspace-crawl-smoke.cjs`, `seo-operator-workspace-smoke.cjs`, `seo-first-client-coverage-smoke.cjs`. Источники тестовые; настоящий клиент, браузер Chromium, Google API и GitHub Actions не запускались. **Перед работой проверь новый GitHub SHA и убедись, что новых чужих коммитов нет.**
+В последнем функциональном блоке реально пройдены **семь** Node smoke-программ на полноценном checkout: `seo-hreflang-smoke.cjs`, `public-https-capture-smoke.cjs`, `seo-structured-data-smoke.cjs`, `seo-rendered-content-smoke.cjs`, `seo-workspace-crawl-smoke.cjs`, `seo-operator-workspace-smoke.cjs`, `seo-first-client-coverage-smoke.cjs`. Три из них поначалу не могли писать временные файлы из-за режима read-only (`EROFS`), затем прошли в разрешённом окружении. Источники тестовые; настоящий клиент, браузер Chromium, Google API и GitHub Actions не запускались. **Перед работой проверь новый GitHub SHA и убедись, что новых чужих коммитов нет.**
 
 ## 7. Обязательно в конце твоего захода
 

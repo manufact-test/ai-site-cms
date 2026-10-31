@@ -11,7 +11,7 @@ const LIMIT_HTML=450000,LIMIT_ROBOTS=250000,LIMIT_SITEMAP=750000,LIMIT_REDIRECT=
 const MAX_TOTAL=36000000;
 const ROUTE=/^\/(?:[a-z0-9-]+\/)*$/;
 const HEADER_ALLOW=new Set(['content-type','content-length','content-language','cache-control',
- 'etag','last-modified','location','x-robots-tag','content-security-policy',
+ 'etag','last-modified','location','link','x-robots-tag','content-security-policy',
  'x-content-type-options','referrer-policy','strict-transport-security','server']);
 /* A conservative public-only allowlist. Reject every IPv4 special-use range
    relevant to SSRF, including TEST-NET, benchmarking, NAT and shared space,

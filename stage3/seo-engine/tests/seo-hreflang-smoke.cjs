@@ -40,6 +40,79 @@ const absent=review(capture([[],[]]));
 assert.equal(absent.summary.pagesWithAlternates,0);
 assert.equal(absent.summary.P1,0);
 assert.equal(absent.summary.P2,0);
+assert.equal(absent.summary.httpLinkInspectedPages,0,
+ 'older original HTTP transcripts cannot prove that a Link header was absent');
+assert.equal(absent.summary.sitemapInspectedPages,2);
+// International alternates may be carried via HTTP Link and XML sitemap,
+// even when the HTML head has no hreflang links. Mixed method coverage is OK.
+const links=pairs.map(({lang,href})=>'<'+href+'>; rel="alternate"; hreflang="'+lang+'"').join(', ');
+const carrierCapture=capture([[],[]]);
+for(const row of carrierCapture.pages)
+ row.headers.link='<'+base+'>; rel="canonical", '+links;
+carrierCapture.sitemap.body='<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '+
+ 'xmlns:alt="http://www.w3.org/1999/xhtml">'+bp.pages.map(p=>
+ '<url><loc>'+base+p.path.slice(1)+'</loc>'+pairs.map(({lang,href})=>
+ '<alt:link rel="alternate" hreflang="'+lang+'" href="'+href+'" />').join('')+'</url>').join('')+'</urlset>';
+const carriers=review(carrierCapture);
+assert.equal(carriers.summary.pagesWithAlternates,0);
+assert.equal(carriers.summary.pagesWithHttpLinkAlternates,2);
+assert.equal(carriers.summary.pagesWithSitemapAlternates,2);
+assert.equal(carriers.summary.httpLinkInspectedPages,2);
+assert.equal(carriers.summary.sitemapInspectedPages,2);
+assert.equal(carriers.summary.P1,0);
+assert.equal(carriers.summary.P2,0);
+assert(QA.render(carriers).html.includes('XML sitemap'));
+const headerOnly=capture([[],[]]);
+headerOnly.pages.forEach(row=>{row.headers.link=links;});
+assert.equal(review(headerOnly).summary.pagesWithHttpLinkAlternates,2);
+assert.equal(review(headerOnly).summary.P1,0);
+headerOnly.pages[0].html=null;
+assert.equal(review(headerOnly).summary.inspectedPages,1);
+assert.equal(review(headerOnly).summary.httpLinkInspectedPages,2,
+ 'observed HTTP Link evidence must survive unknown HTML head');
+const sitemapOnly=capture([[],[]]);
+sitemapOnly.sitemap.body=carrierCapture.sitemap.body;
+assert.equal(review(sitemapOnly).summary.pagesWithSitemapAlternates,2);
+assert.equal(review(sitemapOnly).summary.P1,0);
+sitemapOnly.pages.pop();
+assert.equal(review(sitemapOnly).summary.sitemapInspectedPages,2,
+ 'approved XML locs remain inspectable even if HTTP page capture is partial');
+const mixedReturn=capture([pairs,[]]);
+mixedReturn.pages[1].headers.link=links;
+assert(!review(mixedReturn).findings.some(f=>f.code==='hreflang:return-link-missing'),
+ 'reciprocal target declared in another equivalent carrier is not missing');
+const carrierConflict=capture();
+carrierConflict.pages[0].headers.link='<'+base+'contact/>; rel=alternate; hreflang=en, '+
+ '<'+base+'contact/>; rel=alternate; hreflang=de';
+const conflicting=review(carrierConflict);
+assert(conflicting.findings.some(f=>f.code==='hreflang:carrier-language-target-conflict'&&
+ f.priority==='P1'));
+const badCarrier=capture([[],[]]);
+badCarrier.pages[0].headers.link='<javascript:alert(1)>; rel="alternate"; hreflang="de", '+
+ '<https://outside.example/SECRET,VALUE>; rel="alternate"; hreflang="pl"';
+const badCarrierReview=review(badCarrier);
+assert(badCarrierReview.findings.some(f=>f.code==='hreflang:http-link-invalid-alternate-url'));
+assert(!json(badCarrierReview).includes('SECRET'));
+assert(!QA.render(badCarrierReview).html.includes('outside.example'));
+const malformedHeader=capture([[],[]]);
+malformedHeader.pages[0].headers.link='not-a-link; hreflang=en';
+assert(review(malformedHeader).findings.some(f=>f.code===
+ 'hreflang:http-link-malformed-http-link-annotation'));
+const xmlConflict=capture();
+xmlConflict.sitemap.body=carrierCapture.sitemap.body.replaceAll('hreflang="de" href="'+base+'contact/"',
+ 'hreflang="de" href="'+base+'"');
+assert(review(xmlConflict).findings.some(f=>f.code==='hreflang:carrier-language-target-conflict'));
+const xmlUnknown=capture([[],[]]);
+xmlUnknown.sitemap.body='<sitemapindex><sitemap><loc>'+base+'sitemap-fr.xml</loc></sitemap></sitemapindex>';
+assert.equal(review(xmlUnknown).summary.sitemapInspectedPages,0,
+ 'sitemap index children must remain unknown, not silently empty');
+const unsafeXml=capture([[],[]]);
+unsafeXml.sitemap.body='<!DOCTYPE urlset [<!ENTITY x "test">]>'+carrierCapture.sitemap.body;
+assert.equal(review(unsafeXml).summary.sitemapInspectedPages,0);
+const mismatchXml=capture([[],[]]);
+mismatchXml.sitemap.body=carrierCapture.sitemap.body.replaceAll('xmlns:alt="http://www.w3.org/1999/xhtml"',
+ 'xmlns:alt="https://wrong.example/ns"');
+assert(review(mismatchXml).findings.some(f=>f.code==='hreflang:sitemap-malformed-sitemap-alternate'));
 const bad=review(capture([pairs,[{lang:'de',href:base+'contact/'}]]));
 assert(bad.findings.some(f=>f.code==='hreflang:return-link-missing'&&f.priority==='P1'));
 const inconsistent=review(capture([pairs,[{lang:'en',href:base},
