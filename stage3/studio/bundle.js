@@ -3432,6 +3432,21 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   const C=CONTRACT,D=DRAFT,manifests=MANIFESTS,starter=FIXTURE;
   const HOSTED=document.documentElement.dataset.stage3Mode==='server';
   const $=id=>document.getElementById(id),cp=x=>structuredClone(x);
+  function appendSiteTool(node,category){
+    if(HOSTED){$('pages').before(node);return;}
+    const content=$('local-site-tools-content');
+    if(!content){$('pages').before(node);return;}
+    let group=Array.from(content.children).find(child=>
+      child.matches('details.local-tool-category')&&child.dataset.category===category);
+    if(!group){
+      group=document.createElement('details');group.className='local-tool-category';
+      group.dataset.category=category;
+      const summary=document.createElement('summary');summary.textContent=category;
+      const body=document.createElement('div');body.className='local-tool-category-content';
+      group.append(summary,body);content.append(group);
+    }
+    group.querySelector('.local-tool-category-content').append(node);
+  }
   const STORAGE='manufact-ai-site-stage3-local-revisions-v1';
   const MAX_VERSIONS=12,MAX_UPLOAD=900000,MAX_INTEROP_UPLOAD=2500000;
   const INTEROP_STORAGE='manufact-ai-design-graph-local-session-v1';
@@ -4166,7 +4181,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const tools=document.createElement('div');tools.className='structure-tools cms-site-settings';
     const theme=button('Стили и язык сайта','btn small',()=>open('theme'));theme.id='cms-open-theme';
     const seo=button('SEO и меню','btn small',()=>open('seo'));seo.id='cms-open-seo';
-    tools.append(theme,seo);$('pages').before(tools);
+    tools.append(theme,seo);appendSiteTool(tools,'Настройки сайта');
   }
 
   // Private operator Search/CMS packets are a navigation aid for the existing
@@ -4321,7 +4336,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const trigger=button('SEO-пакеты','btn small',()=>{void render();dlg.showModal();});
     trigger.id='cms-seo-handoff-open';
     const tools=document.createElement('div');tools.className='structure-tools cms-site-settings';
-    tools.append(trigger);$('pages').before(tools);
+    tools.append(trigger);appendSiteTool(tools,'SEO и аудит');
   }
 
 
@@ -4639,7 +4654,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     });
     launch.id='cms-menu-open';
     const box=document.createElement('div');box.className='structure-tools';
-    box.append(launch);$('pages').before(box);
+    box.append(launch);appendSiteTool(box,'Настройки сайта');
   }
 
   // Only an explicit quality-report action can focus a specific graph node.
@@ -5217,7 +5232,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     });
     const tools=document.createElement('div');tools.className='structure-tools cms-site-quality';
     const open=button('SEO-аудит и адреса','btn small',()=>{print();dialog.showModal();});
-    open.id='cms-quality-open';tools.append(open);$('pages').before(tools);
+    open.id='cms-quality-open';tools.append(open);appendSiteTool(tools,'SEO и аудит');
   }
 
   // Discoverable browser-side catalog: the same closed registered components,
@@ -7278,7 +7293,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const buttonOpen=button('Дизайн-система','btn small',open);
     buttonOpen.id='cms-design-tokens-open';
     const bar=document.createElement('div');bar.className='structure-tools cms-design-system-tools';
-    bar.append(buttonOpen);$('pages').before(bar);
+    bar.append(buttonOpen);appendSiteTool(bar,'Внешний вид');
   }
 
   function initDesignGraphEditor(){
@@ -8914,7 +8929,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       pagePicker.value='';q.value='';value.value='';search();dlg.showModal();q.focus();
     });open.id='cms-content-open';
     const tools=document.createElement('div');tools.className='structure-tools';
-    tools.append(open);$('pages').before(tools);
+    tools.append(open);appendSiteTool(tools,'Контент');
   }
 
 
@@ -9162,7 +9177,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const openButton=button('Собрать страницу','btn small',open);
     openButton.id='cms-blueprint-open';openButton.dataset.editorWrite='true';
     const controls=document.createElement('div');controls.className='structure-tools cms-blueprint-launcher';
-    controls.append(openButton);$('pages').before(controls);
+    controls.append(openButton);appendSiteTool(controls,'Контент');
   }
 
 
@@ -9442,7 +9457,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const launch=button('Наполнить сайт','btn small',open);launch.id='cms-fill-open';
     launch.dataset.editorWrite='true';
     const tools=document.createElement('div');tools.className='structure-tools';
-    tools.append(launch);$('pages').before(tools);
+    tools.append(launch);appendSiteTool(tools,'Контент');
   }
 
   // Plan the entire site without editing the live local draft until Apply.
@@ -9603,21 +9618,40 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       selectedPage=pageId;device='desktop';failure='';render();dlg.showModal();
     });open.id='cms-site-map-open';open.dataset.editorWrite='true';
     const tools=document.createElement('div');tools.className='structure-tools';
-    tools.append(open);$('pages').before(tools);
+    tools.append(open);appendSiteTool(tools,'Контент');
   }
 
   function createStructureTools(){
     const openAppearance=initAppearanceEditor();
     initSiteTokensManager();
     const openDesignGraph=initDesignGraphEditor();
-    const make=(parent,items)=>{
+    const make=(parent,items,primaryId,moreId,moreLabel)=>{
       const tools=document.createElement('div');tools.className='structure-tools';
-      for(const [id,label,handler] of items)tools.append(button(label,'btn small',handler));
-      for(const [i,node] of [...tools.children].entries())node.id=items[i][0];
+      const addAction=item=>{
+        const node=button(item[1],'btn small',item[2]);node.id=item[0];return node;
+      };
+      if(HOSTED){
+        for(const item of items)tools.append(addAction(item));
+      }else{
+        const primary=items.find(item=>item[0]===primaryId);
+        if(primary){
+          const primaryButton=addAction(primary);
+          primaryButton.classList.add('structure-action-primary');tools.append(primaryButton);
+        }
+        const secondary=items.filter(item=>item[0]!==primaryId);
+        if(secondary.length){
+          const more=document.createElement('details');more.className='structure-actions-more';
+          more.id=moreId;
+          const summary=document.createElement('summary');summary.textContent=moreLabel;
+          const list=document.createElement('div');list.className='structure-actions-more-list';
+          secondary.forEach(item=>list.append(addAction(item)));
+          more.append(summary,list);tools.append(more);
+        }
+      }
       parent.before(tools);
     };
     const pageActions=[
-      ['page-add','+ Страница',()=>{
+      ['page-add','Добавить страницу',()=>{
         const title=prompt('Название новой страницы','Новая страница');if(title===null)return;
         const path=prompt('Путь страницы (например /catalog/)','/new-page/');if(path===null)return;
         const id=uniqueId('page'),firstSectionId=uniqueId('section');
@@ -9627,13 +9661,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           elementId=session.current.pages.find(x=>x.id===id).sections[0].elements[0].id;draw();
         }
       }],
-      ['page-rename','Изменить',()=>{
+      ['page-rename','Переименовать страницу',()=>{
         const page=current().page;
         const title=prompt('Название страницы',page.title);if(title===null)return;
         const path=prompt('Путь страницы',page.path);if(path===null)return;
         structural({action:'updatePage',pageId:page.id,title,path});
       }],
-      ['page-duplicate','Копировать страницу',()=>{
+      ['page-duplicate','Дублировать страницу',()=>{
         const page=current().page;
         const name=prompt('Название копии страницы',page.title+' — копия');if(name===null)return;
         const path=prompt('Новый URL копии страницы','/copy-'+Date.now().toString(36)+'/');
@@ -9643,9 +9677,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const result=session.current.pages.find(x=>x.id===id);
         if(result){pageId=id;sectionId=result.sections[0].id;elementId=result.sections[0].elements[0].id;draw();}
       }],
-      ['page-up','↑',()=>structural({action:'movePage',pageId:pageId,delta:-1})],
-      ['page-down','↓',()=>structural({action:'movePage',pageId:pageId,delta:1})],
-      ['page-remove','Удалить',()=>{
+      ['page-up','Переместить выше',()=>structural({action:'movePage',pageId:pageId,delta:-1})],
+      ['page-down','Переместить ниже',()=>structural({action:'movePage',pageId:pageId,delta:1})],
+      ['page-remove','Удалить страницу',()=>{
         if(confirm('Удалить выбранную страницу и все её блоки из черновика?'))structural({action:'removePage',pageId});
       }]
     ];
@@ -9653,7 +9687,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       ['section-appearance','Оформление блока',openAppearance],
       ['section-design-graph','Дизайн-композиция',openDesignGraph],
       ['section-catalog','Каталог блоков',openComponentCatalog],
-      ['section-add','+ Блок',()=>{
+      ['section-add','Добавить блок',()=>{
+        if(!HOSTED){openComponentCatalog();return;}
         const component=prompt('Компонент блока:\n'+manifests.map(m=>m.id+' — '+m.label).join('\n'),'service-grid');
         if(component===null)return;
         const id=uniqueId('section');
@@ -9663,20 +9698,20 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           sectionId=id;elementId=page.sections.find(x=>x.id===id).elements[0].id;draw();
         }
       }],
-      ['section-duplicate','Копировать блок',()=>{
+      ['section-duplicate','Дублировать блок',()=>{
         const id=uniqueId('section');
         structural({action:'duplicateSection',pageId,sectionId,id});
         const section=session.current.pages.find(x=>x.id===pageId)?.sections.find(x=>x.id===id);
         if(section){sectionId=id;elementId=section.elements[0].id;draw();}
       }],
-      ['section-up','↑',()=>structural({action:'moveSection',pageId,sectionId,delta:-1})],
-      ['section-down','↓',()=>structural({action:'moveSection',pageId,sectionId,delta:1})],
+      ['section-up','Переместить выше',()=>structural({action:'moveSection',pageId,sectionId,delta:-1})],
+      ['section-down','Переместить ниже',()=>structural({action:'moveSection',pageId,sectionId,delta:1})],
       ['section-remove','Удалить',()=>{
         if(confirm('Удалить блок из черновика?'))structural({action:'removeSection',pageId,sectionId});
       }]
     ];
-    make($('pages'),pageActions);
-    make($('sections'),sectionActions);
+    make($('pages'),pageActions,'page-add','page-actions-more','Действия страницы');
+    make($('sections'),sectionActions,'section-add','section-actions-more','Действия блока');
   }
 
   // Site-specific form builder, curated presets and an inert conditional logic simulator.
