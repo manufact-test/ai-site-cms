@@ -2391,6 +2391,135 @@
       wrap.querySelector('button').disabled=!canEdit();releaseList.append(wrap);
     }
   }
+
+  document.title='MANUFACT Studio — управление сайтом';
+  document.querySelector('.brand small').textContent='MANUFACT · STUDIO';
+  document.querySelector('.panel-top .eyebrow').textContent='ТЕКУЩИЙ САЙТ';
+  document.querySelector('.panel-top .subdued').textContent='Страницы и блоки';
+  document.querySelector('.canvas-toolbar .eyebrow').textContent='ПРЕДПРОСМОТР И ПРАВКА';
+  document.querySelector('.inspector-top .eyebrow').textContent='СВОЙСТВА ВЫБОРА';
+
+  // The owner's primary journey is the existing page/section tree and the
+  // full-page Workbench. Secondary site utilities must never push it offscreen.
+  // These disclosures only MOVE existing authenticated panels; their handlers,
+  // IDs, server permissions and draft/publication contracts are unchanged.
+  const editPage=action('Редактировать страницу','server-edit-page',()=>{
+    if(!state.siteId||state.busy)return;
+    const existing=$('cms-open-page-preview');
+    if(existing&&!existing.disabled)existing.click();
+  });
+  editPage.disabled=true;
+  editPage.classList.add('hosted-edit-primary');
+  editPage.title='Открыть полную страницу в существующем редакторе CMS';
+  document.querySelector('.top-actions').insertBefore(editPage,$('save'));
+  row.removeChild(launchReviewButton);
+  launchReviewButton.textContent='Проверка перед публикацией';
+  launchReviewButton.classList.add('hosted-review-primary');
+  document.querySelector('.top-actions').append(launchReviewButton);
+
+  const adminMore=element('details','hosted-admin-more');
+  adminMore.id='server-admin-more';
+  const adminSummary=element('summary',null,'Управление сайтом');
+  const adminActions=element('div','hosted-admin-more-actions');
+  adminActions.append(operationsButton,connectionButton,techOpen);
+  adminMore.append(adminSummary,adminActions);
+  row.after(adminMore);
+
+  const drawerRail=element('div','hosted-drawers');
+  drawerRail.id='server-tools';
+  drawerRail.append(element('div','hosted-drawers-title','ДОПОЛНИТЕЛЬНЫЕ РАЗДЕЛЫ'));
+  const drawer=(id,name,description,...panels)=>{
+    const details=element('details','hosted-drawer');
+    details.id=id;
+    const heading=element('summary','hosted-drawer-summary');
+    const title=element('span','hosted-drawer-name',name);
+    const hint=element('small',null,description);
+    heading.append(title,hint);
+    details.append(heading,...panels);
+    return details;
+  };
+  drawerRail.append(
+    drawer('server-drawer-media','Медиа','Изображения, видео и шрифты',mediaPanel),
+    drawer('server-drawer-leads','Заявки','Контакты и уведомления',leadsPanel,deliveryPanel),
+    drawer('server-drawer-blocks','Блоки','Повторно используемые секции',templatesPanel),
+    drawer('server-drawer-backup','Архив и версии','Копии и восстановление',backupPanel),
+    drawer('server-drawer-import','Импорт','Подключение подготовленного сайта',
+      document.querySelector('.site-actions'))
+  );
+  $('sections').after(drawerRail);
+
+  // Tab-scoped UI preference only. Never persist user/site data or write a draft.
+  const disclosureKey='manufact-studio-disclosures-v1';
+  const disclosures=[adminMore,...drawerRail.querySelectorAll('details.hosted-drawer')];
+  try{
+    const selected=JSON.parse(sessionStorage.getItem(disclosureKey)||'[]');
+    if(Array.isArray(selected))for(const disclosure of disclosures)
+      disclosure.open=selected.includes(disclosure.id);
+  }catch(_){}
+  for(const disclosure of disclosures)disclosure.addEventListener('toggle',()=>{
+    try{sessionStorage.setItem(disclosureKey,
+      JSON.stringify(disclosures.filter(d=>d.open).map(d=>d.id)));}catch(_){}
+  });
+
+  // A small, live orientation strip above the existing preview. All values
+  // are read from the SAME editor, never a parallel page model.
+  const context=element('div','hosted-context');
+  context.id='server-editor-context';
+  const contextCurrent=element('span','hosted-context-current','Выберите страницу и блок');
+  const contextHint=element('span','hosted-context-help','Выбор → правка → черновик → публикация');
+  context.append(contextCurrent,contextHint);
+  document.querySelector('.canvas-toolbar').after(context);
+  const syncContext=()=>{
+    const page=$('pages')?.querySelector('.nav-entry.active');
+    const block=$('sections')?.querySelector('.nav-entry.active');
+    const pageText=page?.textContent?.trim()||'Страница не выбрана';
+    const blockText=block?.textContent?.trim()||'Выберите блок';
+    contextCurrent.textContent=pageText+' / '+blockText;
+  };
+  const navObserver=new MutationObserver(syncContext);
+  navObserver.observe($('pages'),{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+  navObserver.observe($('sections'),{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+  syncContext();
+
+
+  // Keep Save and publication review reachable while the existing full-page
+  // Workbench is open; do not introduce a separate editor or auto-publish.
+  const workModal=$('cms-page-preview');
+  const workHeader=workModal?.querySelector('.cms-page-preview-header');
+  const workCommands=element('div','hosted-work-commands');
+  const workState=element('span','hosted-work-state','Черновик не выбран');
+  workState.id='server-work-state';
+  workState.setAttribute('role','status');
+  workState.setAttribute('aria-live','polite');
+  const workSave=action('Сохранить черновик','server-work-save',()=>{
+    if(!state.busy&&!$('save').disabled)void save();
+  });
+  workSave.classList.add('primary');
+  const workReview=action('Проверить для публикации','server-work-review',()=>{
+    if(state.busy||launchReviewButton.disabled)return;
+    workModal.close();
+    launchReviewButton.click();
+  });
+  workCommands.append(workState,workSave,workReview);
+  workHeader?.append(workCommands);
+  const syncWorkStatus=()=>{
+    const ready=state.authorized&&state.siteId&&!state.busy;
+    workSave.disabled=!ready||$('save').disabled;
+    workReview.disabled=!ready||launchReviewButton.disabled;
+    workState.textContent=!state.siteId?'Нет выбранного сайта':
+      isDirty()?'Есть несохранённые изменения · публикация недоступна':
+      'Черновик #'+state.revision+' сохранён · не обязательно опубликован';
+  };
+
+  // Familiar shortcut, with an explicit saved-draft action only.
+  document.addEventListener('keydown',event=>{
+    if((event.ctrlKey||event.metaKey)&&!event.altKey&&!event.shiftKey&&
+        event.key.toLowerCase()==='s'&&state.authorized){
+      event.preventDefault();
+      if(!$('save').disabled)$('save').click();
+    }
+  });
+
   document.querySelector('.sidebar-bottom').textContent='Серверная Studio · черновики отдельно от публикации. Только изолированный Stage3.';
   const gate=element('div','hosted-gate');
   gate.id='server-login';
@@ -2425,6 +2554,7 @@
   function drawStatus(){
     const exists=state.authorized&&state.siteId!==null&&state.revision!==null;
     const available=exists&&!state.busy;
+    editPage.disabled=!available;
     $('save').disabled=!available||!isDirty()||!canEdit();
     $('server-publish').disabled=!available||isDirty()||!canPublish();
     $('server-reload').disabled=!available;
@@ -2505,6 +2635,7 @@
     publicLink.hidden=!exists||!meta?.published_version;
     if(!publicLink.hidden)publicLink.href='/published/'+encodeURIComponent(state.siteId)+'/';
     $('save').title=isDirty()?'Сохранить новую серверную ревизию':'Все изменения уже сохранены';
+    syncWorkStatus();
   }
   async function safe(fn){
     if(state.busy)return;

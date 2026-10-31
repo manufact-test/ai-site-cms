@@ -103,6 +103,17 @@ async function execute(){
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
   await page.locator('#server-signin').click();
   await page.locator('#server-login').waitFor({state:'hidden'});
+
+  // The owner now starts with a clear page/section tree. Expand secondary
+  // disclosures for the existing exhaustive transport/backup regression path.
+  assert.equal(await page.locator('#server-drawer-media').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#server-edit-page').count(),1);
+  await page.evaluate(()=>{
+    for(const node of document.querySelectorAll('#server-tools details,#server-admin-more')){
+      node.open=true;node.dispatchEvent(new Event('toggle'));
+    }
+  });
+
   // Owner can import a sealed external design into the empty CMS. No generated
   // template or generic website is necessary to initialize the owner workspace.
   assert.equal(await page.locator('#new-site').count(),0);

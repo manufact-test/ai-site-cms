@@ -46,6 +46,17 @@ async function execute(){
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
   await page.locator('#server-signin').click();
   await page.locator('#server-login').waitFor({state:'hidden'});
+
+  // The owner now starts with a clear page/section tree. Expand secondary
+  // disclosures for the existing exhaustive transport/backup regression path.
+  assert.equal(await page.locator('#server-drawer-media').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#server-edit-page').count(),1);
+  await page.evaluate(()=>{
+    for(const node of document.querySelectorAll('#server-tools details,#server-admin-more')){
+      node.open=true;node.dispatchEvent(new Event('toggle'));
+    }
+  });
+
   // Synthetic independent external site payload; Studio itself has no generator.
   assert.equal(await page.locator('#new-site').count(),0);
   assert.equal(await page.locator('#compose-site').count(),0);
@@ -91,7 +102,13 @@ async function execute(){
   assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/);
   // A single operator-facing launch checklist previews every page and device
   // without publishing or bypassing the existing guarded Save/Publish buttons.
-  await page.locator('#server-launch-review').click();
+  // The real full-page editor exposes draft state and routes to the same
+  // existing guarded publication review without a second publisher.
+  await page.locator('#server-edit-page').click();
+  await page.locator('#cms-page-preview[open]').waitFor();
+  assert.equal(await page.locator('#server-work-save').isDisabled(),true);
+  assert.match(await page.locator('#server-work-state').innerText(),/сохранён/);
+  await page.locator('#server-work-review').click();
   try {
     await page.locator('#server-launch-dialog[open]').waitFor({timeout:3000});
   } catch(error) {
