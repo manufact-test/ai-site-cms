@@ -39,6 +39,7 @@ jobs:
           node stage3/tests/contract-smoke.cjs
           node stage3/tests/seo-handoff-studio-smoke.cjs
           node stage3/tests/rich-text-editor-smoke.cjs
+          node stage3/tests/structured-data-smoke.cjs
       - name: SEO Engine focused first-client contracts (offline only)
         run: |
           node stage3/seo-engine/tests/seo-hreflang-smoke.cjs

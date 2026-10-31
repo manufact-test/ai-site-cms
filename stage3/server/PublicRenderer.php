@@ -42,6 +42,44 @@ final class PublicRenderer
         return ['ru'=>'ru_RU','en'=>'en_US','pl'=>'pl_PL','de'=>'de_DE','be'=>'be_BY','uk'=>'uk_UA'][$language]??'ru_RU';
     }
 
+    /** Derive only source-backed, opt-in Schema.org facts from the public page.
+     *  Never emit user-authored script, placeholder hostnames or private previews.
+     */
+    private static function structuredData(array $site,array $page,?string $absolute,string $mount,bool $preview): string
+    {
+        $type=$page['seo']['schemaType']??'none';
+        if ($preview||$absolute===null||($page['seo']['robots']??'index')==='noindex'||
+            !in_array($type,['WebPage','AboutPage','ContactPage','FAQPage'],true)) return '';
+        $document=[
+            '@context'=>'https://schema.org','@type'=>$type,
+            '@id'=>$absolute.'#webpage','url'=>$absolute,'name'=>$page['title'],
+            'inLanguage'=>self::language($site),
+            'isPartOf'=>['@type'=>'WebSite','name'=>$site['title'],
+                'url'=>substr($absolute,0,strlen($absolute)-strlen($page['path'])).'/']
+        ];
+        $description=trim((string)($page['seo']['description']??''));
+        if ($description!=='') $document['description']=$description;
+        if ($type==='FAQPage') {
+            $questions=[];
+            foreach ($page['sections'] as $section) {
+                if (($section['component']??'')!=='faq-accordion'||isset($section['designGraph'])||
+                    ($section['deviceVisibility']['mobile']??true)===false) continue;
+                foreach ($section['items']??[] as $item) {
+                    $question=trim((string)($item['values']['content.question']??''));
+                    $answer=trim((string)($item['values']['content.answer']??''));
+                    if ($question===''||$answer==='') continue;
+                    $questions[]=['@type'=>'Question','name'=>$question,
+                        'acceptedAnswer'=>['@type'=>'Answer','text'=>$answer]];
+                }
+            }
+            if (!$questions) return ''; // Never emit an empty, misleading FAQ claim.
+            $document['mainEntity']=$questions;
+        }
+        return '<script type="application/ld+json">'.json_encode($document,
+            JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP|
+            JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR).'</script>';
+    }
+
     /** Responsive candidates and intrinsic dimensions come from validated immutable media. */
     public static function responsiveAttrs(array $asset, string $mount, string $sizes, ?string $assetBasePath = null): string
     {
@@ -949,6 +987,7 @@ JS;
         $ogDescriptionValue=trim((string)($seo['ogDescription']??''))!==''?trim((string)$seo['ogDescription']):trim($descriptionValue);
         $absolute=$publicOrigin===null?null:$publicOrigin.$mount.$path;
         $canonical=$absolute===null?'':'<link rel="canonical" href="'.self::h($absolute).'">';
+        $structured=self::structuredData($site,$page,$absolute,$mount,$preview);
         $social='<meta property="og:type" content="website">'
             .'<meta property="og:locale" content="'.self::h($socialLocale).'">'
             .'<meta property="og:title" content="'.$ogTitle.'">';
@@ -1032,7 +1071,7 @@ JS;
             : '';
         return '<!doctype html><html lang="'.$language.'"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">' . $previewHead
-            . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . $favicon . '<style>' . self::themeCss($site,$mount,$assetBasePath)
+            . '<title>' . $title . '</title>' . $description . $robots . $canonical . $social . $favicon . $structured . '<style>' . self::themeCss($site,$mount,$assetBasePath)
             . '*,*:before,*:after{box-sizing:border-box}body{margin:0;background:var(--cms-bg);color:var(--cms-text);font:var(--cms-body-size)/var(--cms-line-height) var(--cms-font)}h1,h2,h3,h4,h5,h6{font-family:var(--cms-heading-font)}'
             . 'header,main,footer{max-width:var(--cms-width);margin:auto;padding:24px}nav{display:flex;flex-wrap:wrap;gap:18px}a{color:inherit}'
             . '.cms-site-footer{max-width:none;background:var(--cms-surface);border-top:1px solid #dce5ee;padding:0;overflow-wrap:anywhere}.cms-footer-inner{max-width:var(--cms-width);margin:auto;padding:42px 24px 26px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,1fr);gap:22px 34px;align-items:start}.cms-footer-brand{font:700 21px/1.3 var(--cms-heading-font)}.cms-footer-description{max-width:50ch;white-space:pre-line;line-height:1.65;opacity:.82}.cms-footer-links{display:grid;gap:18px}.cms-footer-nav ul,.cms-footer-social ul{list-style:none;padding:0;margin:0;display:flex;gap:10px 20px;flex-wrap:wrap}.cms-site-footer a{text-decoration:none;overflow-wrap:anywhere}.cms-site-footer a:hover{text-decoration:underline;color:var(--cms-primary)}.cms-footer-style-dark{background:#152539;color:#f6f8fd;border-color:#31455e}.cms-footer-style-primary{background:var(--cms-primary);color:#fff;border-color:transparent}.cms-footer-style-dark a:hover,.cms-footer-style-primary a:hover{color:inherit;text-decoration:underline}.cms-footer-layout-stacked .cms-footer-inner{grid-template-columns:1fr}.cms-footer-layout-stacked .cms-footer-copy{grid-column:1}.cms-site-footer a:focus-visible{outline:3px solid var(--cms-primary);outline-offset:4px;border-radius:3px}.cms-footer-contact{display:grid;gap:10px;font-style:normal}.cms-footer-copy{grid-column:1/-1;opacity:.65;border-top:1px solid #dce5ee;padding-top:18px}@media(max-width:800px){.cms-footer-inner{grid-template-columns:1fr 1fr}.cms-footer-contact{grid-column:1/-1}}@media(max-width:550px){.cms-footer-inner{grid-template-columns:1fr;gap:22px;padding:32px 20px 22px}.cms-footer-contact{grid-column:auto}.cms-footer-nav ul,.cms-footer-social ul{gap:12px 18px}}'

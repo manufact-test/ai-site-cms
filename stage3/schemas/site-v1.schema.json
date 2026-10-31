@@ -414,6 +414,15 @@
                   "$ref": "#/$defs/id"
                 }
               ]
+            },
+            "schemaType": {
+              "enum": [
+                "none",
+                "WebPage",
+                "AboutPage",
+                "ContactPage",
+                "FAQPage"
+              ]
             }
           }
         },

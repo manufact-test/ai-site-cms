@@ -1588,7 +1588,7 @@ function validBranding(branding,assetMimes){
     branding.logoWidth<48||branding.logoWidth>320))fail('Logo width must be 48–320 px');
 }
 function validSeo(s,assetMimes){
-  objectKeys(s,['title','description','robots','ogTitle','ogDescription','ogImage'],'seo');
+  objectKeys(s,['title','description','robots','ogTitle','ogDescription','ogImage','schemaType'],'seo');
   if(typeof s.title!=='string'||s.title.length>160||/[\x00-\x1f]/.test(s.title)||
     typeof s.description!=='string'||s.description.length>300||/[\x00-\x1f]/.test(s.description)||
     !['index','noindex'].includes(s.robots))fail('Invalid SEO metadata');
@@ -1600,6 +1600,8 @@ function validSeo(s,assetMimes){
     (s.ogImage!==''&&(!elementId.test(s.ogImage)||
       !['image/png','image/jpeg','image/webp'].includes(assetMimes.get(s.ogImage))))))
     fail('Invalid SEO social image');
+  if(own(s,'schemaType')&&!['none','WebPage','AboutPage','ContactPage','FAQPage'].includes(s.schemaType))
+    fail('Invalid Schema.org page type');
 }
 function validNav(n){
   objectKeys(n,['label','hidden','parentId'],'navigation');
@@ -1909,6 +1911,15 @@ function validateSite(raw,regInput){
           fail('Form slot must appear once, only inside an actual lead form section',section.id);
       }
     }
+    // FAQPage claims must refer to questions and answers that the *visitor*
+    // actually sees, not legacy slots replaced by a bespoke Design Graph.
+    if(page.seo?.schemaType==='FAQPage'&&!page.sections.some(section=>
+      section.component==='faq-accordion'&&!own(section,'designGraph')&&
+      section.deviceVisibility?.mobile!==false&&
+      section.items?.length>=2&&section.items.every(item=>
+        String(item.values?.['content.question']||'').trim()&&
+        String(item.values?.['content.answer']||'').trim())))
+      fail('FAQPage structured data requires a visible, complete FAQ section',page.path);
     // Every device must retain at least one authored section. Distinct sections
     // can be hidden independently even though each one is visible somewhere.
     for(const device of BREAKPOINTS)
@@ -3804,7 +3815,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const fields={},themeKeys=['background','surface','text','primary','font','font-body','font-heading','maxWidth','bodySize','lineHeight','headingScale','buttonStyle','buttonRadius','buttonText'],
       brandKeys=['brand-logo','brand-mobile','brand-favicon','brand-width'],
       globalKeys=[...themeKeys,...brandKeys,'language'];
-    const metaKeys=['seo-title','seo-description','seo-robots','seo-og-title','seo-og-description','seo-og-image','nav-label','nav-hidden'];
+    const metaKeys=['seo-title','seo-description','seo-robots','seo-og-title','seo-og-description','seo-og-image','seo-schema-type','nav-label','nav-hidden'];
     const add=(name,labelText,type='text',max)=>{
       const wrap=document.createElement('label');wrap.textContent=labelText;
       const control=document.createElement(type==='select'?'select':'input');
@@ -3898,6 +3909,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     for(const [value,text] of [['index','Разрешить'],['noindex','Не индексировать']]){
       const option=document.createElement('option');option.value=value;option.textContent=text;robots.append(option);
     }
+    const schemaType=add('seo-schema-type','Schema.org · структурированные данные страницы','select');
+    for(const [value,text] of [['none','Не публиковать JSON-LD (по умолчанию)'],
+      ['WebPage','WebPage · страница'],['AboutPage','AboutPage · о компании'],
+      ['ContactPage','ContactPage · контакты'],['FAQPage','FAQPage · вопросы и ответы из видимой секции']]){
+      const option=document.createElement('option');option.value=value;option.textContent=text;schemaType.append(option);
+    }
     add('nav-label','Название в меню (необязательно)','text',100);
     add('nav-hidden','Скрыть из меню','checkbox');
     let mode='theme',chosenPage=null;
@@ -3950,6 +3967,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const socialDescription=document.createElement('p');socialDescription.id='cms-seo-social-description';socialDescription.className='cms-seo-social-description';
     socialCard.append(socialLabel,socialImageFrame,socialTitle,socialDescription);
     seoPreviewGrid.append(searchCard,socialCard);seoPreview.append(seoPreviewHeading,seoPreviewGrid);
+    const schemaStatus=document.createElement('p');schemaStatus.id='cms-seo-schema-status';
+    schemaStatus.style.cssText='padding:12px 14px;border:1px solid #d1dae6;border-radius:10px;white-space:pre-line';
+    seoPreview.append(schemaStatus);
     const resolveSocialImage=page=>{
       const assets=session.current.assets||[];
       const image=id=>assets.find(asset=>asset.id===id&&['image/png','image/jpeg','image/webp'].includes(asset.mime))||null;
@@ -3992,6 +4012,21 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       robotsStatus.textContent=fields['seo-robots'].value==='noindex'
         ?'Индексация запрещена: noindex':'Индексация разрешена';
       robotsStatus.classList.toggle('is-blocked',fields['seo-robots'].value==='noindex');
+      const faqSections=page.sections.filter(section=>section.component==='faq-accordion'&&
+        !section.designGraph&&section.deviceVisibility?.mobile!==false&&
+        section.items?.length>=2&&section.items.every(item=>
+          String(item.values?.['content.question']||'').trim()&&
+          String(item.values?.['content.answer']||'').trim()));
+      const faqCount=faqSections.reduce((sum,section)=>sum+section.items.length,0);
+      schemaType.querySelector('option[value="FAQPage"]').disabled=!faqCount;
+      const selected=schemaType.value;
+      schemaStatus.textContent=selected==='none'
+        ?'Schema.org выключен. Данные не добавятся на опубликованную страницу.'
+        :fields['seo-robots'].value==='noindex'
+          ?'JSON-LD не публикуется: для страницы выбран noindex.'
+          :selected==='FAQPage'
+            ?'FAQPage: '+faqCount+' настоящих вопроса/ответа из видимых на телефоне FAQ-блоков. Проверьте факты в тексте. Google не обещает FAQ-расширения для обычных коммерческих сайтов.'
+            :selected+': название, язык, собственное SEO-описание и адрес берутся из этой страницы при публикации. Произвольный JSON и неподтверждённые сведения не принимаются.';
       socialTitle.textContent=socialTitleValue;
       socialDescription.textContent=socialDescriptionValue||'Описание для соцсетей не задано.';
       const asset=resolveSocialImage(page);
@@ -4013,7 +4048,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     };
     for(const key of ['seo-title','seo-description','seo-og-title','seo-og-description'])
       fields[key].addEventListener('input',refreshSeoPreview);
-    for(const key of ['seo-robots','seo-og-image'])
+    for(const key of ['seo-robots','seo-og-image','seo-schema-type'])
       fields[key].addEventListener('change',refreshSeoPreview);
     window.addEventListener('stage3-media-ready',refreshSeoPreview);
     const open=kind=>{
@@ -4047,6 +4082,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         fields['seo-og-title'].value=seo.ogTitle||'';
         fields['seo-og-description'].value=seo.ogDescription||'';
         refreshSocialImages(seo.ogImage||'');
+        fields['seo-schema-type'].value=seo.schemaType||'none';
         fields['nav-label'].value=nav.label||'';
         fields['nav-hidden'].checked=!!nav.hidden;
         refreshSeoPreview();
@@ -4077,7 +4113,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           const p=site.pages.find(p=>p.id===chosenPage);
           if(!p)throw Error('Страница уже удалена');
           p.seo={title:fields['seo-title'].value,description:fields['seo-description'].value,robots:fields['seo-robots'].value,
-            ogTitle:fields['seo-og-title'].value,ogDescription:fields['seo-og-description'].value,ogImage:fields['seo-og-image'].value};
+            ogTitle:fields['seo-og-title'].value,ogDescription:fields['seo-og-description'].value,
+            ogImage:fields['seo-og-image'].value,schemaType:fields['seo-schema-type'].value};
           p.navigation={label:fields['nav-label'].value,hidden:fields['nav-hidden'].checked};
         }
         session=D.replaceSite(session,manifests,site,session.revision);dlg.close();draw();

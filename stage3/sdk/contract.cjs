@@ -144,7 +144,7 @@ function validBranding(branding,assetMimes){
     branding.logoWidth<48||branding.logoWidth>320))fail('Logo width must be 48–320 px');
 }
 function validSeo(s,assetMimes){
-  objectKeys(s,['title','description','robots','ogTitle','ogDescription','ogImage'],'seo');
+  objectKeys(s,['title','description','robots','ogTitle','ogDescription','ogImage','schemaType'],'seo');
   if(typeof s.title!=='string'||s.title.length>160||/[\x00-\x1f]/.test(s.title)||
     typeof s.description!=='string'||s.description.length>300||/[\x00-\x1f]/.test(s.description)||
     !['index','noindex'].includes(s.robots))fail('Invalid SEO metadata');
@@ -156,6 +156,8 @@ function validSeo(s,assetMimes){
     (s.ogImage!==''&&(!elementId.test(s.ogImage)||
       !['image/png','image/jpeg','image/webp'].includes(assetMimes.get(s.ogImage))))))
     fail('Invalid SEO social image');
+  if(own(s,'schemaType')&&!['none','WebPage','AboutPage','ContactPage','FAQPage'].includes(s.schemaType))
+    fail('Invalid Schema.org page type');
 }
 function validNav(n){
   objectKeys(n,['label','hidden','parentId'],'navigation');
@@ -465,6 +467,15 @@ function validateSite(raw,regInput){
           fail('Form slot must appear once, only inside an actual lead form section',section.id);
       }
     }
+    // FAQPage claims must refer to questions and answers that the *visitor*
+    // actually sees, not legacy slots replaced by a bespoke Design Graph.
+    if(page.seo?.schemaType==='FAQPage'&&!page.sections.some(section=>
+      section.component==='faq-accordion'&&!own(section,'designGraph')&&
+      section.deviceVisibility?.mobile!==false&&
+      section.items?.length>=2&&section.items.every(item=>
+        String(item.values?.['content.question']||'').trim()&&
+        String(item.values?.['content.answer']||'').trim())))
+      fail('FAQPage structured data requires a visible, complete FAQ section',page.path);
     // Every device must retain at least one authored section. Distinct sections
     // can be hidden independently even though each one is visible somewhere.
     for(const device of BREAKPOINTS)

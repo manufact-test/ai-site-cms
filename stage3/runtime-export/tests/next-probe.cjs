@@ -39,6 +39,9 @@ async function probe() {
     +'<title>'+title+'</title><meta name="description" content="Page '+title+'">'
     +'<meta property="og:title" content="'+title+'">'
     +'<link rel="canonical" href="https://example.test/'+(title==='Home'?'':'about/')+'">'
+    +(title==='Home'?'<script type="application/ld+json">'+JSON.stringify({
+      '@context':'https://schema.org','@type':'WebPage',name:'Home',url:'https://example.test/'
+    })+'</script>':'')
     +'<link rel="stylesheet" href="/'+sheet.file+'"></head>'
     +'<body><header><a href="/about/">About</a></header><main class="probe">'+body+'</main></body></html>';
   const home=put('index.html',page('Home','Visible CMS published home'));
@@ -120,9 +123,14 @@ async function probe() {
     }
     assert.ok(ready,'Next SSR not ready: '+output);
     const homeRes=await fetch(origin+'/');
-    assert.match(await homeRes.text(),/Visible CMS published home/);
+    const homeHtml=await homeRes.text();
+    assert.match(homeHtml,/Visible CMS published home/);
+    assert.match(homeHtml,/<script type="application\/ld\+json">\{"@context":"https:\/\/schema.org","@type":"WebPage"/,
+      'Next SSR preserves publisher-owned Schema.org JSON-LD');
     const aboutRes=await fetch(origin+'/about/');
-    assert.match(await aboutRes.text(),/Visible CMS published about/);
+    const aboutHtml=await aboutRes.text();
+    assert.match(aboutHtml,/Visible CMS published about/);
+    assert.doesNotMatch(aboutHtml,/application\/ld\+json/,'No JSON-LD must be invented for unconfigured pages');
     const redirect=await fetch(origin+'/old/',{redirect:'manual'});
     assert.equal(redirect.status,301);
     assert.equal(new URL(redirect.headers.get('location'),origin).pathname,'/about/');

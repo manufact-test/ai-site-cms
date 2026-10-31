@@ -133,7 +133,7 @@ final class ContractValidator
     }
     private static function seo(mixed $s, array $assets): void
     {
-        self::keys($s,['title','description','robots','ogTitle','ogDescription','ogImage']);
+        self::keys($s,['title','description','robots','ogTitle','ogDescription','ogImage','schemaType']);
         foreach (['title'=>160,'description'=>300] as $name=>$max)
             self::must(is_string($s[$name]) && mb_strlen($s[$name],'UTF-8')<=$max
                 && !preg_match('/[\x00-\x1f]/',$s[$name]),'Invalid SEO text');
@@ -150,6 +150,10 @@ final class ContractValidator
                     && in_array($assets[$image]??null,['image/png','image/jpeg','image/webp'],true))),
                 'Invalid SEO social image');
         }
+        if (array_key_exists('schemaType',$s))
+            self::must(is_string($s['schemaType']) && in_array($s['schemaType'],
+                ['none','WebPage','AboutPage','ContactPage','FAQPage'],true),
+                'Invalid Schema.org page type');
     }
     private static function navigation(mixed $n): void
     {
@@ -459,6 +463,20 @@ final class ContractValidator
                         (!$slots||in_array($section['component'],['lead-form','lead-form-flex'],true)),
                         'Form slot must appear only once in a lead form section');
                 }
+            }
+            if (($page['seo']['schemaType']??'none')==='FAQPage') {
+                $complete=false;
+                foreach ($page['sections'] as $section) {
+                    if ($section['component']!=='faq-accordion'||isset($section['designGraph'])||
+                        ($section['deviceVisibility']['mobile']??true)===false||count($section['items']??[])<2) continue;
+                    $filled=true;
+                    foreach ($section['items'] as $item) {
+                        if (trim((string)($item['values']['content.question']??''))===''||
+                            trim((string)($item['values']['content.answer']??''))==='') {$filled=false;break;}
+                    }
+                    if ($filled) {$complete=true;break;}
+                }
+                self::must($complete,'FAQPage structured data requires a visible, complete FAQ section');
             }
             foreach(['desktop','tablet','mobile'] as $device){
                 $visible=false;

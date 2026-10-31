@@ -80,14 +80,33 @@ export function visitorBody(html){
     throw Error('Unexpected visitor script');
   return {body:withoutScripts,wizard};
 }
+/** Only the publisher's bounded JSON-LD document crosses from static head to
+ * Next's React visitor body. No arbitrary head JavaScript is executable.
+ */
+export function visitorStructuredData(html){
+  const head=html.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1]??'';
+  const matches=[...head.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi)];
+  if(!matches.length)return null;
+  if(matches.length!==1||matches[0][1].length>50000)throw Error('Unexpected published JSON-LD count/size');
+  const data=JSON.parse(matches[0][1]);
+  if(data?.['@context']!=='https://schema.org'||
+    !['WebPage','AboutPage','ContactPage','FAQPage'].includes(data?.['@type'])||
+    typeof data.url!=='string'||typeof data.name!=='string'||
+    (data['@type']==='FAQPage'&&(!Array.isArray(data.mainEntity)||!data.mainEntity.length)))
+    throw Error('Unexpected published structured data');
+  return JSON.stringify(data).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026');
+}
 export function renderPage(route,serverRedirect=false){
   const redirect=manifest.redirects.find(r=>r.from===route);
   if(serverRedirect&&redirect)permanentRedirect(redirect.to); // middleware returns HTTP 301
   const html=htmlFor(route);
   const {body,wizard}=visitorBody(html);
+  const structured=visitorStructuredData(html);
   const styles=Array.from(html.matchAll(/<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/gi),m=>m[1]).join('\n');
   return React.createElement(React.Fragment,null,
     React.createElement('style',{dangerouslySetInnerHTML:{__html:styles}}),
+    structured?React.createElement('script',{type:'application/ld+json',
+      dangerouslySetInnerHTML:{__html:structured}}):null,
     React.createElement('div',{dangerouslySetInnerHTML:{__html:body}}),
     // A unique route ID prevents Next's script de-duplication from silently
     // skipping wizard initialization on a later client-side navigation.

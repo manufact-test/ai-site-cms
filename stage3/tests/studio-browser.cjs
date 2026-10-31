@@ -218,8 +218,13 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#cms-seo-social-description').innerText(),'Описание для поисковых систем');
     await page.locator('#cms-setting-seo-og-description').fill('Описание для публикации');
     await page.locator('#cms-setting-seo-og-image').selectOption('');
+    assert.equal(await page.locator('#cms-setting-seo-schema-type option[value="FAQPage"]').isDisabled(),true,
+      'A page without actual visible FAQs cannot claim FAQPage structured data');
+    await page.locator('#cms-setting-seo-schema-type').selectOption('WebPage');
+    assert.match(await page.locator('#cms-seo-schema-status').innerText(),/WebPage:/);
     await page.locator('#cms-setting-seo-robots').selectOption('noindex');
     assert.match(await page.locator('#cms-seo-robots-status').innerText(),/noindex/);
+    assert.match(await page.locator('#cms-seo-schema-status').innerText(),/не публикуется/);
     await page.locator('#cms-setting-seo-robots').selectOption('index');
     await page.locator('#cms-settings-apply').click();
     await page.locator('#save').click();
@@ -232,6 +237,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(saved.pages[0].seo.ogTitle,'Заголовок для публикации');
     assert.equal(saved.pages[0].seo.ogDescription,'Описание для публикации');
     assert.equal(saved.pages[0].seo.ogImage,'');
+    assert.equal(saved.pages[0].seo.schemaType,'WebPage');
     await page.locator('#pages .nav-entry').nth(1).click();
     assert.equal(await page.locator('#sections .nav-entry').count(),1);
     assert.equal(await page.locator('#canvas-title').innerText(),'Контакты');
