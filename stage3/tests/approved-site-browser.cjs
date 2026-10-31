@@ -723,6 +723,10 @@ async function execute(){
     return {
       viewport:{width:innerWidth,height:innerHeight,scrollX,scrollY},
       target:describe(button),center:{x:Math.round(x*100)/100,y:Math.round(y*100)/100},
+      hitIsTarget:(()=>{const hit=document.elementFromPoint(x,y);return hit===button||button.contains(hit);})(),
+      resourceFlexShrink:getComputedStyle(document.querySelector('#server-resources')).flexShrink,
+      resourceContentFits:(()=>{const node=document.querySelector('#server-resources');return node.scrollHeight<=node.clientHeight+1;})(),
+      sidebarCanScroll:(()=>{const node=document.querySelector('.sidebar');return node.scrollHeight>node.clientHeight;})(),
       hit:describe(document.elementFromPoint(x,y)),
       hitStack:document.elementsFromPoint(x,y).slice(0,6).map(describe),
       ancestors,
@@ -734,6 +738,14 @@ async function execute(){
     };
   });
   console.log('[approved-vault-pointer-geometry] '+JSON.stringify(approvalPointerGeometry));
+  assert.equal(approvalPointerGeometry.resourceFlexShrink,'0',
+    'The resources card must not shrink and clip its expanded controls: '+JSON.stringify(approvalPointerGeometry));
+  assert.equal(approvalPointerGeometry.resourceContentFits,true,
+    'All expanded resource controls must remain inside their card: '+JSON.stringify(approvalPointerGeometry));
+  assert.equal(approvalPointerGeometry.sidebarCanScroll,true,
+    'The sidebar must own the overflow when resource drawers are expanded: '+JSON.stringify(approvalPointerGeometry));
+  assert.equal(approvalPointerGeometry.hitIsTarget,true,
+    'A real pointer at the button center must hit the approved-vault button: '+JSON.stringify(approvalPointerGeometry));
   await approvalVaultButton.click();
   await page.locator('#server-approval-vault-rows img').first().waitFor();
   assert.equal(await page.locator('#server-approval-vault-rows img').count(),3,
