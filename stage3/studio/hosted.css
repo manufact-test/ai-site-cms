@@ -487,6 +487,12 @@ html[data-stage3-mode="server"] .hosted-resources-group{
   min-width:0;border:1px solid #e0e8f2;border-radius:10px;
   background:#fff;overflow:hidden;margin:5px 12px;
 }
+/* The resources group is a flex child inside the scrollable sidebar.
+   Keep its expanded disclosures at intrinsic height so the sidebar, rather
+   than this card, owns the vertical scroll range. */
+html[data-stage3-mode="server"] .sidebar > #server-resources{
+  flex:0 0 auto;
+}
 html[data-stage3-mode="server"] .hosted-structure-more>summary,
 html[data-stage3-mode="server"] .hosted-site-tools>summary,
 html[data-stage3-mode="server"] .hosted-resources-group>summary{
