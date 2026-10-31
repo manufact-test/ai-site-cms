@@ -697,7 +697,44 @@ async function execute(){
     'Cross-site copy tools belong inside one transfer drawer');
   assert.equal(await page.locator('.sidebar').evaluate(node=>getComputedStyle(node).overflowY),'auto',
     'The desktop navigation rail must scroll independently');
-  await page.locator('#server-approved-vault-open').click();
+  // Capture the real pointer target after Playwright's normal scroll-into-view step.
+  // This is diagnostic evidence for the owner path, not a synthetic/programmatic click.
+  const approvalVaultButton=page.locator('#server-approved-vault-open');
+  await approvalVaultButton.scrollIntoViewIfNeeded();
+  const approvalPointerGeometry=await approvalVaultButton.evaluate(button=>{
+    const describe=node=>{
+      if(!node)return null;
+      const rect=node.getBoundingClientRect(),style=getComputedStyle(node);
+      return {
+        tag:node.tagName.toLowerCase(),id:node.id||'',className:typeof node.className==='string'?node.className:'',
+        rect:{x:Math.round(rect.x*100)/100,y:Math.round(rect.y*100)/100,
+          top:Math.round(rect.top*100)/100,right:Math.round(rect.right*100)/100,
+          bottom:Math.round(rect.bottom*100)/100,width:Math.round(rect.width*100)/100,
+          height:Math.round(rect.height*100)/100},
+        clientHeight:node.clientHeight,scrollHeight:node.scrollHeight,scrollTop:node.scrollTop,
+        overflowX:style.overflowX,overflowY:style.overflowY,position:style.position,
+        zIndex:style.zIndex,pointerEvents:style.pointerEvents,display:style.display,
+        flexShrink:style.flexShrink,minHeight:style.minHeight
+      };
+    };
+    const rect=button.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+    const ancestors=[];
+    for(let node=button;node;node=node.parentElement)ancestors.push(describe(node));
+    return {
+      viewport:{width:innerWidth,height:innerHeight,scrollX,scrollY},
+      target:describe(button),center:{x:Math.round(x*100)/100,y:Math.round(y*100)/100},
+      hit:describe(document.elementFromPoint(x,y)),
+      hitStack:document.elementsFromPoint(x,y).slice(0,6).map(describe),
+      ancestors,
+      sidebar:describe(document.querySelector('.sidebar')),
+      resources:describe(document.querySelector('#server-resources')),
+      drawerRail:describe(document.querySelector('#server-tools')),
+      importDrawer:describe(document.querySelector('#server-drawer-import')),
+      siteActions:describe(document.querySelector('#server-drawer-import .site-actions'))
+    };
+  });
+  console.log('[approved-vault-pointer-geometry] '+JSON.stringify(approvalPointerGeometry));
+  await approvalVaultButton.click();
   await page.locator('#server-approval-vault-rows img').first().waitFor();
   assert.equal(await page.locator('#server-approval-vault-rows img').count(),3,
     'Owner can view all original static approved prototypes after import');
