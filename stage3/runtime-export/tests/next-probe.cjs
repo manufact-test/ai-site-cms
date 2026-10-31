@@ -145,8 +145,11 @@ async function probe() {
     const aboutHtml=await aboutRes.text();
     assert.match(aboutHtml,/Visible CMS published about/);
     assert.doesNotMatch(aboutHtml,/application\/ld\+json/,'No JSON-LD must be invented for unconfigured pages');
-    assert.equal((await fetch(origin+'/404/')).status,200,
-      'The authored /404/ route is a genuine CMS page while unknown routes are 404');
+    // Next reserves /404/ for the framework's not-found route. It still
+    // displays the client's authored design, with the correct 404 status.
+    const reserved404=await fetch(origin+'/404/');
+    assert.equal(reserved404.status,404);
+    assert.match(await reserved404.text(),/Bespoke published 404 design/);
     const redirect=await fetch(origin+'/old/',{redirect:'manual'});
     assert.equal(redirect.status,301);
     assert.equal(new URL(redirect.headers.get('location'),origin).pathname,'/about/');
