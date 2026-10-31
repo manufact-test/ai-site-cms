@@ -1,14 +1,36 @@
-# AI Site CMS — переход между чатами (новая короткая точка, 27.10.2026)
+# MANUFACT AI Site CMS — каноническая точка перехода между чатами (31.10.2026, v9.8)
 
-**STOP:** длинная прежняя история в этом файле заменена коротким указателем. История не удалена из Git и доступна до коммита v2.0. Не применять старые handoff по Design Factory.
+**Актуальный handoff главного разработчика:** [MAIN-HANDOFF-v9.8](../handoffs/lead-integrator/MAIN-HANDOFF-v9.8-2026-10-31.md).
 
-1. **Новый канонический продукт и жёсткие правила:** [MASTER ТЗ v2.0](MASTER-TZ.md).
-2. **Исходный владелец-утверждённый реестр:** [requirements.csv](../requirements/requirements.csv), 193 пункта.
-3. **Рабочая карта:** [ROADMAP v2.0](ROADMAP.md).
-4. **Аудит кода, факт vs кандидат на удаление:** [CODE-SCOPE-AUDIT](CODE-SCOPE-AUDIT-2026-10-27.md).
-5. **Первое сообщение главному:** [FIRST-MESSAGE](../handoffs/lead-integrator/FIRST-MESSAGE-v2.0-2026-10-27.md); подробности [LEAD HANDOFF](../handoffs/lead-integrator/MAIN-HANDOFF-v2.0-2026-10-27.md).
-6. **Задача/первое сообщение независимому SEO-разработчику:** [SEO ASSIGNMENT](../handoffs/parallel/SEO-ENGINE-v2-ASSIGNMENT.md), [FIRST MESSAGE](../handoffs/parallel/SEO-ENGINE-FIRST-MESSAGE-v2.0-2026-10-27.md).
+**Готовое первое сообщение следующему чату:** [FIRST-MESSAGE-v9.8](../handoffs/lead-integrator/FIRST-MESSAGE-v9.8-2026-10-31.md).
 
-**Ветки:** lead \`feature/stage3-ai-site-contract\`; independent SEO \`feature/site-seo-engine\`, scope \`stage3/seo-engine/**\`. Старый Design Factory branch \`feature/stage3-design-factory\` не интегрировать. Ни главную ветку, ни Hostinger, ни CELIKOM production не трогать без разрешения.
+## Точная контрольная точка
 
-**Один смысл:** внешнее AI-исследование UX/UI/SEO → по необходимости несколько концепций, каждая в трёх статических картинках desktop/tablet/mobile → полное объяснение клиенту + переносимая внутренняя спецификация → утверждение → ОДИН настоящий сайт → редактируемый CMS сайт. Прототип не верстать в HTML; AI-генератор в CMS не внедрять; никакие 12/42 шаблонов.
+- Repository: manufact-test/ai-site-cms
+- Lead branch: feature/stage3-ai-site-contract
+- Last functional HEAD at handoff: ab04bc0ac87645cc7882a726a2b18c2d5a7c1312
+- Exact-SHA Actions: [41239753483](https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483) — technology-runtime=SUCCESS, contract=FAILED.
+- Current failure: stage3/tests/approved-site-browser.cjs:700; Playwright click on #server-approved-vault-open is intercepted by #server-resources or .sidebar. Do not claim green CI; see v9.8 handoff.
+- Studio screenshot artifact: [ai-site-stage3-editor-screens](https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483/artifacts/13056942380).
+- main remained unchanged at 12e9c3feb707e5ad46b2caeeed379eb40618466b. No production/Hostinger/CELIKOM actions.
+
+## Read before work
+
+1. [MASTER ТЗ](MASTER-TZ.md) — product scope and owner decisions.
+2. [ROADMAP](ROADMAP.md) — latest dated engineering checkpoints.
+3. [MAIN HANDOFF v9.8](../handoffs/lead-integrator/MAIN-HANDOFF-v9.8-2026-10-31.md) — exact code/test state and immediate next task.
+4. [Studio UX acceptance](../stage3/docs/OWNER-STUDIO-UX-ACCEPTANCE.md) — owner requirements and what remains unaccepted.
+5. [Accelerated macroblock program](ACCELERATED-MACROBLOCK-PROGRAM.md).
+6. [PROJECT-STATUS.json](../PROJECT-STATUS.json) — machine-readable checkpoint.
+
+## Owner's current Studio decision
+
+The existing admin's basic visual appearance is acceptable provisionally. The immediate problem is **not a wholesale visual redesign**; it is confusing information architecture and too many simultaneously visible buttons/cards/technical labels. Prioritize a clear WordPress-like navigation model, one obvious primary action per context, and secondary/advanced controls hidden until needed. Keep the existing Studio/Workbench and its contracts; no second editor.
+
+## Product and safety state
+
+Stage 2 remains NO-GO (#5–#9 gates open). Stage 3 is isolated and not formally accepted. Requirement ledger: 135 MUST = 124 engineering candidates + 5 partial + 6 external gates; owner acceptance **0/135**. First real pilot uses the owner's existing landing, which has not yet been supplied; do not invent a client or assets.
+
+Only work on feature/stage3-ai-site-contract. No main merge, Hostinger, production, CELIKOM, real customer data or live provider delivery without explicit permission. SEO Engine is already integrated; do not repeat integration. Design Factory remains separate and unapproved.
+
+**Immediate next action:** inspect and fix the real pointer-interception defect in the approved-site browser journey, then run the existing full CI once on the exact resulting SHA. Continue with substantial user-facing macroblocks, not endless micro-polish.

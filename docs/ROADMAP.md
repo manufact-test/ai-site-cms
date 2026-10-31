@@ -754,3 +754,21 @@ Latest verified branch HEAD: **`b9ab53c21c39d5e87e260d3691c134ddf3740e0d`**, [Ac
 **Owner decisions now mandatory:** first site starts from the owner's **existing landing** but must receive a fresh evidence-backed UX/SEO/design audit, explanation, three new approved static mockups and explicit sign-off *before* new site implementation; materials have **not yet been handed over**. Separately, the existing CMS Studio must receive a **real modern UI/UX redesign and hands-on owner approval** before final delivery; a technically functional but cluttered/old-fashioned admin is unfinished. See MASTER §E–F and `handoffs/lead-integrator/MAIN-HANDOFF-v9.7-2026-10-31.md`.
 
 **Compact reporting from now on:** one short milestone/end-of-session update with **stage → approximate technical % → remaining work/gate → exact SHA/CI**; avoid long code explanations and per-action reports. Estimates are not official acceptance: engineering ledger **124 candidates + 5 partial + 6 external gates = 135 MUST**, personally accepted **0/135**. Do not increment the percentages merely because CI is green; no handoff/next-chat message unless explicitly requested.
+
+
+### 31 October 2026 — Studio information architecture and clutter reduction (lead v9.8)
+
+The owner clarified that the current basic visual styling is acceptable as a provisional baseline; the blocking issue is information architecture, not a wholesale color/skin redesign. The current screen exposes too many cards/buttons and repeated technical labels, making ordinary actions hard to locate. The existing Studio/Workbench should feel closer to a clear WordPress-style admin navigation and Elementor/Tilda editing workflow without copying their UI or creating another editor.
+
+Implemented on feature/stage3-ai-site-contract:
+- one visible primary action for page creation; rename/address, duplicate, reorder and delete are contextual/collapsed;
+- one visible primary action for adding a block; appearance, advanced composition, duplicate, reorder and delete are contextual/collapsed; the raw component-ID prompt is hidden from the normal route;
+- site tools grouped by task: appearance, SEO, navigation/contacts, content/structure and advanced;
+- resource/maintenance panels grouped: media, leads/delivery, saved blocks, archive/history, cross-site transfer and site import/approval materials;
+- history is collapsed by default; technical section ID is removed from the ordinary inspector caption;
+- sidebar scroll and phone normal-flow behavior received focused layout changes;
+- existing APIs, permissions, event handlers, Save/Publish/Undo and editor contracts are reused.
+
+**Validation is not green on the exact current SHA.** HEAD ab04bc0ac87645cc7882a726a2b18c2d5a7c1312; [Actions #41239753483](https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483): technology-runtime=SUCCESS, contract=FAILED. PHP/SQLite HTTP, D3 loopback cutover/rollback and the separate full Studio browser journey passed; the final approved-site browser journey failed at stage3/tests/approved-site-browser.cjs:700 because Playwright's click on #server-approved-vault-open was intercepted by #server-resources or .sidebar. Inspect the real DOM/scroll/stacking and repair the user interaction; do not force-click or weaken the test. Screenshot artifact: [run 41239753483](https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483/artifacts/13056942380).
+
+No owner UI/UX GO, first-client pilot or Stage3 acceptance is implied. Stage2 remains NO-GO; mandatory ledger remains 124 candidates + 5 partial + 6 external gates, ownerAccepted=0/135. No main/Hostinger/production/CELIKOM change.

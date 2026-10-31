@@ -1,6 +1,6 @@
 {
   "working_name": "AI Site CMS",
-  "date": "2026-10-27",
+  "date": "2026-10-31",
   "status": "stage2-no-go-stage3-isolated-design-factory-owner-visual-rejected",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v1.76-2026-10-27.md",
-  "latest_source_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v9.8-2026-10-31.md",
+  "latest_source_sha": "ab04bc0ac87645cc7882a726a2b18c2d5a7c1312",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483",
   "source_offweb_ci": null,
-  "source_ci_result": "Completed SUCCESS on functional Stage3 D6 SHA 32297b94b009c3fbe1cd6e730356261442d849cd: actions #40551009731; both contract and technology-runtime SUCCESS. Documentation-only commits after functional SHA change no runtime source.",
+  "source_ci_result": "Exact current functional SHA ab04bc0ac87645cc7882a726a2b18c2d5a7c1312, Actions #41239753483: technology-runtime SUCCESS; contract FAILED at stage3/tests/approved-site-browser.cjs:700 because Playwright pointer click on #server-approved-vault-open is intercepted by #server-resources or .sidebar. PHP/SQLite HTTP E2E, D3 loopback cutover/rollback and separate Studio browser journey passed. Do not call overall CI green.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly with cross-subsystem workflows (no duration padding), then correct issues from real use; avoid tiny features and endless tests",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
+    "stage3_code_sha": "ab04bc0ac87645cc7882a726a2b18c2d5a7c1312",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -55,7 +55,7 @@
       "D: Technology adapters + deploy foundations (2/13/12; isolated only)",
       "E: System checks + 135 owner approvals + release (14/15/16/17; owner GO required)"
     ],
-    "next_macroblock": "A/B/C user journey and mandatory coverage: map 135 requirements to actual code, pick largest uncovered verticals, build end-to-end authored multipage site → explicit publish → form → inbox → restore/export. No D7 exporter by default.",
+    "next_macroblock": "First fix the actual approved-site browser pointer-interception issue in the reorganized Studio resources/sidebar; then continue one large owner-facing workflow in the existing CMS. Use existing full CI and only critical new browser assertions; no test inflation.",
     "execution_policy_document": "docs/ACCELERATED-MACROBLOCK-PROGRAM.md",
     "policy_owner_request_date": "2026-10-27",
     "current_code_checkpoint_at_policy_change": "cf369988ec16904d945413f36ad292fb94d17da2",
@@ -64,11 +64,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "LEAD continues existing mandatory-135 whole-CMS user journey and high-value A/B/C feature work; Design Factory worker independently redesigns from professional benchmarks with 3 owner-reviewed site concepts; existing theme catalog visually REJECTED (2/10); integrate only after owner explicitly approves new quality and Lead authorizes. Stage2 gates remain NO-GO; no main/production/merge.",
+  "next_step": "Fix the real pointer-interception defect in the approved-site browser path (#server-approved-vault-open, approved-site-browser.cjs:700) without forced clicks or weakened tests; verify full CI on exact SHA; then continue large owner-facing Studio/CMS workflows. Owner says current visual skin is provisionally acceptable; prioritize navigation clarity and decluttering.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "1.76-design-visual-no-go",
+  "checkpoint_version": "9.8-studio-information-architecture-handoff",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -668,7 +668,7 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v1.75-2026-10-27.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v9.8-2026-10-31.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -689,7 +689,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v1.72-2026-10-26.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v9.8-2026-10-31.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1237,9 +1237,9 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "1.75",
-  "last_docs_handoff_note": "Owner requested transition to incoming lead after verified full CI #40395814925 SUCCESS on source SHA 95a9f36759e7feabe435c4733181a73ff70866d9; docs-only commits need separate HEAD/CI check. New intake, page builder, launch compare and Graph studio documented. Stage2 NO-GO #5-9, Stage3 0/135 formal.",
-  "latest_tested_code_sha": "ac483807cc2f2ac302f6fed3470cac4cfb795896",
+  "last_docs_handoff_version": "v9.8",
+  "last_docs_handoff_note": "Owner-requested handoff 31.10.2026: Studio navigation clutter reduction, exact current branch/CI state, outstanding pointer-interception defect and ready first message for next lead chat.",
+  "latest_tested_code_sha": "ab04bc0ac87645cc7882a726a2b18c2d5a7c1312",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
     "owner_directive": "large_coherent_product_verticals_not_small_8_minute_fixes",
@@ -1767,9 +1767,9 @@
       "Real host deployment, production, providers"
     ]
   },
-  "latest_known_failed_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40375523554",
-  "latest_confirmed_successful_functional_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
-  "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
+  "latest_known_failed_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483",
+  "latest_confirmed_successful_functional_sha": "b9ab53c21c39d5e87e260d3691c134ddf3740e0d",
+  "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41223974027",
   "stage3_engineering_estimate": "Approximate subjective core-editor progress 70-80%, not a verified acceptance fraction; all 135 required Stage3 items still require formal owner acceptance (0/135).",
   "stage3_v1_72_checkpoint": {
     "date": "2026-10-26",
@@ -1947,5 +1947,50 @@
     "lead_policy": "NO MERGE, NO PUBLISH, NO PROMOTION before explicit owner approval of 3 meaningfully distinct professional responsive site concepts. Existing visual catalog not accepted. Reuse technical core.",
     "required_immediate_worker_result": "research 3-5 authentic designer references per chosen sector, then 3 original responsive concept websites for owner visual review",
     "impact_on_main_CMS": "Lead continues substantial mandatory-135 user-journey work; do not stall waiting for Design Factory redesign. No rework of existing SDK/PHP without authorized integration."
+  },
+  "stage3_v9_8_checkpoint": {
+    "date": "2026-10-31",
+    "branch": "feature/stage3-ai-site-contract",
+    "functional_head": "ab04bc0ac87645cc7882a726a2b18c2d5a7c1312",
+    "previous_verified_green_sha": "b9ab53c21c39d5e87e260d3691c134ddf3740e0d",
+    "previous_verified_green_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41223974027",
+    "current_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483",
+    "current_ci_result": {
+      "technology_runtime": "SUCCESS",
+      "contract": "FAILED"
+    },
+    "failure": {
+      "file": "stage3/tests/approved-site-browser.cjs",
+      "line": 700,
+      "action": "click #server-approved-vault-open",
+      "observed": "Playwright pointer events intercepted by #server-resources or .sidebar",
+      "required_next": "Inspect real DOM geometry, scroll container, positioning, z-index and elementFromPoint; fix actual owner interaction. Do not force-click or weaken the assertion."
+    },
+    "screenshot_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483/artifacts/13056942380",
+    "delivered": [
+      "Simplified page tree: one primary add-page action; rename/duplicate/reorder/delete in a collapsed contextual group",
+      "Simplified block tree: one primary add-block action; contextual appearance/composition/duplicate/reorder/delete actions",
+      "Human-readable component catalog; internal raw component-ID add control hidden from normal owner path",
+      "Grouped site tools by appearance, SEO, navigation/contacts, content/structure and advanced tasks",
+      "Grouped resource drawers for media, leads/delivery, saved blocks, archive/history, cross-site transfer and import/approval materials",
+      "Collapsed history by default and removed technical section ID from ordinary inspector caption",
+      "Desktop sidebar internal scrolling and phone normal-flow sidebar/inspector adjustments",
+      "Existing Studio, APIs, permissions, Save/Publish/Undo and data contracts retained"
+    ],
+    "owner_ui_decision": "Current basic visual styling is acceptable provisionally. The actual problem is information architecture, clutter, repeated unclear labels and too many visible controls. Prioritize WordPress-like clarity and task-oriented grouping; do not wholesale repaint the interface or create a second editor.",
+    "owner_ui_acceptance": "NOT ACCEPTED; owner hands-on review and explicit UI/UX GO remain required.",
+    "product_acceptance": {
+      "stage2": "NO-GO; gates #5–#9 remain open",
+      "stage3": "isolated engineering; not formally accepted",
+      "mandatory_total": 135,
+      "engineering_candidates": 124,
+      "partial": 5,
+      "external_gates": 6,
+      "owner_accepted": 0
+    },
+    "main_branch_sha_observed": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
+    "no_merge": true,
+    "no_hostinger_or_production": true,
+    "no_celikom_production": true
   }
 }
