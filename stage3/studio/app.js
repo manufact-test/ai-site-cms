@@ -4286,9 +4286,17 @@
       if(!rows.length)return;
       if(!rows.some(r=>r.node.id===selection))selection=rows[0].node.id;
       const selected=rows.find(r=>r.node.id===selection),n=selected.node;
+      const nodeLabels={container:'Группа',heading:'Заголовок',text:'Текст',button:'Кнопка',
+        link:'Ссылка',image:'Изображение',video:'Видео',icon:'Иконка',quote:'Цитата',
+        gallery:'Галерея',carousel:'Карусель',table:'Таблица','table-row':'Строка таблицы',
+        'table-cell':'Ячейка таблицы',divider:'Разделитель',disclosure:'Раскрывающийся блок',
+        tabs:'Вкладки',tab:'Вкладка',list:'Список','list-item':'Пункт списка',popup:'Всплывающее окно',
+        'form-slot':'Форма'};
+      const nodeName=node=>node.text||node.alt||nodeLabels[node.type]||'Элемент';
       const chooser=make('select',undefined,'control');chooser.id='cms-design-node-select';
+      chooser.setAttribute('aria-label','Выбранный элемент');
       for(const {node,depth} of rows){
-        const opt=make('option','  '.repeat(depth)+node.type+' · '+(node.text||node.alt||node.id).slice(0,55));
+        const opt=make('option','  '.repeat(depth)+(nodeLabels[node.type]||'Элемент')+' · '+nodeName(node).slice(0,55));
         opt.value=node.id;chooser.append(opt);
       }
       chooser.value=selection;
@@ -4312,11 +4320,17 @@
         auditNodeFocusPending=false;
         requestAnimationFrame(()=>chooser.focus({preventScroll:true}));
       }
-      const action=(name,fn)=>{
-        const b=button(name,'btn small',fn);toolbar.append(b);return b;
+      const advancedActions=make('details',undefined,'cms-design-advanced-actions');
+      advancedActions.id='cms-design-structure-actions';
+      advancedActions.append(make('summary','Действия с элементом'));
+      const advancedActionList=make('div',undefined,'cms-design-advanced-actions-list');
+      advancedActions.append(advancedActionList);
+      const action=(name,fn,primary=false)=>{
+        const b=button(name,'btn small',fn);
+        (primary?toolbar:advancedActionList).append(b);return b;
       };
-      const undoButton=action('↶ Отменить',undoGraph);undoButton.id='cms-design-undo';
-      const redoButton=action('↷ Повторить',redoGraph);redoButton.id='cms-design-redo';
+      const undoButton=action('↶ Отменить',undoGraph,true);undoButton.id='cms-design-undo';
+      const redoButton=action('↷ Повторить',redoGraph,true);redoButton.id='cms-design-redo';
       updateHistoryButtons();
       action('+ Вложенный',()=>{
         if(!['container','disclosure','tab','list','popup'].includes(n.type))return notice('Для вложенности выберите контейнер или панель',true);
@@ -4517,7 +4531,9 @@
           const opt=make('option',label);opt.value=value;placement.append(opt);
         }
         placement.value=firstContainer?'inside':'after';
-        toolbar.append(moveDestination,placement);
+        const moveGroup=make('div',undefined,'cms-design-move-group');
+        moveGroup.append(make('label','Переместить выбранный элемент'));
+        moveGroup.append(moveDestination,placement);advancedActionList.append(moveGroup);
         action('Переместить',()=>changeTree({action:'move',nodeId:n.id,
           targetId:moveDestination.value,placement:placement.value},n.id));
       }
@@ -4537,7 +4553,8 @@
         });
         fit.id='cms-design-fit-width';
       }
-      const headline=make('h3','Редактирование · '+n.type);root.append(headline);
+      if(advancedActionList.childElementCount)toolbar.append(advancedActions);
+      const headline=make('h3','Свойства · '+(nodeLabels[n.type]||'Элемент'));root.append(headline);
       const fields=make('div','', 'cms-design-fields');root.append(fields);
       if(['heading','text','button','link','quote','table','table-cell','gallery','carousel','disclosure','tab','list-item','popup'].includes(n.type)){
         fields.append(ctl('Текст (сбрасывает акценты)',n.text,value=>{n.text=value;delete n.runs;},'multiline'));
@@ -4776,7 +4793,10 @@
       if(n.type==='quote')fields.append(ctl('Автор или источник цитаты',n.cite||'',value=>{n.cite=value;}));
       if(n.type==='list')fields.append(ctl('Тип списка',{initial:n.ordered?'ordered':'unordered',
         choices:[['unordered','Маркированный'],['ordered','Нумерованный']]},v=>{n.ordered=v==='ordered';},'select'));
-      if(n.type==='heading')fields.append(ctl('Уровень заголовка',String(n.level||2),value=>{n.level=Number(value);},'number'));
+      if(n.type==='heading')fields.append(ctl('Уровень заголовка',{
+        initial:String(n.level||2),choices:[['1','H1 · главный заголовок'],['2','H2 · заголовок раздела'],
+          ['3','H3 · подзаголовок'],['4','H4'],['5','H5'],['6','H6']]
+      },value=>{n.level=Number(value);},'select'));
       if(['button','link'].includes(n.type)&&!n.popupTarget)
         fields.append(ctl('Ссылка',n.href||'/',value=>{n.href=value;}));
       if(n.type==='button'){
@@ -4790,7 +4810,8 @@
         fields.append(ctl('Ссылка по клику (необязательно)',n.href||'',v=>{if(v.trim())n.href=v.trim();else delete n.href;}));
         const options=session.current.assets.filter(a=>a.mime!=='video/mp4').map(a=>[a.id,a.alt||a.id]);
         fields.append(ctl('Изображение',{initial:n.assetId,choices:options},v=>{n.assetId=v;},'select'),
-          ctl('Описание изображения',n.alt,v=>{n.alt=v;}));
+          ctl('Описание изображения',n.alt||'',v=>{n.alt=v;}));
+        fields.append(make('small','Заполняйте, если на фото есть важная информация. Для декоративного изображения оставьте поле пустым.'));
         const raster=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
         const artChoices=[['','Наследовать предыдущий размер'],...raster.map(a=>[a.id,a.alt||a.id])];
         for(const [bp,label] of [['tablet','Изображение планшета'],['mobile','Изображение телефона']]){
@@ -4809,7 +4830,8 @@
         const images=session.current.assets.filter(a=>a.mime!=='video/mp4').map(a=>[a.id,a.alt||a.id]);
         fields.append(ctl('MP4-файл',{initial:n.assetId,choices:videos},
           v=>{n.assetId=v;},'select'));
-        fields.append(ctl('Описание видео',n.alt,v=>{n.alt=v;}));
+        fields.append(ctl('Название видео для доступности',n.alt||'',v=>{n.alt=v;}));
+        fields.append(make('small','Коротко опишите содержание видео для тех, кто не может его просмотреть.'));
         fields.append(ctl('Постер',{initial:n.posterAssetId||'',
           choices:[['','Без обложки'],...images]},
           v=>{if(v)n.posterAssetId=v;else delete n.posterAssetId;},'select'));
@@ -4821,7 +4843,8 @@
         fields.append(ctl('Векторная иконка',
           {initial:n.icon,choices:Object.keys(DESIGN_GRAPH.ICON_PATHS).map(v=>[v,v])},
           value=>{n.icon=value;},'select'));
-        fields.append(ctl('Описание для скринридера (пусто = декоративная)',n.alt||'',value=>{n.alt=value;}));
+        fields.append(ctl('Описание иконки',n.alt||'',value=>{n.alt=value;}));
+        fields.append(make('small','Если иконка только украшает страницу, оставьте поле пустым.'));
         fields.append(ctl('Размер иконки (12–128 px)',String(n.iconSize??24),value=>{
           if(value.trim())n.iconSize=Number(value);else delete n.iconSize;
         },'number'));
@@ -4830,6 +4853,7 @@
           value=>{n.iconWeight=value;},'select'));
       }
       const modeSelect=make('select',undefined,'control');modeSelect.id='cms-design-breakpoint';
+      modeSelect.setAttribute('aria-label','Устройство и состояние элемента');
       for(const [v,t] of [['desktop','Компьютер'],['tablet','Планшет'],['mobile','Телефон'],
         ['hover','Наведение'],['focus','Фокус с клавиатуры'],['active','Нажатие']]){
         const opt=make('option',t);opt.value=v;modeSelect.append(opt);
@@ -6558,7 +6582,7 @@
   function drawElements(){
     const {section}=current(),m=manifest(section);
     $('inspector-title').textContent=m?.label||section.component;
-    $('inspector-caption').textContent='ID '+section.id+' · схема '+section.manifestVersion;
+    $('inspector-caption').textContent='Выберите элемент блока, чтобы изменить его содержимое.';
     const row=$('elements');row.replaceChildren();
     if(section.component==='lead-form-flex'){
       const builder=button('Поля и шаги формы · '+(section.formFields||[]).length+'/9'+(section.formSteps?' · '+section.formSteps.length+' шага(ов)':''),
@@ -6622,24 +6646,34 @@
         'Страница подтверждения изменена в черновике.'));
       label.append(chooser);
       const hint=document.createElement('p');hint.textContent='Только уже созданная скрытая страница с noindex и без форм. Переход выполняется после принятой сервером заявки; при ошибках и устаревшей публикации показывается штатный ответ сервера. Если страницу не выбрать, остаётся штатное подтверждение. Для стороннего HTTPS-хостинга необходимо проверить реальную доставку и маршрут.';
-      targetBox.append(legend,policyLabel,policyHint,label,hint);row.append(targetBox);
+      targetBox.append(legend,policyLabel,policyHint,label,hint);
+      const formSettings=document.createElement('details');formSettings.className='inspector-advanced-group';
+      formSettings.id='cms-form-success-settings-group';
+      const formSummary=document.createElement('summary');formSummary.textContent='Настройки формы';
+      formSettings.append(formSummary,targetBox);row.append(formSettings);
     }
-    // Device-specific visibility applies to the existing section, not a new template.
+    // Rare section-wide controls are available on demand, never mixed into the
+    // selected element's everyday property list.
+    const sectionSettings=document.createElement('details');
+    sectionSettings.className='inspector-advanced-group';sectionSettings.id='cms-section-advanced-settings';
+    const sectionSummary=document.createElement('summary');
+    sectionSummary.textContent='Дополнительные настройки блока';
+    sectionSettings.append(sectionSummary);
     const visibilityPanel=document.createElement('fieldset');visibilityPanel.id='cms-section-device-visibility';
-    const visibilityTitle=document.createElement('legend');visibilityTitle.textContent='Показывать секцию на устройствах';
+    const visibilityTitle=document.createElement('legend');visibilityTitle.textContent='Показывать на';
     visibilityPanel.append(visibilityTitle);
+    const visibilityChoices=document.createElement('div');visibilityChoices.className='inspector-device-choices';
     for(const [device,label] of [['desktop','Компьютер'],['tablet','Планшет'],['mobile','Телефон']]){
-      const item=document.createElement('label'),control=document.createElement('input');
-      control.type='checkbox';control.dataset.sectionDevice=device;
-      control.checked=section.deviceVisibility?.[device]!==false;
-      control.dataset.editorWrite='true';
-      control.addEventListener('change',()=>{
-        structural({action:'setSectionVisibility',pageId,sectionId,device,visible:control.checked});
-        control.checked=current().section.deviceVisibility?.[device]!==false;
+      const visible=section.deviceVisibility?.[device]!==false;
+      const control=button(label,'btn small inspector-device-toggle'+(visible?' is-active':''),()=>{
+        structural({action:'setSectionVisibility',pageId,sectionId,device,visible:!visible});
       });
-      item.append(control,document.createTextNode(' '+label));visibilityPanel.append(item);
+      control.dataset.sectionDevice=device;control.dataset.editorWrite='true';
+      control.setAttribute('aria-pressed',String(visible));
+      visibilityChoices.append(control);
     }
-    row.append(visibilityPanel);
+    visibilityPanel.append(visibilityChoices);
+    sectionSettings.append(visibilityPanel);
     // Multi-page shared sections: one page-local ID per instance and atomic
     // propagation of every edit. Detach preserves this page's current content.
     {
@@ -6653,7 +6687,7 @@
       status.textContent=group?
         'Общая секция · '+related.length+' страниц · '+related.map(x=>x.page.title).join(', '):
         'Локальная секция · изменения только на этой странице';
-      row.append(status);
+      sectionSettings.append(status);
       const candidates=session.current.pages.filter(page=>
         page.id!==currentPage.id&&page.sections.length<100&&
         (!group||!page.sections.some(sec=>sec.sharedKey===group)));
@@ -6670,7 +6704,7 @@
             sharedKey:group||uniqueId('shared')});
         });
         link.id='cms-shared-section-link';link.dataset.editorWrite='true';
-        row.append(target,link);
+        sectionSettings.append(target,link);
       }
       if(group){
         const unlink=button('Отвязать от общих секций','btn small',()=>{
@@ -6678,9 +6712,13 @@
             structural({action:'detachSharedSection',pageId:currentPage.id,sectionId:section.id});
         });
         unlink.id='cms-shared-section-detach';unlink.dataset.editorWrite='true';
-        row.append(unlink);
+        sectionSettings.append(unlink);
       }
     }
+    row.append(sectionSettings);
+    const elementHeading=document.createElement('div');
+    elementHeading.className='inspector-group-title';elementHeading.textContent='Элементы блока';
+    row.append(elementHeading);
     section.elements.forEach(e=>{
       const label=m.elements.find(s=>s.slot===e.slot)?.label||e.slot;
       row.append(button(label,'element'+(e.id===elementId?' active':''),
@@ -6690,9 +6728,7 @@
       const faq=section.component==='faq-accordion';
       const noun=faq?'вопрос':'карточку';
       const label=document.createElement('small');label.className='field-path';
-      label.textContent=(faq?'ВОПРОСЫ FAQ':'ПОВТОРЯЕМЫЕ ЭЛЕМЕНТЫ')+' · '+
-        section.items.length+'/'+m.repeat.max+
-        (section.items.length<=m.repeat.min?' · минимум '+m.repeat.min:'');
+      label.textContent=(faq?'Вопросы':'Карточки')+' · '+section.items.length;
       row.append(label);
       section.items.forEach((item,i)=>{
         const headline=item.values['content.title']||item.values['content.question']||
@@ -6751,53 +6787,69 @@
   function drawFields(){
     const fields=C.controls(session.current,manifests,pageId,sectionId,elementId);
     const box=$('fields');box.replaceChildren();
+    if(!fields.length){
+      const empty=document.createElement('p');empty.className='inspector-empty';
+      empty.textContent='У этого элемента пока нет редактируемых свойств.';
+      box.append(empty);return;
+    }
+    const enumLabels={grid:'Сетка',masonry:'Мозаика',carousel:'Карусель',
+      cover:'Заполнить область',contain:'Показать целиком'};
     for(const field of fields){
-      const wrap=document.createElement('div');
-      const label=document.createElement('label');
-      label.className='field-label';label.textContent=field.label;
-      const id='field-'+field.path.replace('.','-');label.htmlFor=id;
-      const line=document.createElement('div');line.className='field-path';
+      const wrap=document.createElement('div');wrap.className='inspector-field';
+      const id='field-'+field.path.replace(/[^a-zA-Z0-9_-]/g,'-');
       const overridden=field.responsive&&Object.prototype.hasOwnProperty.call(field.value,breakpoint);
       const inheritedFrom=breakpoint==='mobile'&&Object.prototype.hasOwnProperty.call(field.value,'tablet')
-        ?'планшета':'ПК';
-      line.textContent=field.path+(field.responsive?
-        ' · '+breakpoint+(breakpoint==='desktop'?' · базовое значение':
-          overridden?' · своё значение':' · наследуется от '+inheritedFrom):'');
-      const error=document.createElement('p');error.className='field-path';error.setAttribute('role','alert');
+        ?'планшета':'компьютера';
+      const responsiveNote=document.createElement('small');responsiveNote.className='inspector-responsive-note';
+      responsiveNote.textContent=overridden?'Отдельное значение для '+(breakpoint==='mobile'?'телефона':'планшета'):
+        'Наследуется от '+inheritedFrom;
+      const error=document.createElement('p');error.className='inspector-field-error';
+      error.setAttribute('role','alert');
       let control;
       const initial=field.responsive?C.effectiveValue(field.value,breakpoint):field.value;
       if(field.type==='media'){
         control=document.createElement('select');
         const blank=document.createElement('option');blank.value='';blank.textContent='Без изображения';control.append(blank);
-        session.current.assets.filter(asset=>asset.mime.startsWith('image/')).forEach(asset=>{
+        session.current.assets.filter(asset=>asset.mime.startsWith('image/')).forEach((asset,index)=>{
           const opt=document.createElement('option');opt.value=asset.id;
-          opt.textContent=(asset.alt||asset.id)+' · '+asset.mime;
-          control.append(opt);
+          opt.textContent=asset.alt||('Изображение без описания · '+(index+1));
+          opt.title=asset.id;control.append(opt);
         });control.value=initial;
       }else if(field.type==='enum'){
         control=document.createElement('select');
         field.options.forEach(v=>{
-          const opt=document.createElement('option');opt.value=v;opt.textContent=v;control.append(opt);
+          const opt=document.createElement('option');opt.value=v;
+          opt.textContent=enumLabels[v]||v;control.append(opt);
         });control.value=initial;
       }else{
-        // Select options are separated by newlines: a single-line input
-        // silently discards line breaks and destroys the published choices.
         control=document.createElement(field.path==='content.options'?'textarea':'input');
-        if(control.tagName==='INPUT')control.type=field.type==='boolean'?'checkbox':
-          field.type==='color'?'color':field.type==='number'?'number':'text';
-        if(field.type==='boolean')control.checked=initial;
-        else control.value=safeText(initial);
+        if(control.tagName==='INPUT')control.type=field.type==='color'?'color':
+          field.type==='number'?'number':'text';
+        control.value=field.type==='boolean'?'':safeText(initial);
         if(field.type==='number'){control.min=field.min;control.max=field.max;}
         if(field.maxLength)control.maxLength=field.maxLength;
       }
-      control.id=id;control.className='control';control.dataset.field=field.path;
-      const event=(field.type==='text'||field.type==='color'||field.type==='length')?'change':'change';
-      control.addEventListener(event,()=>{
+      control.id=id;control.dataset.field=field.path;
+      control.setAttribute('aria-label',field.label);
+      control.className=field.type==='boolean'?'inspector-switch-input':'control';
+      if(field.type==='boolean')control.checked=!!initial;
+      control.addEventListener('change',()=>{
         applyEdit(field,field.type==='boolean'?control.checked:control.value,control,error);
       });
-      wrap.append(label,control,line,error);
+      if(field.type==='boolean'){
+        const toggle=document.createElement('label');toggle.className='inspector-toggle';
+        const text=document.createElement('span');text.textContent=field.label;
+        toggle.append(control,text);wrap.append(toggle);
+      }else{
+        const label=document.createElement('label');
+        label.className='field-label';label.textContent=field.label;label.htmlFor=id;
+        wrap.append(label,control);
+      }
+      if(field.responsive&&breakpoint!=='desktop'){
+        wrap.append(responsiveNote);
+      }
       if(field.responsive&&breakpoint!=='desktop'&&overridden){
-        const clear=button('↶ Наследовать от '+inheritedFrom,'btn small',()=>{
+        const clear=button('Вернуть значение компьютера','btn small inspector-inherit-button',()=>{
           try{
             const before=session.revision;
             session=D.inheritBreakpoint(session,manifests,{
@@ -6805,7 +6857,7 @@
             });
             if(session.revision!==before){
               drawHeader();drawElements();drawFields();drawPreview();
-              notice('Локальная настройка снята. Значение наследуется от другого устройства. Undo доступен.');
+              notice('Настройка устройства сброшена к наследуемому значению. Изменение можно отменить.');
             }
           }catch(error){notice('Не удалось восстановить наследование: '+error.message,true);}
         });
@@ -6813,7 +6865,7 @@
         clear.id='cms-field-inherit-'+field.path.replace(/[^a-zA-Z0-9_-]/g,'-');
         wrap.append(clear);
       }
-      box.append(wrap);
+      wrap.append(error);box.append(wrap);
     }
   }
   function stylesFor(block){
@@ -7075,13 +7127,30 @@
       '<style>.cms-adaptive-section{min-width:0}.cms-adaptive-gallery{min-width:0;max-width:100%;margin:20px 0}.cms-adaptive-card{overflow:hidden;min-width:0;break-inside:avoid;margin:0;background:var(--cms-surface);border:1px solid #d6e0ea;border-radius:12px}.cms-adaptive-card img{display:block;width:100%;aspect-ratio:4/3;max-height:460px;object-fit:cover}.cms-adaptive-card .media-placeholder{min-height:110px}.cms-gallery-fit-contain .cms-adaptive-card img{object-fit:contain}.cms-adaptive-card figcaption{padding:12px;overflow-wrap:anywhere}.cms-gallery-grid{display:grid;grid-template-columns:repeat(var(--cms-gallery-columns),minmax(0,1fr));gap:14px}.cms-gallery-grid .cms-gallery-featured{grid-column:span 2}.cms-gallery-masonry{columns:var(--cms-gallery-columns);column-gap:14px}.cms-gallery-masonry .cms-adaptive-card{display:inline-block;width:100%;margin-bottom:14px}.cms-gallery-masonry .cms-adaptive-card img{aspect-ratio:auto;height:auto}.cms-gallery-carousel{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;padding:4px 4px 18px}.cms-gallery-carousel:focus-visible{outline:3px solid var(--cms-primary)}.cms-gallery-carousel .cms-adaptive-card{flex:0 0 clamp(210px,calc(100% / var(--cms-gallery-columns)),75%);scroll-snap-align:start}.cms-gallery-carousel .cms-adaptive-card img{aspect-ratio:4/3}@media(max-width:760px){.cms-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cms-gallery-masonry{columns:2}.cms-gallery-carousel .cms-adaptive-card{flex-basis:70%}}@media(max-width:520px){.cms-gallery-grid{grid-template-columns:1fr}.cms-gallery-grid .cms-gallery-featured{grid-column:auto}.cms-gallery-masonry{columns:1}.cms-gallery-carousel .cms-adaptive-card{flex-basis:84%}}</style>'+
       '<style>.cms-preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:16px}.cms-preview-grid .card{margin:0}.cms-preview-grid h3{margin:5px 0 10px}.cms-preview-faq details{background:var(--cms-surface);border:1px solid #dce6e9;border-radius:10px;padding:15px;margin-block:10px}.cms-preview-faq summary{cursor:pointer;font-weight:700}.cms-preview-grid figcaption{margin-top:10px}</style>'+palette+skinCss+'</head><body>'+content+'</body></html>';
   }
-  function drawPreview(){
+  let mainPreviewRequest=0;
+  async function drawPreview(){
     const {page,section}=current(),m=manifest(section);
-    $('canvas-title').textContent=m?.label||section.component;
-    $('canvas-caption').textContent=page.title+' / '+section.id+' · '+breakpoint;
-    const block=D.blockPreview(session,manifests,pageId,sectionId,breakpoint);
-    const preview=screen(block);
-    $('preview').srcdoc=preview.replace('<html lang="ru">','<html lang="'+escapeHtml(session.current.language||'ru')+'">');
+    const frame=$('preview'),viewport=$('viewport'),request=++mainPreviewRequest;
+    const deviceLabel=breakpoint==='desktop'?'ПК':breakpoint==='tablet'?'планшет':'телефон';
+    $('canvas-title').textContent=page.title;
+    $('canvas-caption').textContent=(m?.label||section.component)+' · выбранный блок выделен · '+deviceLabel;
+    frame.title='Полный предпросмотр страницы '+page.title;
+    frame.style.height='calc(100vh - 270px)';
+    try{
+      const html=HOSTED?
+        await window.Stage3Host.previewPage(session.current,page.path):
+        window.Stage3Editor.previewDocument(session.current,page.path,breakpoint);
+      if(request!==mainPreviewRequest)return;
+      const safeSectionId=String(section.id).replace(/[^a-zA-Z0-9_-]/g,'');
+      const marker='<style>[data-cms-section-id="'+safeSectionId+'"],#'+safeSectionId+
+        '{outline:2px solid #2777ee!important;outline-offset:-2px!important}</style>';
+      frame.srcdoc=html.includes('</head>')?html.replace('</head>',marker+'</head>'):html+marker;
+      viewport.setAttribute('aria-label','Предпросмотр всей страницы '+page.title);
+    }catch(error){
+      if(request!==mainPreviewRequest)return;
+      frame.srcdoc='<!doctype html><html lang="ru"><body style="font:14px system-ui;padding:24px;color:#8b3030">'+
+        'Не удалось построить предпросмотр страницы: '+escapeHtml(error.message)+'</body></html>';
+    }
   }
   function drawVersions(){
     if(HOSTED)return window.Stage3Host?.drawVersions?.();
