@@ -40,3 +40,11 @@ node stage3/seo-engine/tests/public-https-capture-smoke.cjs
 - Нет merge с SEO-веткой и нет правок `main`.
 
 Предыдущие документы v8.0–v8.2 сохраняют историю Form Graph; на 31 октября следующий большой блок Stage3 уже включает пакетную загрузку до 20 изображений, alt review, DnD и responsive image picker (см. конец ROADMAP). Перед новой работой получить актуальный SHA и читать новейшие части ROADMAP.
+
+## Интеграционное исправление контракта Graph form-slot
+
+При адаптации SEO Engine к **актуальной** основной ветке обнаружен настоящий пропуск: SEO-аудит формы и owner delivery readiness, wizard CSP/inline script и проверка статичного HTML учитывали лишь старые `lead-form`/`lead-form-flex` без `designGraph`. Между тем PHP publisher уже рендерит реальную подписанную форму через единственный типизированный `form-slot`. Это могло ложно занизить число обязательных POST/receipt проверок на первом сайте.
+
+Исправлено одной общей детерминированной функцией `hasPublishedForm` в `stage3/seo-engine/lib/graph-authored.cjs`: обычная форма учитывается; Graph-форма учитывается **только при настоящем `form-slot`**; Graph без слота по-прежнему исключается. Пять потребителей сведены к одному определению в `php-local-forms`, `php-local-delivery-readiness`, `php-local-head` и `php-local-static-export`. Добавлены изолированные контракты для точных sectionId/formInstances, owner route, multi-step wizard и static collector. В старом SEO report delta исправлен runtime TypeError (пропущенный оператор конкатенации); устаревший loopback fixture обновлён под обязательный Site v1 `assets:[]`, текущие social meta и проверку полного HTML.
+
+Локально прошли три дополнительные smoke: `php-html-capture-smoke.cjs`, `php-local-delivery-readiness-smoke.cjs`, `php-local-static-export-smoke.cjs`; они добавлены к существующим восьми в один offline CI step. Тесты **не отправляют реальный POST** и не доказывают доставку. Источник и публикация остаются неизменными; клиентский пилот по-прежнему требует разрешений и живых доказательств.

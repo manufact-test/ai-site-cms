@@ -24,6 +24,18 @@ assert.equal(good.configuredForms,2);
 assert.equal(good.findings.length,0);
 assert.equal(good.actualPostPerformed,false);
 assert.equal(good.deliveryProven,false);
+const slotted={...site,pages:site.pages.map(page=>page.id!=='page-about'?page:{
+ ...page,sections:page.sections.map(s=>s.id!=='form-graph'?s:{...s,
+  designGraph:{nodes:[{id:'layout',type:'container',children:[{id:'form-slot',type:'form-slot'}]}]}})})};
+const graphStatus={...status,routes:[...status.routes,{...status.routes[0],
+ sectionId:'form-graph',version:7}]};
+const graphReady=review(slotted,graphStatus,7);
+assert.equal(graphReady.checkedForms,3);
+assert.equal(graphReady.configuredForms,3);
+assert.equal(graphReady.findings.length,0);
+const graphMissing=review(slotted,status,7);
+assert.ok(graphMissing.findings.some(f=>f.sectionId==='form-graph'&&
+ f.code==='php-delivery:published-form-route-absent'));
 const privateValues=['private@client.example','special@client.example','lead-secret-123'];
 for(const secret of privateValues)assert.ok(!JSON.stringify(good).includes(secret));
 const disabled=review(site,{...status,settings:{...status.settings,emailEnabled:false},

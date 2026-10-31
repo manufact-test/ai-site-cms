@@ -5,6 +5,7 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {inspect}=require('./html-evidence.cjs');
 const PUBLISHER=require('./publisher-media.cjs');
+const {hasPublishedForm}=require('./graph-authored.cjs');
 const {text,decode}=require('./php-local-components.cjs');
 const FORMAT='manufact-seo-static-export-parity-v1';
 const verifiedReleases=new WeakSet();
@@ -201,8 +202,7 @@ function staticForms(site,pages,collector,version){
   evidence:'sha256-verified-official-static-html',automatic:false
  }));
  const declared=site.pages.flatMap(page=>
-  (page.sections||[]).filter(section=>
-   ['lead-form','lead-form-flex'].includes(section.component)&&!section.designGraph)
+  (page.sections||[]).filter(hasPublishedForm)
    .map(section=>({page,section})));
  const validCollector=typeof collector==='string'&&
   /^https:\/\/[a-z0-9.-]+(?::443)?$|^http:\/\/(?:localhost|127\.0\.0\.1)(?::[0-9]{2,5})?$/i.test(collector);

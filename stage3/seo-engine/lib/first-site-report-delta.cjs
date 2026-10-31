@@ -262,7 +262,7 @@ function build(previous,currentSummary,currentBundle){
    'not comparable; one release/host/scope changed')+'.',
   'Owner sealed approval archive cohort: '+(ownerApprovalComparable?
    'same verified sealed source fingerprint':'not comparable; missing or changed archive evidence')+'.',
-  'Owner visual findings revision cohort: '(ownerVisualComparable?
+  'Owner visual findings revision cohort: '+(ownerVisualComparable?
    'same published source revision and schema availability':
    'not comparable; visual notes belong to other revision or review availability differs')+'.',
   'Owner delivery configuration cohort: '+(ownerDeliveryComparable?'same published version, snapshot only':

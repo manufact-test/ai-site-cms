@@ -3,6 +3,7 @@
 // NEVER copy recipient email, Telegram chat, submission ID, token or raw
 // endpoint response into public SEO reports. Not proof of actual delivery.
 const FORMAT='manufact-seo-owner-form-delivery-readiness-v1';
+const {hasPublishedForm}=require('./graph-authored.cjs');
 const MODES=new Set(['inherit','off','custom']);
 const SECT=/^[a-z][a-z0-9-]{2,79}$/;
 function review(site,raw,ownerVersion){
@@ -18,7 +19,7 @@ function review(site,raw,ownerVersion){
     typeof settings.emailEnabled!=='boolean'||typeof settings.telegramEnabled!=='boolean')
   throw Error('Owner API delivery status missing known channel configuration');
  const declared=site.pages.flatMap(p=>(p.sections||[])
-  .filter(s=>['lead-form','lead-form-flex'].includes(s.component)&&!s.designGraph)
+  .filter(hasPublishedForm)
   .map(s=>({pageId:p.id,path:p.path,sectionId:s.id})));
  const routes=new Map(),findings=[],forms=[];
  const add=(form,code,severity,message)=>findings.push(Object.freeze({

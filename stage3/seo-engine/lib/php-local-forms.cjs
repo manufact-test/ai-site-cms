@@ -1,6 +1,7 @@
 'use strict';
 // Read-only check of actual public PHP lead forms: NEVER submit data or expose tokens.
 const FORMAT='manufact-seo-local-php-forms-v1';
+const {hasPublishedForm}=require('./graph-authored.cjs');
 function attrs(s){
  const out={};
  for(const m of String(s).matchAll(/([a-z][a-z0-9_-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/gi))
@@ -41,7 +42,7 @@ function review(site,snapshot,publishedVersion=null){
  for(const observed of snapshot.pages){
   const page=site.pages.find(p=>p.id===observed.id&&p.path===observed.path);
   if(!page)throw Error('PHP form page identity mismatch');
-  const expected=page.sections.filter(s=>!s.designGraph&&['lead-form','lead-form-flex'].includes(s.component));
+  const expected=page.sections.filter(hasPublishedForm);
   const actual=forms(observed.html);let checked=0,formInstances=[];
   if(actual.length!==expected.length)add(page,null,'count-drift','Published form count differs from sealed Site v1.');
   for(const section of expected){

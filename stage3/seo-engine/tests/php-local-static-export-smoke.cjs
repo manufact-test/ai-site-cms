@@ -72,6 +72,15 @@ const fhtml=html('Hello').replace('</main>',formMarkup('a'.repeat(64))+'</main>'
 const forms=staticForms(fsite,new Map([['/',{html:fhtml}]]),collector,4);
 assert.equal(forms.checkedForms,1);
 assert.equal(forms.findings.length,0);
+const graphFsite={...fsite,pages:fsite.pages.map(page=>({...page,
+ sections:page.sections.map(section=>({...section,
+  designGraph:{nodes:[{id:'wrap',type:'container',children:[{id:'slot',type:'form-slot'}]}]}}))}))};
+const graphForms=staticForms(graphFsite,new Map([['/',{html:fhtml}]]),collector,4);
+assert.equal(graphForms.checkedForms,1);
+assert.equal(graphForms.findings.length,0);
+const emptyGraphSite={...graphFsite,pages:graphFsite.pages.map(page=>({...page,
+ sections:page.sections.map(section=>({...section,designGraph:{nodes:[]}}))}))};
+assert.equal(staticForms(emptyGraphSite,new Map([['/',{html:html('Hello')}]]),null,4).checkedForms,0);
 const wrongCollector=staticForms(fsite,new Map([['/',{html:fhtml.replace(
  collector+'/forms/a-site/sec-form','https://other.example/forms/a-site/sec-form')}]]),collector,4);
 assert.ok(wrongCollector.findings.some(x=>x.code==='php-export:static-form-action-drift'));

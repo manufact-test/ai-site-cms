@@ -9,6 +9,11 @@ function nodes(section){
  walk(section.designGraph.nodes);
  return out;
 }
+function hasPublishedForm(section){
+ if(!['lead-form','lead-form-flex'].includes(section?.component))return false;
+ if(!section.designGraph)return true;
+ return nodes(section).some(node=>node.type==='form-slot');
+}
 function heading(section,expected){
  const list=nodes(section).filter(x=>x.type==='heading');
  const matches=list.filter(x=>normalize(x.text)===normalize(expected));
@@ -26,4 +31,4 @@ function cta(section,expectedPath,expectedLabel){
   nodeId:chosen?.id||null,href:chosen?.href||null,label:chosen?.text||null,
   candidateCount:list.length,routeMatches:routed.length};
 }
-module.exports=Object.freeze({nodes,heading,cta});
+module.exports=Object.freeze({nodes,heading,cta,hasPublishedForm});

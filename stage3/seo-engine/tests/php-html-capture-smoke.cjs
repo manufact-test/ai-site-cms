@@ -93,7 +93,7 @@ const server=http.createServer((req,res)=>{
  if(mode==='redirect'){res.writeHead(302,{Location:'https://example.com/'});res.end();return;}
  if(mode==='wrong-type'){res.writeHead(200,{'Content-Type':'text/plain'});res.end(html('Bad'));return;}
  if(mode==='oversize'){res.writeHead(200,{'Content-Type':'text/html'});res.end('x'.repeat(450001));return;}
- if(mode==='incomplete'){res.writeHead(200,{'Content-Type':'text/html'});res.end('<h1>Bad</h1>');return;}
+ if(mode==='incomplete'){res.writeHead(200,{'Content-Type':'text/html'});res.end('<!doctype html><html><body><h1>Bad</h1></body></html>');return;}
  if(req.url==='/published/pilot-local/assets/asset-banner.png'||
     req.url==='/published/pilot-local/assets/asset-banner-sm.png'||
     req.url==='/published/pilot-local/assets/asset-secondary.png'){
@@ -162,6 +162,21 @@ function formAndFirstSiteCliContracts(){
  assert.equal(overridden.expectedForms,0);
  assert.equal(overridden.observedForms,0);
  assert.equal(overridden.findings.length,0);
+ // A real Graph form-slot keeps the original signed lead form active. It must
+ // feed exact per-section acceptance counts, not be treated as a decoration.
+ const slotted=JSON.parse(JSON.stringify(site));
+ slotted.pages[0].sections[0].designGraph={id:'graph-form',nodes:[
+  {id:'group',type:'container',children:[{id:'lead-slot',type:'form-slot'}]}]};
+ const slottedCapture=FORM.review(slotted,{siteId:'pilot-form',pages:[{
+  id:'page-form',path:'/',html:doc('a'.repeat(64)).replace('<form ',
+   '<div class="cmsdg-n-lead-slot cmsdg-form-slot"><form ').replace('</form>',
+   '</form></div>')
+ }]});
+ assert.equal(slottedCapture.expectedForms,1);
+ assert.equal(slottedCapture.observedForms,1);
+ assert.equal(slottedCapture.checkedFormSections,1);
+ assert.deepEqual(slottedCapture.pages[0].formInstances,[{sectionId:'sec-form'}]);
+ assert.equal(slottedCapture.findings.filter(x=>x.severity==='error').length,0);
  assert.ok(inspect(doc('invalid')).findings.some(x=>x.code==='php-form:token-marker'));
  assert.ok(inspect(doc('a'.repeat(64)).replace('/forms/pilot-form/sec-form','/forms/other-site/sec-form'))
   .findings.some(x=>x.code==='php-form:action-drift'));
@@ -198,13 +213,16 @@ function formAndFirstSiteCliContracts(){
  const HEAD=require('../lib/php-local-head.cjs');
  const script='(()=>{const wizard=1;})();';
  const digest=crypto.createHash('sha256').update(script,'utf8').digest('base64');
- const siteHead={siteId:'pilot-form',title:'Pilot',language:'ru',pages:[{
+ const siteHead={siteId:'pilot-form',title:'Pilot',language:'ru',assets:[],pages:[{
   id:'page-form',path:'/',title:'Home',
   seo:{title:'Home',description:'Test',robots:'index'},
   sections:[{id:'sec-form',component:'lead-form-flex',formSteps:withSteps.pages[0].sections[0].formSteps}]
  }]};
  const docHead='<html lang="ru"><head><title>Home</title><meta name="description" content="Test">'+
-  '<meta property="og:title" content="Home"><meta property="og:description" content="Test"></head>'+
+  '<meta property="og:title" content="Home"><meta property="og:description" content="Test">'+
+  '<meta property="og:type" content="website"><meta property="og:locale" content="ru_RU">'+
+  '<meta name="twitter:title" content="Home"><meta name="twitter:description" content="Test">'+
+  '<meta name="twitter:card" content="summary"></head>'+
   '<body><script>'+script+'</script></body></html>';
  const headCheck=(html,policy)=>HEAD.review(siteHead,{siteId:'pilot-form',
   pages:[{id:'page-form',path:'/',html}]},
@@ -215,6 +233,14 @@ function formAndFirstSiteCliContracts(){
   x.code==='php-head:inline-script-csp-drift'&&x.severity==='error'));
  assert.ok(headCheck(docHead.replace('<script>'+script+'</script>',''),goodPolicy).findings.some(x=>
   x.code==='php-head:wizard-script-absent'&&x.severity==='error'));
+ const slottedHead={...siteHead,pages:siteHead.pages.map(page=>({...page,
+  sections:page.sections.map(section=>({...section,
+   designGraph:{nodes:[{id:'lead-slot',type:'form-slot'}]}}))}))};
+ const slottedHeadResult=HEAD.review(slottedHead,{siteId:'pilot-form',pages:[{
+  id:'page-form',path:'/',html:docHead}]},
+  [{pageId:'page-form',path:'/',headers:{'content-security-policy':goodPolicy}}],null);
+ assert.equal(slottedHeadResult.pages[0].wizardExpected,true);
+ assert.ok(!slottedHeadResult.findings.some(x=>x.code==='php-head:wizard-script-absent'));
  // A real CMS import remaps immutable asset IDs. Source content must remain
  // byte-equivalent after precisely that retarget, not merely look similar.
  const RECONCILE=require('../lib/published-site-reconcile.cjs');
