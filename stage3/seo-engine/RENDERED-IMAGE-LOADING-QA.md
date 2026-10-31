@@ -20,7 +20,7 @@ Existing static media review can inspect HTML metadata and apparent image refere
 | Finding code in rendered-content audit | Priority | Interpretation / manual follow-up |
 |---|---|---|
 | `rendered:visible-images-failed` | P1 | CSS-visible `img` is complete with no intrinsic pixels. Check asset URL, server status, decoding and cross-origin constraints in the **authorized** browser. |
-| `rendered:large-above-fold-image-failed` | P1 | First-screen image candidate occupies ≥15% of viewport area and failed. This is **not** an LCP element determination. |
+| `rendered:large-above-fold-image-failed` | P1 | First-screen image candidate **actually intersects** ≥15% of viewport area and failed. This is **not** an LCP element determination. |
 | `rendered:above-fold-images-lazy` | P2 | Above-fold `img` uses `loading=lazy`; review priority and loading behavior. Not proof of delay or a universal prohibition. |
 | `rendered:visible-images-missing-alt` | P2 | Visible image has no `alt` **attribute**; decide decorative vs informative intent. Empty `alt=""` is separately counted but not automatically flagged. |
 | `rendered:visible-images-missing-dimensions` | P2 | `width` or `height` HTML attribute missing; CSS `aspect-ratio` or reserved container may already avoid shift. |
@@ -28,7 +28,7 @@ Existing static media review can inspect HTML metadata and apparent image refere
 | `rendered:visible-images-pending` | P2 | A visible image did not finish during these snapshots; timing and external runtime factors require manual investigation. |
 | `rendered:image-state-unavailable` | P2 | Observation unstable, too many images, DOM changed, or browser sample failed; **unknown**, never green. |
 
-The counters classify only in-layout `img` elements: `getComputedStyle`, `checkVisibility`, nonzero rects and viewport intersection. They do not cover CSS backgrounds, `picture` source metadata outside selected `img`, `canvas`, video posters, image CDN telemetry, DPR-specific sharpness, actual paint timing, fetch priority efficacy, LCP, CLS, INP, Googlebot or Search Console. First-screen candidate is area heuristic, **not an assertion that the image is the LCP**. No automatic fixes, client fact substitution or release GO.
+The counters classify only in-layout `img` elements: `getComputedStyle`, `checkVisibility`, nonzero rects and viewport intersection. They do not cover CSS backgrounds, `picture` source metadata outside selected `img`, `canvas`, video posters, image CDN telemetry, DPR-specific sharpness, actual paint timing, fetch priority efficacy, LCP, CLS, INP, Googlebot or Search Console. Large first-screen candidates use **clipped viewport-intersection area** (≥15% of visible viewport), so a huge asset with a narrow strip at the fold does not become a false hero. First-screen candidate is area heuristic, **not an assertion that the image is the LCP**. No automatic fixes, client fact substitution or release GO.
 
 ## Operator pilot — existing flow
 
@@ -45,4 +45,4 @@ node stage3/seo-engine/tests/seo-rendered-capture-smoke.cjs
 node stage3/seo-engine/tests/seo-rendered-content-smoke.cjs
 ```
 
-An isolated synthetic V8 sample/validator was exercised when authored. **The full Node suite and a genuine Chromium/customer-site session are not claimed unless separately executed and recorded.** Lead integrator remains sole authority for full checkout tests, integration, and deployment.
+An isolated synthetic V8 sample/validator was exercised, including a partially offscreen oversized image case. **The full Node suite and a genuine Chromium/customer-site session are not claimed unless separately executed and recorded.** Lead integrator remains sole authority for full checkout tests, integration, and deployment.

@@ -1,0 +1,69 @@
+# SEO worker — next-chat handoff, 31 October 2026
+
+## Ownership and canonical branch
+
+- Product: **MANUFACT AI Site CMS — SEO Intelligence & Blueprint Engine**.
+- GitHub: `manufact-test/ai-site-cms`.
+- Independent SEO branch: **`feature/site-seo-engine`**. Last verified pre-handoff baseline: `d8b0cbad8252df1f6b02ec721fd16695725bcc13`; **always fetch the live branch HEAD**, because this note is committed with the final small follow-up.
+- **Only write under `stage3/seo-engine/**`**. No CMS, Studio, SDK, PHP, CI, `main`, or `feature/stage3-ai-site-contract` changes.
+- Main developer in `feature/stage3-ai-site-contract` is the **sole integrator**. No PR, merge, publish or deploy by SEO worker. Never build reusable finished client websites or design-template libraries.
+- Work in substantial functional passes; avoid new admin panels, duplicating existing modules, repeated irrelevant tests, or invented customer/Google facts.
+
+## Read these files, in order
+
+1. `stage3/seo-engine/SEO-WORKER-NEXT-CHAT-2026-10-31.md` — this handoff.
+2. `stage3/seo-engine/SEO-WORKER-HANDOFF-2026-10-30.md`.
+3. `stage3/seo-engine/SEO-WORKER-TRANSFER-2026-10-30.md`.
+4. `stage3/seo-engine/INTEGRATION-HANDOFF.md`.
+5. `stage3/seo-engine/README.md`.
+6. `stage3/seo-engine/RENDERED-CAPTURE-PILOT.md`.
+7. `stage3/seo-engine/RENDERED-CONTENT-QA.md`.
+8. `stage3/seo-engine/RENDERED-VISIBILITY-QA.md`.
+9. `stage3/seo-engine/RENDERED-IMAGE-LOADING-QA.md`.
+10. `stage3/seo-engine/STRUCTURED-DATA-QA.md`.
+
+The long README/transfer docs contain earlier feature history; the **newest entries at top** supersede older next-step language.
+
+## What the SEO subsystem already does
+
+Blueprint contract and SEO architecture; content and internal-link analysis; Search Console performance; URL indexing and crawl policy; robots/sitemap evaluation; CMS SEO task lifecycle and two-step fix verification; public HTTPS capture and post-publication reconciliation; public static metadata analysis; structured-data/JSON-LD semantic QA; one SEO Operator Workspace; First-Site Lead Readiness; private lead-packet integrity; HTTP-to-rendered DOM reconciliation; safe opt-in Chromium viewport capture; source-bound computed CSS visibility for headings/main/CTA/nav; and source-bound browser image loading QA.
+
+**Do not rebuild these**; read the modules and extend only a material missing first-client capability.
+
+## Most recent functionality
+
+### Previous full pass: browser image loading and first-viewport QA
+
+`d8b0cbad8252df1f6b02ec721fd16695725bcc13`:
+
+- `lib/seo-browser-image-observation.cjs`: max-1,000-image, 13-counter, read-only `img` sampler, no captured image URLs/alt values. Counts visible failed/pending, above-fold lazy, large hero candidates, missing alt/dimensions, upscaling.
+- `lib/seo-rendered-capture.cjs`: same existing authorized browser and origin/mount/network limits. Samples image status twice 250 ms apart. Unstable status is **unknown**, never a pass; DOM changes invalidate CSS/image observations.
+- `schemas/viewport-capture-v2.schema.json`: backward-compatible optional `media` with exact rendered DOM SHA; old v1/v2 without it remains valid but image evidence unknown.
+- `lib/seo-rendered-content-audit.cjs` and `lib/seo-rendered-content-view.cjs`: image QA P1/P2 and one private report/Workspace.
+- Focused `tests/seo-browser-image-observation-smoke.cjs` and expanded `tests/seo-rendered-capture-smoke.cjs`; `RENDERED-IMAGE-LOADING-QA.md` documents limitations.
+
+### Final small follow-up before handoff
+
+- Fixed **large above-fold candidate selection to use the visible viewport-intersection area**, not the entire element bounding box. A 1–4 px stripe of an otherwise giant offscreen image no longer becomes a false large first-screen hero.
+- Added synthetic regression with a huge image barely peeking into the viewport; true failed hero remains correctly classified.
+- Updated operator guidance and handoff. All changes remain under SEO subtree.
+
+## Validation honesty
+
+The previous pass verified JavaScript parsing, JSON syntax/schema structure, a synthetic V8 browser image sample and matching SHA envelope; it did **not** run full Node checkout tests, genuine Chromium, GitHub Actions, or a customer website. This follow-up also runs only recorded checks. Do not promote either claim into “full tests passed.” `node --check`/focused Node tests require a repository checkout with required modules. Recommended focused commands:
+
+```bash
+node stage3/seo-engine/tests/seo-browser-image-observation-smoke.cjs
+node stage3/seo-engine/tests/seo-rendered-capture-smoke.cjs
+node stage3/seo-engine/tests/seo-rendered-content-smoke.cjs
+node stage3/seo-engine/tests/seo-css-visibility-smoke.cjs
+node stage3/seo-engine/tests/seo-structured-data-smoke.cjs
+```
+
+The exact first-customer site, approved revision, HTTPS mount, client facts and actual Google data have not been supplied/verified. Chromium capture may run **only after explicit lead/operator approval** of a public client host and only under the existing safety gates. Source hash matching is not host attestation or real Google rendering proof.
+
+## Highest-value next direction
+
+Primary business objective: **first full, genuine client SEO pilot**. Coordinate via docs with sole lead integrator; first execute **one focused Node/CI regression** on a real checkout when available, then verify complete approved Blueprint/Site/HTTP/CSS/image/JSON-LD evidence and readiness blockers without fabricating missing sources. If the lead has no approved site yet, select **one materially useful, missing SEO diagnostic** from existing audit gap, implement it in this subtree and integrate into the existing Workspace; do not add another dashboard or generic template set.
+
+Work quickly in larger passes, preserving branch boundaries, source evidence limits, and truthful validation status. Save commits in the SEO branch, update this handoff, state exact SHA and changed-file list. Never PR/merge/deploy.

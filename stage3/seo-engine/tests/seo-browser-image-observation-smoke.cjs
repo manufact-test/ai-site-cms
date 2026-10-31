@@ -18,17 +18,22 @@ const decorative=img({attrs:{alt:'',width:'80',height:'60'},
 const pending=img({complete:false,attrs:{alt:'Photo',width:'80',height:'60'},
  rect:{width:80,height:60,top:1200,bottom:1260,left:20,right:100}});
 const hidden=img({hidden:true,attrs:{alt:'Hidden'}});
-const images=[hero,decorative,pending,hidden];
+/* Huge image almost below fold: a 4px strip is not a large hero candidate. */
+const edge=img({attrs:{alt:'Below fold',width:'1400',height:'1000'},
+ rect:{width:1400,height:1000,top:840,bottom:1840,left:0,right:1400}});
+const images=[hero,decorative,pending,hidden,edge];
 global.document={querySelectorAll:sel=>sel==='img'?images:[]};
 global.getComputedStyle=el=>({display:el.hidden?'none':'block',visibility:'visible',opacity:'1'});
 const sample=MEDIA.sample({width:390,height:844});
 assert.equal(sample.status,'observed');
-assert.equal(sample.counts.total,4);
-assert.equal(sample.counts.visible,3);
+assert.equal(sample.counts.total,5);
+assert.equal(sample.counts.visible,4);
 assert.equal(sample.counts.visibleFailed,1);
 assert.equal(sample.counts.visiblePending,1);
 assert.equal(sample.counts.aboveFoldLazy,1);
 assert.equal(sample.counts.largeAboveFoldFailed,1);
+assert.equal(sample.counts.largeAboveFold,1);
+assert.equal(sample.counts.visibleUpscaled,1);
 assert.equal(sample.counts.visibleMissingAlt,1);
 assert.equal(sample.counts.visibleEmptyAlt,1);
 const observation={method:MEDIA.METHOD,status:'observed',checkedAt:'2026-10-31T02:20:00Z',

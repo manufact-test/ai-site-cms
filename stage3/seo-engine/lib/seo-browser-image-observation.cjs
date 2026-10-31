@@ -45,9 +45,14 @@ function sample(viewport){
   const pending=source&&img.complete!==true;
   if(failed)m.visibleFailed++;
   if(pending)m.visiblePending++;
-  const fold=rect.bottom>0&&rect.top<viewport.height&&
-   rect.right>0&&rect.left<viewport.width;
-  const large=fold&&rect.width*rect.height>=viewport.width*viewport.height*.15;
+  /* Count large first-screen candidates by actual viewport intersection.
+   * A giant image with a 1px strip at the fold is not a large visible hero.
+   */
+  const foldWidth=Math.max(0,Math.min(rect.right,viewport.width)-Math.max(rect.left,0));
+  const foldHeight=Math.max(0,Math.min(rect.bottom,viewport.height)-Math.max(rect.top,0));
+  const fold=Number.isFinite(foldWidth)&&Number.isFinite(foldHeight)&&
+   foldWidth>0&&foldHeight>0;
+  const large=fold&&foldWidth*foldHeight>=viewport.width*viewport.height*.15;
   const lazy=String(img.loading||img.getAttribute('loading')||'').toLowerCase()==='lazy';
   if(fold){m.aboveFold++;if(lazy)m.aboveFoldLazy++}
   if(large){
