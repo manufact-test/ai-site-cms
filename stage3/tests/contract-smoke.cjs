@@ -510,6 +510,57 @@ test('Rich individual Design Graph layout: rectangular tables, gallery assets, l
   assert.match(html,/<thead><tr/);
   assert.match(html,/<th scope="col"/);
   assert.match(html,/<td class="cmsdg-n-rich-one-cell-1">1 день<\/td>/);
+  const cards=same(base),responsive=cards.pages[0].sections.at(-1).designGraph.nodes[0];
+  responsive.tableLayoutTablet='cards';responsive.tableLayoutMobile='scroll';
+  responsive.children[0].children[1].text='Базовый & <план>';
+  sdk.validateSite(cards,manifests);
+  const cardHtml=G.render(cards,cards.pages[0].sections.at(-1).designGraph);
+  assert.match(cardHtml,/cmsdg-table-scroll cmsdg-tablet-cards/);
+  assert.doesNotMatch(cardHtml,/cmsdg-table-scroll cmsdg-tablet-cards cmsdg-mobile-cards/);
+  assert.match(cardHtml,/<td data-label="Базовый &amp; &lt;план&gt;" class="cmsdg-n-rich-one-cell-1">1 день<\/td>/);
+  assert.match(cardHtml,/@media\(min-width:601px\) and \(max-width:900px\)/);
+  assert.match(cardHtml,/content:attr\(data-label\)/);
+  responsive.rowHeaders=true;
+  responsive.tableAppearance={borderColor:'@accent',headerBackground:'#e0e0e0',
+    cellPadding:16,labelWidth:35};
+  responsive.tableAppearanceTablet={cardRadius:22,cardGap:18,cardBackground:'#fafafa'};
+  responsive.tableAppearanceMobile={labelWidth:55,labelColor:'@foreground'};
+  sdk.validateSite(cards,manifests);
+  const authoredTable=G.render(cards,cards.pages[0].sections.at(-1).designGraph);
+  assert.match(authoredTable,
+    /<th scope="row" data-label="Параметр" class="cmsdg-n-rich-one-cell-0">Срок<\/th>/,
+    'Optional row-heading semantics survive responsive card transformation');
+  for(const declaration of ['--cmsdg-table-border:#0a5bff','--cmsdg-table-header-bg:#e0e0e0',
+    '--cmsdg-table-cell-padding:16px','--cmsdg-table-card-radius:22px',
+    '--cmsdg-table-card-gap:18px','--cmsdg-table-label-width:55%',
+    '--cmsdg-table-label-color:#182b3d'])assert.ok(authoredTable.includes(declaration),declaration);
+  assert.match(authoredTable,/@media\(max-width:900px\)\{\.cmsdg-graph-rich \.cmsdg-table-owner-rich-table\{/);
+  assert.match(authoredTable,/@media\(max-width:600px\)\{\.cmsdg-graph-rich \.cmsdg-table-owner-rich-table\{/);
+  delete responsive.tableLayoutMobile;
+  assert.match(G.render(cards,cards.pages[0].sections.at(-1).designGraph),/cmsdg-table-scroll cmsdg-tablet-cards cmsdg-mobile-cards/,
+    'Phone inherits tablet card layout if not overridden');
+  responsive.tableLayoutMobile='invalid';refuses(()=>sdk.validateSite(cards,manifests));
+  responsive.tableLayoutMobile='scroll';
+  responsive.rowHeaders='true';refuses(()=>sdk.validateSite(cards,manifests),
+    'Row-header setting must be boolean');
+  responsive.rowHeaders=true;
+  responsive.tableAppearanceTablet.cardRadius=33;
+  refuses(()=>sdk.validateSite(cards,manifests),'Table card radius limit');
+  responsive.tableAppearanceTablet.cardRadius=22;
+  responsive.tableAppearanceMobile.labelColor='red';
+  refuses(()=>sdk.validateSite(cards,manifests),'Reject arbitrary CSS colors');
+  responsive.tableAppearanceMobile.labelColor='@foreground';
+  responsive.tableAppearance.unknownKey=12;
+  refuses(()=>sdk.validateSite(cards,manifests),'Reject untyped table CSS');
+  delete responsive.tableAppearance.unknownKey;
+  cards.pages[0].sections.at(-1).designGraph.nodes[1].tableLayoutMobile='cards';
+  refuses(()=>sdk.validateSite(cards,manifests),'Table-only layout must not leak into another graph node');
+  delete cards.pages[0].sections.at(-1).designGraph.nodes[1].tableLayoutMobile;
+  cards.pages[0].sections.at(-1).designGraph.nodes[1].rowHeaders=true;
+  refuses(()=>sdk.validateSite(cards,manifests),'Row-heading setting restricted to table nodes');
+  delete cards.pages[0].sections.at(-1).designGraph.nodes[1].rowHeaders;
+  cards.pages[0].sections.at(-1).designGraph.nodes[1].tableAppearance={cardGap:10};
+  refuses(()=>sdk.validateSite(cards,manifests),'Table appearance restricted to table nodes');
   assert.match(html,/&lt;Название организации&gt;/);
   assert.match(html,/<a class="cmsdg-n-rich-link" href="\/">/);
   if(asset)assert.match(html,/cmsdg-gallery/);

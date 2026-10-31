@@ -2244,7 +2244,28 @@
                   !/^@[a-z][a-z0-9-]{1,39}$/.test(value))throw Error('Цвет: #112233 либо @accent');
                 (node[layerKey]||(node[layerKey]={}))[field]=value;
               });
-            }else             if(['fontSize','padding','gap','color','background','textAlign','widthPx','heightPx',
+            }else if(key.startsWith('table:')){
+              editGraphWork(node=>{
+                if(node.type!=='table')throw Error('Настройки таблицы доступны только в таблице');
+                const field=key.slice(6),layerKey=mode==='tablet'?'tableAppearanceTablet':
+                  mode==='mobile'?'tableAppearanceMobile':'tableAppearance';
+                if(!val.trim()){
+                  if(node[layerKey])delete node[layerKey][field];
+                  if(node[layerKey]&&!Object.keys(node[layerKey]).length)delete node[layerKey];
+                  return;
+                }
+                const bounds={cellPadding:[4,32],cardRadius:[0,32],cardGap:[0,40],
+                  cardPadding:[0,32],labelWidth:[25,65]};
+                let value=val.trim();
+                if(Object.hasOwn(bounds,field)){
+                  const raw=Number(value),[min,max]=bounds[field];
+                  if(!Number.isInteger(raw)||raw<min||raw>max)throw Error('Введите число '+min+'–'+max);
+                  value=raw;
+                }else if(!/^#[0-9a-f]{6}$/i.test(value)&&
+                  !/^@[a-z][a-z0-9-]{1,39}$/.test(value))throw Error('Цвет: #112233 либо @accent');
+                (node[layerKey]||(node[layerKey]={}))[field]=value;
+              });
+            }else if(['fontSize','padding','gap','color','background','textAlign','widthPx','heightPx',
               'minWidth','maxWidth','minHeight','maxHeight','minHeightViewport','heightViewport','paddingTop','paddingRight','paddingBottom','paddingLeft','borderWidth','borderStyle',
               'filterPreset','shadow','objectPositionX','objectPositionY','translateX','translateY','gridTracks','gridAutoRowsPx','display','gridColumnStart','gridColumnSpan','gridRowStart','gridRowSpan','justifySelf'].includes(key)){
               editGraphWork(node=>{
@@ -2265,6 +2286,10 @@
             }else editGraphWork(node=>{
               if(key==='href'&&!val&&node.type==='image')delete node.href;
               else if(key==='caption'){if(val.trim())node.caption=val;else delete node.caption;}
+              else if(['tableLayoutTablet','tableLayoutMobile'].includes(key)){
+                if(val==='inherit')delete node[key];else node[key]=val;
+              }
+              else if(key==='rowHeaders')node.rowHeaders=val==='true';
                else if(key==='semanticTag'){node.semanticTag=val;if(val==='div')delete node.ariaLabel;}
                else if(key==='ariaLabel'){if(val.trim())node.ariaLabel=val;else delete node.ariaLabel;}
               else if(key==='layout'){
@@ -2337,6 +2362,27 @@
               property('Колонок на планшете','columnsTablet',current.columnsTablet??2);
               property('Колонок на телефоне','columnsMobile',current.columnsMobile??1);
             }
+          }
+          if(current.type==='table'){
+            property('Первый столбец — заголовки строк','rowHeaders',String(!!current.rowHeaders),
+              [['false','Обычные ячейки'],['true','Семантические заголовки строк']]);
+            property('Таблица на планшете','tableLayoutTablet',current.tableLayoutTablet||'inherit',
+              [['inherit','Обычная таблица со скроллом'],['scroll','Горизонтальная прокрутка'],['cards','Карточки с подписями колонок']]);
+            property('Таблица на телефоне','tableLayoutMobile',current.tableLayoutMobile||'inherit',
+              [['inherit','Наследовать планшет'],['scroll','Горизонтальная прокрутка'],['cards','Карточки с подписями колонок']]);
+            const layerKey=mode==='tablet'?'tableAppearanceTablet':mode==='mobile'?'tableAppearanceMobile':'tableAppearance';
+            const layer=current[layerKey]||{};
+            const hint=document.createElement('p');hint.className='cms-work-hint';
+            hint.textContent='Оформление таблицы · '+(mode==='desktop'?'ПК':mode==='tablet'?'планшет':'телефон')+
+              '. Пустое поле — наследовать стиль.';
+            panel.append(hint);
+            for(const [key,label] of [['cellPadding','Отступы ячеек, px'],
+              ['cardRadius','Скругление карточек, px'],['cardGap','Расстояние между карточками, px'],
+              ['cardPadding','Внутренние отступы карточек, px'],['labelWidth','Ширина подписей, %'],
+              ['borderColor','Цвет границ · #hex / @token'],['headerBackground','Фон заголовков · #hex / @token'],
+              ['headerColor','Текст заголовков · #hex / @token'],['cardBackground','Фон карточек · #hex / @token'],
+              ['labelColor','Подписи карточек · #hex / @token']])
+              property(label,'table:'+key,layer[key]??'');
           }
           if(current.type==='container'){
              property('Семантика блока','semanticTag',current.semanticTag||'div',[
@@ -3733,6 +3779,47 @@
           fields.append(ctl(label,String(n[key]??defaultValue),value=>{
             n.layout='grid';n[key]=Number(value);
           },'number'));
+      }
+      if(n.type==='table'){
+        fields.append(ctl('Первый столбец · заголовки строк',{initial:n.rowHeaders?'true':'false',choices:[
+          ['false','Обычные ячейки'],['true','Заголовки строк (доступность)']]},value=>{
+          n.rowHeaders=value==='true';
+        },'select'));
+        for(const [key,label,inheritLabel] of [
+          ['tableLayoutTablet','Таблица · планшет','Обычная таблица со скроллом'],
+          ['tableLayoutMobile','Таблица · телефон','Наследовать планшет']])
+          fields.append(ctl(label,{initial:n[key]||'inherit',choices:[
+            ['inherit',inheritLabel],['scroll','Горизонтальная прокрутка'],
+            ['cards','Карточки с подписями колонок']]},value=>{
+            if(value==='inherit')delete n[key];else n[key]=value;
+          },'select'));
+        const layerKey=mode==='tablet'?'tableAppearanceTablet':mode==='mobile'?'tableAppearanceMobile':'tableAppearance';
+        const layer=n[layerKey]||{};
+        const hint=make('p','','cms-design-form-hint');
+        hint.textContent='Оформление таблицы · '+(mode==='desktop'?'ПК':mode==='tablet'?'планшет':'телефон')+
+          '. Пустые значения наследуются.';
+        fields.append(hint);
+        for(const [key,label,min,max] of [
+          ['cellPadding','Отступ ячейки (px)',4,32],['cardRadius','Скругление карточек (px)',0,32],
+          ['cardGap','Зазор карточек (px)',0,40],['cardPadding','Отступ карточек (px)',0,32],
+          ['labelWidth','Ширина подписи карточки (%)',25,65]])
+          fields.append(ctl(label,layer[key]===undefined?'':String(layer[key]),value=>{
+            if(!value.trim()){if(n[layerKey])delete n[layerKey][key];}
+            else {
+              const raw=Number(value);
+              (n[layerKey]||(n[layerKey]={}))[key]=Math.round(Math.max(min,Math.min(max,Number.isFinite(raw)?raw:min)));
+            }
+            if(n[layerKey]&&!Object.keys(n[layerKey]).length)delete n[layerKey];
+          },'number'));
+        for(const [key,label] of [['borderColor','Границы'],['headerBackground','Фон заголовков'],
+          ['headerColor','Текст заголовков'],['cardBackground','Фон карточек'],['labelColor','Подписи карточек']])
+          fields.append(ctl(label+' · #112233 / @accent',layer[key]||'',value=>{
+            const color=value.trim();
+            if(!color){if(n[layerKey])delete n[layerKey][key];}
+            else if(/^#[0-9a-f]{6}$/i.test(color)||/^@[a-z][a-z0-9-]{1,39}$/.test(color))
+              (n[layerKey]||(n[layerKey]={}))[key]=color;
+            if(n[layerKey]&&!Object.keys(n[layerKey]).length)delete n[layerKey];
+          }));
       }
       if(n.type==='image')fields.append(ctl('Подпись изображения (под фото)',n.caption||'',value=>{
         if(value.trim())n.caption=value;else delete n.caption;

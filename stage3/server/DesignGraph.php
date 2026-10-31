@@ -39,6 +39,15 @@ final class DesignGraph
         'stepRadius'=>'--cmsdg-form-step-radius','stepPadding'=>'--cmsdg-form-step-padding',
         'stepBackground'=>'--cmsdg-form-step-bg','stepBorderColor'=>'--cmsdg-form-step-border',
         'progressColor'=>'--cmsdg-form-progress-color'];
+    private const TABLE_SIZES=['cellPadding'=>[4,32],'cardRadius'=>[0,32],
+        'cardGap'=>[0,40],'cardPadding'=>[0,32],'labelWidth'=>[25,65]];
+    private const TABLE_COLORS=['borderColor','headerBackground','headerColor','cardBackground','labelColor'];
+    private const TABLE_CSS=['cellPadding'=>'--cmsdg-table-cell-padding',
+        'cardRadius'=>'--cmsdg-table-card-radius','cardGap'=>'--cmsdg-table-card-gap',
+        'cardPadding'=>'--cmsdg-table-card-padding','labelWidth'=>'--cmsdg-table-label-width',
+        'borderColor'=>'--cmsdg-table-border','headerBackground'=>'--cmsdg-table-header-bg',
+        'headerColor'=>'--cmsdg-table-header-color','cardBackground'=>'--cmsdg-table-card-bg',
+        'labelColor'=>'--cmsdg-table-label-color'];
     private const ICON_PATHS=[
         'check'=>'<path d="M5 12l4 4L19 6"/>',
         'arrow'=>'<path d="M5 12h14m-6-6 6 6-6 6"/>',
@@ -111,6 +120,26 @@ final class DesignGraph
                 ? self::resolve($value,'colors',$tokens,$at.'/'.$key)
                 : $value.(in_array($key,['labelWeight','buttonWeight','columns'],true)?'':'px');
             $declarations[]=self::FORM_CSS[$key].':'.$resolved;
+        }
+        return implode(';',$declarations);
+    }
+    private static function validateTableAppearance(mixed $appearance,array $tokens,string $at): void
+    {
+        self::keys($appearance,array_keys(self::TABLE_CSS),$at);
+        foreach($appearance as $key=>$value){
+            if(isset(self::TABLE_SIZES[$key]))
+                self::check(self::integer($value,...self::TABLE_SIZES[$key]),$at.' invalid table size '.$key);
+            else self::resolve($value,'colors',$tokens,$at.'/'.$key);
+        }
+    }
+    private static function tableAppearanceCSS(array $appearance,array $tokens,string $at): string
+    {
+        $declarations=[];
+        foreach($appearance as $key=>$value){
+            $resolved=in_array($key,self::TABLE_COLORS,true)
+                ? self::resolve($value,'colors',$tokens,$at.'/'.$key)
+                : $value.($key==='labelWidth'?'%':'px');
+            $declarations[]=self::TABLE_CSS[$key].':'.$resolved;
         }
         return implode(';',$declarations);
     }
@@ -265,7 +294,7 @@ final class DesignGraph
         $count=0;$popups=[];$triggers=[];
         $visit=function (mixed $node,int $depth,?string $parentType=null) use (&$visit,&$count,&$ids,&$popups,&$triggers,$assets,$tokens): void {
             self::check($depth<=8&&++$count<=90,'excessive depth or total nodes');
-            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile','semanticTag','ariaLabel','formAppearance','formAppearanceTablet','formAppearanceMobile'],'node');
+            self::keys($node,['id','type','text','href','assetId','alt','level','styles','responsive','states','children','icon','motion','posterAssetId','loop','ordered','cite','backgroundMedia','backgroundVideo','responsiveMedia','popupTarget','sequence','transition','iconSize','iconWeight','runs','layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','caption','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile','tableLayoutTablet','tableLayoutMobile','rowHeaders','tableAppearance','tableAppearanceTablet','tableAppearanceMobile','semanticTag','ariaLabel','formAppearance','formAppearanceTablet','formAppearanceMobile'],'node');
             $id=$node['id']??null;$type=$node['type']??null;
             if($type!=='form-slot')
                 self::check(!array_intersect(['formAppearance','formAppearanceTablet','formAppearanceMobile'],array_keys($node)),
@@ -358,6 +387,7 @@ final class DesignGraph
             self::check(($type!=='list-item'||$parentType==='list')&&($parentType!=='list'||$type==='list-item'),'invalid list hierarchy');
             self::check(($type!=='tab'||$parentType==='tabs')&&($parentType!=='tabs'||$type==='tab'),'invalid tabs hierarchy');
             self::check($type==='gallery'||!array_intersect(['layout','columnsDesktop','columnsTablet','columnsMobile','lightbox','photoShape','photoShapeTablet','photoShapeMobile','scrollControls','visibleDesktop','visibleTablet','visibleMobile'],array_keys($node)),'gallery setting on another node');
+            self::check($type==='table'||!array_intersect(['tableLayoutTablet','tableLayoutMobile','rowHeaders','tableAppearance','tableAppearanceTablet','tableAppearanceMobile'],array_keys($node)),'table layout on another node');
             if(array_key_exists('caption',$node))self::check($type==='image'&&is_string($node['caption'])&&strlen($node['caption'])<=240&&preg_match('/[\\x00-\\x1f]/',$node['caption'])!==1,'invalid photo caption');
             if($type==='gallery'){
                 foreach(['photoShape','photoShapeTablet','photoShapeMobile'] as $shapeKey)
@@ -377,6 +407,11 @@ final class DesignGraph
                     !array_intersect(['href','assetId','alt','level','icon','loop','posterAssetId','ordered'],array_keys($node)),
                     'invalid gallery label');
             } elseif($type==='table'){
+                self::check(!array_key_exists('rowHeaders',$node)||is_bool($node['rowHeaders']),'invalid table row headers');
+                foreach(['tableAppearance','tableAppearanceTablet','tableAppearanceMobile'] as $key)
+                    if(array_key_exists($key,$node))self::validateTableAppearance($node[$key],$tokens,$id.'/'.$key);
+                foreach(['tableLayoutTablet','tableLayoutMobile'] as $key)
+                    self::check(!array_key_exists($key,$node)||in_array($node[$key],['scroll','cards'],true),'invalid responsive table layout');
                 self::check((!array_key_exists('text',$node)||
                     (is_string($node['text'])&&strlen($node['text'])<=160&&
                       preg_match('/[\x00-\x1f]/',$node['text'])!==1))&&
@@ -688,11 +723,18 @@ final class DesignGraph
                 ';background-position:'.($m['positionX']??50).'% '.($m['positionY']??50).
                 '%;background-repeat:no-repeat';
         };
-        $headerIds=[];
-        $collectHeaders=function(array $nodes)use(&$collectHeaders,&$headerIds):void{
+        $headerIds=[];$rowHeaderIds=[];$cellLabels=[];
+        $collectHeaders=function(array $nodes)use(&$collectHeaders,&$headerIds,&$rowHeaderIds,&$cellLabels):void{
             foreach($nodes as $node){
-                if($node['type']==='table')
-                    foreach($node['children'][0]['children'] as $cell)$headerIds[$cell['id']]=true;
+                if($node['type']==='table'){
+                    $headers=$node['children'][0]['children'];
+                    foreach($headers as $cell)$headerIds[$cell['id']]=true;
+                    if(!empty($node['rowHeaders']))foreach(array_slice($node['children'],1) as $row)
+                        $rowHeaderIds[$row['children'][0]['id']]=true;
+                    if(($node['tableLayoutTablet']??null)==='cards'||($node['tableLayoutMobile']??null)==='cards')
+                        foreach(array_slice($node['children'],1) as $row)
+                            foreach($row['children'] as $i=>$cell)$cellLabels[$cell['id']]=$headers[$i]['text'];
+                }
                 if(isset($node['children']))$collectHeaders($node['children']);
             }
         };
@@ -714,7 +756,7 @@ final class DesignGraph
             }
             return $html;
         };
-        $visit=function (array $n,?string $parentType=null) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$backdrop,$richText,$gl,&$firstImagePriorityAvailable,$formMarkup): string {
+        $visit=function (array $n,?string $parentType=null) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$rowHeaderIds,$cellLabels,$backdrop,$richText,$gl,&$firstImagePriorityAvailable,$formMarkup): string {
             $selector=$scope.' .cmsdg-n-'.$n['id'];
             $usesTranslate=false;
             foreach ([$n['styles']??[],$n['responsive']['tablet']??[],$n['responsive']['mobile']??[]] as $layer) {
@@ -848,16 +890,28 @@ final class DesignGraph
                 case 'table':
                     $first=$visit($n['children'][0]);$rest='';
                     foreach(array_slice($n['children'],1) as $row)$rest.=$visit($row);
-                    return '<div class="cmsdg-table-scroll" role="region" aria-label="'.self::h($n['text']??'Таблица').'" tabindex="0"><table class="'.$cls.' cmsdg-table">'.
+                    $tablet=$n['tableLayoutTablet']??'scroll';
+                    $mobile=$n['tableLayoutMobile']??$tablet;
+                    $selector=$scope.' .cmsdg-table-owner-'.$n['id'];
+                    foreach(['tableAppearance'=>null,'tableAppearanceTablet'=>'@media(max-width:900px)',
+                        'tableAppearanceMobile'=>'@media(max-width:600px)'] as $key=>$media){
+                        if(empty($n[$key]))continue;
+                        $rule=$selector.'{'.self::tableAppearanceCSS($n[$key],$t,$n['id'].'/'.$key).'}';
+                        $rules[]=$media?$media.'{'.$rule.'}':$rule;
+                    }
+                    return '<div class="cmsdg-table-scroll'.($tablet==='cards'?' cmsdg-tablet-cards':'').
+                        ($mobile==='cards'?' cmsdg-mobile-cards':'').' cmsdg-table-owner-'.$n['id'].'" role="region" aria-label="'.self::h($n['text']??'Таблица').'" tabindex="0"><table class="'.$cls.' cmsdg-table">'.
                         (!empty($n['text'])?'<caption>'.self::h($n['text']).'</caption>':'').
                         '<thead>'.$first.'</thead><tbody>'.$rest.'</tbody></table></div>';
                 case 'table-row':
                     $body='';foreach($n['children'] as $cell)$body.=$visit($cell);
                     return '<tr class="'.$cls.'">'.$body.'</tr>';
                 case 'table-cell':
-                    $isHeader=isset($headerIds[$n['id']]);
-                    $tag=$isHeader?'th':'td';
-                    return '<'.$tag.($isHeader?' scope="col"':'').' class="'.$cls.'">'.self::h($n['text']).'</'.$tag.'>';
+                    $isHeader=isset($headerIds[$n['id']]);$isRowHeader=isset($rowHeaderIds[$n['id']]);
+                    $tag=$isHeader||$isRowHeader?'th':'td';
+                    return '<'.$tag.($isHeader?' scope="col"':($isRowHeader?' scope="row"':''))
+                        .(isset($cellLabels[$n['id']])?' data-label="'.self::h($cellLabels[$n['id']]).'"':'').
+                        ' class="'.$cls.'">'.self::h($n['text']).'</'.$tag.'>';
                 case 'quote':
                     return '<figure class="'.$cls.' cmsdg-quote"><blockquote><p>'.self::h($n['text']).'</p></blockquote>'.
                         (!empty($n['cite'])?'<figcaption>'.self::h($n['cite']).'</figcaption>':'').'</figure>';
@@ -947,6 +1001,16 @@ final class DesignGraph
             }
             return '';
         };
+        $tableCardsCss=static function(string $selector):string{
+            return $selector.'{overflow:visible}'
+                .$selector.' .cmsdg-table{display:block;min-width:0;border-collapse:separate}'
+                .$selector.' .cmsdg-table thead{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}'
+                .$selector.' .cmsdg-table tbody{display:grid;gap:var(--cmsdg-table-card-gap,12px)}'
+                .$selector.' .cmsdg-table tbody tr{display:block;border:1px solid var(--cmsdg-table-border,#c6cdd7);border-radius:var(--cmsdg-table-card-radius,12px);padding:var(--cmsdg-table-card-padding,8px) 12px;min-width:0;background:var(--cmsdg-table-card-bg,transparent)}'
+                .$selector.' .cmsdg-table tbody :is(td,th){display:grid;grid-template-columns:minmax(0,var(--cmsdg-table-label-width,42%)) minmax(0,1fr);gap:12px;border:0;border-bottom:1px solid var(--cmsdg-table-border,#dce3ec);padding:var(--cmsdg-table-cell-padding,10px) 2px;overflow-wrap:anywhere;background:transparent}'
+                .$selector.' .cmsdg-table tbody :is(td,th):last-child{border-bottom:0}'
+                .$selector.' .cmsdg-table tbody :is(td,th)::before{content:attr(data-label);font-weight:700;color:var(--cmsdg-table-label-color,inherit)}';
+        };
         $html='';foreach ($graph['nodes'] as $n)$html.=$visit($n);
         return '<section class="cmsdg cmsdg-'.$graph['id'].'" id="'.($sectionId??$graph['id']).'"><style>'
             .$scope.'{min-width:0;max-width:none;padding:0;min-height:0}'.$scope.' *{box-sizing:border-box;min-width:0}'
@@ -955,8 +1019,10 @@ final class DesignGraph
              .$scope.' .cmsdg-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}'
             .$scope.' .cmsdg-table-scroll:focus-visible,'.$scope.' .cmsdg-gallery:focus-visible{outline:3px solid #1868d3;outline-offset:2px}'
             .$scope.' .cmsdg-table{border-collapse:collapse;width:100%;min-width:480px}'
-            .$scope.' .cmsdg-table th,'.$scope.' .cmsdg-table td{padding:12px 16px;border:1px solid #c6cdd7;text-align:start}'
-            .$scope.' .cmsdg-table th{font-weight:700;background:#f2f5f9}'
+            .$scope.' .cmsdg-table th,'.$scope.' .cmsdg-table td{padding:var(--cmsdg-table-cell-padding,12px) 16px;border:1px solid var(--cmsdg-table-border,#c6cdd7);text-align:start}'
+            .$scope.' .cmsdg-table th{font-weight:700;background:var(--cmsdg-table-header-bg,#f2f5f9);color:var(--cmsdg-table-header-color,inherit)}'
+            .'@media(min-width:601px) and (max-width:900px){'.$tableCardsCss($scope.' .cmsdg-tablet-cards').'}'
+            .'@media(max-width:600px){'.$tableCardsCss($scope.' .cmsdg-mobile-cards').'}'
             .$scope.' .cmsdg-gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:8px;padding:8px 2px;overscroll-behavior-inline:contain}'
             .$scope.' .cmsdg-gallery>.cmsdg-gallery-item{flex:0 0 min(82%,420px);scroll-snap-align:start;min-width:0;max-width:100%;margin:0;border-radius:10px;overflow:hidden}'
             .$scope.' .cmsdg-gallery[style*="--cmsdg-visible-desktop"]>.cmsdg-gallery-item{flex-basis:calc((100% - (var(--cmsdg-visible-desktop) - 1)*16px)/var(--cmsdg-visible-desktop));max-width:100%}'

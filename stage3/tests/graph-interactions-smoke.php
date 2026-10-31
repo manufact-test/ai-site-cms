@@ -46,6 +46,36 @@ $html=PublicRenderer::html($site,'/');
 graphTest(str_contains($html,'<table class="cmsdg-n-graph-rich-table cmsdg-table">'),'PHP typed table missing');
 graphTest(str_contains($html,'<th scope="col" class="cmsdg-n-graph-rich-header-one">Параметр</th>'),'PHP column headers not semantic');
 graphTest(str_contains($html,'<td class="cmsdg-n-graph-rich-value-two">По договору</td>'),'PHP data rows missing');
+$rich[5]['tableLayoutTablet']='cards';
+$rich[5]['tableLayoutMobile']='scroll';
+$rich[5]['children'][0]['children'][1]['text']='План & <опции>';
+$validator->validate($site);
+$cardHtml=PublicRenderer::html($site,'/');
+graphTest(str_contains($cardHtml,'cmsdg-table-scroll cmsdg-tablet-cards')
+    &&str_contains($cardHtml,'<td data-label="План &amp; &lt;опции&gt;" class="cmsdg-n-graph-rich-value-two">По договору</td>')
+    &&str_contains($cardHtml,'@media(min-width:601px) and (max-width:900px)')
+    &&str_contains($cardHtml,'content:attr(data-label)'),
+    'PHP per-device table cards must preserve escaped column labels and no-script layout');
+$rich[5]['rowHeaders']=true;
+$rich[5]['tableAppearance']=['borderColor'=>'@accent','headerBackground'=>'#eeeeee','cellPadding'=>14];
+$rich[5]['tableAppearanceTablet']=['cardRadius'=>20,'cardGap'=>15,'cardBackground'=>'#fafafa'];
+$rich[5]['tableAppearanceMobile']=['labelWidth'=>55,'labelColor'=>'@foreground'];
+$validator->validate($site);
+$withRowHeaders=PublicRenderer::html($site,'/');
+graphTest(str_contains($withRowHeaders,'<th scope="row" data-label="Параметр" class="cmsdg-n-graph-rich-value-one">Срок</th>'),
+    'PHP row headers retain semantic scope within responsive cards');
+foreach(['--cmsdg-table-border:#0a5bff','--cmsdg-table-header-bg:#eeeeee',
+    '--cmsdg-table-card-radius:20px','--cmsdg-table-card-gap:15px',
+    '--cmsdg-table-label-width:55%','--cmsdg-table-label-color:#182b3d'] as $declaration)
+    graphTest(str_contains($withRowHeaders,$declaration),'PHP responsive table appearance: '.$declaration);
+unset($rich[5]['tableLayoutMobile']);
+$cardInherited=PublicRenderer::html($site,'/');
+graphTest(str_contains($cardInherited,'cmsdg-table-scroll cmsdg-tablet-cards cmsdg-mobile-cards'),
+    'PHP mobile tables inherit tablet card presentation');
+unset($rich[5]['tableLayoutTablet']);
+unset($rich[5]['rowHeaders']);
+unset($rich[5]['tableAppearance'],$rich[5]['tableAppearanceTablet'],$rich[5]['tableAppearanceMobile']);
+$rich[5]['children'][0]['children'][1]['text']='План';
 graphTest(str_contains($html,'&lt;Источник&gt;')&&!str_contains($html,'<Источник>'),'quote attribution must be escaped');
 graphTest(str_contains($html,'<a class="cmsdg-n-graph-rich-link" href="/published/site-industrial-demo/">На главную</a>'),
     'PHP published mounted link rendering');
@@ -85,6 +115,22 @@ $invalid=$site;
 $invalid['pages'][0]['sections'][2]['designGraph']['nodes'][5]['children'][1]['children'][]=
     ['id'=>'graph-rich-extra-cell','type'=>'table-cell','text'=>'Лишняя ячейка'];
 try{$validator->validate($invalid);throw new RuntimeException('ragged table accepted');}
+catch(InvalidArgumentException $expected){}
+$invalid=$site;
+$invalid['pages'][0]['sections'][2]['designGraph']['nodes'][5]['tableLayoutMobile']='unsafe-layout';
+try{$validator->validate($invalid);throw new RuntimeException('Invalid mobile table layout accepted');}
+catch(InvalidArgumentException $expected){}
+$invalid=$site;
+$invalid['pages'][0]['sections'][2]['designGraph']['nodes'][5]['rowHeaders']='yes';
+try{$validator->validate($invalid);throw new RuntimeException('Nonboolean row headings accepted');}
+catch(InvalidArgumentException $expected){}
+$invalid=$site;
+$invalid['pages'][0]['sections'][2]['designGraph']['nodes'][5]['tableAppearanceTablet']=['cardRadius'=>999];
+try{$validator->validate($invalid);throw new RuntimeException('Invalid table appearance accepted');}
+catch(InvalidArgumentException $expected){}
+$invalid=$site;
+$invalid['pages'][0]['sections'][2]['designGraph']['nodes'][3]['tableAppearance']=['cardGap'=>10];
+try{$validator->validate($invalid);throw new RuntimeException('Foreign node table appearance accepted');}
 catch(InvalidArgumentException $expected){}
 $invalid=$site;
 $invalid['pages'][0]['sections'][2]['designGraph']['nodes'][3]['href']='javascript:alert(1)';

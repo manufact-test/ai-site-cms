@@ -1065,3 +1065,32 @@ Every original field's request name and validation remain unchanged. The always-
 ```
 
 An approved stepped form is shown in the Studio Graph canvas as an **inert** titled step card with only that step's real manifest field labels, disabled controls, progress and navigation. This is not a visitor submission. The real PHP server preview/published page renders the actual `<fieldset class="lead-step">`, signed POST action and collector wiring. The scoped presentation applies to both, preserving ordinary forms without a Design Graph. Always inspect desktop/tablet/mobile and the real visitor form independently before owner acceptance.
+
+#### Responsive table presentation in an approved bespoke design (31 October 2026)
+
+An existing typed `table` Design Graph node can use independent tablet/mobile presentations. `scroll` preserves the real horizontally scrollable table; `cards` converts each **existing** data row visually into a labelled card, based on the first row's column names. The semantic `<table>`, `<thead>`, `<tbody>`, `<th scope="col">` and optional `<th scope="row">` are preserved, without extra database content or JavaScript. Example **properties to add to an authored table** (keep its existing `id`, `type`, `text` and complete `children`):
+
+```json
+{
+  "rowHeaders": true,
+  "tableLayoutTablet": "cards",
+  "tableLayoutMobile": "cards",
+  "tableAppearance": {
+    "borderColor": "@muted",
+    "headerBackground": "#f2f5f9",
+    "headerColor": "@foreground",
+    "cellPadding": 14
+  },
+  "tableAppearanceTablet": {
+    "cardBackground": "#ffffff",
+    "cardRadius": 16,
+    "cardGap": 12,
+    "cardPadding": 12,
+    "labelWidth": 40,
+    "labelColor": "@foreground"
+  },
+  "tableAppearanceMobile": { "labelWidth": 52, "cardGap": 8 }
+}
+```
+
+Only these closed keys are available. Numeric ranges: `cellPadding` 4–32 px, `cardRadius` 0–32 px, `cardGap` 0–40 px, `cardPadding` 0–32 px, `labelWidth` 25–65 percent. Each color must be six-digit `#RRGGBB` or a token present in this site's `designTokens.colors`. Device objects override **only** declared properties; absent values inherit from desktop/tablet. A mobile-only card mode is also valid (`tableLayoutMobile: "cards"` with tablet omitted). Default is the old horizontal scrolling table. Both the advanced Graph Inspector and full-page Workbench edit one real node in the existing draft. On handoff, verify header wording, table rows, keyboard focus, cards and horizontal scrolling at all three approved widths before owner acceptance; a green technical CI is not visual sign-off.

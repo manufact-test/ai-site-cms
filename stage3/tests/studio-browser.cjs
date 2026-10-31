@@ -1311,6 +1311,31 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await nativePage.keyboard.press('Escape');
     assert.equal(await nativePage.locator('[popover="auto"]').evaluate(el=>el.matches(':popover-open')),false,
       'Escape closes the native popover');
+    // Same accessible markup, genuine responsive layout changes in Chromium.
+    const browserTable={version:1,id:'graph-browser-table',nodes:[{
+      id:'browser-comparison',type:'table',text:'Сравнение',rowHeaders:true,
+      tableLayoutTablet:'cards',tableLayoutMobile:'scroll',
+      tableAppearanceTablet:{cardRadius:24,cardBackground:'#eef4fd',labelWidth:35},
+      children:[
+        {id:'browser-head',type:'table-row',children:[
+          {id:'browser-head-name',type:'table-cell',text:'Услуга'},
+          {id:'browser-head-price',type:'table-cell',text:'Стоимость'}]},
+        {id:'browser-row',type:'table-row',children:[
+          {id:'browser-row-name',type:'table-cell',text:'Доставка'},
+          {id:'browser-row-price',type:'table-cell',text:'100 €'}]}
+      ]}]};
+    await nativePage.setContent('<!doctype html><html><body>'+graphHost.render(nativeSite,browserTable)+'</body></html>');
+    const browserRow=nativePage.locator('.cmsdg-n-browser-row');
+    assert.equal(await nativePage.locator('th[scope="row"][data-label="Услуга"]').count(),1);
+    await nativePage.setViewportSize({width:1100,height:800});
+    assert.equal(await browserRow.evaluate(el=>getComputedStyle(el).display),'table-row');
+    await nativePage.setViewportSize({width:800,height:800});
+    assert.equal(await browserRow.evaluate(el=>getComputedStyle(el).display),'block');
+    assert.equal(await browserRow.evaluate(el=>getComputedStyle(el).borderTopLeftRadius),'24px');
+    assert.equal(await browserRow.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(238, 244, 253)');
+    await nativePage.setViewportSize({width:380,height:800});
+    assert.equal(await browserRow.evaluate(el=>getComputedStyle(el).display),'table-row',
+      'Explicit mobile scroll choice takes precedence over tablet cards');
     await nativePage.close();
 
     assert.deepEqual(errors,[],'No page JS errors or unsupported dependencies');
