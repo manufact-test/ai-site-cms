@@ -18,6 +18,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#site-name').getByText('Завод оборудования').waitFor();
     assert.equal(await page.locator('#pages .nav-entry').count(),2);
     assert.equal(await page.locator('#sections .nav-entry').count(),2);
+    assert.equal(await page.locator('#history-details').evaluate(node=>node.open),false,
+      'Version history stays out of the default editing workspace');
     assert.equal(await page.locator('#fields [data-field]').count(),3,
       'Only declared heading fields appear; no generic CSS catalogue');
     // Operator-produced private SEO handoff opens relevant REAL CMS fields.
@@ -228,6 +230,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-setting-seo-robots').selectOption('index');
     await page.locator('#cms-settings-apply').click();
     await page.locator('#save').click();
+    await page.locator('#history-details').evaluate(node=>{node.open=true;});
     const exportDownload=page.waitForEvent('download');
     await page.locator('#export').click();
     const download=await exportDownload;
