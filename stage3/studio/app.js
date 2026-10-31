@@ -20,6 +20,17 @@
     }
     group.querySelector('.local-tool-category-content').append(node);
   }
+  function arrangeLocalTools(){
+    if(HOSTED)return;
+    const content=$('local-site-tools-content');if(!content)return;
+    for(const category of ['Настройки сайта','Внешний вид','SEO и аудит','Контент','Импорт и экспорт']){
+      const group=Array.from(content.children).find(child=>
+        child.matches('details.local-tool-category')&&child.dataset.category===category);
+      if(group)content.append(group);
+    }
+    const history=content.querySelector(':scope > .history');
+    if(history)content.append(history);
+  }
   const STORAGE='manufact-ai-site-stage3-local-revisions-v1';
   const MAX_VERSIONS=12,MAX_UPLOAD=900000,MAX_INTEROP_UPLOAD=2500000;
   const INTEROP_STORAGE='manufact-ai-design-graph-local-session-v1';
@@ -7436,5 +7447,5 @@
     remapImportedMedia:(site,idMap,assets)=>C.remapImportedMedia(site,manifests,idMap,assets),
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initSeoHandoff();initFooterEditor();initMenuEditor();initSiteQuality();initFullPagePreview();load();restoreInteropSession();draw();
+  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initSeoHandoff();initFooterEditor();initMenuEditor();initSiteQuality();arrangeLocalTools();initFullPagePreview();load();restoreInteropSession();draw();
 })();
