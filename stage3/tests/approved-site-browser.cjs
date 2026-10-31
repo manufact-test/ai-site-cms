@@ -567,6 +567,12 @@ async function execute(){
   await assertNoHorizontalOverflow('Studio at 768px');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-tablet.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});
+  const mobileFlow=await page.evaluate(()=>({
+    sidebar:getComputedStyle(document.querySelector('.sidebar')).position,
+    inspector:getComputedStyle(document.querySelector('.inspector')).position
+  }));
+  assert.equal(mobileFlow.sidebar,'static','Phone navigation must remain in normal document flow');
+  assert.equal(mobileFlow.inspector,'static','Phone inspector must not overlay the editor');
   await assertNoHorizontalOverflow('Studio at 390px');
   const mobileTreeLayout=await page.evaluate(()=>{
     const nav=document.querySelector('#sections'),style=getComputedStyle(nav);

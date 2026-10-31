@@ -446,7 +446,12 @@ html[data-stage3-mode="server"] .sidebar-bottom{
   html[data-stage3-mode="server"] .sidebar{height:calc(100vh - 108px)}
 }
 @media(max-width:570px){
-  html[data-stage3-mode="server"] .sidebar{max-height:none;overflow:visible}
+  html[data-stage3-mode="server"] .sidebar{
+    position:static;top:auto;height:auto;max-height:none;overflow:visible;
+  }
+  html[data-stage3-mode="server"] .inspector{
+    position:static;top:auto;height:auto;overflow:visible;
+  }
 }
 
 /* Task-oriented owner navigation: one primary action, secondary actions on demand. */
