@@ -1435,6 +1435,67 @@ async function execute(){
     '/api/sites/site-approved-browser')).json();
   assert.equal(partialBatch.revision,batchStart+3);
   assert.equal(partialBatch.site.assets.length,assetCount+3);
+  // The mandatory approved-site CI journey also verifies the NEW owner
+  // Workbench image flow (the separate extended test is not part of this job).
+  // Upload is private; selecting the phone source leaves the desktop image
+  // and shared public alt untouched until an explicit authoring decision.
+  const inlineBefore=partialBatch.site.assets.length;
+  await page.locator('#server-edit-page').click();
+  await page.locator('#cms-page-preview[open]').waitFor();
+  await page.locator('#cms-page-preview-path').selectOption('/');
+  await page.locator('#cms-work-section').selectOption('section-approved-custom');
+  await page.locator('#cms-work-graph-node').selectOption('approved-custom-photo');
+  await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="mobile"]').click();
+  await page.locator('#cms-work-graph-media > summary').click();
+  await page.locator('#server-work-graph-upload').waitFor();
+  assert.equal(await page.locator('#server-work-graph-update-alt').isChecked(),false);
+  const generatedPng=await page.evaluate(()=>{
+    const canvas=document.createElement('canvas');canvas.width=960;canvas.height=960;
+    const ctx=canvas.getContext('2d'),data=ctx.createImageData(960,960);
+    let seed=4897;
+    for(let i=0;i<data.data.length;i+=4){
+      seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+      data.data[i]=seed&255;data.data[i+1]=(seed>>>8)&255;
+      data.data[i+2]=(seed>>>16)&255;data.data[i+3]=255;
+    }
+    ctx.putImageData(data,0,0);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const inlineFile=Buffer.from(generatedPng,'base64');
+  assert.ok(inlineFile.length>1000000&&inlineFile.length<12582912);
+  await page.locator('#server-work-graph-file').setInputFiles({
+    name:'approved-phone-noise.png',mimeType:'image/png',buffer:inlineFile
+  });
+  await page.locator('#server-work-graph-alt').fill('Тестовый мобильный вариант');
+  await page.locator('#server-work-graph-apply').click();
+  await page.waitForFunction(before=>{
+    const site=window.Stage3Editor.getSite();
+    return site.assets.length===before+1&&window.Stage3Editor.isDirty();
+  },inlineBefore,{timeout:20000});
+  const mediaState=await page.evaluate(()=>{
+    const site=window.Stage3Editor.getSite(),section=site.pages[0].sections
+      .find(s=>s.id==='section-approved-custom');
+    const node=section.designGraph.nodes[0].children
+      .find(n=>n.id==='approved-custom-photo');
+    return {node,asset:site.assets.at(-1)};
+  });
+  assert.equal(mediaState.node.assetId,'asset-external-hero');
+  assert.equal(mediaState.node.alt,'Графическое оформление');
+  assert.equal(mediaState.node.responsiveMedia.mobileAssetId,mediaState.asset.id);
+  assert.equal(mediaState.asset.mime,'image/webp');
+  assert.equal(await page.locator('#cms-page-preview').evaluate(node=>node.open),true);
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-image-mobile.png'),fullPage:true});
+  await page.locator('#server-work-save').click();
+  await page.locator('#server-work-state').getByText(/сохранён/).waitFor();
+  const savedPhone=(await (await page.request.get(
+    origin+'/api/sites/site-approved-browser')).json()).site;
+  assert.equal(savedPhone.pages[0].sections.find(s=>s.id==='section-approved-custom')
+    .designGraph.nodes[0].children.find(n=>n.id==='approved-custom-photo')
+    .responsiveMedia.mobileAssetId,mediaState.asset.id);
+  await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+  assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
+    'Changing draft mobile imagery does not publish the new asset');
+
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
   assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
