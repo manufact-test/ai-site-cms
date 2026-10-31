@@ -675,10 +675,10 @@ async function execute(){
     overlay:{color:'#123456',opacity:55}},
   'Workbench stores the full typed device-aware video backdrop');
   await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
-  assert.equal((await backdrop()).mobilePositionY,undefined,
-    'Independent phone crop is in shared Undo history');
+  assert.equal((await backdrop()).mobilePosterAssetId,importedDesktopLogo.id,
+    'Thumbnail-selected phone cover is in the same shared Undo history');
   await page.locator('#cms-work-history').getByRole('button',{name:'↷ Повтор'}).click();
-  assert.equal((await backdrop()).mobilePositionY,25);
+  assert.equal((await backdrop()).mobilePosterAssetId,importedMobileLogo.id);
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
   // Graph editor retains the selected custom section. Explicitly restore
   // hero focus before exercising its separate responsive inspector controls.
