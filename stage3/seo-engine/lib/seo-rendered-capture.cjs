@@ -7,6 +7,7 @@ const BP=require('./blueprint.cjs');
 const HTTP=require('./delivery-evidence.cjs');
 const PUBLIC=require('./public-https-capture.cjs');
 const VIS=require('./seo-browser-css-visibility.cjs');
+const MEDIA=require('./seo-browser-image-observation.cjs');
 const crypto=require('node:crypto');
 const net=require('node:net');
 const FORMAT='manufact-seo-viewport-evidence-v2';
@@ -103,9 +104,10 @@ function assertV2(e,originalHttpSha=null){
     typeof d.stableMarkup!=='boolean'||
     Object.keys(d).some(k=>!['method','html','htmlSha256','requestUrl','responseUrl','status',
      'viewport','collectedAt','blockedRequests','blockedReasons','pageErrors','stableMarkup',
-     'serverResponseSha256','matchesOriginalHttpBody','visibility'].includes(k)))
+     'serverResponseSha256','matchesOriginalHttpBody','visibility','media'].includes(k)))
     fail('invalid or tampered v2 rendered DOM '+p.id+' '+device);
    if(d.visibility!==undefined)VIS.assertObservation(d.visibility,d.htmlSha256);
+   if(d.media!==undefined)MEDIA.assertObservation(d.media,d.htmlSha256);
   }
  }
  return e;
@@ -231,11 +233,48 @@ async function capture(input,{resolve=PUBLIC.address,launch,now=()=>new Date().t
       }catch{reason='sampling-error'}
      }
      if(reason)visibility={method:VIS.METHOD,status:'unavailable',checkedAt:now(),reason};
+     /* Image state is sampled in the same approved browser context.
+      * Only counts are retained; no image URL, alt text or screenshot.
+      */
+     let mediaObservation=null,mediaReason=null;
+     const mediaViewport={width:WIDTHS[device],height:HEIGHTS[device]};
+     try{
+      mediaObservation=await page.evaluate(MEDIA.sample,mediaViewport);
+      await page.waitForTimeout(250);
+      const second=await page.evaluate(MEDIA.sample,mediaViewport);
+      if(JSON.stringify(mediaObservation)!==JSON.stringify(second))
+       mediaReason='image-state-changing-during-sampling';
+     }catch{mediaReason='sampling-error'}
+     try{
+      const finalHtml=await page.content();
+      if(finalHtml!==html){
+       html=finalHtml;stable=false;mediaReason='dom-changed-during-sampling';
+       visibility={method:VIS.METHOD,status:'unavailable',
+        checkedAt:now(),reason:'dom-changed-during-sampling'};
+      }
+     }catch{
+      stable=false;mediaReason='dom-changed-during-sampling';
+      visibility={method:VIS.METHOD,status:'unavailable',
+       checkedAt:now(),reason:'dom-changed-during-sampling'};
+     }
+     if(!mediaReason&&mediaObservation?.status==='unavailable')
+      mediaReason=MEDIA.REASONS.includes(mediaObservation.reason)?
+       mediaObservation.reason:'sampling-error';
+     let media;
+     if(!mediaReason){
+      try{
+       media={method:MEDIA.METHOD,status:'observed',checkedAt:now(),
+        htmlSha256:sha(html),counts:mediaObservation.counts};
+       MEDIA.assertObservation(media,sha(html));
+      }catch{mediaReason='sampling-error'}
+     }
+     if(mediaReason)media={method:MEDIA.METHOD,status:'unavailable',
+      checkedAt:now(),reason:mediaReason};
      record.captures[device]={method:'rendered-dom',html,htmlSha256:sha(html),
       requestUrl:target,responseUrl:page.url(),status:response.status(),
       viewport:{width:WIDTHS[device],height:HEIGHTS[device]},
       collectedAt:now(),blockedRequests,blockedReasons,pageErrors,stableMarkup:stable,
-      serverResponseSha256,matchesOriginalHttpBody,visibility};
+      serverResponseSha256,matchesOriginalHttpBody,visibility,media};
     }finally{if(context)await context.close();}
    }
    evidence.pages.push(record);

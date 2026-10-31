@@ -1,3 +1,5 @@
+> **31 October 2026 — browser image loading QA:** the same approved Chromium capture can additionally include source-pinned, double-sampled image loading/first-viewport observations. The existing rendered-content audit flags broken visible images, lazy first-screen images and missing media attributes; old v2 remains valid with image evidence unknown. See [RENDERED-IMAGE-LOADING-QA.md](RENDERED-IMAGE-LOADING-QA.md). No LCP/CLS/Google claim or automatic GO.
+
 # MANUFACT SEO — Rendered Content / HTTP-to-DOM reconciliation
 
 > **31 October 2026 — CSS visibility extension:** the same Chromium capture and existing rendered-content review now include optional source-bound computed CSS visibility for H1, H2–H6, main and approved CTA/nav anchors. No new dashboard, no Google proof, old v2 without CSS remains valid/unknown. See [RENDERED-VISIBILITY-QA.md](RENDERED-VISIBILITY-QA.md).

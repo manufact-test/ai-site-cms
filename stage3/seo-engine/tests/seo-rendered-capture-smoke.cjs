@@ -62,6 +62,15 @@ function adapter(drift=false,flood=false){
       },url:()=>target,content:async()=>html(blueprint.pages.find(p=>absolute(p.path)===target)),
       evaluate:async(fn,targets)=>{
        assert.equal(typeof fn,'function');
+       if(!Array.isArray(targets)){
+        assert.equal(targets.width,opts.viewport.width);
+        return {status:'observed',counts:{
+         total:2,visible:2,visibleFailed:0,visiblePending:0,
+         aboveFold:1,aboveFoldLazy:1,largeAboveFold:1,
+         largeAboveFoldFailed:0,largeAboveFoldLazy:1,
+         visibleMissingAlt:1,visibleEmptyAlt:0,
+         visibleMissingDimensions:1,visibleUpscaled:0}};
+       }
        const p=blueprint.pages.find(p=>absolute(p.path)===target);
        const h1=p.sections.filter(x=>x.level===1).length;
        const secondary=p.sections.filter(x=>x.level>1).length;
@@ -97,6 +106,9 @@ function adapter(drift=false,flood=false){
  assert.equal(review.summary.P0,0);
  assert.equal(review.summary.cssInspectedDevicePairs,blueprint.pages.length*3);
  assert.equal(review.summary.cssHiddenH1DevicePairs,0);
+ assert.equal(review.summary.mediaObservedDevicePairs,blueprint.pages.length*3);
+ assert.equal(review.summary.mediaAboveFoldLazy,blueprint.pages.length*3);
+ assert.equal(review.summary.mediaVisibleMissingAlt,blueprint.pages.length*3);
  assert.equal(review.summary.fullyComparedPages,blueprint.pages.length);
  assert(review.findings.some(f=>f.code==='rendered:blocked-browser-requests'));
  assert.equal(review.originalHttpBytePinnedInRenderedCapture,true);
@@ -125,6 +137,12 @@ function adapter(drift=false,flood=false){
  assert(saturated.pages.every(p=>Object.values(p.captures).every(
   v=>v.blockedRequests>=14&&v.blockedReasons.requestBudget>=11)));
  assert.equal(saturated.pages.length,blueprint.pages.length);
+ const imageTampered=structuredClone(data);
+ imageTampered.pages[0].captures.desktop.media.htmlSha256='f'.repeat(64);
+ assert.throws(()=>CAP.assertV2(imageTampered,sha),/snapshot/);
+ const legacyImage=structuredClone(data);
+ for(const p of legacyImage.pages)for(const v of Object.values(p.captures))delete v.media;
+ assert.equal(CAP.assertV2(legacyImage,sha).pages.length,blueprint.pages.length);
  const cssTampered=structuredClone(data);
  cssTampered.pages[0].captures.mobile.visibility.htmlSha256='f'.repeat(64);
  assert.throws(()=>CAP.assertV2(cssTampered,sha),/snapshot/);

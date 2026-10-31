@@ -8,6 +8,7 @@ const HTML=require('./html-evidence.cjs');
 const PARITY=require('./parity.cjs');
 const CHROME=require('./seo-rendered-capture.cjs');
 const VIS=require('./seo-browser-css-visibility.cjs');
+const MEDIA=require('./seo-browser-image-observation.cjs');
 const crypto=require('node:crypto');
 const FORMAT='manufact-seo-rendered-content-audit-v1';
 const DEVICES=['desktop','tablet','mobile'];
@@ -234,6 +235,32 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
      }
     }
    }
+   let mediaStatus='not-supplied',mediaCounts=null;
+   if(version2&&v.media){
+    if(v.media.status==='unavailable'){
+     mediaStatus='unavailable';
+     issue(p,device,'image-state-unavailable','P2',
+      'Browser image loading observation unavailable ('+v.media.reason+'); check manually.');
+    }else{
+     MEDIA.assertObservation(v.media,v.htmlSha256);
+     mediaStatus='observed';
+     mediaCounts=v.media.counts;
+     if(mediaCounts.visibleFailed>0)issue(p,device,'visible-images-failed','P1',
+      mediaCounts.visibleFailed+' CSS-visible image(s) completed with no decoded image width; inspect response and asset URLs.');
+     if(mediaCounts.largeAboveFoldFailed>0)issue(p,device,'large-above-fold-image-failed','P1',
+      mediaCounts.largeAboveFoldFailed+' large above-fold image candidate(s) failed to decode.');
+     if(mediaCounts.aboveFoldLazy>0)issue(p,device,'above-fold-images-lazy','P2',
+      mediaCounts.aboveFoldLazy+' above-fold image(s) use loading=lazy; verify first-viewport priority manually.');
+     if(mediaCounts.visibleMissingAlt>0)issue(p,device,'visible-images-missing-alt','P2',
+      mediaCounts.visibleMissingAlt+' visible image(s) lack an alt attribute; check decorative/content intent.');
+     if(mediaCounts.visibleMissingDimensions>0)issue(p,device,'visible-images-missing-dimensions','P2',
+      mediaCounts.visibleMissingDimensions+' visible image(s) lack width/height attributes; CSS aspect ratio may compensate.');
+     if(mediaCounts.visibleUpscaled>0)issue(p,device,'visible-images-upscaled','P2',
+      mediaCounts.visibleUpscaled+' visible image(s) are displayed over 1.5x their intrinsic CSS width.');
+     if(mediaCounts.visiblePending>0)issue(p,device,'visible-images-pending','P2',
+      mediaCounts.visiblePending+' visible image(s) were still pending at the snapshot.');
+    }
+   }
    if(current.meta.status!=='parsed-head')issue(p,device,'rendered-head-incomplete','P1',
     'Rendered document head was not completely parseable; metadata parity is unknown.');
    else if(server.meta.status==='parsed-head'){
@@ -322,6 +349,7 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
     issue(p,device,'unlabelled-controls-increased','P2',
      'Rendered DOM introduced form controls without detectable static labels; browser accessibility review needed.');
    report.devices[device]={inspected:true,method:'rendered-dom',
+    mediaStatus,mediaCounts,
     cssVisibilityStatus,cssHiddenH1,cssHiddenMain,cssHiddenCtaRoutes,
     cssCollapsedNavRoutes,cssHiddenSecondaryHeadings,
     h1Count:h1.length,mainCount:current.parsed.mainCount,
@@ -345,6 +373,7 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
  };
  const cssDevices=pages.flatMap(p=>DEVICES.map(d=>p.devices[d]));
  const cssObserved=cssDevices.filter(d=>d.cssVisibilityStatus==='observed');
+ const mediaObserved=cssDevices.filter(d=>d.mediaStatus==='observed'&&d.mediaCounts);
  const summary={plannedPages:plan.pages.length,httpInspectedPages:pages.filter(p=>p.httpInspected).length,
   fullyComparedPages:pages.filter(p=>p.evidenceState==='SOURCE-PAIR-OBSERVED').length,
   missingRenderPages:pages.filter(p=>p.evidenceState!=='SOURCE-PAIR-OBSERVED').length,
@@ -364,6 +393,14 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   cssHiddenSecondaryHeadings:version2?cssObserved.reduce((n,d)=>n+d.cssHiddenSecondaryHeadings,0):null,
   cssHiddenCtaDestinations:version2?cssObserved.reduce((n,d)=>n+d.cssHiddenCtaRoutes,0):null,
   cssCollapsedNavDestinations:version2?cssObserved.reduce((n,d)=>n+d.cssCollapsedNavRoutes,0):null,
+  mediaObservedDevicePairs:version2?mediaObserved.length:null,
+  mediaUnknownDevicePairs:version2?plan.pages.length*3-mediaObserved.length:null,
+  mediaVisibleFailed:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.visibleFailed,0):null,
+  mediaLargeAboveFoldFailed:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.largeAboveFoldFailed,0):null,
+  mediaAboveFoldLazy:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.aboveFoldLazy,0):null,
+  mediaVisibleMissingAlt:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.visibleMissingAlt,0):null,
+  mediaVisibleMissingDimensions:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.visibleMissingDimensions,0):null,
+  mediaVisibleUpscaled:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.visibleUpscaled,0):null,
   P0:findings.filter(f=>f.priority==='P0').length,
   P1:findings.filter(f=>f.priority==='P1').length,
   P2:findings.filter(f=>f.priority==='P2').length};
