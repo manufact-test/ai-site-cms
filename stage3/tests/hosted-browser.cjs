@@ -1694,6 +1694,8 @@ async function execute(){
   await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="mobile"]').click();
   await page.locator('#cms-work-graph-media > summary').click();
   await page.locator('#server-work-graph-upload').waitFor();
+  assert.equal(await page.locator('#server-work-graph-update-alt').isChecked(),false,
+    'Mobile replacement must not silently change the shared public alt');
   const noisyBase64=await page.evaluate(()=>{
     const canvas=document.createElement('canvas');canvas.width=960;canvas.height=960;
     const ctx=canvas.getContext('2d'),data=ctx.createImageData(960,960);
@@ -1718,7 +1720,8 @@ async function execute(){
         const nested=walk(n.children);if(nested)return nested;
       }return null;
     };
-    return {base:walk(section.designGraph.nodes).assetId,count:site.assets.length};
+    const node=walk(section.designGraph.nodes);
+    return {base:node.assetId,alt:node.alt,count:site.assets.length};
   },{sectionId:graphSectionId,nodeId:imageNodeId});
   await page.locator('#server-work-graph-file').setInputFiles({
     name:'large-phone-photo.png',mimeType:'image/png',buffer:noisyFile
@@ -1748,6 +1751,7 @@ async function execute(){
       asset:site.assets.at(-1)};
   },{sectionId:graphSectionId,nodeId:imageNodeId});
   assert.equal(graphAfter.node.assetId,graphBefore.base,'Desktop authored photo unchanged');
+  assert.equal(graphAfter.node.alt,graphBefore.alt,'Shared public alt remains authored unless explicitly changed');
   assert.equal(graphAfter.node.responsiveMedia.mobileAssetId,graphAfter.asset.id);
   assert.equal(graphAfter.asset.mime,'image/webp','Large original optimized before private upload');
   await page.locator('#server-work-save').click();

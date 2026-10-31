@@ -2688,7 +2688,9 @@
       file.id='server-work-'+kind+'-file';
       file.accept='image/png,image/jpeg,image/webp';
       fileLabel.append(file);
-      const altLabel=element('label',null,'Описание изображения (alt)');
+      const altLabel=element('label',null,kind==='graph'?
+        'Описание файла в библиотеке (alt изображения задаётся отдельно)':
+        'Описание изображения (alt)');
       const alt=element('input','control');alt.type='text';
       alt.id='server-work-'+kind+'-alt';alt.maxLength=200;
       alt.placeholder='Что изображено?';altLabel.append(alt);
@@ -2705,6 +2707,12 @@
       optimize.id='server-work-'+kind+'-optimize';
       optimizeLabel.append(optimize,document.createTextNode(
         ' Оптимизировать крупный файл локально в WebP (до 1 МБ на сервере)'));
+      const graphAltLabel=element('label','hosted-work-media-decorative');
+      const graphAlt=element('input');graphAlt.type='checkbox';
+      graphAlt.id='server-work-graph-update-alt';
+      graphAlt.checked=(workModal.querySelector('.cms-page-preview-modes .active')?.dataset.mode||'desktop')==='desktop';
+      graphAltLabel.append(graphAlt,document.createTextNode(
+        ' Также обновить alt элемента (общий для ПК, планшета и телефона)'));
       const upload=action('Загрузить и выбрать','server-work-'+kind+'-apply',async()=>{
         const feedback=(message,error=false)=>{
           result.textContent=message;result.dataset.error=error?'true':'false';
@@ -2796,6 +2804,15 @@
           }
           target.value=added.asset.id;
           target.dispatchEvent(new Event('change',{bubbles:true}));
+          if(kind==='graph'&&graphAlt.checked){
+            // The Graph's public <img alt> is independent from the private
+            // media-library description. Use its EXISTING typed/Undoable field.
+            const control=mediaWorkFields.querySelector(
+              '#cms-work-graph-panel [data-work-graph-field="alt"]');
+            if(!control)throw Error('Файл назначен, но поле alt узла недоступно. Проверьте описание вручную.');
+            control.value=description;
+            control.dispatchEvent(new Event('change',{bubbles:true}));
+          }
           const draft=editor.getSite();
           const actualPage=draft.pages.find(x=>x.id===page.id);
           const actualSection=actualPage?.sections.find(x=>x.id===section.id);
@@ -2817,6 +2834,19 @@
               node?.responsiveMedia?.[originDevice+'AssetId']===added.asset.id;
           }
           if(!bound)throw Error('Файл загружен в библиотеку, но привязка не применена. Выберите его вручную.');
+          if(kind==='graph'&&graphAlt.checked){
+            const publicAlt=(()=>{
+              const walk=nodes=>{
+                for(const node of nodes||[]){
+                  if(node.id===originGraph)return node.alt;
+                  const nested=walk(node.children);if(nested!==undefined)return nested;
+                }
+              };
+              return walk(actualSection?.designGraph?.nodes);
+            })();
+            if(publicAlt!==description)
+              throw Error('Изображение назначено, но публичный alt не обновлён. Проверьте описание вручную.');
+          }
           const currentPicker=kind==='graph'?
             mediaWorkFields.querySelector('#cms-work-graph-media'):
             mediaWorkFields.querySelector('#cms-work-media');
@@ -2836,7 +2866,9 @@
       const result=element('small','hosted-work-media-result');
       result.id='server-work-'+kind+'-result';
       result.setAttribute('role','status');result.setAttribute('aria-live','polite');
-      body.append(title,fileLabel,altLabel,decorativeLabel,optimizeLabel,upload,result);
+      body.append(title,fileLabel,altLabel,decorativeLabel,optimizeLabel);
+      if(kind==='graph')body.append(graphAltLabel);
+      body.append(upload,result);
       if(kind==='legacy'){
         // The original media selector had no search on large client libraries.
         const grid=picker.querySelector('.cms-work-media-grid');
