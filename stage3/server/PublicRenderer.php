@@ -55,7 +55,7 @@ final class PublicRenderer
             '@id'=>$absolute.'#webpage','url'=>$absolute,'name'=>$page['title'],
             'inLanguage'=>self::language($site),
             'isPartOf'=>['@type'=>'WebSite','name'=>$site['title'],
-                'url'=>substr($absolute,0,strlen($absolute)-strlen($page['path'])).'/']
+                'url'=>rtrim(substr($absolute,0,strlen($absolute)-strlen($page['path'])),'/').'/']
         ];
         $description=trim((string)($page['seo']['description']??''));
         if ($description!=='') $document['description']=$description;
@@ -985,7 +985,9 @@ JS;
         $ogTitleValue=trim((string)($seo['ogTitle']??''))!==''?trim((string)$seo['ogTitle']):$titleValue;
         $ogTitle=self::h($ogTitleValue);
         $ogDescriptionValue=trim((string)($seo['ogDescription']??''))!==''?trim((string)$seo['ogDescription']):trim($descriptionValue);
-        $absolute=$publicOrigin===null?null:$publicOrigin.$mount.$path;
+        // Root-mounted exports use mount='/' and path='/'. Join once rather
+        // than leaking a second slash into canonical/OG/JSON-LD identity.
+        $absolute=$publicOrigin===null?null:$publicOrigin.rtrim($mount,'/').$path;
         $canonical=$absolute===null?'':'<link rel="canonical" href="'.self::h($absolute).'">';
         $structured=self::structuredData($site,$page,$absolute,$mount,$preview);
         $social='<meta property="og:type" content="website">'
