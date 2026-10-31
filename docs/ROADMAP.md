@@ -19,6 +19,13 @@
 - Можно изменить H1, шрифт, button/spacing, изображения, hover/анимацию; один repeater FAQ add/delete/reorder и одна карточная секция; нет свободного CSS/автосейва/новой страницы через CMS.
 **Done:** владелец проходит операции руками без разработчика; безопасное Undo/rollback.
 
+### Обязательный подпункт 2.1 — современный UX/UI **самой CMS** (owner decision 31.10)
+- Текущий функциональный Stage3 Studio **не считается визуально завершённым**. Старые технические скриншоты владелец оценил как неудобные и устаревшие; нельзя обещать сдачу CMS только по наличию кнопок и CI.
+- До финальной сдачи провести аудит реальных сценариев владельца (страницы → блок → элемент → настройки → три размера → предпросмотр → черновик → публикация/откат), выявить перегруженные экраны и непонятные действия.
+- Привести **один существующий Studio/Workbench** к современному, цельному и удобному интерфейсу с правильной иерархией, ясными подписями, контекстными свойствами, хорошими состояниями, доступностью и аккуратным визуальным стилем. Elementor/Tilda — ориентиры удобства, не готовые шаблоны для копирования; никаких параллельных редакторов.
+- Показать владельцу реальные браузерные экраны и дать пройти типовые операции **своими руками**; исправить замечания, отдельно получить его UI/UX GO. Приоритет — после закрытия главных функциональных дыр и до финальной приёмки продукта, вместе с реальным пилотом, не косметика по одной кнопке за заход.
+**Done:** владелец одобрил современный внешний вид админки и прошёл ключевые действия без подсказок разработчика. **Пока не done.**
+
 ## Приоритет 3 — SEO и правильные работающие компоненты
 - Сайт получает SEO и архитектуру страниц **при исследовании**, не отдельным генератором после выпуска. Из CMS редактируются URL/Title/Description/H1–H6/alt/OG/robots/sitemap/redirect/schema по исходным #138–155.
 - Вставка/удаление FAQ элементов не разрушает семантику/Schema. Форма с серверной валидацией, антиспамом, честной доставкой и явной конфигурацией получателя.
@@ -34,6 +41,8 @@
 - Минимальная поддержка HTML/CSS/JS, PHP, React/Next в понятных режимах, без требования Node на обычном PHP-хостинге; экспорт/передача не должны превращаться в самостоятельный бизнес-процесс.
 - Ранняя демонстрация одного законченного продукта владельцу, большой раунд его фактических правок, адресное исправление. Затем оставшиеся обязательные требования и отдельная финальная приёмка. Изолированный пилот CELIKOM только по новому разрешению.
 **Done:** owner GO по работающему сайту + проверка полного согласованного реестра перед внешним релизом.
+
+**Уточнён первый пилот (31.10):** владелец позже предоставит **существующий совместно сделанный лендинг** и доступные исходные изображения/ссылки. Это материал для профессионального аудита и нового прототипирования, а **не** утверждённый дизайн. Внешний ИИ-разработчик исследует UX, SEO, сценарии, ошибки и сильные стороны; объясняет владельцу «было → почему плохо/хорошо → как улучшим»; готовит 3 новых статичных макета и описание всех действий/адаптива/эффектов. После согласования — индивидуальная реализация точно по прототипу, привязка полей к существующей CMS и ручной end-to-end пилот. Проект, URL, права на медиа и клиентские факты не выбирать/придумывать заранее.
 
 ## Скорость, границы и роли
 Главный: \`feature/stage3-ai-site-contract\` + core. Второй: \`feature/site-seo-engine\` + только \`stage3/seo-engine/**\`. Работа крупными вертикалями, минимальные целевые проверки + существующий CI, никаких новых бесконечных лабораторий или «100% готово» по тестам. Нет main merge/Hostinger/prod/CELIKOM без отдельного решения. Не объявлять текущие 0/135 «нулём написанного кода»: это старый официальный статус, не аудит функций.
@@ -732,3 +741,16 @@ PHP public publishing derives name, language, canonical URL, optional SEO descri
 The actual PHP publication barrier previously checked only Graph `button.href` and *also* scanned legacy section fields even when a typed Graph had replaced them. It could accept broken published `link`, clickable `image`, and rich `runs[].href` destinations while rejecting an otherwise valid release because an invisible legacy link was obsolete. The barrier now walks exactly the public source: all nested authored links for Graph sections, or manifest elements/items for non-Graph sections. Its actionable failure includes the page/section/node, leaves prior releases unchanged and checks fragments against real section IDs, including the final page of a 301 alias. Existing SDK `inspectSite` diagnostics now report missing redirect-target anchors instead of treating every alias as harmless.
 
 The **same** sitewide Quality → Links/Media repair UI now offers explicit real page+section anchor targeting, preserves authored query parameters, previews exact `from → to` replacements and refuses batches introducing new broken routes/anchors before one Undoable draft edit. This is not a new editor or automatic publication. Focused SDK/PHP and existing offline Chromium flows cover this seam; see `stage3/docs/PUBLISHED-LINK-INTEGRITY.md` and `handoffs/lead-integrator/MAIN-HANDOFF-v9.4-2026-10-31.md`. First live client-approved three-device reference, confirmed host/revision, real forms/browser/SEO evidence and owner sign-off remain missing. The ledger remains **124 engineering candidates + 5 partial + 6 external gates; ownerAccepted=0/135**. No main, Hostinger, SEO worker or production changes.
+
+### 31 October 2026 — owner communication, first pilot and Studio UI decision (handoff v9.7)
+
+Further verified functional increments on `feature/stage3-ai-site-contract`:
+- **v9.5:** optional individually authored hidden/noindex, form-free site page reused as visitor 404 across PHP, Next and static output; no default template factory.
+- **v9.6:** optional per-form hidden/noindex thank-you page selected by stable ID; only a genuinely accepted server lead may reach it, with stale-release and unsafe return redirects denied.
+- **v9.7:** optional real information/consent page linked next to the native required form checkbox by stable page ID, with rename/delete handling, editor Undo, escaped PHP routes, HTTP submission and static-export checks. No invented legal copy or guarantee of privacy-law compliance.
+
+Latest verified branch HEAD: **`b9ab53c21c39d5e87e260d3691c134ddf3740e0d`**, [Actions run 41223974027](https://github.com/manufact-test/ai-site-cms/actions/runs/41223974027): **`contract=SUCCESS`, `technology-runtime=SUCCESS` on that SHA**. No main merge/production/Hostinger activity.
+
+**Owner decisions now mandatory:** first site starts from the owner's **existing landing** but must receive a fresh evidence-backed UX/SEO/design audit, explanation, three new approved static mockups and explicit sign-off *before* new site implementation; materials have **not yet been handed over**. Separately, the existing CMS Studio must receive a **real modern UI/UX redesign and hands-on owner approval** before final delivery; a technically functional but cluttered/old-fashioned admin is unfinished. See MASTER §E–F and `handoffs/lead-integrator/MAIN-HANDOFF-v9.7-2026-10-31.md`.
+
+**Compact reporting from now on:** one short milestone/end-of-session update with **stage → approximate technical % → remaining work/gate → exact SHA/CI**; avoid long code explanations and per-action reports. Estimates are not official acceptance: engineering ledger **124 candidates + 5 partial + 6 external gates = 135 MUST**, personally accepted **0/135**. Do not increment the percentages merely because CI is green; no handoff/next-chat message unless explicitly requested.
