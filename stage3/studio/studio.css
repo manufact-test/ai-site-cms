@@ -932,3 +932,8 @@ button:disabled{opacity:.45}
   content:"+";float:right;color:#8196ab;font-weight:500;
 }
 #cms-design-graph-dialog .cms-design-advanced-actions[open]>summary::after{content:"−"}
+
+/* The sidebar itself owns scrolling; its flex children must never clip their
+   own expanded content or let a later button sit behind the panel header. */
+.sidebar>*{flex-shrink:0}
+.sidebar>.sidebar-bottom{flex:0 0 auto}
