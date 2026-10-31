@@ -443,8 +443,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(built.formFields[0].required,true);
     assert.equal(built.formFields[0].fullWidth,true);
     await canvas.locator('.contact').getByText('Номер заказа').waitFor();
-    // The existing form inspector links the required checkbox to a real
-    // information page. The selection is a normal undoable site-draft edit.
+    // Form-wide settings are intentionally secondary to editing the
+    // selected fields. Open them only when changing consent/success routing.
+    await page.locator('#cms-form-success-settings-group>summary').click();
     const consentChoice=page.locator('#cms-form-consent-page');
     await consentChoice.waitFor();
     assert.equal(await consentChoice.locator(`option[value="${sourceSite.pages[1].id}"]`).count(),1);
