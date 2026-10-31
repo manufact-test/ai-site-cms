@@ -108,9 +108,23 @@ async function execute(){
   // disclosures for the existing exhaustive transport/backup regression path.
   assert.equal(await page.locator('#server-empty-state:visible').count(),1);
   assert.equal(await page.locator('#server-drawer-media').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#server-site-tools').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#server-resources').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#history-details').evaluate(node=>node.open),false);
   assert.equal(await page.locator('#server-edit-page').count(),1);
+  assert.equal(await page.locator('#page-add').isVisible(),true);
+  assert.equal(await page.locator('#page-rename').isVisible(),false,
+    'Rare page actions stay collapsed until requested');
+  assert.equal(await page.locator('#section-catalog').isVisible(),true,
+    'Adding a block uses the human-readable component catalog');
+  assert.equal(await page.locator('#section-add').isVisible(),false,
+    'The raw internal component-ID prompt is not exposed');
   await page.evaluate(()=>{
-    for(const node of document.querySelectorAll('#server-tools details,#server-admin-more')){
+    for(const id of ['#server-site-tools','#server-resources']){
+      const node=document.querySelector(id);if(node)node.open=true;
+    }
+    for(const node of document.querySelectorAll(
+      '#server-tools details,#server-site-tools details,#server-admin-more')){
       node.open=true;node.dispatchEvent(new Event('toggle'));
     }
   });
@@ -405,6 +419,7 @@ async function execute(){
   await page.evaluate(()=>sessionStorage.clear());
   await page.reload();
   // A fresh tab starts with secondary tools collapsed again; reveal import.
+  await page.locator('#server-resources').evaluate(node=>{node.open=true;});
   await page.locator('#server-drawer-import').evaluate(node=>{node.open=true;});
   await page.locator('#server-approved-import:not([disabled])').waitFor();
   await page.evaluate(entries=>{
@@ -466,6 +481,19 @@ async function execute(){
     document.querySelectorAll('#sections .nav-entry[aria-current="location"]').length===1);
   assert.equal(await page.locator('#pages .nav-entry[aria-current="page"]').count(),1);
   assert.equal(await page.locator('#sections .nav-entry[aria-current="location"]').count(),1);
+  assert.equal(await page.locator('#server-page-actions').evaluate(node=>node.open),false);
+  await page.locator('#server-page-actions>summary').click();
+  assert.equal(await page.locator('#page-rename').isVisible(),true);
+  await page.locator('#server-page-actions>summary').click();
+  await page.locator('#server-section-actions>summary').click();
+  assert.equal(await page.locator('#section-appearance').isVisible(),true);
+  await page.locator('#server-section-actions>summary').click();
+  await page.locator('#section-catalog').click();
+  await page.locator('#cms-component-catalog[open]').waitFor();
+  await page.locator('#cms-component-catalog').getByRole('button',{name:'Закрыть'}).click();
+  assert.equal(await page.locator('#server-tool-appearance #cms-open-theme').count(),1);
+  assert.equal(await page.locator('#server-tool-seo #cms-open-seo').count(),1);
+  assert.equal(await page.locator('#server-tool-navigation #cms-menu-open').count(),1);
   const secondPage=page.locator('#pages .nav-entry').last();
   await secondPage.focus();
   await page.keyboard.press('Enter');
@@ -528,7 +556,8 @@ async function execute(){
       label+' must not create page-level horizontal scrolling: '+JSON.stringify(metrics));
   };
   await page.evaluate(()=>{
-    for(const node of document.querySelectorAll('#server-tools details,#server-admin-more'))
+    for(const node of document.querySelectorAll(
+      '#server-tools details,#server-site-tools details,#server-admin-more,#server-site-tools,#server-resources'))
       node.open=false;
   });
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-desktop.png'),fullPage:true});
@@ -564,6 +593,8 @@ async function execute(){
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-mobile.png'),fullPage:true});
   // Native dialogs must be named from their visible heading and return focus
   // to the launcher after Escape, without replacing the browser focus trap.
+  await page.locator('#server-site-tools').evaluate(node=>{node.open=true;});
+  await page.locator('#server-tool-navigation').evaluate(node=>{node.open=true;});
   await page.locator('#cms-menu-open').click();
   await page.locator('#cms-menu-editor[open]').waitFor();
   const menuDialogLabel=await page.locator('#cms-menu-editor').getAttribute('aria-labelledby');
@@ -597,7 +628,11 @@ async function execute(){
   await page.setViewportSize({width:1400,height:1000});
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
   await page.evaluate(()=>{
-    for(const node of document.querySelectorAll('#server-tools details,#server-admin-more')){
+    for(const id of ['#server-site-tools','#server-resources']){
+      const node=document.querySelector(id);if(node)node.open=true;
+    }
+    for(const node of document.querySelectorAll(
+      '#server-tools details,#server-site-tools details,#server-admin-more')){
       node.open=true;node.dispatchEvent(new Event('toggle'));
     }
   });
@@ -1429,6 +1464,7 @@ async function execute(){
   const preRestoreRevision=(await (await page.request.get(
     origin+'/api/sites/site-approved-browser')).json()).revision;
   await page.locator('#save').click();
+  await page.locator('#history-details').evaluate(node=>{node.open=true;});
   await page.locator('#versions .version').first()
     .getByText('Ревизия #'+(preRestoreRevision+1)).waitFor();
   await page.locator('#versions .version').nth(1).click();
@@ -1446,6 +1482,8 @@ async function execute(){
 
   // Edit the global footer through Studio, save a private revision, and verify
   // that the already-published visitor remains unchanged without Publish.
+  await page.locator('#server-site-tools').evaluate(node=>{node.open=true;});
+  await page.locator('#server-tool-navigation').evaluate(node=>{node.open=true;});
   await page.locator('#cms-open-footer').click();
   await page.locator('#cms-footer-editor').waitFor({state:'visible'});
   await page.locator('#cms-footer-editor textarea').fill('Обновлённые контакты после запуска');

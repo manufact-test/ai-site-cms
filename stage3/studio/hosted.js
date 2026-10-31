@@ -2421,15 +2421,110 @@
 
   const adminMore=element('details','hosted-admin-more');
   adminMore.id='server-admin-more';
-  const adminSummary=element('summary',null,'Управление сайтом');
+  const adminSummary=element('summary',null,'Технические действия');
   const adminActions=element('div','hosted-admin-more-actions');
   adminActions.append(operationsButton,connectionButton,techOpen);
   adminMore.append(adminSummary,adminActions);
   row.after(adminMore);
 
+  // The page and block tree is the primary workspace. Keep one clear action
+  // visible for each level; put destructive/rare operations behind a disclosure.
+  const compactStructureActions=(primaryId,primaryLabel,detailsId,detailsLabel,items)=>{
+    const primary=$(primaryId),source=primary?.closest('.structure-tools');
+    if(!primary||!source)return;
+    primary.textContent=primaryLabel;
+    primary.classList.add('hosted-structure-primary','primary');
+    const details=element('details','hosted-structure-more');
+    details.id=detailsId;
+    const summary=element('summary',null,detailsLabel);
+    const actions=element('div','hosted-structure-more-actions');
+    for(const item of items){
+      const control=$(item.id);
+      if(!control)continue;
+      if(item.label)control.textContent=item.label;
+      if(item.title)control.title=item.title;
+      if(item.aria)control.setAttribute('aria-label',item.aria);
+      if(item.hidden)control.hidden=true;
+      control.classList.add('hosted-structure-secondary');
+      actions.append(control);
+    }
+    details.append(summary,actions);
+    source.classList.add('hosted-structure-actions');
+    source.replaceChildren(primary,details);
+  };
+  compactStructureActions('page-add','Добавить страницу','server-page-actions','Действия страницы',[
+    {id:'page-rename',label:'Название и адрес'},
+    {id:'page-duplicate',label:'Дублировать страницу'},
+    {id:'page-up',title:'Переместить страницу выше',aria:'Переместить страницу выше'},
+    {id:'page-down',title:'Переместить страницу ниже',aria:'Переместить страницу ниже'},
+    {id:'page-remove',label:'Удалить страницу'}
+  ]);
+  compactStructureActions('section-catalog','Добавить блок','server-section-actions','Действия блока',[
+    {id:'section-appearance',label:'Оформление блока'},
+    {id:'section-design-graph',label:'Расширенная композиция'},
+    {id:'section-duplicate',label:'Дублировать блок'},
+    {id:'section-up',title:'Переместить блок выше',aria:'Переместить блок выше'},
+    {id:'section-down',title:'Переместить блок ниже',aria:'Переместить блок ниже'},
+    {id:'section-remove',label:'Удалить блок'},
+    {id:'section-add',hidden:true}
+  ]);
+
+  // Global tools are organized by the task they solve, not by implementation
+  // module. Moving the existing buttons preserves their handlers and IDs.
+  const siteTools=element('details','hosted-site-tools');
+  siteTools.id='server-site-tools';
+  const siteSummary=element('summary','hosted-site-tools-summary');
+  siteSummary.append(
+    element('span',null,'Инструменты сайта'),
+    element('small',null,'Внешний вид, SEO, навигация и контент')
+  );
+  siteTools.append(siteSummary);
+  const addToolCategory=(id,title,description,entries)=>{
+    const details=element('details','hosted-tool-category');
+    details.id=id;
+    const heading=element('summary','hosted-tool-category-summary');
+    heading.append(element('span',null,title),element('small',null,description));
+    const actions=element('div','hosted-site-tool-actions');
+    for(const [buttonId,label] of entries){
+      const control=$(buttonId);
+      if(!control)continue;
+      const source=control.closest('.structure-tools');
+      control.textContent=label;
+      control.classList.remove('small');
+      control.classList.add('hosted-site-tool-link');
+      control.title=description;
+      actions.append(control);
+      if(source&&!source.children.length)source.remove();
+    }
+    if(actions.children.length){
+      details.append(heading,actions);
+      siteTools.append(details);
+    }
+  };
+  addToolCategory('server-tool-appearance','Внешний вид','Стили, язык и общие цвета',[
+    ['cms-open-theme','Стили и язык сайта'],
+    ['cms-design-tokens-open','Цвета и дизайн-система']
+  ]);
+  addToolCategory('server-tool-seo','SEO','Настройки страниц, задачи, аудит и адреса',[
+    ['cms-open-seo','SEO страниц'],
+    ['cms-seo-handoff-open','Задачи SEO'],
+    ['cms-quality-open','SEO-проверка и перенаправления']
+  ]);
+  addToolCategory('server-tool-navigation','Меню и контакты','Навигация сайта, шапка и подвал',[
+    ['cms-menu-open','Меню сайта'],
+    ['cms-open-footer','Подвал и контакты']
+  ]);
+  addToolCategory('server-tool-content','Тексты и структура','Поиск по сайту и порядок страниц',[
+    ['cms-content-open','Поиск и замена текстов'],
+    ['cms-site-map-open','Карта и порядок страниц']
+  ]);
+  addToolCategory('server-tool-advanced','Дополнительные инструменты','Мастера для подготовленного контента',[
+    ['cms-blueprint-open','Собрать страницу из секций'],
+    ['cms-fill-open','Массовое наполнение сайта']
+  ]);
+
   const drawerRail=element('div','hosted-drawers');
   drawerRail.id='server-tools';
-  drawerRail.append(element('div','hosted-drawers-title','ДОПОЛНИТЕЛЬНЫЕ РАЗДЕЛЫ'));
   const drawer=(id,name,description,...panels)=>{
     const details=element('details','hosted-drawer');
     details.id=id;
@@ -2441,19 +2536,27 @@
     return details;
   };
   drawerRail.append(
-    drawer('server-drawer-media','Медиа','Изображения, видео и шрифты',mediaPanel),
+    drawer('server-drawer-media','Медиафайлы','Изображения, видео и шрифты',mediaPanel),
     drawer('server-drawer-leads','Заявки','Контакты и уведомления',leadsPanel,deliveryPanel),
-    drawer('server-drawer-blocks','Блоки','Повторно используемые секции',templatesPanel),
-    drawer('server-drawer-backup','Архив и версии','Копии и восстановление',backupPanel),
-    drawer('server-drawer-import','Импорт','Подключение подготовленного сайта',
-      document.querySelector('.site-actions'))
+    drawer('server-drawer-blocks','Сохранённые блоки','Повторно используемые секции',templatesPanel),
+    drawer('server-drawer-backup','Архив и копии','Сохранённые версии и восстановление',backupPanel),
+    drawer('server-drawer-import','Подключение сайта','Импорт подготовленного сайта',document.querySelector('.site-actions'))
   );
-  $('sections').after(drawerRail);
+  const resources=element('details','hosted-resources-group');
+  resources.id='server-resources';
+  const resourcesSummary=element('summary','hosted-resources-summary');
+  resourcesSummary.append(
+    element('span',null,'Ресурсы и обслуживание'),
+    element('small',null,'Медиафайлы, заявки, библиотека блоков, архив и подключение')
+  );
+  resources.append(resourcesSummary,drawerRail);
+  $('sections').after(siteTools,resources);
 
-  // Existing Workbench buttons programmatically open the original media
-  // uploaders. Reveal their panel first so upload status is never invisible.
+  // Existing Workbench buttons open the same panels on demand. Reveal both
+  // levels so upload status is never hidden behind a closed parent.
   for(const trigger of [mediaUpload,videoUpload,fontUpload])
     trigger.addEventListener('click',()=>{
+      resources.open=true;
       $('server-drawer-media').open=true;
     },{capture:true});
 
@@ -2474,7 +2577,7 @@
   const emptyImport=action('Подключить готовый сайт','server-empty-import',()=>{
     const btn=$('server-approved-import');
     if(!btn||btn.disabled)return;
-    $('server-drawer-import').open=true;btn.click();
+    resources.open=true;$('server-drawer-import').open=true;btn.click();
   });
   emptyImport.classList.add('primary');
   const emptyNote=element('p','hosted-empty-note',
@@ -2485,8 +2588,11 @@
   document.querySelector('.workspace').append(emptyState);
 
   // Tab-scoped UI preference only. Never persist user/site data or write a draft.
-  const disclosureKey='manufact-studio-disclosures-v1';
-  const disclosures=[adminMore,...drawerRail.querySelectorAll('details.hosted-drawer')];
+  const disclosureKey='manufact-studio-disclosures-v2';
+  const disclosures=[
+    adminMore,siteTools,...siteTools.querySelectorAll('details.hosted-tool-category'),
+    resources,...drawerRail.querySelectorAll('details.hosted-drawer')
+  ];
   try{
     const selected=JSON.parse(sessionStorage.getItem(disclosureKey)||'[]');
     if(Array.isArray(selected))for(const disclosure of disclosures)
@@ -2527,7 +2633,7 @@
   const context=element('div','hosted-context');
   context.id='server-editor-context';
   const contextCurrent=element('span','hosted-context-current','Выберите страницу и блок');
-  const contextHint=element('span','hosted-context-help','Выбор → правка → черновик → публикация');
+  const contextHint=element('span','hosted-context-help','Выберите блок слева · измените его справа · сохраните черновик сверху');
   context.append(contextCurrent,contextHint);
   document.querySelector('.canvas-toolbar').after(context);
   const syncContext=()=>{
@@ -2998,7 +3104,19 @@
   };
   new MutationObserver(simplifyInspector).observe(fieldsRoot,{childList:true,subtree:true});
   simplifyInspector();
-  $('inspector-caption').textContent='Настройки только выбранного элемента';
+  document.querySelector('.inspector-top .eyebrow').textContent='СОДЕРЖИМОЕ И НАСТРОЙКИ';
+  const inspectorCaption=$('inspector-caption');
+  const simplifySectionCaption=()=>{
+    const raw=inspectorCaption.textContent||'';
+    if(raw.startsWith('ID ')){
+      inspectorCaption.title=raw;
+      inspectorCaption.textContent='Выберите элемент ниже, чтобы изменить его содержимое.';
+    }
+  };
+  new MutationObserver(simplifySectionCaption).observe(inspectorCaption,{
+    childList:true,characterData:true,subtree:true
+  });
+  simplifySectionCaption();
   document.querySelector('.inspector-foot').textContent=
     'Правки появляются в черновике сразу. Сохранение и публикация — отдельные действия.';
 

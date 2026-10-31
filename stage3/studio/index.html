@@ -34,7 +34,14 @@
  </div></div>
  <div class="canvas-stage"><div id="viewport" class="viewport desktop"><iframe id="preview" sandbox="" title="Изолированный предпросмотр выбранного блока"></iframe></div></div>
  <div class="canvas-footer"><span>Только выбранный блок · Без внешних запросов</span><span id="changes-count">0 изменений</span></div>
- <section class="history"><div class="history-heading"><h3>Сохранённые версии</h3><div><button class="btn small" id="export">Экспорт JSON</button><button class="btn small" id="export-factory-handoff" hidden>Экспорт D7 handoff</button><button class="btn small" id="reset">Пример заново</button></div></div><div id="interop-status" class="interop-status" role="status" aria-live="polite" hidden></div><div id="versions" class="versions"></div></section>
+ <section class="history"><details id="history-details" class="history-disclosure">
+  <summary><span>История и восстановление</span><small>Сохранённые версии, экспорт и сброс примера</small></summary>
+  <div class="history-content">
+   <div class="history-heading"><h3>Сохранённые версии</h3><div><button class="btn small" id="export">Экспорт JSON</button><button class="btn small" id="export-factory-handoff" hidden>Экспорт D7 handoff</button><button class="btn small" id="reset">Пример заново</button></div></div>
+   <div id="interop-status" class="interop-status" role="status" aria-live="polite" hidden></div>
+   <div id="versions" class="versions"></div>
+  </div>
+ </details></section>
 </main>
 <aside class="inspector" aria-labelledby="inspector-title">
  <div class="inspector-top"><span class="eyebrow">НАСТРОЙКИ КОМПОНЕНТА</span><h2 id="inspector-title">Элементы</h2><p class="subdued" id="inspector-caption">Только параметры из манифеста</p></div>
