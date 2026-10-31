@@ -2542,6 +2542,37 @@
   navObserver.observe($('sections'),{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
   syncContext();
 
+  // Native dialogs keep their browser-managed focus trap. Give every dialog
+  // with a real heading an explicit accessible name, including dialogs added
+  // later by the existing editor; do not invent labels for heading-less UI.
+  let dialogTitleSequence=0;
+  const labelDialog=dialog=>{
+    if(dialog.hasAttribute('aria-label'))return;
+    const labelledBy=dialog.getAttribute('aria-labelledby');
+    if(labelledBy&&document.getElementById(labelledBy))return;
+    const heading=dialog.querySelector('h1,h2,h3,[role="heading"]');
+    if(!heading)return;
+    if(!heading.id){
+      let id;
+      do{id='cms-dialog-heading-'+(++dialogTitleSequence);}
+      while(document.getElementById(id));
+      heading.id=id;
+    }
+    dialog.setAttribute('aria-labelledby',heading.id);
+  };
+  const labelDialogsWithin=root=>{
+    if(root.matches?.('dialog'))labelDialog(root);
+    root.querySelectorAll?.('dialog').forEach(labelDialog);
+    const parentDialog=root.closest?.('dialog');
+    if(parentDialog)labelDialog(parentDialog);
+  };
+  document.querySelectorAll('dialog').forEach(labelDialog);
+  const dialogNameObserver=new MutationObserver(records=>{
+    for(const record of records)for(const node of record.addedNodes)
+      if(node instanceof Element)labelDialogsWithin(node);
+  });
+  dialogNameObserver.observe(document.body,{childList:true,subtree:true});
+
   // Keep the current location announced and keyboard focus stable when the
   // existing editor redraws its page/section buttons after a selection.
   const enhanceTreeNavigation=(nav,current)=>{

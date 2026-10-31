@@ -562,7 +562,18 @@ async function execute(){
   await page.locator('#sections .nav-entry').first().click();
   assert.equal(await page.locator('#save').getAttribute('aria-keyshortcuts'),'Control+S Meta+S');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-mobile.png'),fullPage:true});
-  await page.setViewportSize({width:1400,height:1000});
+  // Native dialogs must be named from their visible heading and return focus
+  // to the launcher after Escape, without replacing the browser focus trap.
+  await page.locator('#cms-menu-open').click();
+  await page.locator('#cms-menu-editor[open]').waitFor();
+  const menuDialogLabel=await page.locator('#cms-menu-editor').getAttribute('aria-labelledby');
+  assert.ok(menuDialogLabel,'Menu editor dialog must have an accessible heading reference');
+  assert.equal(await page.locator('#'+menuDialogLabel).innerText(),'Меню и навигация сайта');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(()=>!document.querySelector('#cms-menu-editor')?.open);
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'cms-menu-open',
+    'Closing the menu dialog with Escape must return focus to its launcher');
+
   await page.locator('#server-edit-page').click();
   await page.locator('#cms-page-preview[open]').waitFor();
   await page.waitForFunction(()=>{
