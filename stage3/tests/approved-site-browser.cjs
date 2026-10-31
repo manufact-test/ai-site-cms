@@ -1669,8 +1669,8 @@ async function execute(){
   assert.equal(partialBatch.site.assets.length,assetCount+3);
   // The mandatory approved-site CI journey also verifies the NEW owner
   // Workbench image flow (the separate extended test is not part of this job).
-  // Upload is private; selecting the phone source leaves the desktop image
-  // and shared public alt untouched until an explicit authoring decision.
+  // Upload is private. One plain alt-text field updates the new library
+  // asset and the selected image element together, without an extra checkbox.
   const inlineBefore=partialBatch.site.assets.length;
   await page.locator('#server-edit-page').click();
   await page.locator('#cms-page-preview[open]').waitFor();
@@ -1682,8 +1682,9 @@ async function execute(){
   await page.locator('#server-work-graph-upload').waitFor();
   assert.equal(await page.locator('#server-work-graph-update-alt').count(),0,
     'Image descriptions are edited as text fields, not technical checkboxes');
-  assert.equal(await page.locator('#server-work-graph-public-alt').inputValue(),'Графическое оформление',
-    'The public image description is shown as a normal editable property');
+  assert.equal(await page.locator('#server-work-graph-public-alt').count(),0);
+  assert.equal(await page.locator('#server-work-graph-alt').inputValue(),'Графическое оформление',
+    'The selected image description is a single normal text field');
   const originalDesktop=await page.evaluate(()=>{
     const graph=window.Stage3Editor.getSite().pages[0].sections
       .find(section=>section.id==='section-approved-custom').designGraph;
@@ -1720,7 +1721,9 @@ async function execute(){
     return {node,asset:site.assets.at(-1)};
   });
   assert.equal(mediaState.node.assetId,originalDesktop,'Desktop image keeps its real remapped site asset');
-  assert.equal(mediaState.node.alt,'Графическое оформление');
+  assert.equal(mediaState.node.alt,'Тестовый мобильный вариант');
+  assert.equal(mediaState.asset.alt,'Тестовый мобильный вариант',
+    'The one alt text field is applied consistently to the asset and the public image element');
   assert.equal(mediaState.node.responsiveMedia.mobileAssetId,mediaState.asset.id);
   assert.equal(mediaState.asset.mime,'image/webp');
   assert.equal(await page.locator('#cms-page-preview').evaluate(node=>node.open),true);
