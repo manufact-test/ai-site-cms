@@ -179,6 +179,11 @@ function build(input){
    nextActionsUrgent:queue?.summary.urgent??null,nextActionsPending:queue?.summary.pending??null,
    operatorDeskIncluded:!!desk,launchIncluded:!!launch,searchIncluded:!!visibility,indexingIncluded:!!indexed,
    crawlIncluded:!!crawl,crawlP0:crawl?.counts.P0??null,crawlP1:crawl?.counts.P1??null,
+   firstClientApprovedRoutes:crawl?.routeCoverage?.summary.approvedPages??null,
+   firstClientRoutesMissingPreLaunchEvidence:
+    crawl?.routeCoverage?.summary.preLaunchEvidenceIncomplete??null,
+   firstClientRoutesWithThreeDevicePairs:
+    crawl?.routeCoverage?.summary.renderedThreeDevicePairs??null,
    crawlCandidateIncluded:!!crawl?.candidate,crawlManualHolds:crawl?.candidate?.holds??null,
    crawlCmsImplementationIncluded:!!crawl?.cmsReview,
    crawlCmsManualActions:crawl?.cmsReview?.summary.totalManualActions??null,
