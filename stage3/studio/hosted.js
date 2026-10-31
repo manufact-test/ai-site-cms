@@ -261,7 +261,8 @@
   }
   operationsDialog.addEventListener('close',()=>{operationsRevision=null;});
   toolbar.append(label,picker,row,status);
-  document.querySelector('.site-actions').before(toolbar);
+  // The server selector and status are site-wide controls, not page-tree actions.
+  // They are placed inside the dedicated tools dialog once it is assembled.
   $('save').textContent='Сохранить на сервере';
   $('reset').textContent='Отменить несохранённое';
   const publish=action('Опубликовать','server-publish',()=>safe(publishSite));
@@ -2564,7 +2565,7 @@
   const dialogClose=action('Закрыть','server-site-tools-close',()=>siteToolsDialog.close());
   dialogHead.append(dialogTitle,dialogClose);
   const dialogContent=element('div','hosted-site-tools-dialog-content');
-  dialogContent.append(siteTools,resources);
+  dialogContent.append(toolbar,siteTools,resources);
   siteToolsDialog.append(dialogHead,dialogContent);
   document.body.append(siteToolsDialog);
   const siteToolsTrigger=action('Инструменты сайта','server-site-tools-open',()=>{
