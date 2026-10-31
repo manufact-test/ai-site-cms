@@ -14,7 +14,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const page=await ctx.newPage(),errors=[],remote=[];
     const openLocalTools=async()=>{
       const group=page.locator('#local-site-tools');
-      if(!(await group.evaluate(node=>node.open)))await group.locator('summary').click();
+      if(!(await group.evaluate(node=>node.open)))await group.locator(':scope > summary').click();
       await page.evaluate(()=>document.querySelectorAll('#local-site-tools-content .local-tool-category')
         .forEach(node=>{node.open=true;}));
     };
