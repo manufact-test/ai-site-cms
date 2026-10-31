@@ -1,5 +1,7 @@
 # Первое сообщение для следующего SEO-чата — MANUFACT AI Site CMS
 
+> **Обновление 31.10.2026:** после многоисточникового `hreflang` добавлен [PUBLISHED-LINK-GRAPH-QA.md](PUBLISHED-LINK-GRAPH-QA.md) — анализ фактической достижимости canonical/indexable страниц из главной по HTML и трём DOM-версиям, с P1 только при полном покрытии всех четырёх источников, P2 для мобильного расхождения и `unknown` при частичном сборе. Это встроено в существующий Rendered Content / Crawl Workspace, без нового интерфейса. **Критически важно:** предыдущий локальный коммит `29ad11fbae823fbe7a87620653afbb6a416dc0ff` не был отправлен в GitHub из-за запрета на удалённый push; последний подтверждённый удалённый HEAD пока `8bb8d7f99cea486b98fd8ab9795774a89846e7da`. Не утверждай, что эти разработки удалённо сохранены, пока не будет явного разрешения и проверки SHA. Смотри новые верхние разделы `SEO-WORKER-NEXT-CHAT-2026-10-31.md` и `INTEGRATION-HANDOFF.md`.
+
 Привет! Продолжаем ускоренную автономную разработку **MANUFACT AI Site CMS — SEO Intelligence & Blueprint Engine**. Ты — **новый независимый SEO-разработчик**. Предыдущий SEO-разработчик закончил несколько крупных блоков, сохранил изменения в GitHub и передал тебе документацию. Не начинай всё заново: изучи текущую реализацию и сразу работай дальше.
 
 ## 1. Репозиторий и ответственность
@@ -18,14 +20,15 @@
 4. `stage3/seo-engine/INTEGRATION-HANDOFF.md` — передача главному разработчику.
 5. `stage3/seo-engine/README.md`.
 6. `stage3/seo-engine/HREFLANG-PUBLIC-RENDERED-QA.md` — новый функциональный блок.
-7. `stage3/seo-engine/FIRST-CLIENT-ROUTE-COVERAGE-QA.md` — маршрутная матрица клиентских SEO-доказательств.
-8. `stage3/seo-engine/FIELD-PERFORMANCE-CRUX-QA.md` — полевые Web Vitals.
-9. `stage3/seo-engine/RENDERED-FIRST-CLIENT-UX-QA.md`.
-10. `stage3/seo-engine/RENDERED-CAPTURE-PILOT.md`.
-11. `stage3/seo-engine/RENDERED-CONTENT-QA.md`.
-12. `stage3/seo-engine/RENDERED-VISIBILITY-QA.md`.
-13. `stage3/seo-engine/RENDERED-IMAGE-LOADING-QA.md`.
-14. `stage3/seo-engine/STRUCTURED-DATA-QA.md`.
+7. `stage3/seo-engine/PUBLISHED-LINK-GRAPH-QA.md` — следующий опубликованный маршрутный граф.
+8. `stage3/seo-engine/FIRST-CLIENT-ROUTE-COVERAGE-QA.md` — маршрутная матрица клиентских SEO-доказательств.
+9. `stage3/seo-engine/FIELD-PERFORMANCE-CRUX-QA.md` — полевые Web Vitals.
+10. `stage3/seo-engine/RENDERED-FIRST-CLIENT-UX-QA.md`.
+11. `stage3/seo-engine/RENDERED-CAPTURE-PILOT.md`.
+12. `stage3/seo-engine/RENDERED-CONTENT-QA.md`.
+13. `stage3/seo-engine/RENDERED-VISIBILITY-QA.md`.
+14. `stage3/seo-engine/RENDERED-IMAGE-LOADING-QA.md`.
+15. `stage3/seo-engine/STRUCTURED-DATA-QA.md`.
 
 Документов много потому, что SEO-подсистема уже крупная. Сначала прочитай новые разделы в начале файлов и соответствующие реализации, потом бери следующий содержательный пробел.
 

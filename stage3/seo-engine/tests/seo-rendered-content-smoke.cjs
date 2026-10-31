@@ -62,6 +62,58 @@ assert.equal(clean.summary.linkRestrictedRoutePairs,0);
 assert.equal(clean.summary.fragmentMissingTotal,0);
 assert.equal(clean.summary.fragmentObservedPairs,6);
 assert.equal(clean.summary.schemaClaimChangedPairs,0);
+assert.equal(clean.summary.publishedGraphObservedScopes,4);
+assert.equal(clean.summary.publishedGraphStrongOrphans,0);
+assert.equal(clean.summary.publishedGraphStrongUnreachable,0);
+const stripContact=h=>h.replaceAll('<a href="'+url('/contact/')+'">Go</a>','');
+const orphanHttp=http(),orphanDom=dom();
+orphanHttp.pages[0].html=stripContact(orphanHttp.pages[0].html);
+for(const d of ['desktop','tablet','mobile'])
+ orphanDom.pages[0].captures[d].html=stripContact(orphanDom.pages[0].captures[d].html);
+const orphan=QA.analyze(input(orphanHttp,orphanDom));
+assert.equal(orphan.summary.publishedGraphStrongOrphans,1);
+assert(orphan.findings.some(f=>f.code==='rendered:published-indexable-page-orphaned'&&
+ f.pageId==='page-contact'&&f.priority==='P1'));
+assert(!JSON.stringify(orphan).includes('outside.example'));
+const nofollowHttp=http(),nofollowDom=dom();
+const restrict=h=>h.replaceAll('<a href="'+url('/contact/')+'">',
+ '<a rel="nofollow" href="'+url('/contact/')+'">');
+nofollowHttp.pages[0].html=restrict(nofollowHttp.pages[0].html);
+for(const d of ['desktop','tablet','mobile'])
+ nofollowDom.pages[0].captures[d].html=restrict(nofollowDom.pages[0].captures[d].html);
+assert.equal(QA.analyze(input(nofollowHttp,nofollowDom)).summary.publishedGraphStrongOrphans,1,
+ 'nofollow-only inbound route is not counted as a normal crawlable graph edge');
+const protocolHttp=http(),protocolDom=dom();
+const protocol=h=>h.replaceAll('<a href="'+url('/contact/')+'">',
+ '<a href="//example.org/custom/contact/">');
+protocolHttp.pages[0].html=protocol(protocolHttp.pages[0].html);
+for(const d of ['desktop','tablet','mobile'])
+ protocolDom.pages[0].captures[d].html=protocol(protocolDom.pages[0].captures[d].html);
+assert.equal(QA.analyze(input(protocolHttp,protocolDom)).summary.publishedGraphStrongOrphans,0,
+ 'same-host protocol-relative anchors are ordinary crawlable route edges');
+const baseHttp=http(),baseDom=dom();
+baseHttp.pages[0].html=baseHttp.pages[0].html.replace('<head>',
+ '<head><base href="https://outside.example/SECRET-BASE/">');
+for(const d of ['desktop','tablet','mobile'])baseDom.pages[0].captures[d].html=
+ baseDom.pages[0].captures[d].html.replace('<head>',
+  '<head><base href="https://outside.example/SECRET-BASE/">');
+const unknownBase=QA.analyze(input(baseHttp,baseDom));
+assert.equal(unknownBase.summary.publishedGraphObservedScopes,0);
+assert.equal(unknownBase.summary.publishedGraphStrongOrphans,0);
+assert(!JSON.stringify(unknownBase).includes('SECRET-BASE'));
+const mobileGraph=dom();
+mobileGraph.pages[0].captures.mobile.html=stripContact(mobileGraph.pages[0].captures.mobile.html);
+const mobileReach=QA.analyze(input(evidence,mobileGraph));
+assert.equal(mobileReach.summary.publishedGraphStrongOrphans,0);
+assert.equal(mobileReach.summary.publishedGraphMobileReachLoss,1);
+assert(mobileReach.findings.some(f=>f.code==='rendered:published-mobile-navigation-loss'&&
+ f.priority==='P2'));
+const partialGraph=dom();partialGraph.pages.pop();
+const incompleteGraph=QA.analyze(input(orphanHttp,partialGraph));
+assert.equal(incompleteGraph.summary.publishedGraphObservedScopes,1);
+assert.equal(incompleteGraph.summary.publishedGraphStrongOrphans,0,
+ 'partial DOM must not become a confirmed orphan signal');
+assert(incompleteGraph.findings.some(f=>f.code==='rendered:published-link-graph-partial'));
 assert.equal(clean.releaseAuthorized,false);
 assert.equal(clean.sameReleaseRevisionProven,false);
 const report=VIEW.render(clean);
@@ -69,6 +121,7 @@ assert(report.html.includes('default-src &#39;none&#39;'));
 assert(!json(clean).includes('NEVER-REPEAT-CUSTOMER-FACT'));
 assert(!report.html.includes('NEVER-REPEAT-CUSTOMER-FACT'));
 assert(report.html.includes('JSON-LD semantic pairs'));
+assert(report.html.includes('Published approved-route link graph'));
 // A client script can mutate facts inside the SAME @type without changing
 // type inventory. The existing semantic parser must catch the delta and
 // redact all original values from the private output.
@@ -229,6 +282,17 @@ assert(workspace.homeHtml.includes('rendered-content.html'));
 assert(workspace.crawlHtml.includes('rendered-content.html'));
 assert(workspace.renderedContentJson.includes('approved-internal-route-absent'));
 assert.equal(workspace.overview.renderedContentIncluded,true);
+assert(workspace.renderedContentJson.includes('"siteGraph"'));
+assert.equal(typeof workspace.overview.renderedLinkGraphObservedScopes,'number');
+assert(workspace.crawlHtml.includes('published link-graph scopes'));
+const graphWorkspace=WORK.build({crawl:{policy,cmsBlueprint:bp,cmsSite:site,
+ publicCapture:orphanHttp,renderedCapture:orphanDom,
+ digests:{policy:hash(json(policy)),cmsBlueprint:hash(json(bp)),cmsSite:hash(json(site)),
+  publicCapture:hash(json(orphanHttp)),renderedCapture:hash(json(orphanDom))}}});
+assert.equal(graphWorkspace.overview.renderedLinkGraphOrphanRoutes,1);
+assert(graphWorkspace.crawlHtml.includes('published-indexable-page-orphaned'),
+ 'same existing crawl human queue must include corroborated source-bound orphan signal');
+assert(graphWorkspace.crawlLeadMarkdown.includes('published-indexable-page-orphaned'));
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'manufact-rendered-seo-'));
 try{
  const put=(name,value)=>{const file=path.join(tmp,name);fs.writeFileSync(file,json(value));return file;};

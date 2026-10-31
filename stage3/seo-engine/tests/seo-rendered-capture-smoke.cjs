@@ -144,6 +144,10 @@ function adapter(drift=false,flood=false,options={}){
  assert.equal(review.summary.mediaVisibleMissingAlt,blueprint.pages.length*3);
  assert.equal(review.summary.fullyComparedPages,blueprint.pages.length);
  assert(review.findings.some(f=>f.code==='rendered:blocked-browser-requests'));
+ assert.equal(review.summary.publishedGraphObservedScopes,1,
+  'blocked browser resources make DOM link-graph scope unknown even when source body matches');
+ assert.equal(review.summary.publishedGraphStrongOrphans,0,
+  'resource-blocked v2 capture cannot prove orphaned published routes');
  assert.equal(review.originalHttpBytePinnedInRenderedCapture,true);
  const changingText=await CAP.capture(input,adapter(false,false,{changingText:true}));
  assert(changingText.pages.every(p=>Object.values(p.captures).every(v=>

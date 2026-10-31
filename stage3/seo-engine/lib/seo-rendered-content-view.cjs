@@ -75,6 +75,15 @@ function render(report){
    ' · new unsafe-scheme anchor pairs '+s.linkUnsafeSchemeGrowthPairs+
    ' · new placeholder-anchor pairs '+s.linkPlaceholderGrowthPairs,
   'Link analysis compares read-only markup and approved Blueprint routes; it does not click anchors or test destination availability.',
+  ...(report.siteGraph?[
+   'Published internal-link graph: fully observed scopes '+s.publishedGraphObservedScopes+'/4'+
+    ' · unknown '+s.publishedGraphUnknownScopes+
+    ' · canonical indexable routes '+s.publishedGraphIndexableCanonicalPages+
+    ' · corroborated orphan routes '+s.publishedGraphStrongOrphans+
+    ' · corroborated unreachable routes '+s.publishedGraphStrongUnreachable+
+    ' · mobile homepage-reachability losses '+s.publishedGraphMobileReachLoss,
+   'Only fully inspected HTTP and three source-paired DOM graphs can substantiate strong P1 route orphan/reachability findings. Partial graphs are unknown; sitemap discovery, Googlebot and ranking are not inferred.'
+  ]:[]),
   'Rendered same-device fragments: observed '+s.fragmentObservedPairs+'/'+
    (s.plannedPages*3)+' · unknown '+s.fragmentUnknownPairs+
    ' · missing target IDs '+s.fragmentMissingTotal+
@@ -121,6 +130,11 @@ function render(report){
    ['Unsafe schema regressions',s.schemaUnsafeEntityPairs],
    ['Link semantics observed',s.linkSemanticObservedPairs+'/'+(s.plannedPages*3)],
    ['Restricted internal link pairs',s.linkRestrictedRoutePairs],
+   ...(report.siteGraph?[
+    ['Internal-link graphs',s.publishedGraphObservedScopes+'/4'],
+    ['Confirmed route orphans',s.publishedGraphStrongOrphans],
+    ['Unreachable route groups',s.publishedGraphStrongUnreachable],
+    ['Mobile navigation gaps',s.publishedGraphMobileReachLoss]]:[]),
    ['Missing fragment-ID pairs',s.fragmentMissingPairs],
    ...(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?[
     ['HTTP body matches',s.browserResponseMatchedPairs+'/'+(s.plannedPages*3)],
@@ -148,6 +162,9 @@ function render(report){
   report.pages.map(p=>'<tr><td>'+esc(p.pageId)+'</td><td>'+esc(p.path)+'</td><td>'+(p.httpInspected?'observed':'unknown')+
    '</td>'+['desktop','tablet','mobile'].map(d=>'<td>'+esc(p.devices[d].inspected?'rendered DOM / schema '+(p.devices[d].schemaRuntimeStatus||'unknown')+' / links '+(p.devices[d].linkStatus||'unknown')+' / fragments '+(p.devices[d].fragmentStatus||'unknown')+(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?' / CSS '+(p.devices[d].cssVisibilityStatus||'unknown')+' / images '+(p.devices[d].mediaStatus||'unknown')+' / responsive '+(p.devices[d].responsiveStatus||'unknown')+' / timing '+(p.devices[d].timingStatus||'unknown')+' / text '+(p.devices[d].textStatus||'unknown'):''):p.devices[d].reason)+'</td>').join('')+'</tr>').join('')+
   '</tbody></table></div></section>'+
+  (report.siteGraph?'<section><h2>Published approved-route link graph</h2><p>Read-only internal anchor reachability from the approved homepage. Only all four complete source scopes can corroborate P1 orphan/unreachable routes. Missing evidence is unknown, not an orphan.</p><div class="scroll"><table><thead><tr><th>Source</th><th>Coverage</th><th>Approved pages observed</th></tr></thead><tbody>'+
+   ['http','desktop','tablet','mobile'].map(k=>'<tr><td>'+esc(k)+'</td><td>'+esc(report.siteGraph.scopes[k].status)+'</td><td>'+esc(report.siteGraph.scopes[k].observedPages)+' / '+esc(report.siteGraph.scopes[k].requiredPages)+'</td></tr>').join('')+
+   '</tbody></table></div><p>Links with rel=nofollow/ugc/sponsored or download are excluded; this is not a Google crawl, indexability confirmation, real-device menu interaction or release approval.</p></section>':'')+
   '<section><h2>Human investigations</h2><div class="scroll"><table><thead><tr><th>Priority</th><th>Page</th><th>Device</th><th>Code</th><th>What to inspect</th></tr></thead><tbody>'+
   (report.findings.length?report.findings.map(row).join(''):'<tr><td colspan="5">No detected contradiction in supplied captures. This does not prove Google rendering or SEO acceptance.</td></tr>')+
   '</tbody></table></div></section>'+

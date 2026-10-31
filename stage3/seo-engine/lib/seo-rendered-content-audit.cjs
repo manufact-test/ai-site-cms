@@ -39,19 +39,26 @@ function head(doc,served){
  return {parsed,meta:PARITY.readHead(doc),canonicals,robotsNoindex:tokens.includes('noindex'),
   robotsIndex:tokens.includes('index'),robotsTokens:tokens};
 }
-function routes(parsed,served,base,knownPaths){
- let current=served;
+function routes(parsed,served,base,knownPaths,{crawlableOnly=false}={}){
+ let current=served,unsafeBase=false;
  if(parsed.baseHref){
   try{
    const u=new URL(parsed.baseHref,served);
    if(u.origin===new URL(base).origin&&u.pathname.startsWith(new URL(base).pathname))
     current=u.href;
-  }catch{}
+   else unsafeBase=true;
+  }catch{unsafeBase=true;}
  }
+ // A foreign/invalid <base> changes relative-link semantics. It cannot be
+ // silently ignored when deriving crawlable graph edges, so leave coverage
+ // unknown instead of asserting internally reachable pages.
+ if(crawlableOnly&&unsafeBase)return null;
  const found=new Set();
  for(const anchor of parsed.anchors){
+  if(crawlableOnly&&(anchor.attrs.download!==undefined||
+   /(?:^|\s)(?:nofollow|sponsored|ugc)(?:\s|$)/i.test(anchor.attrs.rel||'')))continue;
   const raw=anchor.attrs.href||'';
-  if(!raw||raw.startsWith('#')||raw.startsWith('?')||raw.startsWith('//')||raw.length>2048)continue;
+  if(!raw||raw.startsWith('#')||raw.startsWith('?')||raw.length>2048)continue;
   let u;
   try{u=new URL(raw,current)}catch{continue}
   if(u.origin!==new URL(base).origin||u.search||!u.pathname.startsWith(new URL(base).pathname))continue;
@@ -59,6 +66,61 @@ function routes(parsed,served,base,knownPaths){
   if(knownPaths.has(path))found.add(path);
  }
  return found;
+}
+// Per-scope published internal-link reachability, based only on approved
+// original routes and already source-paired DOMs. Partial evidence yields no
+// orphan claims. Exclude rel-restricted/download links from crawlable edges;
+// this remains an HTML heuristic, not a Googlebot crawl or indexation proof.
+function publishedGraph(plan,origin,reportsById,byHttp,byView,version2){
+ const approved=new Set(plan.pages.map(p=>p.path));
+ const eligible=plan.pages.filter(p=>p.seo.robots==='index'&&
+  p.seo.canonicalPath===p.path);
+ const eligiblePaths=new Set(eligible.map(p=>p.path));
+ const scopes={};
+ for(const method of ['http',...DEVICES]){
+  const collected=new Map();
+  for(const p of plan.pages){
+   const state=reportsById.get(p.id),inspected=method==='http'?state?.httpInspected:
+    state?.devices[method]?.inspected;
+   if(!inspected)continue;
+   if(method!=='http'&&version2){
+    const browser=byView.get(p.id)?.captures[method];
+    // Blocked requests or page-script errors can suppress links that would
+    // exist in an unrestricted browser: never confirm a graph orphan then.
+    if(!browser||browser.blockedRequests>0||browser.pageErrors>0||!browser.stableMarkup)
+     continue;
+   }
+   const html=method==='http'?byHttp.get(p.id)?.html:byView.get(p.id)?.captures[method]?.html;
+   if(typeof html!=='string')continue;
+   const parsed=HTML.inspect(html),robots=head(html,routeUrl(origin,p.path)).robotsTokens;
+   const outgoing=robots.includes('nofollow')?new Set():
+    routes(parsed,routeUrl(origin,p.path),origin,approved,{crawlableOnly:true});
+   if(outgoing!==null)collected.set(p.path,outgoing);
+  }
+  if(collected.size!==plan.pages.length||!eligiblePaths.has('/')){
+   scopes[method]={status:'unknown',observedPages:collected.size,
+    requiredPages:plan.pages.length,perPage:[]};continue;
+  }
+  const incoming=new Map(eligible.map(p=>[p.path,0]));
+  for(const [from,targets] of collected){
+   if(!eligiblePaths.has(from))continue;
+   for(const to of targets)if(to!==from&&incoming.has(to))incoming.set(to,incoming.get(to)+1);
+  }
+  const reached=new Set(['/']),queue=['/'];
+  for(let i=0;i<queue.length;i++){
+   for(const target of collected.get(queue[i])||[]){
+    if(!eligiblePaths.has(target)||reached.has(target))continue;
+    reached.add(target);queue.push(target);
+   }
+  }
+  scopes[method]={status:'observed',observedPages:collected.size,
+   requiredPages:plan.pages.length,
+   perPage:eligible.map(p=>({pageId:p.id,path:p.path,
+    inboundOtherPages:incoming.get(p.path),reachableFromHome:reached.has(p.path)}))};
+ }
+ return {scopes,eligiblePageCount:eligible.length,
+  fullyObservedScopes:Object.values(scopes).filter(s=>s.status==='observed').length,
+  sourceOrBrowserRevisionAuthenticated:false,googleCrawlVerified:false};
 }
 function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
  capture,captureRawSha256,viewports,viewportsRawSha256,expectedBase=null}={}){
@@ -614,6 +676,37 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
     'Mobile has less than 40% of desktop browser-visible main text characters; check intentional responsive copy.');
   }
  }
+ const siteGraph=publishedGraph(plan,origin,reportsById,byHttp,byView,version2);
+ const allGraphScopes=['http',...DEVICES].map(k=>siteGraph.scopes[k]);
+ let strongOrphans=0,strongUnreachable=0,mobileReachLoss=0;
+ const home=plan.pages.find(p=>p.path==='/')||plan.pages[0];
+ if(siteGraph.fullyObservedScopes<4)
+  issue(home,null,'published-link-graph-partial','P2',
+   'Approved-route internal link reachability cannot be concluded for all HTTP/desktop/tablet/mobile sources; incomplete scopes are unknown.',
+   {observedGraphScopes:siteGraph.fullyObservedScopes});
+ if(siteGraph.fullyObservedScopes===4){
+  for(const p of plan.pages.filter(x=>x.seo.robots==='index'&&x.seo.canonicalPath===x.path&&x.path!=='/')){
+   const rows=allGraphScopes.map(s=>s.perPage.find(x=>x.pageId===p.id));
+   const missingInbound=rows.filter(x=>x.inboundOtherPages===0).length;
+   const unreachable=rows.filter(x=>!x.reachableFromHome).length;
+   if(missingInbound===4){
+    strongOrphans++;
+    issue(p,null,'published-indexable-page-orphaned','P1',
+     'This approved canonical indexable route has no crawlable incoming link from another approved indexable page in HTTP and all three captured DOMs.');
+   }else if(unreachable===4){
+    strongUnreachable++;
+    issue(p,null,'published-indexable-page-unreachable','P1',
+     'This approved canonical indexable route cannot be reached by approved crawlable anchors from the homepage in HTTP and all three DOMs.');
+   }else if(missingInbound>0||unreachable>0)
+    issue(p,null,'published-link-graph-cross-source-drift','P2',
+     'Internal linking or homepage reachability differs between original HTTP and device DOM observations; review intentional navigation.');
+   if(rows[1].reachableFromHome&&!rows[3].reachableFromHome){
+    mobileReachLoss++;
+    issue(p,'mobile','published-mobile-navigation-loss','P2',
+     'Desktop DOM can reach this approved route from home but mobile DOM cannot through crawlable approved anchors.');
+   }
+  }
+ }
  findings.sort((a,b)=>LEVEL[a.priority]-LEVEL[b.priority]||
   a.pageId.localeCompare(b.pageId)||String(a.device).localeCompare(String(b.device))||
   a.code.localeCompare(b.code)||a.id.localeCompare(b.id));
@@ -632,6 +725,12 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
  const textObserved=cssDevices.filter(d=>d.textStatus==='observed'&&d.textCounts);
  const semanticObserved=cssDevices.filter(d=>d.schemaRuntimeStatus==='observed');
  const summary={plannedPages:plan.pages.length,httpInspectedPages:pages.filter(p=>p.httpInspected).length,
+  publishedGraphObservedScopes:siteGraph.fullyObservedScopes,
+  publishedGraphUnknownScopes:4-siteGraph.fullyObservedScopes,
+  publishedGraphIndexableCanonicalPages:siteGraph.eligiblePageCount,
+  publishedGraphStrongOrphans:strongOrphans,
+  publishedGraphStrongUnreachable:strongUnreachable,
+  publishedGraphMobileReachLoss:mobileReachLoss,
   fullyComparedPages:pages.filter(p=>p.evidenceState==='SOURCE-PAIR-OBSERVED').length,
   missingRenderPages:pages.filter(p=>p.evidenceState!=='SOURCE-PAIR-OBSERVED').length,
   inspectedDevicePairs:pages.reduce((n,p)=>n+DEVICES.filter(d=>p.devices[d].inspected).length,0),
@@ -703,10 +802,10 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   originalHttpBytePinnedInRenderedCapture:version2,
   inputSHA256:{blueprint:blueprintRawSha256,site:siteRawSha256,
    publicHttp:captureRawSha256,viewports:viewportsRawSha256},
-  pages,findings,summary,
+  pages,findings,summary,siteGraph,
   manualNext:['Confirm both captures refer to the same released revision and URL/mount.',
    'Resolve P0 canonical/robots changes before SEO signoff; inspect source and browser DOM.',
-   'Verify headings, CTA routes, responsive overflow/touch targets, JSON-LD claims and accessibility on real devices.',
+   'Review published indexable-route inbound links, homepage reachability, headings, CTA routes, responsive overflow/touch targets, JSON-LD claims and accessibility on real devices.',
    'Run existing Structured Data Semantic QA on original HTTP source; this rendered delta never verifies claim truth or Google eligibility.'],
   originalCustomerMarkupIncluded:false,sourceOriginAuthenticated:false,
   browserCaptureAuthenticated:false,sameReleaseRevisionProven:false,

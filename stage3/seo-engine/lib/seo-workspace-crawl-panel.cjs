@@ -221,6 +221,13 @@ function build(data){
  if(hreflang)for(const f of hreflang.findings)
   add('hreflang',f.pageId+':'+(f.device||'source')+':'+f.code,f.priority,
    f.path,f.detail,'Review exact original alternate URLs and reciprocal live host with the owner; never auto-fix.',f.device);
+ // Only the NEW site-wide link-graph findings enter this compact queue.
+ // The separate rendered-content report remains the full per-device record;
+ // duplicating all its P0/P1/P2 here would overwhelm the first-client queue.
+ if(renderedContent)for(const f of renderedContent.findings.filter(x=>
+  x.code.startsWith('rendered:published-')))
+  add('rendered-graph',f.id,f.priority,f.path,f.code+': '+f.detail,
+   'Reproduce with the original approved HTML/DOM and real owner-authorized navigation; partial sources and Google crawl remain unverified.',f.device);
  items.sort((a,b)=>priorities.indexOf(a.priority)-priorities.indexOf(b.priority)||
   a.path.localeCompare(b.path)||a.id.localeCompare(b.id));
  const counts=Object.fromEntries(priorities.map(p=>[p,items.filter(x=>x.priority===p).length]));
@@ -252,7 +259,7 @@ function build(data){
  }
  const publicLink=publicFollowupView?'<section><h2>Observed public HTTPS after SEO work</h2><p><a href="crawl-public-followup.html">Open public observation follow-up</a> · <a href="crawl-public-followup.md">Lead Markdown</a> · <a href="crawl-public-followup.json">Read-only source record</a></p><p>Still conflicting: '+publicFollowup.summary.conflict+' · Aligned, NOT verified: '+publicFollowup.summary.alignedNotVerified+' · Unknown: '+publicFollowup.summary.unknown+' · Independent delivery errors: '+publicFollowup.summary.independentDeliveryBlockers+'.</p><p>This is an operator-supplied transcript, not authenticated Google indexation or owner approval.</p></section>':'';
  const schemaLink=structuredDataView?'<section><h2>Actual public JSON-LD semantic QA</h2><p><a href="structured-data.html">Open schema.org QA</a> · <a href="structured-data.md">Lead worklist</a> · <a href="structured-data.json">Private JSON</a></p><p>P0 '+structuredData.summary.P0+' · P1 '+structuredData.summary.P1+' · unknown pages '+structuredData.summary.uninspectedPages+'. Published structured-data claims are NOT owner-verified.</p></section>':'';
- const renderedLink=renderedContentView?'<section><h2>Rendered content: HTTPS vs browser DOM</h2><p><a href="rendered-content.html">Review render parity</a> · <a href="rendered-content.md">Manual findings</a> · <a href="rendered-content.json">Source-bound JSON</a></p><p>P0 '+renderedContent.summary.P0+' · P1 '+renderedContent.summary.P1+' · compared '+renderedContent.summary.fullyComparedPages+'/'+renderedContent.summary.plannedPages+' pages · responsive unknown '+(renderedContent.summary.responsiveUnknownPairs??'n/a')+' · empty visible main pairs '+(renderedContent.summary.textEmptyMainPairs??'n/a')+' · restricted link pairs '+(renderedContent.summary.linkRestrictedRoutePairs??'n/a')+' · missing fragment IDs '+(renderedContent.summary.fragmentMissingTotal??'n/a')+'. Browser/source revision NOT authenticated. All findings require human review.</p></section>':'';
+ const renderedLink=renderedContentView?'<section><h2>Rendered content: HTTPS vs browser DOM</h2><p><a href="rendered-content.html">Review render parity</a> · <a href="rendered-content.md">Manual findings</a> · <a href="rendered-content.json">Source-bound JSON</a></p><p>P0 '+renderedContent.summary.P0+' · P1 '+renderedContent.summary.P1+' · compared '+renderedContent.summary.fullyComparedPages+'/'+renderedContent.summary.plannedPages+' pages · responsive unknown '+(renderedContent.summary.responsiveUnknownPairs??'n/a')+' · empty visible main pairs '+(renderedContent.summary.textEmptyMainPairs??'n/a')+' · restricted link pairs '+(renderedContent.summary.linkRestrictedRoutePairs??'n/a')+' · missing fragment IDs '+(renderedContent.summary.fragmentMissingTotal??'n/a')+' · published link-graph scopes '+(renderedContent.summary.publishedGraphObservedScopes??'n/a')+'/4 · corroborated orphan routes '+(renderedContent.summary.publishedGraphStrongOrphans??'n/a')+'. Browser/source revision NOT authenticated. All findings require human review.</p></section>':'';
  const fieldLink=fieldPerformanceView?'<section><h2>Operator-supplied CrUX field performance</h2><p><a href="field-performance.html">Review historical real-user p75</a> · <a href="field-performance.md">Lead Markdown</a> · <a href="field-performance.json">Private JSON</a></p><p>Approved page coverage '+fieldPerformance.summary.representedApprovedPages+'/'+fieldPerformance.summary.approvedPages+' · origin-wide records '+fieldPerformance.summary.originRecords+' · poor metric values '+fieldPerformance.summary.poorMetricValues+' · unknown metric values '+fieldPerformance.summary.unknownMetricValues+'. This is not the same-release performance proof, Google account authentication or automatic GO.</p></section>':'';
  const cmsLink=cmsView?'<section><h2>CMS / publisher implementation mapping</h2><p><a href="crawl-cms.html">Open source-bound CMS and publisher implementation worklist</a> · <a href="crawl-cms-worklist.md">Lead Markdown</a> · <a href="crawl-cms-worklist.json">Private JSON</a> · <a href="crawl-cms-decisions-TEMPLATE.json">NEW-cycle human decision template</a> · <a href="crawl-cms-decisions.html">Private offline Decision Desk</a>'+
   (cmsRecheckView?' · <a href="crawl-cms-recheck.html">Compare old vs current tasks</a> · <a href="crawl-cms-recheck.md">Lead recheck summary</a>':'')+'</p><p>Source-drift pages: '+cmsReview.summary.driftPages+' · Extra pages: '+cmsReview.summary.unapprovedExtraPages+' · Manual implementation actions: '+cmsReview.summary.totalManualActions+'. No CMS Save or publishing is authorized.</p></section>':'';
@@ -335,6 +342,9 @@ function build(data){
     renderedContentIncluded:!!renderedContent,
     renderedContentP0:renderedContent?.summary.P0??null,
     renderedContentCompared:renderedContent?.summary.fullyComparedPages??null,
+    renderedLinkGraphObservedScopes:renderedContent?.summary.publishedGraphObservedScopes??null,
+    renderedLinkGraphOrphanRoutes:renderedContent?.summary.publishedGraphStrongOrphans??null,
+    renderedLinkGraphUnreachableRoutes:renderedContent?.summary.publishedGraphStrongUnreachable??null,
    originalSiteAuthenticated:false,releaseAuthorized:false},
   limitations:limits};
 }
