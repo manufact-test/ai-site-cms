@@ -1632,6 +1632,140 @@ async function execute(){
   const afterPartial=(await page.evaluate(()=>window.Stage3Editor.getSite())).assets;
   assert.equal(afterPartial.length,afterBatch.assets.length+1,'Exactly one committed private upload');
   assert.equal(afterPartial.at(-1).alt,'first');
+
+  // Full-page authoring: new local photo -> private server media revision ->
+  // exact selected image -> explicit Save, without closing the Workbench.
+  const directBefore=await page.evaluate(()=>window.Stage3Editor.getSite().assets.length);
+  const directPhoto=await page.evaluate(()=>{
+    const canvas=document.createElement('canvas');canvas.width=96;canvas.height=64;
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#336699';ctx.fillRect(0,0,96,64);
+    ctx.fillStyle='#f3c451';ctx.fillRect(16,11,42,28);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const directFile=Buffer.from(directPhoto,'base64');
+  await page.locator('#cms-open-page-preview').click();
+  await page.locator('#cms-page-preview[open]').waitFor();
+  const showcaseLocation=await page.evaluate(()=>{
+    const site=window.Stage3Editor.getSite();
+    for(const p of site.pages)for(const s of p.sections)
+      if(s.component==='image-showcase')return {path:p.path,sectionId:s.id,
+        photoId:s.elements.find(e=>e.slot==='photo').id};
+    return null;
+  });
+  assert.ok(showcaseLocation,'The approved showcase component must remain available');
+  await page.locator('#cms-page-preview-path').selectOption(showcaseLocation.path);
+  await page.locator('#cms-work-section').selectOption(showcaseLocation.sectionId);
+  await page.locator('#cms-work-element').selectOption(showcaseLocation.photoId);
+  await page.locator('#cms-work-media > summary').click();
+  await page.locator('#server-work-legacy-upload').waitFor();
+  await page.locator('#server-work-media-search').fill('невозможное имя');
+  assert.equal(await page.locator('#cms-work-media .cms-work-media-choice:visible').count(),0);
+  await page.locator('#server-work-media-search').press('Escape');
+  await page.locator('#server-work-legacy-file').setInputFiles({
+    name:'new-inline-photo.png',mimeType:'image/png',buffer:directFile
+  });
+  await page.locator('#server-work-legacy-alt').fill('Фото материала для страницы');
+  await page.locator('#server-work-legacy-apply').click();
+  await page.waitForFunction(before=>{
+    const site=window.Stage3Editor.getSite();
+    return site.assets.length===before+1&&window.Stage3Editor.isDirty();
+  },directBefore,{timeout:15000});
+  const directAssetId=await page.evaluate(()=>window.Stage3Editor.getSite().assets.at(-1).id);
+  assert.equal((await page.evaluate(({sectionId,photoId})=>{
+    const section=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections)
+      .find(s=>s.id===sectionId);
+    return section.elements.find(e=>e.id===photoId).values['content.media'];
+  },{sectionId:showcaseLocation.sectionId,photoId:showcaseLocation.photoId})),directAssetId);
+  assert.equal(await page.locator('#cms-page-preview').evaluate(el=>el.open),true);
+  await page.locator('#server-work-save').click();
+  await page.locator('#server-work-state').getByText(/сохранён/).waitFor();
+
+  // A larger original is optimized in the browser by the already audited
+  // MediaMotionEngine; the original bytes never leave the tab. On a Graph
+  // image at phone width only its mobile source changes; desktop stays exact.
+  const graphLocation=await page.evaluate(sectionId=>{
+    const site=window.Stage3Editor.getSite();
+    return site.pages.find(p=>p.sections.some(s=>s.id===sectionId))?.path||null;
+  },graphSectionId);
+  assert.ok(graphLocation,'Authored Graph still exists');
+  await page.locator('#cms-page-preview-path').selectOption(graphLocation);
+  await page.locator('#cms-work-section').selectOption(graphSectionId);
+  await page.locator('#cms-work-graph-node').selectOption(imageNodeId);
+  await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="mobile"]').click();
+  await page.locator('#cms-work-graph-media > summary').click();
+  await page.locator('#server-work-graph-upload').waitFor();
+  const noisyBase64=await page.evaluate(()=>{
+    const canvas=document.createElement('canvas');canvas.width=960;canvas.height=960;
+    const ctx=canvas.getContext('2d'),data=ctx.createImageData(960,960);
+    let seed=9137;
+    for(let i=0;i<data.data.length;i+=4){
+      seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+      data.data[i]=seed&255;data.data[i+1]=(seed>>>8)&255;
+      data.data[i+2]=(seed>>>16)&255;data.data[i+3]=255;
+    }
+    ctx.putImageData(data,0,0);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const noisyFile=Buffer.from(noisyBase64,'base64');
+  assert.ok(noisyFile.length>1000000&&noisyFile.length<12582912,
+    'The optimization branch receives an actual large local PNG');
+  const graphBefore=await page.evaluate(({sectionId,nodeId})=>{
+    const site=window.Stage3Editor.getSite(),section=site.pages.flatMap(p=>p.sections)
+      .find(s=>s.id===sectionId);
+    const walk=nodes=>{
+      for(const n of nodes||[]){
+        if(n.id===nodeId)return n;
+        const nested=walk(n.children);if(nested)return nested;
+      }return null;
+    };
+    return {base:walk(section.designGraph.nodes).assetId,count:site.assets.length};
+  },{sectionId:graphSectionId,nodeId:imageNodeId});
+  await page.locator('#server-work-graph-file').setInputFiles({
+    name:'large-phone-photo.png',mimeType:'image/png',buffer:noisyFile
+  });
+  await page.locator('#server-work-graph-alt').fill('Изображение для телефона');
+  await page.locator('#server-work-graph-apply').click();
+  await page.waitForFunction(({sectionId,nodeId,before})=>{
+    const site=window.Stage3Editor.getSite();
+    if(site.assets.length!==before+1||!window.Stage3Editor.isDirty())return false;
+    const section=site.pages.flatMap(p=>p.sections).find(s=>s.id===sectionId);
+    const walk=nodes=>{
+      for(const n of nodes||[]){
+        if(n.id===nodeId)return n;
+        const nested=walk(n.children);if(nested)return nested;
+      }return null;
+    };
+    return !!walk(section.designGraph.nodes)?.responsiveMedia?.mobileAssetId;
+  },{sectionId:graphSectionId,nodeId:imageNodeId,before:graphBefore.count},{timeout:20000});
+  const graphAfter=await page.evaluate(({sectionId,nodeId})=>{
+    const site=window.Stage3Editor.getSite(),section=site.pages.flatMap(p=>p.sections)
+      .find(s=>s.id===sectionId);
+    const walk=nodes=>{for(const n of nodes||[]){
+      if(n.id===nodeId)return n;
+      const child=walk(n.children);if(child)return child;
+    }return null;};
+    return {node:walk(section.designGraph.nodes),
+      asset:site.assets.at(-1)};
+  },{sectionId:graphSectionId,nodeId:imageNodeId});
+  assert.equal(graphAfter.node.assetId,graphBefore.base,'Desktop authored photo unchanged');
+  assert.equal(graphAfter.node.responsiveMedia.mobileAssetId,graphAfter.asset.id);
+  assert.equal(graphAfter.asset.mime,'image/webp','Large original optimized before private upload');
+  await page.locator('#server-work-save').click();
+  await page.locator('#server-work-state').getByText(/сохранён/).waitFor();
+  await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+  await page.locator('#server-reload').click();
+  assert.equal((await page.evaluate(({sectionId,nodeId})=>{
+    const section=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections)
+      .find(s=>s.id===sectionId);
+    const walk=nodes=>{for(const n of nodes||[]){
+      if(n.id===nodeId)return n;
+      const child=walk(n.children);if(child)return child;
+    }return null;};
+    return !!walk(section.designGraph.nodes)?.responsiveMedia?.mobileAssetId;
+  },{sectionId:graphSectionId,nodeId:imageNodeId})),true);
+  assert.equal((await visitor.goto(publicUrl)).status(),200,
+    'Workbench media changes remain private until publication');
+
   // A stale remote save never overwrites another session or destroys local edits.
   await page.locator('#pages .nav-entry').first().click();
   await page.locator('#fields [data-field="content.text"]').fill('Несохранённый конфликтующий текст');

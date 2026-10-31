@@ -638,3 +638,47 @@ html[data-stage3-mode="server"] .hosted-conflict-actions{
 html[data-stage3-mode="server"] .hosted-conflict-actions .btn{
   flex:1 1 160px;white-space:normal;
 }
+
+
+/* Workbench's existing media picker now completes private upload + exact binding
+   in place; this is not a second image editor or an automatic publication. */
+html[data-stage3-mode="server"] .hosted-work-media-upload{
+  display:grid;gap:10px;padding:14px;margin-top:10px;
+  border:1px solid #cbdced;border-radius:12px;
+  background:linear-gradient(160deg,#fff,#f3f8ff);
+}
+html[data-stage3-mode="server"] .hosted-work-media-upload>strong{
+  color:#214b79;font-size:12px;line-height:1.5;
+}
+html[data-stage3-mode="server"] .hosted-work-media-upload>label{
+  display:grid;gap:6px;color:#3d5b77;font-size:11px;font-weight:650;
+}
+html[data-stage3-mode="server"] .hosted-work-media-upload .control{
+  background:#fff;border:1px solid #cbd9e8;border-radius:8px;
+  color:#223e5a;min-width:0;width:100%;padding:10px;font-size:12px;
+}
+html[data-stage3-mode="server"] .hosted-work-media-upload input[type=file]{
+  max-width:100%;overflow:hidden;
+}
+html[data-stage3-mode="server"] .hosted-work-media-upload .hosted-work-media-decorative{
+  display:flex;align-items:center;gap:8px;font-weight:500;
+}
+html[data-stage3-mode="server"] .hosted-work-media-decorative input{
+  width:auto;flex:none;accent-color:#2876ce;
+}
+html[data-stage3-mode="server"] .hosted-work-media-upload .hosted-work-media-muted{
+  opacity:.55;
+}
+html[data-stage3-mode="server"] .hosted-work-media-result{
+  display:block;padding:5px 2px;color:#58748f;font-size:11px;line-height:1.45;
+}
+html[data-stage3-mode="server"] .hosted-work-media-result[data-error="true"]{
+  color:#a83c3c;font-weight:650;
+}
+html[data-stage3-mode="server"] .cms-work-media-grid .cms-work-media-choice[hidden]{
+  display:none!important;
+}
+html[data-stage3-mode="server"] #server-work-media-search{
+  width:100%;min-width:0;background:#fff;color:#233e5c;
+  border:1px solid #c9d9e9;border-radius:8px;padding:9px 11px;
+}

@@ -2650,6 +2650,242 @@
   };
 
 
+
+  // One complete image-replacement journey inside the SAME full-page editor.
+  // The existing server endpoint checks SHA/MIME/size, creates a private media
+  // revision, then the ORIGINAL manifest/Graph control creates one Undoable
+  // binding. No new media backend, draft auto-save or publication.
+  const mediaWorkFields=$('cms-work-fields');
+  const workMediaTarget=kind=>{
+    if(kind==='graph'){
+      const panel=$('cms-work-graph-panel');
+      const node=$('cms-work-graph-node');
+      const graphField=panel?.querySelector('[data-work-graph-field="assetId"]');
+      if(!node||!graphField)return null;
+      return {node:node.value,control:graphField};
+    }
+    const control=mediaWorkFields.querySelector('[data-page-field="content.media"]');
+    return control?{control}:null;
+  };
+  const mountWorkMediaUpload=()=>{
+    if(!workModal?.open)return;
+    const entries=[
+      {kind:'legacy',picker:mediaWorkFields.querySelector('#cms-work-media')},
+      {kind:'graph',picker:mediaWorkFields.querySelector('#cms-work-graph-media')}
+    ];
+    for(const {kind,picker} of entries){
+      if(!picker||picker.dataset.hostedDirectUpload==='true')continue;
+      if(kind==='legacy'&&!picker.previousElementSibling
+        ?.querySelector('[data-page-field="content.media"]'))continue;
+      if(kind==='graph'&&(!workMediaTarget('graph')||
+        picker.querySelector('summary')?.textContent.includes('видео')))continue;
+      picker.dataset.hostedDirectUpload='true';
+      const body=element('section','hosted-work-media-upload');
+      body.id='server-work-'+kind+'-upload';
+      const title=element('strong',null,'Новое изображение · сразу в выбранный элемент');
+      const fileLabel=element('label',null,'Файл PNG / JPEG / WebP · до 12 МБ');
+      const file=element('input','control');file.type='file';
+      file.id='server-work-'+kind+'-file';
+      file.accept='image/png,image/jpeg,image/webp';
+      fileLabel.append(file);
+      const altLabel=element('label',null,'Описание изображения (alt)');
+      const alt=element('input','control');alt.type='text';
+      alt.id='server-work-'+kind+'-alt';alt.maxLength=200;
+      alt.placeholder='Что изображено?';altLabel.append(alt);
+      const decorativeLabel=element('label','hosted-work-media-decorative');
+      const decorative=element('input');decorative.type='checkbox';
+      decorative.id='server-work-'+kind+'-decorative';
+      decorativeLabel.append(decorative,document.createTextNode(' Декоративное фото · пустой alt'));
+      decorative.addEventListener('change',()=>{
+        alt.disabled=decorative.checked;
+        altLabel.classList.toggle('hosted-work-media-muted',decorative.checked);
+      });
+      const optimizeLabel=element('label','hosted-work-media-decorative');
+      const optimize=element('input');optimize.type='checkbox';optimize.checked=true;
+      optimize.id='server-work-'+kind+'-optimize';
+      optimizeLabel.append(optimize,document.createTextNode(
+        ' Оптимизировать крупный файл локально в WebP (до 1 МБ на сервере)'));
+      const upload=action('Загрузить и выбрать','server-work-'+kind+'-apply',async()=>{
+        const feedback=(message,error=false)=>{
+          result.textContent=message;result.dataset.error=error?'true':'false';
+        };
+        if(!state.siteId||!canEdit()||state.busy)return feedback('Недостаточно прав или идёт операция.',true);
+        if(editor.isDirty()){
+          $('server-work-save')?.focus();
+          return feedback('Сначала сохраните черновик кнопкой выше. Загрузка файла создаёт новую серверную ревизию.',true);
+        }
+        const chosen=file.files?.[0],description=decorative.checked?'':alt.value.trim();
+        if(!chosen)return feedback('Выберите изображение с компьютера.',true);
+        if(!['image/png','image/jpeg','image/webp'].includes(chosen.type)||
+          chosen.size<20||chosen.size>12582912)
+          return feedback('Нужен PNG / JPEG / WebP до 12 МБ. Невалидный файл не загружается.',true);
+        if(chosen.size>1000000&&!optimize.checked)
+          return feedback('Файл превышает лимит CMS 1 МБ. Включите локальную оптимизацию.',true);
+        if(!decorative.checked&&!description)
+          return feedback('Укажите достоверное описание или выберите «Декоративное».',true);
+        const originSite=state.siteId;
+        const originPath=$('cms-page-preview-path')?.value;
+        const originSection=$('cms-work-section')?.value;
+        const originElement=$('cms-work-element')?.value;
+        const originGraph=kind==='graph'?$('cms-work-graph-node')?.value:null;
+        const originDevice=workModal.querySelector('.cms-page-preview-modes .active')?.dataset.mode||'desktop';
+        const source=editor.getSite();
+        const page=source.pages.find(x=>x.path===originPath);
+        const section=page?.sections.find(x=>x.id===originSection);
+        if(!page||!section)return feedback('Выбранная страница или блок изменились.',true);
+        if(kind==='graph'){
+          const walk=nodes=>{
+            for(const node of nodes||[]){
+              if(node.id===originGraph)return node;
+              const nested=walk(node.children);if(nested)return nested;
+            }
+            return null;
+          };
+          if(walk(section.designGraph?.nodes)?.type!=='image')
+            return feedback('Выберите конкретное изображение в композиции.',true);
+        }else if(![...section.elements,...(section.items||[])]
+          .some(item=>item.id===originElement&&
+            item.values&&Object.hasOwn(item.values,'content.media')))
+          return feedback('Выберите фотографию нужного блока.',true);
+        upload.disabled=true;file.disabled=true;alt.disabled=true;
+        decorative.disabled=true;optimize.disabled=true;
+        feedback('Проверяем файл и загружаем приватно…');
+        try{
+          const engine=window.MediaMotionEngine;
+          let sending=chosen;
+          if(chosen.size>1000000){
+            feedback('Оптимизируем изображение в браузере; исходник не отправляется…');
+            const source=await engine.load(chosen);
+            const edit={crop:{x:0,y:0,w:1,h:1},ratio:'free',rotate:0,
+              desired:Math.min(1200,source.width),quality:.82};
+            let width=Math.min(edit.desired,engine.geometry(source,edit).outW);
+            let prepared;
+            for(let attempt=0;attempt<7;attempt++){
+              prepared=await engine.optimize(source,edit,width,'image/webp',.82,{cancelled:false});
+              if(prepared.bytes<=1000000)break;
+              width=Math.floor(prepared.width*.84);
+              if(width<64)throw Error('Не удалось уменьшить файл до лимита CMS');
+            }
+            if(!prepared||prepared.bytes>1000000)
+              throw Error('Файл не помещается в 1 МБ. Откройте обработчик изображений.');
+            sending=prepared.blob;
+            feedback('Оптимизировано: '+chosen.size+' → '+sending.size+
+              ' байт. Проверяем SHA-256 и загружаем…');
+          }
+          const hash=await engine.hash(sending);
+          const added=await window.Stage3Host.uploadProcessed(sending,description,false,hash);
+          if(!added?.asset?.id)throw Error('Файл не подтверждён сервером');
+          const changed=state.siteId!==originSite||!workModal.open||
+            $('cms-page-preview-path')?.value!==originPath||
+            $('cms-work-section')?.value!==originSection||
+            (kind==='graph'?
+              $('cms-work-graph-node')?.value!==originGraph:
+              $('cms-work-element')?.value!==originElement)||
+            (workModal.querySelector('.cms-page-preview-modes .active')?.dataset.mode||'desktop')!==originDevice;
+          if(changed){
+            notice('Изображение загружено, но выбор изменился. Найдите файл в медиабиблиотеке. Публикация не выполнена.',true);
+            return;
+          }
+          const target=kind==='graph'&&originDevice!=='desktop'?
+            mediaWorkFields.querySelector('[data-device-image="'+originDevice+'"]'):
+            workMediaTarget(kind)?.control;
+          if(!target)throw Error('Выбранное медиаполе недоступно после загрузки');
+          if(![...target.options].some(opt=>opt.value===added.asset.id)){
+            const option=element('option',null,description||added.asset.id);
+            option.value=added.asset.id;target.append(option);
+          }
+          target.value=added.asset.id;
+          target.dispatchEvent(new Event('change',{bubbles:true}));
+          const draft=editor.getSite();
+          const actualPage=draft.pages.find(x=>x.id===page.id);
+          const actualSection=actualPage?.sections.find(x=>x.id===section.id);
+          let bound=false;
+          if(kind==='legacy'){
+            const item=[...(actualSection?.elements||[]),...(actualSection?.items||[])]
+              .find(x=>x.id===originElement);
+            bound=item?.values?.['content.media']===added.asset.id;
+          }else{
+            const walk=nodes=>{
+              for(const node of nodes||[]){
+                if(node.id===originGraph)return node;
+                const nested=walk(node.children);if(nested)return nested;
+              }
+              return null;
+            };
+            const node=walk(actualSection?.designGraph?.nodes);
+            bound=originDevice==='desktop'?node?.assetId===added.asset.id:
+              node?.responsiveMedia?.[originDevice+'AssetId']===added.asset.id;
+          }
+          if(!bound)throw Error('Файл загружен в библиотеку, но привязка не применена. Выберите его вручную.');
+          const currentPicker=kind==='graph'?
+            mediaWorkFields.querySelector('#cms-work-graph-media'):
+            mediaWorkFields.querySelector('#cms-work-media');
+          if(currentPicker)currentPicker.open=true;
+          notice('Изображение назначено для '+({desktop:'ПК',tablet:'планшета',mobile:'телефона'}[originDevice])+
+            '. Черновик изменён: нажмите «Сохранить черновик». Публикация отдельно.');
+        }catch(error){
+          notice('Загрузка изображения: '+error.message,true);
+          if(body.isConnected)feedback(error.message,true);
+        }finally{
+          if(body.isConnected){
+            upload.disabled=false;file.disabled=false;
+            alt.disabled=decorative.checked;decorative.disabled=false;optimize.disabled=false;
+          }
+        }
+      });
+      const result=element('small','hosted-work-media-result');
+      result.id='server-work-'+kind+'-result';
+      result.setAttribute('role','status');result.setAttribute('aria-live','polite');
+      body.append(title,fileLabel,altLabel,decorativeLabel,optimizeLabel,upload,result);
+      if(kind==='legacy'){
+        // The original media selector had no search on large client libraries.
+        const grid=picker.querySelector('.cms-work-media-grid');
+        if(grid){
+          const search=element('input','control');search.type='search';
+          search.id='server-work-media-search';
+          search.placeholder='Поиск по названию / alt';
+          search.setAttribute('aria-label','Найти изображение в медиабиблиотеке');
+          const count=element('small','hosted-work-media-result');
+          const filter=()=>{
+            const q=search.value.trim().toLocaleLowerCase('ru-RU');
+            let visible=0;
+            const choices=[...grid.querySelectorAll('.cms-work-media-choice')];
+            for(const choice of choices){
+              const match=!q||(choice.textContent+' '+choice.dataset.mediaId)
+                .toLocaleLowerCase('ru-RU').includes(q);
+              choice.hidden=!match;if(match)visible++;
+            }
+            count.textContent=q?('Найдено '+visible+' из '+choices.length):
+              ('Изображений: '+Math.max(choices.length-1,0));
+          };
+          search.addEventListener('input',filter);
+          search.addEventListener('keydown',event=>{
+            if(event.key==='Escape'){search.value='';filter();search.blur();}
+            if(event.key==='Enter'){
+              const first=[...grid.querySelectorAll('.cms-work-media-choice')]
+                .find(button=>!button.hidden);
+              if(first){event.preventDefault();first.click();}
+            }
+          });
+          grid.before(search,count);filter();
+        }
+      }
+      const old=kind==='legacy'?picker.querySelector('#cms-work-media-upload'):
+        [...picker.querySelectorAll('button')].find(button=>button.textContent==='+ Загрузить изображение');
+      old?.remove();
+      const oldTip=[...picker.querySelectorAll('small')]
+        .find(node=>node.textContent.includes('Перед загрузкой сохраните черновик.'));
+      oldTip?.remove();
+      picker.append(body);
+    }
+  };
+  if(mediaWorkFields){
+    new MutationObserver(mountWorkMediaUpload)
+      .observe(mediaWorkFields,{childList:true,subtree:true});
+    workModal?.addEventListener('click',()=>queueMicrotask(mountWorkMediaUpload));
+    mountWorkMediaUpload();
+  }
+
   // Do not ask a site owner to read manifest/JSON paths in the ordinary
   // property Inspector. Keep the original path in a native tooltip for support.
   const fieldsRoot=$('fields');
