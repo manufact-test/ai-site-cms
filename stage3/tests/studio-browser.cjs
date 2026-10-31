@@ -1365,6 +1365,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     // atomically with the existing global Undo/Redo behavior.
     const sharedBase=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));
     await page.evaluate(site=>window.Stage3Editor.replace(site),sharedBase);
+    // Shared-section controls intentionally live in the inspector's advanced
+    // disclosure; test the real operator path before interacting with them.
+    await page.locator('#cms-section-advanced-settings > summary').click();
     await page.locator('#cms-shared-section-target').selectOption('page-contact');
     await page.locator('#cms-shared-section-link').click();
     const sharedUi=await page.evaluate(()=>window.Stage3Editor.getSite());
