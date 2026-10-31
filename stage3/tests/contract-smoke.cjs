@@ -2117,6 +2117,11 @@ test('read-only approved folder preflight accepts a custom external design and r
 
 test('decorative background video is site-owned, muted and safely poster-backed',()=>{
   const graph=require('../sdk/design-graph.cjs'),site=same(initial);
+  const publicSchema=read('schemas/site-v1.schema.json');
+  assert.equal(publicSchema.$defs.designNode.properties.backgroundVideo.$ref,
+    '#/$defs/designBackgroundVideo','Portable site schema must actually declare the MP4 backdrop');
+  assert.ok(publicSchema.$defs.designBackgroundVideo.properties.mobilePositionX,
+    'Approved handoff schema describes the independent phone crop');
   site.assets.push({id:'asset-background-mp4',src:'/assets/asset-background-mp4.mp4',
     mime:'video/mp4',alt:'Фоновый ролик'},{
     id:'asset-background-poster',src:'/assets/asset-background-poster.png',

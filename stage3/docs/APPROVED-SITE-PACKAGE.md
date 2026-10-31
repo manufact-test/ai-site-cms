@@ -401,7 +401,10 @@ upload controls when no eligible MP4 or raster cover exists. For a site with
 multiple uploaded pictures, the collapsible thumbnail library assigns the
 clicked picture to the **currently selected** desktop/tablet/mobile poster;
 the inheritance option clears an unnecessary tablet/mobile override. It uses
-only site-owned immutable media IDs and the existing Undo/Save path. Use the original
+only site-owned immutable media IDs and the existing Undo/Save path. Thumbnail
+bytes arrive asynchronously from the **existing authenticated media preview**
+as bounded raster data URIs; the Workbench listens for its normal ready event,
+without forming public URLs or loading arbitrary remote images. Use the original
 three approved pictures to judge each poster crop.
 
 `positionX`/`positionY` define the desktop focal point. Optional

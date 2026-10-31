@@ -635,11 +635,17 @@ async function execute(){
   await page.locator('#cms-work-backgroundVideo-overlay-color').dispatchEvent('change');
   await page.locator('#cms-work-backgroundVideo-overlay-opacity').fill('55');
   await page.locator('#cms-work-backgroundVideo-overlay-opacity').dispatchEvent('change');
+  await page.waitForFunction(()=>{
+    const images=[...document.querySelectorAll('#cms-work-backgroundVideo-previews img')];
+    return images.length===3&&images.every(img=>img.src.startsWith('data:image/'));
+  },null,{timeout:15000});
   const previewPosters=await page.locator('#cms-work-backgroundVideo-previews img').evaluateAll(images=>
-    images.map(img=>({src:img.getAttribute('src'),crop:img.style.objectPosition})));
+    images.map(img=>({assetId:img.dataset.workBackdropAssetId,
+      uri:img.getAttribute('src'),crop:img.style.objectPosition})));
   assert.equal(previewPosters.length,3,'All approved viewport covers are visible in the Workbench');
-  assert.ok(previewPosters[0].src.includes(importedDesktopLogo.id));
-  assert.ok(previewPosters.slice(1).every(p=>p.src.includes(importedMobileLogo.id)&&p.crop==='20% 70%'));
+  assert.equal(previewPosters[0].assetId,importedDesktopLogo.id);
+  assert.ok(previewPosters.slice(1).every(p=>p.assetId===importedMobileLogo.id&&
+    p.uri.startsWith('data:image/')&&p.crop==='20% 70%'));
   await page.locator('.cms-page-preview-modes [data-mode="mobile"]').click();
   for(const [id,value] of [['cms-work-backgroundVideo-mobilePositionX','85'],
     ['cms-work-backgroundVideo-mobilePositionY','25']]){

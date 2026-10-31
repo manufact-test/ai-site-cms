@@ -1648,6 +1648,18 @@
     const workError=document.createElement('small');workError.id='cms-work-error';workError.setAttribute('role','alert');
     workPanel.append(workTitle,workHint,workSectionPicker,workActions,workElementPicker,workFields,workAdd,workStatus,workError);
     layout.append(area,workPanel);modal.append(header,note,layout);document.body.append(modal);
+    // Hosted media is delivered as a bounded private data:image URI AFTER an
+    // authenticated fetch. Keep the Workbench thumbnails connected to the
+    // existing media-ready event; never construct public asset URLs or fetch
+    // thumbnails through a second transport.
+    if(HOSTED)window.addEventListener('stage3-media-ready',event=>{
+      const assetId=event.detail?.assetId;
+      if(typeof assetId!=='string'||!modal.open)return;
+      const uri=window.Stage3Host?.previewUrl?.(assetId);
+      if(typeof uri!=='string'||!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(uri))return;
+      for(const image of modal.querySelectorAll('img[data-work-backdrop-asset-id]'))
+        if(image.dataset.workBackdropAssetId===assetId)image.src=uri;
+    });
 
     // Selected page persists independently of main inspector focus.
     // The preview itself remains script-free; parent only reads first-party IDs.
@@ -2787,6 +2799,15 @@
               holder.append(inp);panel.append(holder);
             }
           };
+          const workBackdropThumb=assetId=>{
+            const image=document.createElement('img');image.alt='';
+            image.loading='lazy';image.referrerPolicy='no-referrer';
+            image.dataset.workBackdropAssetId=assetId;
+            const uri=window.Stage3Host?.previewUrl?.(assetId);
+            if(typeof uri==='string'&&
+              /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(uri))image.src=uri;
+            return image;
+          };
           const workBackdropPosters=(kind,backdrop)=>{
             if(!HOSTED||!window.Stage3Host?.previewUrl)return;
             const desktop=kind==='backgroundVideo'?backdrop.posterAssetId:backdrop.assetId;
@@ -2804,11 +2825,9 @@
             for(const [bp,label,assetId] of [['desktop','ПК',desktop],['tablet','Планшет',tablet],
               ['mobile','Телефон',mobile]]){
               last=assetId||last;
-              const url=window.Stage3Host.previewUrl(last);
-              if(!url?.startsWith('/'))continue;
               const figure=document.createElement('figure');
-              const image=document.createElement('img');image.src=url;image.alt='';
-              image.loading='lazy';image.referrerPolicy='no-referrer';
+              const image=workBackdropThumb(last);
+              if(kind==='backgroundMedia'&&backdrop.size==='contain')image.style.objectFit='contain';
               image.style.objectPosition=crop(bp,'X')+'% '+crop(bp,'Y')+'%';
               figure.append(image);
               const cover=backdrop.overlay;
@@ -2822,7 +2841,8 @@
                   figure.append(shade);
                 }
               }
-              const caption=document.createElement('figcaption');caption.textContent=label;
+              const caption=document.createElement('figcaption');
+              caption.textContent=label+(bp!=='desktop'&&!assetId?' · наследует':'');
               figure.append(caption);previews.append(figure);
             }
             if(previews.childElementCount)panel.append(previews);
@@ -2850,11 +2870,7 @@
               choice.classList.add('cms-work-media-choice');
               choice.dataset.backdropMediaId=asset.id;
               choice.setAttribute('aria-pressed',backdrop[key]===asset.id?'true':'false');
-              const url=window.Stage3Host?.previewUrl?.(asset.id);
-              if(url?.startsWith('/')){
-                const thumb=document.createElement('img');thumb.src=url;thumb.alt='';
-                thumb.loading='lazy';thumb.referrerPolicy='no-referrer';choice.prepend(thumb);
-              }
+              choice.prepend(workBackdropThumb(asset.id));
               choice.disabled=!canWrite();grid.append(choice);
             }
             details.append(summary,grid);panel.append(details);
@@ -4580,12 +4596,10 @@
           const bv=n.backgroundVideo;
           const videoPick=ctl('Фоновый ролик',{initial:bv?.assetId||'',choices:videoChoices},v=>{
             if(!v){delete n.backgroundVideo;return;}
-            n.backgroundVideo={assetId:v,posterAssetId:bv?.posterAssetId||raster[0].id,
-              ...(bv?.tabletPosterAssetId?{tabletPosterAssetId:bv.tabletPosterAssetId}:{}),
-              ...(bv?.mobilePosterAssetId?{mobilePosterAssetId:bv.mobilePosterAssetId}:{}),
-              ...(bv?.overlay?{overlay:bv.overlay}:{}),
-              ...(bv?.positionX!==undefined?{positionX:bv.positionX}:{}),
-              ...(bv?.positionY!==undefined?{positionY:bv.positionY}:{})};
+            // Switching one approved MP4 to another does not discard its
+            // desktop/tablet/phone crop or overlay decisions.
+            n.backgroundVideo={...(bv||{}),assetId:v,
+              posterAssetId:bv?.posterAssetId||raster[0].id};
             delete n.backgroundMedia;
             delete n.styles?.gradient;
             delete n.responsive?.tablet?.gradient;
