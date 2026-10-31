@@ -600,3 +600,93 @@ button:disabled{opacity:.45}
 .inspector .field-path[role="alert"]:empty{display:none}
 .inspector .field-list .control{box-shadow:0 1px 2px #16345308}
 .inspector .field-list input[type="color"]{height:44px;padding:5px}
+
+
+/* Owner Studio modal system: the same editorial visual language continues
+   into metadata, content, section styling, form and site-map workflows. */
+:is(.cms-settings-dialog,.cms-quality-dialog,.cms-component-catalog,
+       .cms-appearance-dialog,.cms-content-workbench,.cms-site-map-dialog){
+  color:#203550;background:#fff;border:1px solid #d5e0ec;border-radius:16px;
+  box-shadow:0 28px 90px #142d4c58;
+}
+:is(.cms-settings-dialog,.cms-quality-dialog,.cms-component-catalog,
+       .cms-appearance-dialog,.cms-content-workbench,.cms-site-map-dialog)::backdrop{
+  background:#152942c9;
+}
+:is(.cms-settings-dialog,.cms-quality-dialog,.cms-component-catalog,
+       .cms-appearance-dialog,.cms-content-workbench,.cms-site-map-dialog)
+  :where(h2,h3,legend){color:#1c3652;letter-spacing:-.025em}
+:is(.cms-settings-dialog,.cms-quality-dialog,.cms-component-catalog,
+       .cms-appearance-dialog,.cms-content-workbench,.cms-site-map-dialog)
+  :where(label,p,small){line-height:1.5}
+:is(.cms-settings-dialog,.cms-quality-dialog,.cms-component-catalog,
+       .cms-appearance-dialog,.cms-content-workbench,.cms-site-map-dialog) .control{
+  background:#fff;color:#223a55;border-color:#cedbe9;
+}
+.cms-settings-dialog label,.cms-appearance-dialog label{color:#405b79}
+.cms-settings-dialog small,.cms-appearance-dialog p{color:#617c95;opacity:1}
+.cms-seo-preview{border-color:#e0e7f0}
+.cms-seo-preview-card{background:#f7fafe;border:1px solid #dce7f2}
+.cms-seo-preview-card>strong,.cms-seo-count,.cms-seo-search-path{color:#5a7089}
+.cms-seo-search-title{color:#1c64c5}
+.cms-seo-search-description,.cms-seo-social-description{color:#3e536d}
+.cms-seo-robots-status{color:#28724d}
+.cms-seo-robots-status.is-blocked{color:#9f542e}
+.cms-seo-social-image-frame{background:#e7eef6}
+.cms-seo-social-image-placeholder{color:#61758d}
+.cms-quality-dialog>small{color:#586e87;opacity:1}
+#cms-quality-findings>section{background:#f7fafe;border-color:#dce6f1;color:#273e5b}
+.cms-quality-finding{border-color:#e1e8f1}
+.cms-redirect-entry{border-color:#e3eaf3}
+.cms-component-choice{
+  background:#f7fafe;color:#2b4360;border:1px solid #d8e3f1;
+  border-radius:11px;padding:15px;
+}
+.cms-component-choice:hover,.cms-component-choice:focus-visible{
+  background:#eaf3ff;border-color:#81b2f5;
+}
+.cms-component-choice small{color:#697e98;opacity:1}
+.cms-content-workbench>p,.cms-form-builder-dialog>p,.cms-site-map-dialog>p{
+  color:#627b95;
+}
+.cms-content-row{
+  background:#f8fafd;color:#253d59;border-color:#dbe5f0;
+  border-radius:11px;box-shadow:0 1px 5px #102d4a08;
+}
+.cms-content-row p:last-child{color:#1a6d50}
+.cms-form-preset-bar,#cms-form-rows fieldset{
+  border-color:#d8e3ef;background:#fafcff;border-radius:11px;
+}
+.cms-form-preset-bar small{color:#627b95}
+#cms-form-rows legend{color:#1b507d}
+.cms-form-simulator{background:#f3f8fd;border-color:#d1e1ef}
+.cms-form-simulator>p{color:#5c748e}
+.cms-form-sim-field{background:#fff;border-color:#d8e3ef}
+#cms-form-sim-status{color:#216f53}
+.cms-map-page{background:#f7fafe;border-color:#d6e3f0}
+.cms-map-page-head{border-color:#e1e8f2}
+.cms-map-page-head small,.cms-map-section small{color:#6f839c}
+.cms-map-section{border-color:#dce6f1;background:#fff}
+.cms-map-preview-pane{background:#f5f9fe;border-color:#d7e5f3}
+.cms-map-preview-pane small{color:#61758f}
+.cms-map-actions{border-color:#e3eaf1}
+#cms-map-summary{background:#eaf7ef;border-color:#b7dfc6;color:#21623c}
+.cms-design-a11y{background:#f6f9fd;border-color:#d7e3ef}
+.cms-design-a11y-summary,.cms-design-a11y-more{color:#647c95}
+.cms-design-a11y-issue{background:#fff;border-color:#d8e2ee;color:#263e5c}
+.cms-design-a11y-issue:hover{background:#ebf4ff;border-color:#a4c6ef}
+.cms-design-device-tools .btn.active{
+  color:#1a58a4;border-color:#a6c6ef;background:#e8f2ff;
+}
+.cms-design-audit-focus{background:#fff7ea;border-color:#e6c88f;color:#76521d}
+.cms-design-audit-focus[data-resolved="true"]{
+  background:#e8f6ed;border-color:#a2d7b5;color:#236541;
+}
+
+
+/* Consistent readable secondary text on the new light surfaces. */
+.brand small,.subdued,.nav-title,.sidebar-bottom,.canvas-footer,
+.inspector-foot,.field-path,.version small,.cms-seo-count,
+.cms-seo-search-path,.cms-component-choice small{
+  color:#586e87;
+}

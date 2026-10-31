@@ -2457,6 +2457,33 @@
       $('server-drawer-media').open=true;
     },{capture:true});
 
+
+  // First-run clarity: there is no in-CMS site generator. The same verified
+  // folder import and site picker remain the only actions.
+  const emptyState=element('section','hosted-empty-state');
+  emptyState.id='server-empty-state';
+  const emptyEyebrow=element('small','hosted-empty-eyebrow','НАЧАЛО РАБОТЫ');
+  const emptyTitle=element('h2',null,'Подключите индивидуальный сайт');
+  const emptyDescription=element('p',null,
+    'CMS редактирует готовый сайт, собранный по согласованному дизайну. '+
+    'Макет и код создаются отдельно; здесь вы подключаете результат и управляете черновиками.');
+  const emptyActions=element('div','hosted-empty-actions');
+  const emptyOpen=action('Открыть выбранный сайт','server-empty-open',()=>{
+    if(!$('server-open').disabled)$('server-open').click();
+  });
+  const emptyImport=action('Подключить готовый сайт','server-empty-import',()=>{
+    const btn=$('server-approved-import');
+    if(!btn||btn.disabled)return;
+    $('server-drawer-import').open=true;btn.click();
+  });
+  emptyImport.classList.add('primary');
+  const emptyNote=element('p','hosted-empty-note',
+    'Без утверждённого сайта CMS ничего не генерирует и не публикует. '+
+    'Сохранение черновика и публикация всегда выполняются отдельно.');
+  emptyActions.append(emptyOpen,emptyImport);
+  emptyState.append(emptyEyebrow,emptyTitle,emptyDescription,emptyActions,emptyNote);
+  document.querySelector('.workspace').append(emptyState);
+
   // Tab-scoped UI preference only. Never persist user/site data or write a draft.
   const disclosureKey='manufact-studio-disclosures-v1';
   const disclosures=[adminMore,...drawerRail.querySelectorAll('details.hosted-drawer')];
@@ -2610,6 +2637,13 @@
   function drawStatus(){
     const exists=state.authorized&&state.siteId!==null&&state.revision!==null;
     const available=exists&&!state.busy;
+    emptyState.hidden=!state.authorized||exists;
+    emptyOpen.hidden=!state.sites.length;
+    emptyOpen.disabled=state.busy||state.loading||!state.authorized||!picker.value;
+    emptyImport.hidden=!isOwner();
+    emptyImport.disabled=state.busy||state.loading||!state.authorized||!isOwner();
+    emptyTitle.textContent=state.sites.length?
+      'Выберите сайт для редактирования':'Подключите первый индивидуальный сайт';
     editPage.disabled=!available;
     $('save').disabled=!available||!isDirty()||!canEdit();
     $('server-publish').disabled=!available||isDirty()||!canPublish();

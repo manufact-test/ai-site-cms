@@ -477,3 +477,129 @@ html[data-stage3-mode="server"] #server-publish.btn.primary:hover:not(:disabled)
 html[data-stage3-mode="server"] #server-launch-review{
   background:#eaf2ff;border-color:#b9d4f5;color:#1d5aa8;
 }
+
+
+/* Owner-facing site operations, launch review and media processing share the
+   same quiet surfaces as the Studio shell; warnings retain explicit contrast. */
+html[data-stage3-mode="server"] :is(.hosted-backup-dialog,.hosted-launch-dialog,.cms-media-processor){
+  color:#1c334e;background:#fff;border:1px solid #d5e1ed;
+  border-radius:17px;box-shadow:0 30px 90px #10294160;
+}
+html[data-stage3-mode="server"] :is(.hosted-backup-dialog,.hosted-launch-dialog,.cms-media-processor)::backdrop{
+  background:#142840cc;
+}
+html[data-stage3-mode="server"] :is(.hosted-backup-dialog,.hosted-launch-dialog,.cms-media-processor) :is(h2,h3,h4,strong){
+  color:#1a3651;
+}
+html[data-stage3-mode="server"] :is(.hosted-backup-dialog,.hosted-launch-dialog,.cms-media-processor) .control{
+  background:#fff;border-color:#cfdaea;color:#263c58;
+}
+html[data-stage3-mode="server"] .hosted-backup-summary{
+  background:#f3f8fe;border:1px solid #dbe7f3;color:#2a455f;
+  border-radius:10px;
+}
+html[data-stage3-mode="server"] .hosted-backup-dialog label{color:#3d5672}
+html[data-stage3-mode="server"] .hosted-media-batch-row{
+  background:#fafcff;color:#294260;border-color:#d7e3f0;
+}
+html[data-stage3-mode="server"] .hosted-media-batch-row[data-uploaded=true]{
+  background:#eaf8ef;border-color:#9fd2b3;
+}
+html[data-stage3-mode="server"] .hosted-media-batch-row[data-invalid=true]{
+  background:#fff1ef;border-color:#e3a59b;
+}
+html[data-stage3-mode="server"] .hosted-launch-header p,
+html[data-stage3-mode="server"] .hosted-launch-revision{color:#617b95;opacity:1}
+html[data-stage3-mode="server"] .hosted-launch-summary{color:#246348}
+html[data-stage3-mode="server"] .hosted-launch-backlog,
+html[data-stage3-mode="server"] .hosted-launch-forms,
+html[data-stage3-mode="server"] .hosted-launch-visual-index,
+html[data-stage3-mode="server"] .hosted-launch-findings,
+html[data-stage3-mode="server"] .hosted-launch-review-history{
+  background:#f7fafe;border-color:#dae5f1;border-radius:11px;
+}
+html[data-stage3-mode="server"] .hosted-launch-visual-index h3,
+html[data-stage3-mode="server"] .hosted-launch-findings h4{color:#29415b}
+html[data-stage3-mode="server"] .hosted-launch-gap,
+html[data-stage3-mode="server"] .hosted-launch-form-entry,
+html[data-stage3-mode="server"] .hosted-launch-finding,
+html[data-stage3-mode="server"] .hosted-launch-review-history-details p{
+  background:#fff;border-color:#dce7f2;color:#29415b;
+}
+html[data-stage3-mode="server"] .hosted-launch-preview-status{color:#41715e}
+html[data-stage3-mode="server"] .hosted-launch-issues p{
+  background:#f8fbff;border-color:#e0e7f1;color:#3f5a73;
+}
+html[data-stage3-mode="server"] .hosted-launch-issues .hosted-launch-error{
+  background:#fff2ef;border-color:#e4ada4;color:#a04439;
+}
+html[data-stage3-mode="server"] .hosted-launch-issues .hosted-launch-warning{
+  background:#fff9e9;border-color:#e3cf93;color:#8d621b;
+}
+html[data-stage3-mode="server"] .hosted-launch-issues>.hosted-launch-delta{
+  background:#eef7ff;border-color:#acd0ed;color:#245e99;
+}
+html[data-stage3-mode="server"] .hosted-launch-progress{
+  background:#eaf7ef;border-color:#aed9bd;color:#276548;
+}
+html[data-stage3-mode="server"] .hosted-launch-approval-summary,
+html[data-stage3-mode="server"] .hosted-launch-scroll-sync,
+html[data-stage3-mode="server"] .hosted-launch-review-storage{color:#466880}
+html[data-stage3-mode="server"] .hosted-launch-overlay-controls{
+  background:#f2f8ff;border-color:#cfdff1;color:#274760;
+}
+html[data-stage3-mode="server"] .hosted-launch-overlay-controls label{color:#274760}
+html[data-stage3-mode="server"] .hosted-launch-forms-warning{color:#9d581d!important}
+html[data-stage3-mode="server"] .hosted-launch-form-entry small{color:#627d97}
+html[data-stage3-mode="server"] .hosted-connection-external{border-color:#dce5f1}
+html[data-stage3-mode="server"] .hosted-connection-mismatch{color:#9c4d30!important}
+html[data-stage3-mode="server"] .hosted-launch-viewport{border-color:#d3dfeb}
+
+html[data-stage3-mode="server"] #cms-media-report{color:#236b4d}
+html[data-stage3-mode="server"] #cms-media-report[data-error=true]{color:#a54638}
+html[data-stage3-mode="server"] .hosted-launch-point-hint{color:#2c6688}
+
+html[data-stage3-mode="server"] :is(.hosted-drawers-title,.hosted-drawer-summary small,
+.hosted-status,.hosted-backup-dialog small,.hosted-launch-header p,
+.hosted-launch-revision){color:#586e87;opacity:1}
+
+html[data-stage3-mode="server"] .hosted-launch-diff-summary{color:#285e88}
+html[data-stage3-mode="server"] .hosted-launch-review-history-details strong{color:#264d72}
+
+
+/* Honest first-run state within the SAME server Studio, not a site builder. */
+html[data-stage3-mode="server"] .hosted-empty-state{
+  grid-column:2/-1;align-self:center;justify-self:center;box-sizing:border-box;
+  display:grid;gap:15px;max-width:690px;width:calc(100% - 48px);
+  margin:48px 24px;padding:clamp(24px,4vw,44px);
+  border:1px solid #d6e3f1;border-radius:20px;
+  background:linear-gradient(145deg,#fff 65%,#eff5ff 100%);
+  box-shadow:0 18px 60px #17365316;
+}
+html[data-stage3-mode="server"] .hosted-empty-state[hidden]{display:none!important}
+html[data-stage3-mode="server"] .hosted-empty-eyebrow{
+  color:#2869b5;font-size:10px;letter-spacing:.1em;font-weight:800;
+}
+html[data-stage3-mode="server"] .hosted-empty-state h2{
+  margin:0;font-size:clamp(24px,3vw,32px);line-height:1.18;
+  max-width:17em;letter-spacing:-.045em;color:#18314b;
+}
+html[data-stage3-mode="server"] .hosted-empty-state p{
+  margin:0;max-width:56ch;line-height:1.7;color:#4d6580;font-size:13px;
+}
+html[data-stage3-mode="server"] .hosted-empty-actions{
+  display:flex;gap:10px;flex-wrap:wrap;margin-top:5px;
+}
+html[data-stage3-mode="server"] .hosted-empty-actions .btn{
+  padding:12px 16px;font-size:12px;min-height:42px;
+}
+html[data-stage3-mode="server"] .hosted-empty-note{
+  border-top:1px solid #e2e9f2;padding-top:14px;
+  font-size:11px!important;color:#586e87!important;
+}
+@media(max-width:650px){
+ html[data-stage3-mode="server"] .hosted-empty-state{
+   width:calc(100% - 28px);margin:20px 14px;padding:23px;
+ }
+ html[data-stage3-mode="server"] .hosted-empty-actions .btn{width:100%}
+}

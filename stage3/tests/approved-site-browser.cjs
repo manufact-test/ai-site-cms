@@ -106,6 +106,7 @@ async function execute(){
 
   // The owner now starts with a clear page/section tree. Expand secondary
   // disclosures for the existing exhaustive transport/backup regression path.
+  assert.equal(await page.locator('#server-empty-state:visible').count(),1);
   assert.equal(await page.locator('#server-drawer-media').evaluate(node=>node.open),false);
   assert.equal(await page.locator('#server-edit-page').count(),1);
   await page.evaluate(()=>{
@@ -453,6 +454,7 @@ async function execute(){
   assert.equal(resumed.site.assets.length,4,'Continuation never duplicates logo, mobile logo, MP4 or WOFF2');
   const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
   assert.equal(imported.siteId,'site-approved-browser');
+  assert.equal(await page.locator('#server-empty-state:visible').count(),0);
   assert.equal(imported.assets.length,4);
 
   // Actual Chromium renders of the OWNER Studio (synthetic CI content only).
