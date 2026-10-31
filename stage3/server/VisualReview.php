@@ -224,6 +224,29 @@ trait VisualReview
         });
     }
 
+    /** Edit the text/position of one still-open note, without changing its
+     * immutable page/device scope. Version-checked exactly like resolution;
+     * stale or historical review edits are never applied. */
+    public function visualReviewEdit(string $siteId,int $revision,string $findingId,
+        int $expectedVersion,string $note,int $scrollY): array
+    {
+        if(!$this->hasVisualReviewTable())throw new RuntimeException('Visual review schema upgrade required');
+        if(!preg_match('/^visual-[a-f0-9]{24}$/D',$findingId)
+            ||$expectedVersion<1||$expectedVersion>1000000000
+            ||!self::visualNoteValid($note)||$scrollY<0||$scrollY>60000)
+            throw new InvalidArgumentException('Invalid visual finding edit');
+        if($this->getDraft($siteId)['revision']!==$revision)
+            throw new Conflict('Draft revision changed; reopen visual review');
+        return $this->atomic(function()use($siteId,$revision,$findingId,$expectedVersion,$note,$scrollY):array{
+            $this->lockVisualDraftRevision($siteId,$revision);
+            $q=$this->db->prepare("UPDATE stage3_visual_findings SET note=?, scroll_y=?, version=version+1 WHERE site_id=? AND draft_revision=? AND finding_id=? AND version=? AND state='open'");
+            $q->execute([$note,$scrollY,$siteId,$revision,$findingId,$expectedVersion]);
+            if($q->rowCount()!==1)
+                throw new Conflict('Visual finding was resolved or edited; reload before retrying');
+            return $this->visualReviewStatus($siteId,$revision);
+        });
+    }
+
     /**
      * After saving a new draft, keep unresolved remarks on pages still
      * present. A cosmetic no-op Save must not bypass the publish gate.

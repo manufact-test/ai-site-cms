@@ -205,7 +205,31 @@ async function execute(){
   await page.locator('#server-launch-compare-modes [data-compare-mode="published"]').click();
   assert.equal(await page.locator('#server-launch-preview').isVisible(),false);
   assert.equal(await page.locator('#server-launch-live-preview').isVisible(),true);
-  await page.locator('#server-launch-close').click();
+  // Finding -> exact authenticated PHP page -> existing Workbench, retaining
+  // the phone breakpoint, without saving or publishing the reviewed draft.
+  await page.locator('#server-launch-compare-modes [data-compare-mode="draft"]').click();
+  await page.locator('#server-launch-preview-status').getByText(/PHP-страница целиком/).waitFor();
+  const beforeVisualFix=await page.evaluate(()=>window.Stage3Editor.getSite());
+  await page.locator('#server-launch-finding-input').fill('Проверьте отступ в первом экране мобильной версии');
+  await page.locator('#server-launch-finding-add').click();
+  await page.locator('#server-launch-finding-list .hosted-launch-finding')
+    .getByRole('button',{name:'Изменить'}).click();
+  await page.locator('#server-launch-finding-list [aria-label="Исправленный текст замечания"]')
+    .fill('Нужно уточнить мобильный отступ в самом первом экране');
+  await page.locator('#server-launch-finding-list [aria-label="Вертикальная позиция замечания в пикселях"]')
+    .fill('0');
+  await page.locator('#server-launch-finding-list').getByRole('button',{name:'Сохранить замечание'}).click();
+  await page.locator('#server-launch-finding-list').getByText(/Нужно уточнить мобильный отступ/).waitFor();
+  const fixFinding=page.locator('#server-launch-finding-list .hosted-launch-finding')
+    .getByRole('button',{name:/Исправить в редакторе/});
+  await fixFinding.waitFor();
+  await fixFinding.click();
+  await page.locator('#cms-page-preview[open]').waitFor();
+  assert.equal(await page.locator('#cms-page-preview-path').inputValue(),beforeVisualFix.pages[0].path);
+  assert.equal(await page.locator('#cms-work-section').inputValue(),beforeVisualFix.pages[0].sections[0].id);
+  assert.equal(await page.locator('#cms-page-preview-frame').evaluate(el=>el.style.width),'390px');
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeVisualFix);
+  await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
 
   // Restore an earlier revision into a NEW draft, leaving visitor unchanged.
   assert.equal(await page.locator('#versions .version').count(),3);

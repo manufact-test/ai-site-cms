@@ -2849,6 +2849,22 @@ async function stop(){
   assert.equal(note1.body.findings[0].createdBy,'testowner');
   const firstFinding=note1.body.findings[0];
   assert.match(firstFinding.findingId,/^visual-[a-f0-9]{24}$/);
+  const editedNote='Заголовок перекрывает фото именно на мобильном экране';
+  const changedFinding=await request('POST',visualPath,{action:'edit',expectedRevision:1,
+    findingId:firstFinding.findingId,expectedVersion:1,note:editedNote,scrollY:560});
+  assert.equal(changedFinding.status,200,JSON.stringify(changedFinding.body));
+  assert.equal(changedFinding.body.findings[0].note,editedNote);
+  assert.equal(changedFinding.body.findings[0].scrollY,560);
+  assert.equal(changedFinding.body.findings[0].version,2);
+  assert.equal(changedFinding.body.findings[0].device,'mobile');
+  assert.equal(changedFinding.body.openCount,1);
+  assert.equal((await request('POST',visualPath,{action:'edit',expectedRevision:1,
+    findingId:firstFinding.findingId,expectedVersion:1,note:'Устаревший текст',scrollY:99})).status,409,
+    'Stale edits cannot silently overwrite an operator remark');
+  assert.equal((await request('POST',visualPath,{action:'edit',expectedRevision:1,
+    findingId:firstFinding.findingId,expectedVersion:2,note:'OK',scrollY:100})).status,422);
+  assert.equal((await request('POST',visualPath,{action:'edit',expectedRevision:1,
+    findingId:firstFinding.findingId,expectedVersion:2,note:'Новая позиция',scrollY:60001})).status,422);
   assert.equal((await request('POST','/api/sites/site-visual-ci/publish',
     {expectedRevision:1})).status,409,'Raw publish API cannot bypass open visual issues');
   assert.equal((await request('POST',visualPath,{action:'resolve',expectedRevision:1,
@@ -2899,6 +2915,8 @@ async function stop(){
   assert.equal((await request('POST',visualPath,{action:'resolve',expectedRevision:1,
     findingId:firstFinding.findingId,expectedVersion:1})).status,409,
     'Read-only historical findings cannot be resolved after draft advances');
+  assert.equal((await request('POST',visualPath,{action:'edit',expectedRevision:1,
+    findingId:firstFinding.findingId,expectedVersion:2,note:'Нельзя править историю',scrollY:42})).status,409);
   const historicalIndex=await request('GET',visualPath+'/history');
   assert.equal(historicalIndex.status,200);
   assert.deepEqual(historicalIndex.body.revisions.map(x=>x.revision),[2,1]);

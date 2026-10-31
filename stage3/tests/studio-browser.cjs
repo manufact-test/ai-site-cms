@@ -1397,6 +1397,25 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-work-undo').click();
     await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
 
+    // A recorded per-device visual finding now opens the EXISTING full-page
+    // Workbench at its authored section, rather than dropping the owner into a
+    // generic Inspector. The jump itself must not mutate the draft.
+    const reviewBefore=await page.evaluate(()=>window.Stage3Editor.getSite());
+    const reviewFocused=await page.evaluate(target=>window.Stage3Editor.focusVisualReview(target),{
+      pageId:sheetSite.pages[0].id,sectionId:'section-sheet-editor',
+      device:'mobile',scrollY:180
+    });
+    assert.equal(reviewFocused,true);
+    await page.locator('#cms-page-preview[open]').waitFor();
+    assert.equal(await page.locator('#cms-page-preview-path').inputValue(),sheetSite.pages[0].path);
+    assert.equal(await page.locator('#cms-work-section').inputValue(),'section-sheet-editor');
+    assert.equal(await page.locator('#cms-page-preview-frame').evaluate(el=>el.style.width),'390px');
+    assert.ok(await page.locator('.cms-page-preview-modes [data-mode="mobile"]').evaluate(el=>
+      el.classList.contains('active')));
+    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),reviewBefore,
+      'Opening a review finding is navigation only, never an implicit save or edit');
+    await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+
     // Real native Chromium interaction, without adding a custom public runtime.
     const graphHost=require('../sdk/design-graph.cjs');
     const nativeSite=JSON.parse(fs.readFileSync(path.join(root,'fixtures/industrial-site.json'),'utf8'));

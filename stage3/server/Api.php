@@ -545,6 +545,16 @@ final class Api
                         $this->response(200,$this->sites->visualReviewResolve($review[1],$revision,
                             $body['findingId'],$body['expectedVersion'],$principal['username']));
                     }
+                    if ($op==='edit') {
+                        if(!is_string($body['findingId']??null)
+                            ||!is_int($body['expectedVersion']??null)
+                            ||!is_string($body['note']??null)
+                            ||!is_int($body['scrollY']??null))
+                            throw new InvalidArgumentException('Finding ID, version, note and scroll position required');
+                        $this->auditDetail='Visual finding edited '.$body['findingId'];
+                        $this->response(200,$this->sites->visualReviewEdit($review[1],$revision,
+                            $body['findingId'],$body['expectedVersion'],$body['note'],$body['scrollY']));
+                    }
                     throw new InvalidArgumentException('Unknown visual review action');
                 }
                 if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/operations$~D',$path,$op)) {

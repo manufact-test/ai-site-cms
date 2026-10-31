@@ -4196,6 +4196,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   // Ephemeral selection handoff from the whole-page canvas to the nested graph
   // inspector. Never written into the draft, export or published site.
   let pendingGraphCanvasFocus=null;
+  // An owner finding from Launch Review may reopen this same page Workbench
+  // on the exact reviewed viewport/section. This is UI state, never site data.
+  let pendingWorkReviewFocus=null;
   // One review surface for every authored site; analysis never changes documents.
   // Alias creation/deletion uses the same revisioned Undo/Redo contract as page edits.
 
@@ -4268,16 +4271,36 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     return {pages:site.pages.map(p=>({id:p.id,title:p.title,path:p.path})),
       issues,audit,attention:issues.length,errors:audit.errors.length,warnings:audit.warnings.length};
   }
+  function focusVisualReview(target){
+    const page=session.current.pages.find(p=>p.id===target?.pageId);
+    if(!page)return false;
+    const section=target.sectionId?
+      page.sections.find(s=>s.id===target.sectionId):page.sections[0];
+    if(!section)return false;
+    const device=['desktop','tablet','mobile'].includes(target.device)?target.device:'desktop';
+    const scrollY=Number.isFinite(target.scrollY)?Math.max(0,Math.min(60000,
+      Math.round(target.scrollY))):0;
+    pageId=page.id;sectionId=section.id;elementId=section.elements[0].id;
+    breakpoint=device;draw();
+    pendingWorkReviewFocus={pageId:page.id,sectionId:section.id,
+      nodeId:typeof target.nodeId==='string'?target.nodeId:'',device,scrollY};
+    const open=$('cms-open-page-preview');
+    if(!open){pendingWorkReviewFocus=null;return false;}
+    open.click();return true;
+  }
   function focusLaunchIssue(issue){
+    if(issue?.kind==='visual-review')return focusVisualReview(issue);
     const page=session.current.pages.find(p=>p.id===issue?.pageId);
     if(!page)return false;
     const section=page.sections.find(s=>s.id===issue.sectionId)||page.sections[0];
     const element=[...section.elements,...(section.items||[])].find(e=>e.id===issue.elementId)||section.elements[0];
-    pageId=page.id;sectionId=section.id;elementId=element.id;draw();
+    pageId=page.id;sectionId=section.id;elementId=element.id;
+    if(['desktop','tablet','mobile'].includes(issue.device))breakpoint=issue.device;
+    draw();
     if((issue.nodeId||(section.designGraph&&
         ['graph-text','graph-placeholder'].includes(issue.kind)))&&section.designGraph){
       pendingGraphCanvasFocus={pageId:page.id,sectionId:section.id,
-        nodeId:issue.nodeId||issue.elementId,device:'desktop'};
+        nodeId:issue.nodeId||issue.elementId,device:breakpoint};
       $('section-design-graph')?.click();return true;
     }
     if(issue.kind==='seo'){$('cms-open-seo')?.click();return true;}
@@ -4754,7 +4777,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const frame=document.createElement('iframe');frame.id='cms-page-preview-frame';
     frame.setAttribute('sandbox','allow-same-origin');frame.title='Изолированный предпросмотр всей страницы';
     frame.setAttribute('referrerpolicy','no-referrer');area.append(frame);
-    let mode='desktop',previewRequest=0,previewScroll=0;
+    let mode='desktop',previewRequest=0,previewScroll=0,reviewScroll=null;
     const render=async()=>{
       previewScroll=frame.contentWindow?.scrollY||0;
       const requestId=++previewRequest,path=pathSelect.value;
@@ -5110,8 +5133,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       },true);
       doc.addEventListener('dragend',()=>{clearDrop();dragging='';},true);
       doc.addEventListener('submit',e=>{e.preventDefault();e.stopPropagation();},true);
-      // Re-renders must not jump to the top of a long page.
-      if(previewScroll>0)frame.contentWindow?.scrollTo(0,previewScroll);
+      // Re-renders must not jump to the top of a long page. A Launch Review
+      // jump is applied only after the REAL PHP document has section anchors;
+      // hosted mode first loads a transient "building preview" placeholder.
+      if(reviewScroll!==null&&sections.some(el=>ids.has(idOf(el)))){
+        frame.contentWindow?.scrollTo(0,reviewScroll);reviewScroll=null;
+      }else if(reviewScroll===null&&previewScroll>0)
+        frame.contentWindow?.scrollTo(0,previewScroll);
       highlightWork();
     });
     function structureWork(action){
@@ -6219,10 +6247,19 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const option=document.createElement('option');option.value=page.path;
         option.textContent=page.title+' · '+page.path;pathSelect.append(option);
       }
-      pathSelect.value=current().page.path;
-      workSection=current().section.id;workElement=elementId;workFocusPath='';workFormField='';workGraphNode='';dismissQuick();showWork();
+      const focus=pendingWorkReviewFocus;pendingWorkReviewFocus=null;
+      pathSelect.value=focus?
+        session.current.pages.find(page=>page.id===focus.pageId)?.path||current().page.path:
+        current().page.path;
+      workSection=focus?.sectionId||current().section.id;
+      workElement=elementId;workFocusPath='';workFormField='';workGraphNode=focus?.nodeId||'';
+      if(focus){mode=focus.device;reviewScroll=focus.scrollY;previewScroll=0;}
+      else reviewScroll=null;
+      dismissQuick();showWork();
       frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el.dataset.mode===mode));
       render();modal.showModal();
+      if(focus)feedback('Открыта точка визуальной проверки · '+mode+
+        ' · позиция '+focus.scrollY+' px. Выберите точный элемент на странице.');
     });
     open.id='cms-open-page-preview';
     document.querySelector('.canvas-toolbar .devices').before(open);
@@ -9700,6 +9737,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     launchReadiness,
     auditSite:site=>C.inspectSite(site,manifests),
     focusLaunchIssue,
+    focusVisualReview,
     // Bind a server-issued immutable media ID using the same declared SDK field
     // and Undo/Redo transaction as editing an image in the Inspector.
     bindMedia:(assetId,selection=null)=>{

@@ -2923,6 +2923,28 @@
     });
     const openFindings=(pageId,mode)=>manualFindings.filter(f=>
       !f.resolved&&f.pageId===pageId&&f.device===mode);
+    // The review stores a coordinate in the original PHP document. Resolve
+    // that coordinate against the REAL server-rendered section anchors, not
+    // against a guessed row index or the approved reference image. The
+    // Workbench will then use the same authored section on the same device.
+    const sectionAtReviewY=(page,scrollY)=>{
+      const doc=frame.contentDocument;
+      if(!page||!doc||!previewReady.has(page.id+'|'+device)||
+          doc.querySelector('meta[name="manufact-preview-ticket"]')?.content!==String(request))
+        return null;
+      const point=Math.max(0,Number(scrollY)||0)+20;
+      let closest=null,distance=Infinity;
+      for(const section of page.sections){
+        const el=doc.getElementById(section.id);
+        if(!el)continue;
+        const rect=el.getBoundingClientRect();
+        const top=rect.top+(doc.defaultView?.scrollY||0);
+        const bottom=top+Math.max(1,rect.height);
+        const delta=point<top?top-point:point>bottom?point-bottom:0;
+        if(delta<distance){distance=delta;closest=section.id;}
+      }
+      return closest;
+    };
     const unresolvedCount=()=>manualFindings.filter(f=>!f.resolved).length;
     const plainFixList=()=>[
       'AI Site CMS — замечания к визуальной проверке сайта',
@@ -2958,6 +2980,59 @@
         seek.setAttribute('aria-label','Показать место замечания: '+finding.note);
         row.append(seek);
         if(!finding.resolved){
+          const edit=action('Изменить','',()=>{
+            if(!freshDraft()||remoteBusy)return;
+            edit.disabled=true;
+            const form=element('div','hosted-launch-finding-edit');
+            const noteInput=element('textarea','control');
+            noteInput.rows=2;noteInput.maxLength=500;noteInput.value=finding.note;
+            noteInput.setAttribute('aria-label','Исправленный текст замечания');
+            const yInput=element('input','control');
+            yInput.type='number';yInput.min='0';yInput.max='60000';yInput.step='1';
+            yInput.value=String(finding.scrollY);
+            yInput.setAttribute('aria-label','Вертикальная позиция замечания в пикселях');
+            const apply=action('Сохранить замечание','',()=>{
+              const note=noteInput.value.trim(),y=Number(yInput.value);
+              if(!freshDraft()||remoteBusy||[...note].length<3||[...note].length>500
+                  ||!Number.isInteger(y)||y<0||y>60000){
+                notice('Текст 3–500 символов, позиция Y от 0 до 60 000 px.',true);return;
+              }
+              if(storedReview.available){
+                remoteBusy=true;apply.disabled=true;findingAdd.disabled=true;
+                void api(reviewEndpoint,'POST',{action:'edit',expectedRevision:openedRevision,
+                  findingId:finding.findingId,expectedVersion:finding.version,note,scrollY:y})
+                  .then(result=>{
+                    reviewed.get(finding.pageId)?.delete(finding.device);
+                    replaceRemote(result);
+                  })
+                  .catch(error=>notice('Не удалось изменить замечание: '+error.message,true))
+                  .finally(()=>{remoteBusy=false;if(dialog.open){drawFindings();updateReviewed();syncActions();}});
+                return;
+              }
+              finding.note=note;finding.scrollY=y;
+              reviewed.get(finding.pageId)?.delete(finding.device);
+              drawFindings();updateReviewed();syncActions();
+            });
+            const cancel=action('Отмена','',()=>{form.remove();edit.disabled=false;});
+            form.append(noteInput,yInput,apply,cancel);row.append(form);noteInput.focus();
+          });
+          edit.disabled=!freshDraft()||remoteBusy;
+          row.append(edit);
+          const fix=action('Исправить в редакторе','',()=>{
+            if(!freshDraft()||remoteBusy)return;
+            const sectionId=sectionAtReviewY(selectedRow?.current,finding.scrollY);
+            if(!sectionId){
+              notice('Дождитесь загрузки PHP-страницы для точного перехода.',true);return;
+            }
+            const target={pageId:finding.pageId,sectionId,device:finding.device,
+              scrollY:finding.scrollY};
+            dialog.close();
+            if(!editor.focusVisualReview(target))
+              notice('Не удалось открыть редактирование замечания.',true);
+          });
+          fix.disabled=!freshDraft()||remoteBusy;
+          fix.setAttribute('aria-label','Открыть в редакторе замечание: '+finding.note);
+          row.append(fix);
           const resolve=action('Исправлено','',()=>{
             if(!freshDraft()||remoteBusy)return;
             if(storedReview.available){
@@ -3555,9 +3630,15 @@
       pages.append(control);
     }
     editPage.addEventListener('click',()=>{
-      const pageIndex=site.pages.findIndex(page=>page.id===selectedRow.current?.id);
+      const page=selectedRow.current;
+      if(!page)return;
+      const scale=Number(frame.style.transform.match(/scale\(([^)]+)\)/)?.[1])||1;
+      const scrollY=Math.max(0,Math.round(viewport.scrollTop/scale));
+      const sectionId=sectionAtReviewY(page,scrollY)||page.sections[0]?.id;
+      if(!sectionId)return notice('На странице нет секции для редактирования.',true);
       dialog.close();
-      document.querySelectorAll('#pages .nav-entry')[pageIndex]?.click();
+      if(!editor.focusVisualReview({pageId:page.id,sectionId,device,scrollY}))
+        notice('Не удалось открыть редактор страницы.',true);
     });
     const adjustPreview=()=>{if(dialog.open)renderViewport();};
     window.addEventListener('resize',adjustPreview);
