@@ -1449,6 +1449,11 @@ async function execute(){
   await page.locator('#cms-work-graph-media > summary').click();
   await page.locator('#server-work-graph-upload').waitFor();
   assert.equal(await page.locator('#server-work-graph-update-alt').isChecked(),false);
+  const originalDesktop=await page.evaluate(()=>{
+    const graph=window.Stage3Editor.getSite().pages[0].sections
+      .find(section=>section.id==='section-approved-custom').designGraph;
+    return graph.nodes[0].children.find(node=>node.id==='approved-custom-photo').assetId;
+  });
   const generatedPng=await page.evaluate(()=>{
     const canvas=document.createElement('canvas');canvas.width=960;canvas.height=960;
     const ctx=canvas.getContext('2d'),data=ctx.createImageData(960,960);
@@ -1479,7 +1484,7 @@ async function execute(){
       .find(n=>n.id==='approved-custom-photo');
     return {node,asset:site.assets.at(-1)};
   });
-  assert.equal(mediaState.node.assetId,'asset-external-hero');
+  assert.equal(mediaState.node.assetId,originalDesktop,'Desktop image keeps its real remapped site asset');
   assert.equal(mediaState.node.alt,'Графическое оформление');
   assert.equal(mediaState.node.responsiveMedia.mobileAssetId,mediaState.asset.id);
   assert.equal(mediaState.asset.mime,'image/webp');
