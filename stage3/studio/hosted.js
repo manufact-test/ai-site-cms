@@ -2549,7 +2549,7 @@
   const resourcesSummary=element('div','hosted-resources-summary');
   resourcesSummary.append(
     element('span',null,'Ресурсы и обслуживание'),
-    element('small',null,'Медиафайлы, заявки, библиотека, архив, переносы и подключение')
+    element('small',null,'Медиа, заявки, архив и переносы')
   );
   resources.append(resourcesSummary,drawerRail);
   const siteToolsDialog=element('dialog','hosted-site-tools-dialog');
