@@ -149,6 +149,16 @@
     }
     fallback.value=content;fallback.focus();fallback.select();
   }
+  async function readLocalGraphText(file,bytesLimit,charactersLimit){
+    if(file.size>bytesLimit)throw Error('Файл слишком большой');
+    const raw=await file.arrayBuffer(),bytes=new Uint8Array(raw);
+    const charset=bytes[0]===0xff&&bytes[1]===0xfe?'utf-16le':
+      bytes[0]===0xfe&&bytes[1]===0xff?'utf-16be':'utf-8';
+    // Fatal decoder prevents silent corruption of Cyrillic or CSV separators.
+    const content=new TextDecoder(charset,{fatal:true}).decode(raw);
+    if(content.length>charactersLimit)throw Error('Слишком много текста в файле');
+    return content;
+  }
   // One spreadsheet editor for a REAL existing Design Graph table, shared by
   // the full-page Workbench and the advanced graph Inspector.
   function openGraphTablePaste(graph,tableId,onApply){
@@ -176,10 +186,10 @@
     const status=document.createElement('p');status.id='cms-graph-table-status';
     status.setAttribute('aria-live','polite');
     const fileLabel=document.createElement('label');
-    fileLabel.textContent='Или открыть локальный файл CSV / TSV (без загрузки на сервер)';
+    fileLabel.textContent='Или открыть CSV / TSV / Unicode TXT (без загрузки на сервер)';
     const fileInput=document.createElement('input');fileInput.type='file';
     fileInput.id='cms-graph-table-file';fileInput.className='control';
-    fileInput.accept='.tsv,.csv,text/tab-separated-values,text/csv,text/plain';
+    fileInput.accept='.tsv,.csv,.txt,text/tab-separated-values,text/csv,text/plain';
     fileLabel.append(fileInput);
     const preview=document.createElement('div');preview.id='cms-graph-table-preview';
     preview.style.cssText='overflow-x:auto;max-height:260px;overflow-y:auto';
@@ -239,9 +249,7 @@
     fileInput.addEventListener('change',async()=>{
       const file=fileInput.files?.[0];if(!file)return;
       try{
-        if(file.size>50000)throw Error('Файл слишком большой (максимум 50 КБ)');
-        const content=await file.text();
-        if(content.length>12000)throw Error('Слишком много данных в файле');
+        const content=await readLocalGraphText(file,50000,12000);
         textarea.value=content;
         separator.value=/\.tsv$/i.test(file.name)?'tab':/\.csv$/i.test(file.name)?'auto':'auto';
         updatePreview();
@@ -320,9 +328,7 @@
     fileInput.addEventListener('change',async()=>{
       const file=fileInput.files?.[0];if(!file)return;
       try{
-        if(file.size>90000)throw Error('Файл слишком большой (максимум 90 КБ)');
-        const content=await file.text();
-        if(content.length>24000)throw Error('Слишком много пунктов в файле');
+        const content=await readLocalGraphText(file,90000,24000);
         textarea.value=content;updatePreview();
       }catch(error){status.textContent='Файл не загружен: '+error.message;apply.disabled=true;}
     });

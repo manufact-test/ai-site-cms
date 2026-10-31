@@ -1317,6 +1317,14 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.match(await page.locator('#cms-graph-table-data').inputValue(),/Сайт;245;4 дня/,
       'Local CSV file is read into the same paste preview, without server upload');
     assert.match(await page.locator('#cms-graph-table-status').innerText(),/3 строк × 3 столбцов/);
+    await page.locator('#cms-graph-table-file').setInputFiles({
+      name:'excel-unicode.txt',mimeType:'text/plain',
+      buffer:Buffer.from('\uFEFFУслуга\tЦена\tСрок\nВёрстка\t275\t3 дня','utf16le')
+    });
+    await page.waitForFunction(()=>document.querySelector('#cms-graph-table-data')
+      ?.value.includes('Вёрстка\t275\t3 дня'));
+    assert.match(await page.locator('#cms-graph-table-status').innerText(),/2 строк × 3 столбцов/,
+      'Excel Unicode Text UTF-16LE is decoded before the same safe table preview');
     const exportTable=page.waitForEvent('download');
     await page.locator('#cms-graph-table-download').click();
     assert.equal((await exportTable).suggestedFilename(),'table.tsv');
