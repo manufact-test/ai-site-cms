@@ -69,10 +69,31 @@ async function execute(){
   const siteId=await page.locator('#server-site-select').inputValue();
   assert.equal(siteId,'site-browser-initial');
   assert.equal(await page.locator('#pages .nav-entry').count(),2);
+  // Same real tree: filtered titles/paths and blocks remain navigable, even
+  // after a page redraw, and the quick search never changes the draft.
+  await page.locator('#server-search-pages').fill('/contact/');
+  assert.equal(await page.locator('#pages .nav-entry:visible').count(),1);
+  assert.match(await page.locator('#server-search-pages-status').innerText(),/Найдено 1 из 2/);
+  await page.locator('#server-search-pages').press('Enter');
+  assert.match(await page.locator('#pages .nav-entry.active').innerText(),/Контакт/);
+  await page.locator('#server-search-sections').fill('невозможное название');
+  assert.equal(await page.locator('#sections .nav-entry:visible').count(),0);
+  assert.match(await page.locator('#server-search-sections-status').innerText(),/Ничего не найдено/);
+  await page.locator('#server-search-sections').press('Escape');
+  assert.equal(await page.locator('#sections .nav-entry:visible').count(),1);
+  await page.locator('#server-search-pages').press('Escape');
+  assert.equal(await page.locator('#pages .nav-entry:visible').count(),2);
+  await page.locator('#pages .nav-entry').first().click();
   const field=page.locator('#fields [data-field="content.text"]');
   await field.fill('Проверка серверного сайта');
   await field.dispatchEvent('change');
   assert.match(await page.locator('#dirty').innerText(),/несохранённые/);
+  assert.equal(await page.locator('#server-status').getAttribute('data-unsaved'),'true');
+  assert.match(await page.title(),/^● MANUFACT Studio/);
+  assert.equal(await page.evaluate(()=>{
+    const event=new Event('beforeunload',{cancelable:true});
+    window.dispatchEvent(event);return event.defaultPrevented;
+  }),true,'Tab exit with an unsaved server draft is guarded');
 
   // Hosted Studio: unsaved workspace content is preview-only and undoable.
   await page.locator('#cms-content-open').click();
@@ -575,6 +596,17 @@ async function execute(){
   assert.equal((await visitor.goto(origin+'/published/'+generatedId+'/')).status(),404);
   await page.locator('#fields [data-field="content.text"]').fill('Авторский текст сайта');
   await page.locator('#fields [data-field="content.text"]').dispatchEvent('change');
+  // Cancelling a site switch must restore the picker to the still-open draft.
+  await page.evaluate(()=>{
+    window.__originalConfirm=window.confirm;window.confirm=()=>false;
+  });
+  await page.locator('#server-site-select').selectOption(siteId);
+  await page.waitForFunction(id=>document.querySelector('#server-site-select').value===id,generatedId);
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).siteId,generatedId);
+  assert.match(await page.locator('#fields [data-field="content.text"]').inputValue(),/Авторский текст/);
+  await page.evaluate(()=>{
+    window.confirm=window.__originalConfirm;delete window.__originalConfirm;
+  });
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Черновик #2/).waitFor();
   await page.locator('#server-publish').click();
@@ -1600,6 +1632,24 @@ async function execute(){
   const afterPartial=(await page.evaluate(()=>window.Stage3Editor.getSite())).assets;
   assert.equal(afterPartial.length,afterBatch.assets.length+1,'Exactly one committed private upload');
   assert.equal(afterPartial.at(-1).alt,'first');
+  // A stale remote save never overwrites another session or destroys local edits.
+  await page.locator('#pages .nav-entry').first().click();
+  await page.locator('#fields [data-field="content.text"]').fill('Несохранённый конфликтующий текст');
+  await page.locator('#fields [data-field="content.text"]').dispatchEvent('change');
+  const saveConflictRoute='**/api/sites/'+siteId+'/save';
+  await page.route(saveConflictRoute,route=>route.fulfill({
+    status:409,contentType:'application/json',
+    body:JSON.stringify({error:'Revision changed in another session'})
+  }));
+  await page.locator('#save').click();
+  await page.locator('#server-revision-conflict[open]').waitFor();
+  assert.equal(await page.locator('#server-conflict-export').isDisabled(),false);
+  assert.match(await page.locator('#server-conflict-info').innerText(),/ревизии/);
+  assert.equal(await page.locator('#fields [data-field="content.text"]').inputValue(),
+    'Несохранённый конфликтующий текст');
+  await page.locator('#server-conflict-stay').click();
+  await page.unroute(saveConflictRoute);
+  assert.equal(await page.locator('#server-status').getAttribute('data-unsaved'),'true');
   await staffCtx.close();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();

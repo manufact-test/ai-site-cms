@@ -603,3 +603,38 @@ html[data-stage3-mode="server"] .hosted-empty-note{
  }
  html[data-stage3-mode="server"] .hosted-empty-actions .btn{width:100%}
 }
+
+
+/* Fast owner navigation in the existing page/block tree: no new editor. */
+html[data-stage3-mode="server"] .hosted-tree-search{
+  display:grid;gap:5px;padding:4px 14px 12px;min-width:0;
+}
+html[data-stage3-mode="server"] .hosted-tree-search .control{
+  width:100%;min-width:0;padding:9px 12px;border:1px solid #d2dfed;
+  border-radius:9px;background:#fff;color:#1c3855;font-size:12px;
+}
+html[data-stage3-mode="server"] .hosted-tree-search .control::placeholder{color:#7790a8}
+html[data-stage3-mode="server"] .hosted-tree-search .control:focus-visible{
+  outline:2px solid #4d93e5;outline-offset:2px;
+}
+html[data-stage3-mode="server"] .hosted-tree-search-result{
+  min-height:14px;padding-left:3px;color:#617b96;font-size:10px;
+}
+html[data-stage3-mode="server"] #pages>.nav-entry[hidden],
+html[data-stage3-mode="server"] #sections>.nav-entry[hidden]{display:none!important}
+html[data-stage3-mode="server"] .hosted-status[data-unsaved="true"]{
+  border-left:3px solid #dc9c35;padding-left:9px;color:#705122;opacity:1;
+}
+html[data-stage3-mode="server"] .hosted-conflict-dialog{
+  width:min(92vw,600px);max-height:calc(100vh - 60px);overflow:auto;
+}
+html[data-stage3-mode="server"] .hosted-conflict-note{
+  padding:14px;background:#fff8e9;border:1px solid #e4c983;
+  border-radius:10px;color:#74521a;overflow-wrap:anywhere;
+}
+html[data-stage3-mode="server"] .hosted-conflict-actions{
+  display:flex;flex-wrap:wrap;gap:9px;margin-top:18px;
+}
+html[data-stage3-mode="server"] .hosted-conflict-actions .btn{
+  flex:1 1 160px;white-space:normal;
+}

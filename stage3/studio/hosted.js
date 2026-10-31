@@ -2497,6 +2497,31 @@
       JSON.stringify(disclosures.filter(d=>d.open).map(d=>d.id)));}catch(_){}
   });
 
+
+  // Optimistic server revisions protect against accidental overwrites across
+  // tabs/operators. A 409 keeps the local draft intact and offers a deliberate
+  // recovery route; this dialog NEVER retries, merges or publishes implicitly.
+  const conflictDialog=element('dialog','hosted-backup-dialog hosted-conflict-dialog');
+  conflictDialog.id='server-revision-conflict';
+  const conflictInfo=element('p','hosted-conflict-note');
+  conflictInfo.id='server-conflict-info';
+  const conflictExport=action('Скачать мои правки (JSON)','server-conflict-export',()=>{
+    const button=$('export');
+    if(button&&!button.disabled)button.click();
+  });
+  const conflictReload=action('Загрузить серверную версию','server-conflict-reload',()=>{
+    conflictDialog.close();void safe(reload);
+  });
+  const conflictStay=action('Остаться в редакторе','server-conflict-stay',()=>conflictDialog.close());
+  const conflictActions=element('div','hosted-conflict-actions');
+  conflictActions.append(conflictExport,conflictReload,conflictStay);
+  conflictDialog.append(element('h2',null,'Сохранение остановлено: серверная версия изменилась'),
+    element('p',null,'Текущие изменения остаются только в этой вкладке. Они не сохранены на сервере и не опубликованы.'),
+    conflictInfo,
+    element('p',null,'Скачайте JSON своих правок для безопасного сравнения. Затем загрузите актуальный серверный черновик и внесите необходимые правки заново. Автоматического слияния нет.'),
+    conflictActions);
+  document.body.append(conflictDialog);
+
   // A small, live orientation strip above the existing preview. All values
   // are read from the SAME editor, never a parallel page model.
   const context=element('div','hosted-context');
@@ -2518,6 +2543,64 @@
   syncContext();
 
 
+
+
+  // Find an authored page by title/URL or a block on the selected page.
+  // This filters the ORIGINAL editor tree; selecting a result still invokes
+  // the existing editor handlers, Undo and server Save permissions.
+  const createTreeSearch=(kind,labelText,placeholder)=>{
+    const nav=$(kind);
+    const field=element('input','control');
+    field.type='search';field.id='server-search-'+kind;
+    field.placeholder=placeholder;field.autocomplete='off';
+    field.setAttribute('aria-label',labelText);
+    const wrap=element('div','hosted-tree-search');
+    const result=element('small','hosted-tree-search-result');
+    result.id='server-search-'+kind+'-status';
+    result.setAttribute('role','status');result.setAttribute('aria-live','polite');
+    wrap.append(field,result);nav.before(wrap);
+    const refresh=()=>{
+      const term=field.value.trim().toLocaleLowerCase('ru-RU');
+      const buttons=[...nav.querySelectorAll('.nav-entry')];
+      const site=state.siteId?editor.getSite():null;
+      const activePage=[...$('pages').querySelectorAll('.nav-entry')]
+        .findIndex(button=>button.classList.contains('active'));
+      const sections=site?.pages?.[activePage]?.sections||[];
+      let shown=0;
+      for(let i=0;i<buttons.length;i++){
+        const extra=kind==='pages'?site?.pages?.[i]?.path:sections[i]?.component;
+        const matches=!term||(buttons[i].textContent+' '+(extra||''))
+          .toLocaleLowerCase('ru-RU').includes(term);
+        buttons[i].hidden=!matches;
+        if(matches)shown++;
+      }
+      result.textContent=term?
+        (shown?('Найдено '+shown+' из '+buttons.length):'Ничего не найдено'):
+        (buttons.length+' '+(kind==='pages'?'страниц':'блоков'));
+    };
+    field.addEventListener('input',refresh);
+    field.addEventListener('keydown',event=>{
+      if(event.key==='Escape'){field.value='';refresh();field.blur();return;}
+      if(event.key==='Enter'||event.key==='ArrowDown'){
+        const first=[...nav.querySelectorAll('.nav-entry')].find(button=>!button.hidden);
+        if(first){event.preventDefault();if(event.key==='Enter')first.click();else first.focus();}
+      }
+    });
+    new MutationObserver(refresh).observe(nav,{childList:true});
+    refresh();
+    return {field,refresh,reset:()=>{field.value='';refresh();}};
+  };
+  const pageSearch=createTreeSearch('pages','Поиск страниц по названию или адресу','Найти страницу или URL');
+  const blockSearch=createTreeSearch('sections','Поиск блоков выбранной страницы','Найти блок на странице');
+  $('pages').addEventListener('click',event=>{
+    if(event.target.closest('.nav-entry'))blockSearch.reset();
+  },{capture:true});
+  document.addEventListener('keydown',event=>{
+    if(event.key!=='/'||event.ctrlKey||event.metaKey||event.altKey||
+      !state.siteId||document.querySelector('dialog[open]')||
+      event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+    event.preventDefault();pageSearch.field.focus();
+  });
 
   // Preview device modes are toggle buttons, not unlabeled visual tabs.
   for(const group of [
@@ -2637,6 +2720,8 @@
   function drawStatus(){
     const exists=state.authorized&&state.siteId!==null&&state.revision!==null;
     const available=exists&&!state.busy;
+    pageSearch.field.disabled=!available;
+    blockSearch.field.disabled=!available;
     emptyState.hidden=!state.authorized||exists;
     emptyOpen.hidden=!state.sites.length;
     emptyOpen.disabled=state.busy||state.loading||!state.authorized||!picker.value;
@@ -2721,6 +2806,9 @@
     backupDownload.hidden=!isOwner();backupOpen.hidden=!isOwner();
     window.dispatchEvent(new Event('stage3-session'));
     const meta=state.sites.find(s=>s.site_id===state.siteId);
+    document.title=(exists&&isDirty()?'● ':'')+'MANUFACT Studio — '+
+      (exists?(meta?.title||'черновик сайта'):'управление сайтом');
+    status.dataset.unsaved=exists&&isDirty()?'true':'false';
     const published=meta?.published_version?('Опубликовано: v'+meta.published_version):'Пока не опубликован';
     status.textContent=exists?('Черновик #'+state.revision+' · '+published+
       (isDirty()?' · Есть правки':' · Без изменений')+
@@ -2734,7 +2822,21 @@
   async function safe(fn){
     if(state.busy)return;
     state.busy=true;drawStatus();
-    try{return await fn();}catch(e){notice(e.message,true);if(e.status===409&&state.authorized)await refreshSites().catch(()=>{});if(backupDialog.open)backupSummary.replaceChildren(element('p',null,e.message));}
+    try{return await fn();}catch(e){
+      notice(e.message,true);
+      if(e.status===409&&state.authorized){
+        await refreshSites().catch(()=>{});
+        if(state.siteId&&isDirty()&&!conflictDialog.open){
+          const server=state.sites.find(item=>item.site_id===state.siteId);
+          conflictInfo.textContent='Ваш черновик основан на ревизии #'+state.revision+
+            (server?' · серверная ревизия #'+server.revision:'')+
+            '. Причина: '+String(e.message).slice(0,280);
+          conflictExport.disabled=!$('export')||$('export').disabled;
+          conflictDialog.showModal();
+        }
+      }
+      if(backupDialog.open)backupSummary.replaceChildren(element('p',null,e.message));
+    }
     finally{state.busy=false;drawStatus();}
   }
   async function refreshSites(){
@@ -2784,10 +2886,12 @@
     return site;
   }
   function selectSite(result){
-    if(state.siteId!==result.site.siteId){previewData.clear();loadingMedia.clear();}
+    const switched=state.siteId!==result.site.siteId;
+    if(switched){previewData.clear();loadingMedia.clear();}
     state.siteId=result.site.siteId;
     editor.replace(restoreServerGraphMaps(result.site));
     state.revision=Number(result.revision);
+    if(switched){pageSearch.reset();blockSearch.reset();}
     editorVisible(true);
     drawMedia();drawStatus();
   }
@@ -5192,8 +5296,20 @@
     }catch(err){info.textContent=err.message;state.authorized=false;state.principal=null;setGate(true);}
     finally{state.busy=false;submit.disabled=false;drawStatus();}
   }
+  // The ordinary offline editor already warns about tab closure; mirror the
+  // authoritative server-mode dirty state as a second safety net. Never store
+  // client content in session/local storage or auto-save to public release.
+  window.addEventListener('beforeunload',event=>{
+    if(state.siteId&&isDirty()){event.preventDefault();event.returnValue='';}
+  });
   form.addEventListener('submit',signIn);
-  picker.addEventListener('change',()=>safe(()=>openSite(picker.value)));
+  // A cancelled switch must restore the picker, never leave a mismatched
+  // site title/select while the old unsaved draft is still on screen.
+  picker.addEventListener('change',()=>safe(async()=>{
+    const chosen=picker.value;
+    try{await openSite(chosen);}
+    finally{picker.value=state.siteId||chosen;}
+  }));
   window.Stage3Host=Object.freeze({save,importSite,reload,drawVersions,onDraw:drawStatus,previewPage,previewUrl,videoUrl,
     api,safe,notice,principal:()=>state.principal,refreshSites:()=>refreshSites(),
     lock:()=>{reviewNotesByRevision.clear();state.authorized=false;state.principal=null;state.csrf=null;editorVisible(false);setGate(true);},
