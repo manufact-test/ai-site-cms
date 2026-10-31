@@ -28,12 +28,12 @@
  <div class="sidebar-bottom"><span class="live-dot"></span>Работает локально и без сети<div class="subdued">Это изолированный прототип редактора. Не публикация и не Hostinger.</div></div>
 </aside>
 <main class="center" id="main-content" tabindex="-1">
- <div class="canvas-toolbar"><div><span class="eyebrow">ПРЕДПРОСМОТР БЛОКА</span><h2 id="canvas-title">Выберите блок</h2><p class="subdued" id="canvas-caption">Сайт не опубликован</p></div>
+ <div class="canvas-toolbar"><div><span class="eyebrow">ПРЕДПРОСМОТР СТРАНИЦЫ</span><h2 id="canvas-title">Выберите блок</h2><p class="subdued" id="canvas-caption">Сайт не опубликован</p></div>
  <div class="devices" role="group" aria-label="Ширина экрана">
   <button class="device active" data-bp="desktop">ПК</button><button class="device" data-bp="tablet">Планшет</button><button class="device" data-bp="mobile">Телефон</button>
  </div></div>
- <div class="canvas-stage"><div id="viewport" class="viewport desktop"><iframe id="preview" sandbox="" title="Изолированный предпросмотр выбранного блока"></iframe></div></div>
- <div class="canvas-footer"><span>Только выбранный блок · Без внешних запросов</span><span id="changes-count">0 изменений</span></div>
+ <div class="canvas-stage"><div id="viewport" class="viewport desktop"><iframe id="preview" sandbox="" title="Полный предпросмотр страницы"></iframe></div></div>
+ <div class="canvas-footer"><span>Вся страница · Выбранный блок выделен</span><span id="changes-count">0 изменений</span></div>
  <section class="history"><details id="history-details" class="history-disclosure">
   <summary><span>История и восстановление</span><small>Сохранённые версии, экспорт и сброс примера</small></summary>
   <div class="history-content">
@@ -44,7 +44,7 @@
  </details></section>
 </main>
 <aside class="inspector" aria-labelledby="inspector-title">
- <div class="inspector-top"><span class="eyebrow">НАСТРОЙКИ КОМПОНЕНТА</span><h2 id="inspector-title">Элементы</h2><p class="subdued" id="inspector-caption">Только параметры из манифеста</p></div>
+ <div class="inspector-top"><span class="eyebrow">СВОЙСТВА ВЫБРАННОГО ЭЛЕМЕНТА</span><h2 id="inspector-title">Настройки блока</h2><p class="subdued" id="inspector-caption">Выберите элемент, чтобы изменить его содержимое</p></div>
  <div id="elements" class="element-list" role="group" aria-label="Элементы выбранного блока"></div>
  <div id="fields" class="field-list"></div>
  <div class="inspector-foot">Ненужные свойства не показываются. Изменения видны сразу, но не сохраняются без команды.</div>
