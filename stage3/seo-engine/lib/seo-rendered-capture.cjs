@@ -8,6 +8,9 @@ const HTTP=require('./delivery-evidence.cjs');
 const PUBLIC=require('./public-https-capture.cjs');
 const VIS=require('./seo-browser-css-visibility.cjs');
 const MEDIA=require('./seo-browser-image-observation.cjs');
+const RESPONSIVE=require('./seo-browser-responsive-observation.cjs');
+const TIMING=require('./seo-browser-timing-observation.cjs');
+const TEXT=require('./seo-browser-text-footprint.cjs');
 const crypto=require('node:crypto');
 const net=require('node:net');
 const FORMAT='manufact-seo-viewport-evidence-v2';
@@ -104,10 +107,14 @@ function assertV2(e,originalHttpSha=null){
     typeof d.stableMarkup!=='boolean'||
     Object.keys(d).some(k=>!['method','html','htmlSha256','requestUrl','responseUrl','status',
      'viewport','collectedAt','blockedRequests','blockedReasons','pageErrors','stableMarkup',
-     'serverResponseSha256','matchesOriginalHttpBody','visibility','media'].includes(k)))
+     'serverResponseSha256','matchesOriginalHttpBody','visibility','media','responsive',
+     'timing','textFootprint'].includes(k)))
     fail('invalid or tampered v2 rendered DOM '+p.id+' '+device);
    if(d.visibility!==undefined)VIS.assertObservation(d.visibility,d.htmlSha256);
    if(d.media!==undefined)MEDIA.assertObservation(d.media,d.htmlSha256);
+   if(d.responsive!==undefined)RESPONSIVE.assertObservation(d.responsive,d.htmlSha256);
+   if(d.timing!==undefined)TIMING.assertObservation(d.timing,d.htmlSha256);
+   if(d.textFootprint!==undefined)TEXT.assertObservation(d.textFootprint,d.htmlSha256);
   }
  }
  return e;
@@ -270,11 +277,146 @@ async function capture(input,{resolve=PUBLIC.address,launch,now=()=>new Date().t
      }
      if(mediaReason)media={method:MEDIA.METHOD,status:'unavailable',
       checkedAt:now(),reason:mediaReason};
+     /* Read-only responsive layout, touch-target and viewport sampling.
+      * Like CSS/media, this is DOM-SHA-bound and double-sampled; unstable
+      * geometry is unknown rather than a misleading successful check.
+      */
+     let layoutObservation=null,layoutReason=null;
+     try{
+      layoutObservation=await page.evaluate(RESPONSIVE.sample,mediaViewport);
+      await page.waitForTimeout(250);
+      const second=await page.evaluate(RESPONSIVE.sample,mediaViewport);
+      if(JSON.stringify(layoutObservation)!==JSON.stringify(second))
+       layoutReason='layout-changing-during-sampling';
+     }catch{layoutReason='sampling-error'}
+     try{
+      const lastHtml=await page.content();
+      if(lastHtml!==html){
+       html=lastHtml;stable=false;layoutReason='dom-changed-during-sampling';
+       visibility={method:VIS.METHOD,status:'unavailable',
+        checkedAt:now(),reason:'dom-changed-during-sampling'};
+       media={method:MEDIA.METHOD,status:'unavailable',
+        checkedAt:now(),reason:'dom-changed-during-sampling'};
+      }
+     }catch{
+      stable=false;layoutReason='dom-changed-during-sampling';
+      visibility={method:VIS.METHOD,status:'unavailable',
+       checkedAt:now(),reason:'dom-changed-during-sampling'};
+      media={method:MEDIA.METHOD,status:'unavailable',
+       checkedAt:now(),reason:'dom-changed-during-sampling'};
+     }
+     if(!layoutReason&&layoutObservation?.status==='unavailable')
+      layoutReason=RESPONSIVE.REASONS.includes(layoutObservation.reason)?
+       layoutObservation.reason:'sampling-error';
+     let responsive;
+     if(!layoutReason){
+      try{
+       responsive={method:RESPONSIVE.METHOD,status:'observed',checkedAt:now(),
+        htmlSha256:sha(html),counts:layoutObservation.counts};
+       RESPONSIVE.assertObservation(responsive,sha(html));
+      }catch{layoutReason='sampling-error'}
+     }
+     if(layoutReason)responsive={method:RESPONSIVE.METHOD,status:'unavailable',
+      checkedAt:now(),reason:layoutReason};
+     /* Navigation/paint timings are non-field browser observations.
+      * Two samples must agree; late resource loads make timing unknown.
+      */
+     let timingObservation=null,timingReason=null;
+     try{
+      timingObservation=await page.evaluate(TIMING.sample);
+      await page.waitForTimeout(250);
+      const next=await page.evaluate(TIMING.sample);
+      if(JSON.stringify(timingObservation)!==JSON.stringify(next))
+       timingReason='timing-changing-during-sampling';
+     }catch{timingReason='sampling-error'}
+     try{
+      const lastHtml=await page.content();
+      if(lastHtml!==html){
+       html=lastHtml;stable=false;timingReason='dom-changed-during-sampling';
+       visibility={method:VIS.METHOD,status:'unavailable',
+        checkedAt:now(),reason:'dom-changed-during-sampling'};
+       media={method:MEDIA.METHOD,status:'unavailable',
+        checkedAt:now(),reason:'dom-changed-during-sampling'};
+       responsive={method:RESPONSIVE.METHOD,status:'unavailable',
+        checkedAt:now(),reason:'dom-changed-during-sampling'};
+      }
+     }catch{
+      stable=false;timingReason='dom-changed-during-sampling';
+      visibility={method:VIS.METHOD,status:'unavailable',
+       checkedAt:now(),reason:'dom-changed-during-sampling'};
+      media={method:MEDIA.METHOD,status:'unavailable',
+       checkedAt:now(),reason:'dom-changed-during-sampling'};
+      responsive={method:RESPONSIVE.METHOD,status:'unavailable',
+       checkedAt:now(),reason:'dom-changed-during-sampling'};
+     }
+     if(!timingReason&&timingObservation?.status==='unavailable')
+      timingReason=TIMING.REASONS.includes(timingObservation.reason)?
+       timingObservation.reason:'sampling-error';
+     let timing;
+     if(!timingReason){
+      try{
+       timing={method:TIMING.METHOD,status:'observed',checkedAt:now(),
+        htmlSha256:sha(html),counts:timingObservation.counts};
+       TIMING.assertObservation(timing,sha(html));
+      }catch{timingReason='sampling-error'}
+     }
+     if(timingReason)timing={method:TIMING.METHOD,status:'unavailable',
+      checkedAt:now(),reason:timingReason};
+     /* Count visible primary text, never the text itself. CSS-responsive
+      * rendering can remove substantial mobile editorial content even when
+      * H1/main landmarks still exist. The double sample may become unknown.
+      */
+     let textObservation=null,textReason=null;
+     try{
+      textObservation=await page.evaluate(TEXT.sample);
+      await page.waitForTimeout(250);
+      const next=await page.evaluate(TEXT.sample);
+      if(JSON.stringify(textObservation)!==JSON.stringify(next))
+       textReason='text-changing-during-sampling';
+     }catch{textReason='sampling-error'}
+     try{
+      const lastHtml=await page.content();
+      if(lastHtml!==html){
+       html=lastHtml;stable=false;textReason='dom-changed-during-sampling';
+       visibility={method:VIS.METHOD,status:'unavailable',
+        checkedAt:now(),reason:'dom-changed-during-sampling'};
+       media={method:MEDIA.METHOD,status:'unavailable',
+        checkedAt:now(),reason:'dom-changed-during-sampling'};
+       responsive={method:RESPONSIVE.METHOD,status:'unavailable',
+        checkedAt:now(),reason:'dom-changed-during-sampling'};
+       timing={method:TIMING.METHOD,status:'unavailable',
+        checkedAt:now(),reason:'dom-changed-during-sampling'};
+      }
+     }catch{
+      stable=false;textReason='dom-changed-during-sampling';
+      visibility={method:VIS.METHOD,status:'unavailable',
+       checkedAt:now(),reason:'dom-changed-during-sampling'};
+      media={method:MEDIA.METHOD,status:'unavailable',
+       checkedAt:now(),reason:'dom-changed-during-sampling'};
+      responsive={method:RESPONSIVE.METHOD,status:'unavailable',
+       checkedAt:now(),reason:'dom-changed-during-sampling'};
+      timing={method:TIMING.METHOD,status:'unavailable',
+       checkedAt:now(),reason:'dom-changed-during-sampling'};
+     }
+     if(!textReason&&textObservation?.status==='unavailable')
+      textReason=TEXT.REASONS.includes(textObservation.reason)?
+       textObservation.reason:'sampling-error';
+     let textFootprint;
+     if(!textReason){
+      try{
+       textFootprint={method:TEXT.METHOD,status:'observed',checkedAt:now(),
+        htmlSha256:sha(html),counts:textObservation.counts};
+       TEXT.assertObservation(textFootprint,sha(html));
+      }catch{textReason='sampling-error'}
+     }
+     if(textReason)textFootprint={method:TEXT.METHOD,status:'unavailable',
+      checkedAt:now(),reason:textReason};
      record.captures[device]={method:'rendered-dom',html,htmlSha256:sha(html),
       requestUrl:target,responseUrl:page.url(),status:response.status(),
       viewport:{width:WIDTHS[device],height:HEIGHTS[device]},
       collectedAt:now(),blockedRequests,blockedReasons,pageErrors,stableMarkup:stable,
-      serverResponseSha256,matchesOriginalHttpBody,visibility,media};
+      serverResponseSha256,matchesOriginalHttpBody,visibility,media,responsive,
+      timing,textFootprint};
     }finally{if(context)await context.close();}
    }
    evidence.pages.push(record);

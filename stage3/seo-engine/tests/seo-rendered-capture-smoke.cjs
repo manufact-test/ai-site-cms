@@ -5,6 +5,9 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),cryp
 const BP=require('../lib/blueprint.cjs');
 const CAP=require('../lib/seo-rendered-capture.cjs');
 const QA=require('../lib/seo-rendered-content-audit.cjs');
+const RESPONSIVE=require('../lib/seo-browser-responsive-observation.cjs');
+const TIMING=require('../lib/seo-browser-timing-observation.cjs');
+const TEXT=require('../lib/seo-browser-text-footprint.cjs');
 const CLI=require('../bin/capture-rendered-public.cjs');
 const hash=s=>crypto.createHash('sha256').update(s).digest('hex');
 const json=v=>JSON.stringify(v,null,2)+'\n';
@@ -28,7 +31,7 @@ const http={format:'manufact-seo-delivery-evidence-v1',siteId:site.siteId,origin
  requestUrl:absolute(p.path),responseUrl:absolute(p.path),html:html(p)}))};
 const sha=hash(json(http)),input={blueprint,site,http,httpRawSha256:sha,expectedOrigin:origin};
 let blocked=0,allowed=0,websocketClosed=0,browserClosed=0;
-function adapter(drift=false,flood=false){
+function adapter(drift=false,flood=false,options={}){
  return {resolve:async()=>({address:'8.8.8.8',family:4}),now:()=>new Date('2026-10-30T20:00:00Z').toISOString(),
   launch:async(_base,pin)=>{
    assert.equal(pin.address,'8.8.8.8');
@@ -40,7 +43,7 @@ function adapter(drift=false,flood=false){
      routeWebSocket:async(_pattern,fn)=>{await fn({close:()=>{websocketClosed++}})},
      route:async(_pattern,fn)=>{handler=fn},
      newPage:async()=>{
-      let target;
+      let target,contentCalls=0,textSamples=0,timingSamples=0;
       async function request(url,method,navigation){
        let permitted;
        await handler({request:()=>({url:()=>url,method:()=>method,
@@ -59,9 +62,33 @@ function adapter(drift=false,flood=false){
         await request('https://site.example.org/public-resource-'+i+'.css','GET',false);
        return {status:()=>200,text:async()=>html(blueprint.pages.find(p=>absolute(p.path)===target))+
         (drift?'<!-- changed server response -->':'')};
-      },url:()=>target,content:async()=>html(blueprint.pages.find(p=>absolute(p.path)===target)),
+      },url:()=>target,content:async()=>{
+       contentCalls++;
+       return html(blueprint.pages.find(p=>absolute(p.path)===target))+
+        (options.lateDomChange&&contentCalls>=7?'<!-- changed late during text observation -->':'');
+      },
       evaluate:async(fn,targets)=>{
        assert.equal(typeof fn,'function');
+       if(fn===TEXT.sample){textSamples++;return {status:'observed',counts:{
+        mainRegions:1,mainRawTextChars:400,mainRenderedTextChars:350,
+        mainRenderedWords:50+(options.changingText?textSamples%2:0),
+        textBlocks:5,visibleTextBlocks:5,hiddenTextBlocks:0}}}
+       if(fn===TIMING.sample){timingSamples++;return {status:'observed',counts:{
+        responseStartMs:250,responseEndMs:300,domContentLoadedMs:440,
+        loadEventEndMs:620,firstContentfulPaintMs:510,
+        resourceCount:12+(options.changingTiming?timingSamples%2:0),
+        resourceTransferBytes:12000}}}
+       if(fn===RESPONSIVE.sample){
+        assert.equal(targets.width,opts.viewport.width);
+        return {status:'observed',counts:{
+         viewportMetaPresent:1,viewportMetaDeviceWidth:1,
+         viewportMetaMultiple:0,viewportMetaFixedWidth:0,
+         viewportMetaZoomRestricted:0,horizontalOverflowPx:0,
+         prominentVisible:3,prominentClipped:0,
+         interactiveVisible:2,interactiveUnder24:0,interactiveUnder44:0,
+         interactiveMissingName:0,
+         textBlocksVisible:1,textBlocksUnder12:0,largeFixedOverlayCandidates:0}};
+       }
        if(!Array.isArray(targets)){
         assert.equal(targets.width,opts.viewport.width);
         return {status:'observed',counts:{
@@ -107,11 +134,73 @@ function adapter(drift=false,flood=false){
  assert.equal(review.summary.cssInspectedDevicePairs,blueprint.pages.length*3);
  assert.equal(review.summary.cssHiddenH1DevicePairs,0);
  assert.equal(review.summary.mediaObservedDevicePairs,blueprint.pages.length*3);
+ assert.equal(review.summary.responsiveObservedPairs,blueprint.pages.length*3);
+ assert.equal(review.summary.timingObservedPairs,blueprint.pages.length*3);
+ assert.equal(review.summary.textObservedPairs,blueprint.pages.length*3);
+ assert.equal(review.summary.textMobileLossPages,0);
+ assert.equal(review.summary.timingSlowPaintPairs,0);
+ assert.equal(review.summary.responsiveOverflowPairs,0);
  assert.equal(review.summary.mediaAboveFoldLazy,blueprint.pages.length*3);
  assert.equal(review.summary.mediaVisibleMissingAlt,blueprint.pages.length*3);
  assert.equal(review.summary.fullyComparedPages,blueprint.pages.length);
  assert(review.findings.some(f=>f.code==='rendered:blocked-browser-requests'));
  assert.equal(review.originalHttpBytePinnedInRenderedCapture,true);
+ const changingText=await CAP.capture(input,adapter(false,false,{changingText:true}));
+ assert(changingText.pages.every(p=>Object.values(p.captures).every(v=>
+  v.textFootprint.status==='unavailable'&&
+  v.textFootprint.reason==='text-changing-during-sampling'&&v.stableMarkup)));
+ const changingTiming=await CAP.capture(input,adapter(false,false,{changingTiming:true}));
+ assert(changingTiming.pages.every(p=>Object.values(p.captures).every(v=>
+  v.timing.status==='unavailable'&&
+  v.timing.reason==='timing-changing-during-sampling'&&v.stableMarkup)));
+ const changedLate=await CAP.capture(input,adapter(false,false,{lateDomChange:true}));
+ assert(changedLate.pages.every(p=>Object.values(p.captures).every(v=>
+  !v.stableMarkup&&v.visibility.status==='unavailable'&&v.media.status==='unavailable'&&
+  v.responsive.status==='unavailable'&&v.timing.status==='unavailable'&&
+  v.textFootprint.status==='unavailable')));
+ const lateReview=QA.analyze({blueprint,blueprintRawSha256:hash(json(blueprint)),
+  site,siteRawSha256:hash(json(site)),capture:http,captureRawSha256:sha,
+  viewports:changedLate,viewportsRawSha256:hash(json(changedLate)),expectedBase:origin});
+ assert.equal(lateReview.summary.fullyComparedPages,0);
+ const responsiveBroken=structuredClone(data);
+ Object.assign(responsiveBroken.pages[0].captures.mobile.responsive.counts,{
+  viewportMetaPresent:0,viewportMetaDeviceWidth:0,
+  horizontalOverflowPx:65,prominentClipped:1,
+  interactiveUnder24:1,interactiveUnder44:1,textBlocksUnder12:1,
+  largeFixedOverlayCandidates:1});
+ const responsiveReport=QA.analyze({blueprint,blueprintRawSha256:hash(json(blueprint)),
+  site,siteRawSha256:hash(json(site)),capture:http,captureRawSha256:sha,
+  viewports:responsiveBroken,viewportsRawSha256:hash(json(responsiveBroken)),expectedBase:origin});
+ for(const code of ['rendered:viewport-meta-missing','rendered:page-horizontal-overflow',
+  'rendered:prominent-content-clipped','rendered:tiny-interactive-targets',
+  'rendered:tiny-reading-text','rendered:large-fixed-overlay-candidates'])
+  assert(responsiveReport.findings.some(f=>f.code===code&&f.device==='mobile'),code);
+ assert.equal(responsiveReport.summary.responsiveOverflowPairs,1);
+ assert.equal(responsiveReport.summary.responsiveOverflowMaxPx,65);
+ const performanceSlow=structuredClone(data);
+ Object.assign(performanceSlow.pages[0].captures.mobile.timing.counts,{
+  responseStartMs:1900,responseEndMs:2100,domContentLoadedMs:3200,
+  loadEventEndMs:9200,firstContentfulPaintMs:3400,resourceCount:110});
+ const slowReport=QA.analyze({blueprint,blueprintRawSha256:hash(json(blueprint)),
+  site,siteRawSha256:hash(json(site)),capture:http,captureRawSha256:sha,
+  viewports:performanceSlow,viewportsRawSha256:hash(json(performanceSlow)),expectedBase:origin});
+ for(const code of ['rendered:slow-browser-response-candidate',
+  'rendered:slow-browser-paint-candidate','rendered:slow-browser-load-candidate',
+  'rendered:many-browser-resources'])
+  assert(slowReport.findings.some(f=>f.code===code&&f.device==='mobile'),code);
+ assert.equal(slowReport.summary.timingSlowPaintPairs,1);
+ const emptyText=structuredClone(data);
+ Object.assign(emptyText.pages[0].captures.mobile.textFootprint.counts,{
+  mainRawTextChars:400,mainRenderedTextChars:0,mainRenderedWords:0,
+  textBlocks:5,visibleTextBlocks:0,hiddenTextBlocks:5});
+ const emptyReport=QA.analyze({blueprint,blueprintRawSha256:hash(json(blueprint)),
+  site,siteRawSha256:hash(json(site)),capture:http,captureRawSha256:sha,
+  viewports:emptyText,viewportsRawSha256:hash(json(emptyText)),expectedBase:origin});
+ for(const code of ['rendered:visible-main-text-empty','rendered:all-body-text-blocks-hidden',
+  'rendered:main-text-mobile-loss-candidate'])
+  assert(emptyReport.findings.some(f=>f.code===code&&f.device==='mobile'),code);
+ assert.equal(emptyReport.summary.textEmptyMainPairs,1);
+ assert.equal(emptyReport.summary.textMobileLossPages,1);
  const stale=await CAP.capture(input,adapter(true));
  const staleReview=QA.analyze({blueprint,blueprintRawSha256:hash(json(blueprint)),
   site,siteRawSha256:hash(json(site)),capture:http,captureRawSha256:sha,
@@ -143,6 +232,24 @@ function adapter(drift=false,flood=false){
  const legacyImage=structuredClone(data);
  for(const p of legacyImage.pages)for(const v of Object.values(p.captures))delete v.media;
  assert.equal(CAP.assertV2(legacyImage,sha).pages.length,blueprint.pages.length);
+ const responsiveTampered=structuredClone(data);
+ responsiveTampered.pages[0].captures.desktop.responsive.htmlSha256='f'.repeat(64);
+ assert.throws(()=>CAP.assertV2(responsiveTampered,sha),/rendered DOM|snapshot/);
+ const legacyResponsive=structuredClone(data);
+ for(const p of legacyResponsive.pages)for(const v of Object.values(p.captures))delete v.responsive;
+ assert.equal(CAP.assertV2(legacyResponsive,sha).pages.length,blueprint.pages.length);
+ const timingTampered=structuredClone(data);
+ timingTampered.pages[0].captures.desktop.timing.counts.loadEventEndMs=10;
+ assert.throws(()=>CAP.assertV2(timingTampered,sha),/timing order/);
+ const legacyTiming=structuredClone(data);
+ for(const p of legacyTiming.pages)for(const v of Object.values(p.captures))delete v.timing;
+ assert.equal(CAP.assertV2(legacyTiming,sha).pages.length,blueprint.pages.length);
+ const textTampered=structuredClone(data);
+ textTampered.pages[0].captures.mobile.textFootprint.counts.visibleTextBlocks=200;
+ assert.throws(()=>CAP.assertV2(textTampered,sha),/text count subsets/);
+ const legacyText=structuredClone(data);
+ for(const p of legacyText.pages)for(const v of Object.values(p.captures))delete v.textFootprint;
+ assert.equal(CAP.assertV2(legacyText,sha).pages.length,blueprint.pages.length);
  const cssTampered=structuredClone(data);
  cssTampered.pages[0].captures.mobile.visibility.htmlSha256='f'.repeat(64);
  assert.throws(()=>CAP.assertV2(cssTampered,sha),/snapshot/);

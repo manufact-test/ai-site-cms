@@ -66,8 +66,9 @@ function build(input){
    sub:'Robots, sitemap, crawler regressions, GSC co-observations and private proposed files; SHA256-pinned manual queue',
    state:'P0 '+crawl.counts.P0+' · P1 '+crawl.counts.P1+' · UNAPPROVED',kind:'crawl'}]:[]),
   ...(crawl?.renderedContent?[{href:'rendered-content.html',name:'Rendered Content — HTTP vs Browser DOM',
-   sub:'Desktop/tablet/mobile H1, planned links, canonical, noindex and JSON-LD mutation; actual browser provenance unverified',
+   sub:'Desktop/tablet/mobile H1, substantive main text, responsive overflow, internal link/fragment checks, image/timing/JSON-LD; browser provenance unverified',
    state:'P0 '+crawl.renderedContent.summary.P0+' · P1 '+crawl.renderedContent.summary.P1+
+    ' · responsive unknown '+(crawl.renderedContent.summary.responsiveUnknownPairs??'n/a')+
     ' · MANUAL REVIEW',kind:'crawl'}]:[]),
   ...(crawl?.structuredData?[{href:'structured-data.html',name:'Structured Data — Live JSON-LD QA',
    sub:'Actual public HTML schema.org types, fact claims, BreadcrumbList and canonical URL mismatches; never auto-publish',

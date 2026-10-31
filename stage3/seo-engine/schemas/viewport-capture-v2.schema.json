@@ -208,6 +208,15 @@
         },
         "media": {
           "$ref": "#/$defs/mediaObservation"
+        },
+        "responsive": {
+          "$ref": "#/$defs/responsiveObservation"
+        },
+        "timing": {
+          "$ref": "#/$defs/timingObservation"
+        },
+        "textFootprint": {
+          "$ref": "#/$defs/textObservation"
         }
       }
     },
@@ -533,6 +542,159 @@
                 "image-state-changing-during-sampling"
               ]
             }
+          }
+        }
+      ]
+    },
+    "responsiveCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "viewportMetaPresent",
+        "viewportMetaDeviceWidth",
+        "viewportMetaMultiple",
+        "viewportMetaFixedWidth",
+        "viewportMetaZoomRestricted",
+        "horizontalOverflowPx",
+        "prominentVisible",
+        "prominentClipped",
+        "interactiveVisible",
+        "interactiveUnder24",
+        "interactiveUnder44",
+        "interactiveMissingName",
+        "textBlocksVisible",
+        "textBlocksUnder12",
+        "largeFixedOverlayCandidates"
+      ],
+      "properties": {
+        "viewportMetaPresent": {"type":"integer","minimum":0,"maximum":1},
+        "viewportMetaDeviceWidth": {"type":"integer","minimum":0,"maximum":1},
+        "viewportMetaMultiple": {"type":"integer","minimum":0,"maximum":1},
+        "viewportMetaFixedWidth": {"type":"integer","minimum":0,"maximum":1},
+        "viewportMetaZoomRestricted": {"type":"integer","minimum":0,"maximum":1},
+        "horizontalOverflowPx": {"type":"integer","minimum":0,"maximum":200000},
+        "prominentVisible": {"type":"integer","minimum":0,"maximum":1600},
+        "prominentClipped": {"type":"integer","minimum":0,"maximum":1600},
+        "interactiveVisible": {"type":"integer","minimum":0,"maximum":1800},
+        "interactiveUnder24": {"type":"integer","minimum":0,"maximum":1800},
+        "interactiveUnder44": {"type":"integer","minimum":0,"maximum":1800},
+        "interactiveMissingName": {"type":"integer","minimum":0,"maximum":1800},
+        "textBlocksVisible": {"type":"integer","minimum":0,"maximum":1600},
+        "textBlocksUnder12": {"type":"integer","minimum":0,"maximum":1600},
+        "largeFixedOverlayCandidates": {"type":"integer","minimum":0,"maximum":3500}
+      }
+    },
+    "responsiveObservation": {
+      "oneOf": [
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","htmlSha256","counts"],
+          "properties":{
+            "method":{"const":"browser-responsive-layout-v1"},
+            "status":{"const":"observed"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "htmlSha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+            "counts":{"$ref":"#/$defs/responsiveCounts"}
+          }
+        },
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","reason"],
+          "properties":{
+            "method":{"const":"browser-responsive-layout-v1"},
+            "status":{"const":"unavailable"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "reason":{"enum":["sampling-error","element-limit",
+              "dom-changed-during-sampling","layout-changing-during-sampling"]}
+          }
+        }
+      ]
+    },
+    "timingCounts": {
+      "type":"object",
+      "additionalProperties":false,
+      "required":["responseStartMs","responseEndMs","domContentLoadedMs",
+        "loadEventEndMs","firstContentfulPaintMs","resourceCount","resourceTransferBytes"],
+      "properties":{
+        "responseStartMs":{"type":"integer","minimum":1,"maximum":120000},
+        "responseEndMs":{"type":"integer","minimum":1,"maximum":120000},
+        "domContentLoadedMs":{"type":"integer","minimum":1,"maximum":120000},
+        "loadEventEndMs":{"type":"integer","minimum":1,"maximum":120000},
+        "firstContentfulPaintMs":{"oneOf":[{"type":"integer","minimum":0,"maximum":120000},{"type":"null"}]},
+        "resourceCount":{"type":"integer","minimum":0,"maximum":250},
+        "resourceTransferBytes":{"type":"integer","minimum":0,"maximum":50000000}
+      }
+    },
+    "timingObservation": {
+      "oneOf":[
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","htmlSha256","counts"],
+          "properties":{
+            "method":{"const":"browser-navigation-timing-v1"},
+            "status":{"const":"observed"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "htmlSha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+            "counts":{"$ref":"#/$defs/timingCounts"}
+          }
+        },
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","reason"],
+          "properties":{
+            "method":{"const":"browser-navigation-timing-v1"},
+            "status":{"const":"unavailable"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "reason":{"enum":["sampling-error","navigation-timing-unavailable",
+              "resource-limit","dom-changed-during-sampling",
+              "timing-changing-during-sampling"]}
+          }
+        }
+      ]
+    },
+    "textCounts": {
+      "type":"object",
+      "additionalProperties":false,
+      "required":["mainRegions","mainRawTextChars","mainRenderedTextChars",
+        "mainRenderedWords","textBlocks","visibleTextBlocks","hiddenTextBlocks"],
+      "properties":{
+        "mainRegions":{"type":"integer","minimum":0,"maximum":5},
+        "mainRawTextChars":{"type":"integer","minimum":0,"maximum":250000},
+        "mainRenderedTextChars":{"type":"integer","minimum":0,"maximum":250000},
+        "mainRenderedWords":{"type":"integer","minimum":0,"maximum":250000},
+        "textBlocks":{"type":"integer","minimum":0,"maximum":1500},
+        "visibleTextBlocks":{"type":"integer","minimum":0,"maximum":1500},
+        "hiddenTextBlocks":{"type":"integer","minimum":0,"maximum":1500}
+      }
+    },
+    "textObservation": {
+      "oneOf":[
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","htmlSha256","counts"],
+          "properties":{
+            "method":{"const":"browser-main-text-footprint-v1"},
+            "status":{"const":"observed"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "htmlSha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+            "counts":{"$ref":"#/$defs/textCounts"}
+          }
+        },
+        {
+          "type":"object",
+          "additionalProperties":false,
+          "required":["method","status","checkedAt","reason"],
+          "properties":{
+            "method":{"const":"browser-main-text-footprint-v1"},
+            "status":{"const":"unavailable"},
+            "checkedAt":{"type":"string","format":"date-time"},
+            "reason":{"enum":["sampling-error","element-limit",
+              "dom-changed-during-sampling","text-changing-during-sampling"]}
           }
         }
       ]

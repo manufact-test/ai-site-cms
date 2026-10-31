@@ -1,3 +1,5 @@
+> **31 October 2026 — extended first-client browser QA:** the same operator-approved, same-origin Chromium collector now optionally samples numeric-only responsive layout, isolated navigation/FCP timings and browser-visible main-text footprint. These supplement CSS/image/JSON-LD checks in the **same** private rendered-content/Workspace report. No new URL permissions or Google field CWV assertions. See [RENDERED-FIRST-CLIENT-UX-QA.md](RENDERED-FIRST-CLIENT-UX-QA.md).
+
 > **31 October 2026 — browser image loading QA:** the same approved Chromium capture can additionally include source-pinned, double-sampled image loading/first-viewport observations. The existing rendered-content audit flags broken visible images, lazy first-screen images and missing media attributes; old v2 remains valid with image evidence unknown. See [RENDERED-IMAGE-LOADING-QA.md](RENDERED-IMAGE-LOADING-QA.md). No LCP/CLS/Google claim or automatic GO.
 
 # MANUFACT SEO — Safe Chromium rendered-source collection for first client pilot

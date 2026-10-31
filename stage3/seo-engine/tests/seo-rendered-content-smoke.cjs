@@ -6,6 +6,9 @@ const BP=require('../lib/blueprint.cjs');
 const CRAWL=require('../lib/crawl-policy.cjs');
 const QA=require('../lib/seo-rendered-content-audit.cjs');
 const SCHEMA=require('../lib/seo-structured-data-audit.cjs');
+const LINKS=require('../lib/seo-rendered-link-semantics.cjs');
+const HTML=require('../lib/html-evidence.cjs');
+const FRAGMENTS=require('../lib/seo-rendered-fragment-audit.cjs');
 const VIEW=require('../lib/seo-rendered-content-view.cjs');
 const WORK=require('../lib/seo-operator-workspace.cjs');
 const PACKET=require('../lib/seo-private-lead-integrity.cjs');
@@ -54,6 +57,10 @@ assert.equal(clean.summary.P0,0);
 assert.equal(clean.summary.P1,0);
 assert.equal(clean.summary.P2,0);
 assert.equal(clean.summary.schemaRuntimeObservedPairs,6);
+assert.equal(clean.summary.linkSemanticObservedPairs,6);
+assert.equal(clean.summary.linkRestrictedRoutePairs,0);
+assert.equal(clean.summary.fragmentMissingTotal,0);
+assert.equal(clean.summary.fragmentObservedPairs,6);
 assert.equal(clean.summary.schemaClaimChangedPairs,0);
 assert.equal(clean.releaseAuthorized,false);
 assert.equal(clean.sameReleaseRevisionProven,false);
@@ -132,6 +139,62 @@ const breadcrumbDelta=SCHEMA.compareRenderedSemantics({
    '@type':'ListItem',position:2,item:'https://outside.example/'}]}]}),
  page:bp.pages[0],base,knownPaths:new Set(bp.pages.map(p=>p.path))});
 assert(breadcrumbDelta.addedBreadcrumbProblems>0);
+const relRestricted=dom();
+relRestricted.pages[0].captures.mobile.html=body(bp.pages[0])
+ .replace(/<a href=/g,'<a rel="nofollow" href=');
+const linkReport=QA.analyze(input(evidence,relRestricted));
+assert(linkReport.findings.some(x=>x.code==='rendered:approved-link-rel-restricted'&&
+ x.device==='mobile'));
+assert.equal(linkReport.summary.linkRestrictedRoutePairs,1);
+const noncrawlable=dom();
+noncrawlable.pages[0].captures.mobile.html=body(bp.pages[0]).replace(
+ '</main>','<a href="#">Fake</a><a href="javascript:alert(SECRET-LINK)">Unsafe</a>'+
+ '<a href="http://SECRET-HTTP.example/">Untrusted</a></main>');
+const unsafeLinks=QA.analyze(input(evidence,noncrawlable));
+assert(unsafeLinks.findings.some(x=>x.code==='rendered:noncrawlable-anchors-increased'));
+assert(unsafeLinks.findings.some(x=>x.code==='rendered:external-or-offmount-links-increased'));
+assert(!JSON.stringify(unsafeLinks).includes('SECRET-LINK'));
+assert(!JSON.stringify(unsafeLinks).includes('SECRET-HTTP'));
+const queryOnly=LINKS.compare({sourceParsed:HTML.inspect(body(bp.pages[0])),
+ renderedParsed:HTML.inspect(body(bp.pages[0]).replace(
+  'href="'+url('/contact/')+'"','href="'+url('/contact/')+'?from=link"')),
+ served:url('/'),origin:base,approvedPaths:['/contact/']});
+// The same route also exists in the approved CTA: partial query linking
+// remains crawlable, so query-only is not inferred from a single changed href.
+assert.equal(queryOnly.status,'observed');
+assert.equal(queryOnly.queryOnlyPaths.length,0);
+const allQuery=LINKS.compare({sourceParsed:HTML.inspect(body(bp.pages[0])),
+ renderedParsed:HTML.inspect(body(bp.pages[0]).replaceAll(
+  'href="'+url('/contact/')+'"','href="'+url('/contact/')+'?from=link"')),
+ served:url('/'),origin:base,approvedPaths:['/contact/']});
+assert.deepEqual(allQuery.queryOnlyPaths,['/contact/']);
+const foreignBase=LINKS.compare({sourceParsed:HTML.inspect(body(bp.pages[0])),
+ renderedParsed:HTML.inspect(body(bp.pages[0]).replace('<head>',
+  '<head><base href="https://foreign.example/">')),
+ served:url('/'),origin:base,approvedPaths:['/contact/']});
+assert.equal(foreignBase.status,'unavailable');
+const fragmentBroken=dom();
+fragmentBroken.pages[0].captures.mobile.html=body(bp.pages[0]).replace(
+ 'href="'+url('/contact/')+'"','href="'+url('/contact/')+'#SECRET-FRAGMENT"');
+const fragmentReport=QA.analyze(input(evidence,fragmentBroken));
+assert(fragmentReport.findings.some(x=>x.code==='rendered:fragment-target-missing'&&
+ x.device==='mobile'));
+assert.equal(fragmentReport.summary.fragmentMissingTotal,1);
+assert(!JSON.stringify(fragmentReport).includes('SECRET-FRAGMENT'));
+const fragmentRestored=structuredClone(fragmentBroken);
+fragmentRestored.pages[1].captures.mobile.html=body(bp.pages[1]).replace(
+ '<main>','<main><span id="SECRET-FRAGMENT"></span>');
+assert.equal(QA.analyze(input(evidence,fragmentRestored)).summary.fragmentMissingTotal,0);
+const fragmentPartial=structuredClone(fragmentBroken);
+fragmentPartial.pages.pop();
+const fragmentUnknown=QA.analyze(input(evidence,fragmentPartial));
+assert.equal(fragmentUnknown.summary.fragmentMissingTotal,0);
+assert.equal(fragmentUnknown.summary.fragmentUnverifiedTotal,1);
+assert(fragmentUnknown.findings.some(x=>x.code==='rendered:fragment-target-unverified'));
+const topFragment=FRAGMENTS.review({parsed:HTML.inspect('<a href="#top">Top</a>'),
+ served:url('/'),origin:base,
+ targetByPath:new Map([['/',{inspected:true,ids:new Set()}]])});
+assert.equal(topFragment.missing,0);
 const broken=dom();
 broken.pages[0].captures.mobile.html=body(bp.pages[0])
  .replace('<meta name="robots" content="index,follow">','<meta name="robots" content="noindex">')

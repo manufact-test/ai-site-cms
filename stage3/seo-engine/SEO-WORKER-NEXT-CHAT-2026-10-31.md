@@ -1,5 +1,15 @@
 # SEO worker — next-chat handoff, 31 October 2026
 
+## Newest continuation — responsive/content/navigation/performance pilot QA
+
+At start of this worker pass, the live SEO branch was verified at `d959a06281f5b2a79b8658f1e4056574c9b43b6c`; before acting next time **fetch the live branch HEAD again**. The new commit produced by this pass will have a different GitHub SHA and must be verified after upload.
+
+Read [RENDERED-FIRST-CLIENT-UX-QA.md](RENDERED-FIRST-CLIENT-UX-QA.md) first. This substantial pass extends the **same** safe, operator-approved Chromium capture, source-pinned DOM v2 and existing one private rendered-content report/SEO Operator Workspace. New bounded, double-sampled, optional v2 observations: responsive/mobile overflow/viewport/interactive controls, isolated navigation/FCP/resource timing, and visible main-text footprint without exporting words. Existing HTTP/DOM reconciliation also now checks Blueprint-approved rel=nofollow/ugc/sponsored links, JS-created noncrawlable anchors and same-device `#fragment` targets, with partial/unknown evidence never misrepresented as broken. Source-bound empty main text/mobile loss P1/P2 and coverage counters enter existing human lead readiness; **no automatic release, Google field Core Web Vitals, client claim, new dashboard or CMS edits**.
+
+New test programs: `tests/seo-browser-responsive-observation-smoke.cjs`, `tests/seo-browser-timing-observation-smoke.cjs`, `tests/seo-browser-text-footprint-smoke.cjs`, `tests/seo-rendered-links-fragments-smoke.cjs`. Expanded `tests/seo-rendered-capture-smoke.cjs` and `tests/seo-rendered-content-smoke.cjs` cover source matching, legacy v2, P1/P2 findings, real Node private Workspace and release gate. The existing `seo-workspace-crawl-smoke.cjs` caught an HTML safety-banner mismatch, now repaired without changing the private proposal workflow. Record final actual runs precisely in current handoff. They use offline mocked Chromium, **not** a customer-site browser or Google environment.
+
+There is no approved real client host/current release/user facts in SEO worker context. The sole lead integrator must arrange first authorized same-release Blueprint/Site v1/public-HTTPS/Chromium SEO run, inspect P0/P1 and unknown coverage, correlate real client acceptance, run independent performance tools where permitted, and merge/ship at their own discretion. Worker owns only `stage3/seo-engine/**`, never PR, merge, deploy, main or lead branch.
+
 ## Newest 31 October continuation — rendered JSON-LD semantic QA
 
 The live SEO branch was verified at baseline `f16b782c8ccd6ec47bb16c46f4dcedc32c3f51f3` before this pass. **Fetch live HEAD again after this handoff**; new commit SHA must be obtained from GitHub, not guessed from this document.

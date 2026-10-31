@@ -9,7 +9,12 @@ const PARITY=require('./parity.cjs');
 const CHROME=require('./seo-rendered-capture.cjs');
 const VIS=require('./seo-browser-css-visibility.cjs');
 const MEDIA=require('./seo-browser-image-observation.cjs');
+const RESPONSIVE=require('./seo-browser-responsive-observation.cjs');
 const SCHEMA=require('./seo-structured-data-audit.cjs');
+const LINKS=require('./seo-rendered-link-semantics.cjs');
+const TIMING=require('./seo-browser-timing-observation.cjs');
+const FRAGMENTS=require('./seo-rendered-fragment-audit.cjs');
+const TEXT=require('./seo-browser-text-footprint.cjs');
 const crypto=require('node:crypto');
 const FORMAT='manufact-seo-rendered-content-audit-v1';
 const DEVICES=['desktop','tablet','mobile'];
@@ -262,6 +267,115 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
       mediaCounts.visiblePending+' visible image(s) were still pending at the snapshot.');
     }
    }
+   let responsiveStatus='not-supplied',responsiveCounts=null;
+   if(version2&&v.responsive){
+    if(v.responsive.status==='unavailable'){
+     responsiveStatus='unavailable';
+     issue(p,device,'responsive-layout-unavailable','P2',
+      'Responsive layout observation unavailable ('+v.responsive.reason+
+       '); manual device inspection required.');
+    }else{
+     RESPONSIVE.assertObservation(v.responsive,v.htmlSha256);
+     responsiveStatus='observed';
+     responsiveCounts=v.responsive.counts;
+     if(device!=='desktop'&&!responsiveCounts.viewportMetaPresent)
+      issue(p,device,'viewport-meta-missing','P1',
+       'Rendered page has no mobile viewport meta; device-width rendering requires manual verification.');
+     if(device!=='desktop'&&responsiveCounts.viewportMetaFixedWidth)
+      issue(p,device,'viewport-fixed-width','P1',
+       'Viewport meta declares a fixed numeric CSS width; review responsive behavior.');
+     if(device!=='desktop'&&responsiveCounts.viewportMetaPresent&&
+      !responsiveCounts.viewportMetaDeviceWidth&&!responsiveCounts.viewportMetaFixedWidth)
+      issue(p,device,'viewport-device-width-unknown','P2',
+       'Viewport meta exists but no device-width directive was observed; check mobile layout.');
+     if(responsiveCounts.viewportMetaMultiple)
+      issue(p,device,'viewport-meta-duplicate','P2',
+       'Multiple viewport meta elements may conflict; inspect the published head.');
+     if(responsiveCounts.viewportMetaZoomRestricted)
+      issue(p,device,'viewport-zoom-restricted','P2',
+       'Viewport meta appears to restrict pinch zoom; verify accessibility intent.');
+     if(responsiveCounts.horizontalOverflowPx>0){
+      issue(p,device,'page-horizontal-overflow',
+       responsiveCounts.horizontalOverflowPx>(device==='mobile'?24:64)?'P1':'P2',
+       'Rendered document is '+responsiveCounts.horizontalOverflowPx+
+        ' CSS px wider than the approved viewport; check horizontal scrolling and carousels.');
+     }
+     if(responsiveCounts.prominentClipped>0)
+      issue(p,device,'prominent-content-clipped','P2',
+       responsiveCounts.prominentClipped+' visible heading/content container(s) extend beyond viewport by >8 CSS px.');
+     if(responsiveCounts.interactiveUnder24>0)
+      issue(p,device,'tiny-interactive-targets','P2',
+       responsiveCounts.interactiveUnder24+
+        ' visible anchor/button/form target(s) have a width or height <24 CSS px.');
+     if(responsiveCounts.interactiveMissingName>0)
+      issue(p,device,'interactive-names-missing','P2',
+       responsiveCounts.interactiveMissingName+
+        ' visible interactive target(s) lack a detectable label in this bounded browser heuristic.');
+     if(responsiveCounts.textBlocksUnder12>0)
+      issue(p,device,'tiny-reading-text','P2',
+       responsiveCounts.textBlocksUnder12+
+        ' visible paragraph/list text blocks use a CSS font size under 12px.');
+     if(responsiveCounts.largeFixedOverlayCandidates>0)
+      issue(p,device,'large-fixed-overlay-candidates','P2',
+       responsiveCounts.largeFixedOverlayCandidates+
+        ' fixed-position element(s) cover >=30% of viewport intersection; inspect consent/UI overlays.');
+    }
+   }
+   let timingStatus='not-supplied',timingCounts=null;
+   if(version2&&v.timing){
+    if(v.timing.status==='unavailable'){
+     timingStatus='unavailable';
+     issue(p,device,'browser-timing-unavailable','P2',
+      'Navigation/resource timing observation is unavailable ('+v.timing.reason+
+       '); do not infer a fast page.');
+    }else{
+     TIMING.assertObservation(v.timing,v.htmlSha256);
+     timingStatus='observed';
+     timingCounts=v.timing.counts;
+     if(timingCounts.responseStartMs>1800)
+      issue(p,device,'slow-browser-response-candidate','P2',
+       'Isolated Chromium navigation reached responseStart after '+
+        timingCounts.responseStartMs+' ms; investigate server/network separately.');
+     if(timingCounts.firstContentfulPaintMs===null)
+      issue(p,device,'first-contentful-paint-unknown','P2',
+       'First Contentful Paint entry is unavailable; do not interpret it as a fast paint.');
+     else if(timingCounts.firstContentfulPaintMs>3000)
+      issue(p,device,'slow-browser-paint-candidate','P2',
+       'Isolated Chromium observed First Contentful Paint after '+
+        timingCounts.firstContentfulPaintMs+' ms; confirm with actual performance tools.');
+     if(timingCounts.loadEventEndMs>8000)
+      issue(p,device,'slow-browser-load-candidate','P2',
+       'Isolated Chromium load event ended after '+timingCounts.loadEventEndMs+
+        ' ms; the bounded capture is not representative field performance.');
+     if(timingCounts.resourceCount>100)
+      issue(p,device,'many-browser-resources','P2',
+       'Navigation has '+timingCounts.resourceCount+
+        ' resource timing entries; inspect first-party requests and blocked third-party assets.');
+    }
+   }
+   let textStatus='not-supplied',textCounts=null,textLossVsDesktop=false;
+   if(version2&&v.textFootprint){
+    if(v.textFootprint.status==='unavailable'){
+     textStatus='unavailable';
+     issue(p,device,'main-text-footprint-unavailable','P2',
+      'Visible main-text footprint cannot be sampled ('+v.textFootprint.reason+
+       '); confirm substantive content on this device.');
+    }else{
+     TEXT.assertObservation(v.textFootprint,v.htmlSha256);
+     textStatus='observed';
+     textCounts=v.textFootprint.counts;
+     if(textCounts.mainRegions>0&&textCounts.mainRenderedTextChars===0)
+      issue(p,device,'visible-main-text-empty','P1',
+       'A rendered main landmark exists but browser-visible main text is empty.');
+     if(textCounts.mainRawTextChars>=200&&
+      textCounts.mainRenderedTextChars<textCounts.mainRawTextChars*.4)
+      issue(p,device,'main-text-mostly-not-rendered','P2',
+       'Less than 40% of raw main text characters are browser-visible; inspect responsive/editorial intent.');
+     if(textCounts.textBlocks>0&&textCounts.visibleTextBlocks===0)
+      issue(p,device,'all-body-text-blocks-hidden','P2',
+       'All sampled substantive main paragraph/list blocks are layout-hidden.');
+    }
+   }
    if(current.meta.status!=='parsed-head')issue(p,device,'rendered-head-incomplete','P1',
     'Rendered document head was not completely parseable; metadata parity is unknown.');
    else if(server.meta.status==='parsed-head'){
@@ -335,6 +449,40 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
    if(vanished.length)issue(p,device,'server-links-disappeared','P1',
     'One or more approved internal destinations from HTTP HTML disappeared after render.',
     {affectedApprovedRouteCount:vanished.length});
+   const linkDelta=LINKS.compare({sourceParsed:server.parsed,renderedParsed:current.parsed,
+    served:expected,origin,approvedPaths:[...desired]});
+   const linkStatus=linkDelta.status;
+   let linkRestrictedRouteCount=0,linkUnsafeSchemeGrowth=0,linkPlaceholderGrowth=0;
+   if(linkStatus!=='observed'){
+    issue(p,device,'link-semantics-unavailable','P1',
+     'HTTP or rendered DOM internal link semantics could not be safely compared; crawlability unknown.');
+   }else{
+    linkRestrictedRouteCount=linkDelta.allRestrictedPaths.length;
+    linkUnsafeSchemeGrowth=linkDelta.newlyUnsafeSchemes;
+    linkPlaceholderGrowth=linkDelta.newlyPlaceholderAnchors;
+    if(linkRestrictedRouteCount>0)
+     issue(p,device,'approved-link-rel-restricted','P1',
+      linkRestrictedRouteCount+' approved internal destination(s) have only rel=nofollow/ugc/sponsored anchors.',
+      {affectedApprovedRouteCount:linkRestrictedRouteCount,
+       newlyRestrictedApprovedRoutes:linkDelta.newlyRestrictedPaths.length});
+    if(linkDelta.mixedRestrictedPaths.length)
+     issue(p,device,'approved-link-mixed-rel','P2',
+      linkDelta.mixedRestrictedPaths.length+
+       ' approved destination(s) mix restricted and ordinary links; review editorial intent.');
+    if(linkDelta.queryOnlyPaths.length)
+     issue(p,device,'approved-links-query-only','P2',
+      linkDelta.queryOnlyPaths.length+
+       ' planned destination(s) are linked only through query-bearing URLs; verify canonical navigation.');
+    if(linkUnsafeSchemeGrowth||linkPlaceholderGrowth||linkDelta.newlyInvalidLinks)
+     issue(p,device,'noncrawlable-anchors-increased','P2',
+      'Rendered DOM introduced '+linkUnsafeSchemeGrowth+' unsafe-scheme, '+
+       linkPlaceholderGrowth+' placeholder and '+linkDelta.newlyInvalidLinks+
+       ' oversized/invalid anchors; review navigation without exposing raw URLs.');
+    if(linkDelta.newlyHttpLinks||linkDelta.newlyOffMountLinks)
+     issue(p,device,'external-or-offmount-links-increased','P2',
+      'Rendered DOM added '+linkDelta.newlyHttpLinks+' HTTP and '+
+       linkDelta.newlyOffMountLinks+' same-origin/off-mount links; verify intentional targets.');
+   }
    const originalTypes=server.parsed.rootStructuredDataTypes;
    const currentTypes=current.parsed.rootStructuredDataTypes;
    const removed=originalTypes.filter(x=>!currentTypes.includes(x));
@@ -402,6 +550,10 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
      'Rendered DOM introduced form controls without detectable static labels; browser accessibility review needed.');
    report.devices[device]={inspected:true,method:'rendered-dom',
     mediaStatus,mediaCounts,
+    responsiveStatus,responsiveCounts,
+    timingStatus,timingCounts,
+    textStatus,textCounts,textLossVsDesktop,
+    linkStatus,linkRestrictedRouteCount,linkUnsafeSchemeGrowth,linkPlaceholderGrowth,
     schemaRuntimeStatus,schemaClaimChange,schemaUnapprovedType,
     schemaUnconfirmedType,schemaUnsafeEntity,
     cssVisibilityStatus,cssHiddenH1,cssHiddenMain,cssHiddenCtaRoutes,
@@ -417,6 +569,51 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   report.evidenceState=DEVICES.every(d=>report.devices[d].inspected)?'SOURCE-PAIR-OBSERVED':'INCOMPLETE';
   pages.push(report);
  }
+ // Resolve fragment anchors against the target page's *same-device* rendered
+ // IDs only after all page source pairs have been checked. Partial captures,
+ // drifted HTTP responses and unsettled target DOMs are unknown, never broken.
+ const reportsById=new Map(pages.map(p=>[p.pageId,p]));
+ for(const device of DEVICES){
+  const targets=new Map(plan.pages.map(p=>{
+   const v=byView.get(p.id)?.captures[device],state=reportsById.get(p.id)?.devices[device];
+   return [p.path,state?.inspected&&v?{
+    inspected:true,ids:new Set(HTML.inspect(v.html).ids)}:{inspected:false}];
+  }));
+  for(const p of plan.pages){
+   const state=reportsById.get(p.id)?.devices[device];
+   if(!state?.inspected)continue;
+   const v=byView.get(p.id).captures[device];
+   const checked=FRAGMENTS.review({parsed:HTML.inspect(v.html),
+    served:routeUrl(origin,p.path),origin,targetByPath:targets});
+   state.fragmentStatus=checked.status;
+   state.fragmentChecked=checked.status==='observed'?checked.checked:0;
+   state.fragmentMissing=checked.status==='observed'?checked.missing:0;
+   state.fragmentUnknown=checked.status==='observed'?checked.unknown:0;
+   if(checked.status!=='observed'){
+    issue(p,device,'fragment-navigation-unavailable','P2',
+     'Rendered fragment navigation cannot be checked safely; inspect original private DOM.');
+   }else{
+    if(checked.missing>0)issue(p,device,'fragment-target-missing','P2',
+     checked.missing+' same-device rendered fragment link(s) have no matching target ID.',
+     {affectedApprovedRouteCount:checked.affectedApprovedPaths.length});
+    if(checked.unknown>0)issue(p,device,'fragment-target-unverified','P2',
+     checked.unknown+' fragment link(s) target an uninspected/parameterized page or malformed fragment; no broken-link claim.');
+   }
+  }
+ }
+ // Cross-viewport substantive content loss is a manual investigation only.
+ // Differences may be deliberate; the probe does not copy or compare prose.
+ for(const p of plan.pages){
+  const devices=reportsById.get(p.id).devices;
+  const desktop=devices.desktop,mobile=devices.mobile;
+  if(desktop?.textStatus==='observed'&&mobile?.textStatus==='observed'&&
+   desktop.textCounts.mainRenderedTextChars>=200&&
+   mobile.textCounts.mainRenderedTextChars<desktop.textCounts.mainRenderedTextChars*.4){
+   mobile.textLossVsDesktop=true;
+   issue(p,'mobile','main-text-mobile-loss-candidate','P2',
+    'Mobile has less than 40% of desktop browser-visible main text characters; check intentional responsive copy.');
+  }
+ }
  findings.sort((a,b)=>LEVEL[a.priority]-LEVEL[b.priority]||
   a.pageId.localeCompare(b.pageId)||String(a.device).localeCompare(String(b.device))||
   a.code.localeCompare(b.code)||a.id.localeCompare(b.id));
@@ -428,6 +625,11 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
  const cssDevices=pages.flatMap(p=>DEVICES.map(d=>p.devices[d]));
  const cssObserved=cssDevices.filter(d=>d.cssVisibilityStatus==='observed');
  const mediaObserved=cssDevices.filter(d=>d.mediaStatus==='observed'&&d.mediaCounts);
+ const responsiveObserved=cssDevices.filter(d=>d.responsiveStatus==='observed'&&d.responsiveCounts);
+ const linkObserved=cssDevices.filter(d=>d.linkStatus==='observed');
+ const timingObserved=cssDevices.filter(d=>d.timingStatus==='observed'&&d.timingCounts);
+ const fragmentObserved=cssDevices.filter(d=>d.fragmentStatus==='observed');
+ const textObserved=cssDevices.filter(d=>d.textStatus==='observed'&&d.textCounts);
  const semanticObserved=cssDevices.filter(d=>d.schemaRuntimeStatus==='observed');
  const summary={plannedPages:plan.pages.length,httpInspectedPages:pages.filter(p=>p.httpInspected).length,
   fullyComparedPages:pages.filter(p=>p.evidenceState==='SOURCE-PAIR-OBSERVED').length,
@@ -456,6 +658,37 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   mediaVisibleMissingAlt:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.visibleMissingAlt,0):null,
   mediaVisibleMissingDimensions:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.visibleMissingDimensions,0):null,
   mediaVisibleUpscaled:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.visibleUpscaled,0):null,
+  responsiveObservedPairs:version2?responsiveObserved.length:null,
+  responsiveUnknownPairs:version2?plan.pages.length*3-responsiveObserved.length:null,
+  responsiveOverflowPairs:version2?responsiveObserved.filter(d=>d.responsiveCounts.horizontalOverflowPx>0).length:null,
+  responsiveOverflowMaxPx:version2?Math.max(0,...responsiveObserved.map(d=>d.responsiveCounts.horizontalOverflowPx)):null,
+  responsiveFixedViewportPairs:version2?responsiveObserved.filter(d=>d.responsiveCounts.viewportMetaFixedWidth>0).length:null,
+  responsiveTinyTargetPairs:version2?responsiveObserved.filter(d=>d.responsiveCounts.interactiveUnder24>0).length:null,
+  responsiveClippedProminentPairs:version2?responsiveObserved.filter(d=>d.responsiveCounts.prominentClipped>0).length:null,
+  responsiveUnnamedTargetPairs:version2?responsiveObserved.filter(d=>d.responsiveCounts.interactiveMissingName>0).length:null,
+  linkSemanticObservedPairs:linkObserved.length,
+  linkSemanticUnknownPairs:plan.pages.length*3-linkObserved.length,
+  linkRestrictedRoutePairs:linkObserved.filter(d=>d.linkRestrictedRouteCount>0).length,
+  linkUnsafeSchemeGrowthPairs:linkObserved.filter(d=>d.linkUnsafeSchemeGrowth>0).length,
+  linkPlaceholderGrowthPairs:linkObserved.filter(d=>d.linkPlaceholderGrowth>0).length,
+  timingObservedPairs:version2?timingObserved.length:null,
+  timingUnknownPairs:version2?plan.pages.length*3-timingObserved.length:null,
+  timingSlowResponsePairs:version2?timingObserved.filter(d=>d.timingCounts.responseStartMs>1800).length:null,
+  timingSlowPaintPairs:version2?timingObserved.filter(d=>
+   d.timingCounts.firstContentfulPaintMs!==null&&d.timingCounts.firstContentfulPaintMs>3000).length:null,
+  timingPaintUnknownPairs:version2?timingObserved.filter(d=>d.timingCounts.firstContentfulPaintMs===null).length:null,
+  timingSlowLoadPairs:version2?timingObserved.filter(d=>d.timingCounts.loadEventEndMs>8000).length:null,
+  fragmentObservedPairs:fragmentObserved.length,
+  fragmentUnknownPairs:plan.pages.length*3-fragmentObserved.length,
+  fragmentMissingTotal:fragmentObserved.reduce((n,d)=>n+d.fragmentMissing,0),
+  fragmentUnverifiedTotal:fragmentObserved.reduce((n,d)=>n+d.fragmentUnknown,0),
+  fragmentMissingPairs:fragmentObserved.filter(d=>d.fragmentMissing>0).length,
+  textObservedPairs:version2?textObserved.length:null,
+  textUnknownPairs:version2?plan.pages.length*3-textObserved.length:null,
+  textEmptyMainPairs:version2?textObserved.filter(d=>d.textCounts.mainRegions>0&&
+   d.textCounts.mainRenderedTextChars===0).length:null,
+  textHiddenBlockTotal:version2?textObserved.reduce((n,d)=>n+d.textCounts.hiddenTextBlocks,0):null,
+  textMobileLossPages:version2?pages.filter(p=>p.devices.mobile.textLossVsDesktop).length:null,
   schemaRuntimeObservedPairs:semanticObserved.length,
   schemaRuntimeUnknownPairs:plan.pages.length*3-semanticObserved.length,
   schemaClaimChangedPairs:semanticObserved.filter(d=>d.schemaClaimChange).length,
@@ -473,7 +706,7 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   pages,findings,summary,
   manualNext:['Confirm both captures refer to the same released revision and URL/mount.',
    'Resolve P0 canonical/robots changes before SEO signoff; inspect source and browser DOM.',
-   'Verify headings, CTA routes, JS-mutated JSON-LD claims and visual accessibility on real devices.',
+   'Verify headings, CTA routes, responsive overflow/touch targets, JSON-LD claims and accessibility on real devices.',
    'Run existing Structured Data Semantic QA on original HTTP source; this rendered delta never verifies claim truth or Google eligibility.'],
   originalCustomerMarkupIncluded:false,sourceOriginAuthenticated:false,
   browserCaptureAuthenticated:false,sameReleaseRevisionProven:false,

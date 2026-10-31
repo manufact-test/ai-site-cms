@@ -202,9 +202,14 @@ function build({siteId,first=null,launch=null,search=null,visibility=null,
   'SEO_OPERATOR','Published HTML vs desktop/tablet/mobile DOM SEO signal reconciliation',
   !rendered?'No current release-paired rendered DOM source was supplied.':
    'Original source pairs report '+rendered.summary.P0+' P0, '+rendered.summary.P1+
-   ' P1 and '+rendered.summary.missingRenderPages+' incompletely compared page(s); browser, source revision and Google rendering are NOT authenticated.',
+   ' P1 and '+rendered.summary.missingRenderPages+' incompletely compared page(s). '+
+   'Responsive pairs unknown: '+(rendered.summary.responsiveUnknownPairs??'not-collected')+
+   '; browser main-text pairs unknown: '+(rendered.summary.textUnknownPairs??'not-collected')+
+   '; fragment links with missing target IDs: '+(rendered.summary.fragmentMissingTotal??'not-collected')+
+   '. Browser, source revision and Google rendering are NOT authenticated.',
   ['Correlate captured DOM and HTTPS source with the exact same published version',
-   'Inspect per-viewport H1, CTA routes, canonical/noindex and JSON-LD mutations',
+   'Inspect per-viewport H1, substantive main content, CTA/fragment routes, canonical/noindex and JSON-LD mutations',
+   'Investigate responsive overflow, interaction targets, image loading and isolated timing observations without treating them as field Core Web Vitals',
    'Get independent browser and client accessibility signoff; never equate DOM parity with Google indexing'],
   ['public-release-evidence','manual-browser-and-client-acceptance'],
   sources.renderedDOM,{renderedP0:rendered?.summary.P0??null,
