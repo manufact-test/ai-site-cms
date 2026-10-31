@@ -476,6 +476,9 @@ async function execute(){
   assert.equal(imported.siteId,'site-approved-browser');
   assert.equal(await page.locator('#server-empty-state:visible').count(),0);
   assert.equal(imported.assets.length,4);
+  // The import workspace is modal; leave it before editing pages and blocks.
+  await page.locator('#server-site-tools-close').click();
+  await page.waitForFunction(()=>!document.querySelector('#server-site-tools-dialog')?.open);
 
   // Actual Chromium renders of the OWNER Studio (synthetic CI content only).
   // These go into the existing screenshot artifact, not a new UI/test system;
@@ -565,8 +568,6 @@ async function execute(){
       '#server-tools details,#server-site-tools details,#server-admin-more,#server-site-tools'))
       node.open=false;
   });
-  await page.locator('#server-site-tools-close').click();
-  await page.waitForFunction(()=>!document.querySelector('#server-site-tools-dialog')?.open);
   await page.frameLocator('#preview').locator('[data-cms-section-id]').nth(1).waitFor();
   assert.equal(await page.locator('#canvas-title').innerText(),imported.pages[0].title,
     'Main canvas shows the full selected page, not an isolated block preview');
