@@ -922,6 +922,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.mouse.down();
     await page.mouse.move(mobileHandleBox.x+mobileHandleBox.width/2+16,mobileHandleBox.y+mobileHandleBox.height/2,{steps:4});
     await page.mouse.up();
+    await page.locator('#cms-design-structure-actions>summary').click();
     await page.locator('#cms-design-fit-width').click();
     await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').waitFor();
     assert.ok(await designFrame.locator('.cmsdg-n-'+selectedSection+'-title').evaluate(e=>e.getBoundingClientRect().width<=390),
