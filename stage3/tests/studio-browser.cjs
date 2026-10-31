@@ -1481,6 +1481,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#sections .nav-entry').last().click();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-node-select').selectOption('sheet-table-ui');
+    await page.locator('#cms-design-structure-actions > summary').click();
     await page.locator('#cms-design-table-paste').click();
     await page.locator('#cms-graph-table-file').setInputFiles({
       name:'edited-prices.csv',mimeType:'text/csv',
@@ -1519,6 +1520,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.frameLocator('#cms-design-preview-frame').locator('tbody tr').first().locator('td').first().innerText(),'Магазин');
     await page.locator('#cms-design-undo').click();
     await page.locator('#cms-design-node-select').selectOption('sheet-list-ui');
+    assert.equal(await page.locator('#cms-design-structure-actions').evaluate(node=>node.open),true,
+      'Expanded element actions remain available across graph edits and node changes');
     await page.locator('#cms-design-list-paste').click();
     await page.locator('#cms-graph-list-file').setInputFiles({
       name:'steps.txt',mimeType:'text/plain',
