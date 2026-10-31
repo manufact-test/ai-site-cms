@@ -138,6 +138,10 @@
     document.body.append(anchor);anchor.click();anchor.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1200);
   }
+  const safeTableTsv=matrix=>matrix.map(row=>row.map(value=>
+    // An otherwise harmless client-authored string must not become an active
+    // spreadsheet formula when the exported TSV is opened in Excel/Sheets.
+    /^\s*[=+@-]/.test(value)?"'"+value:value).join('\t')).join('\n');
   // One spreadsheet editor for a REAL existing Design Graph table, shared by
   // the full-page Workbench and the advanced graph Inspector.
   function openGraphTablePaste(graph,tableId,onApply){
@@ -182,7 +186,7 @@
     apply.id='cms-graph-table-apply';
     const cancel=button('Отмена','btn',()=>dialog.close());
     const copyData=button('Скопировать TSV','btn',async()=>{
-      const normalized=DESIGN_GRAPH.tableMatrix(graph,tableId).map(row=>row.join('\t')).join('\n');
+      const normalized=safeTableTsv(before);
       try{
         if(!navigator.clipboard?.writeText)throw Error('Clipboard API unavailable');
         await navigator.clipboard.writeText(normalized);
@@ -194,7 +198,7 @@
     });
     copyData.id='cms-graph-table-copy';
     const exportData=button('Скачать TSV','btn',()=>downloadGraphText('table.tsv',
-      before.map(row=>row.join('\t')).join('\n'),'text/tab-separated-values'));
+      safeTableTsv(before),'text/tab-separated-values'));
     exportData.id='cms-graph-table-download';
     actions.append(copyData,exportData,apply,cancel);
     const updatePreview=()=>{

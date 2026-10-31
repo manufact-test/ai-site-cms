@@ -148,9 +148,18 @@ function parseTableMatrix(source,format='auto'){
   if(!['auto','tab','comma','semicolon'].includes(format))fail('table-paste','unknown separator');
   const input=source.replace(/^\uFEFF/,'');
   const firstLine=input.split(/\r?\n/,1)[0];
+  // Excel can quote a heading containing commas, even when the real CSV
+  // separator is a semicolon. Inspect only delimiters outside quoted fields.
+  const separators={'\t':0,',':0,';':0};let scanningQuote=false;
+  for(let i=0;i<firstLine.length;i++){
+    if(firstLine[i]==='"'){
+      if(scanningQuote&&firstLine[i+1]==='"'){i++;continue;}
+      scanningQuote=!scanningQuote;
+    }else if(!scanningQuote&&Object.hasOwn(separators,firstLine[i]))
+      separators[firstLine[i]]++;
+  }
   const separator=format==='tab'?'\t':format==='comma'?',':format==='semicolon'?';':
-    firstLine.includes('\t')?'\t':
-      (firstLine.match(/;/g)||[]).length>(firstLine.match(/,/g)||[]).length?';':',';
+    separators['\t']?'\t':separators[';']>separators[',']?';':',';
   const rows=[];let row=[],cell='',quoted=false,afterQuote=false,atStart=true;
   const finishCell=()=>{
     const value=cell.trim();

@@ -1376,6 +1376,17 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
       .find(s=>s.id==='section-sheet-editor').designGraph.nodes[0].children[0].children[0].text,'Цена');
     await page.locator('#cms-work-undo').click();
+    await page.locator('#cms-work-graph-table-paste').click();
+    await page.locator('#cms-graph-table-data').fill('Услуга\tЦена\tСрок\nСайт\t=1+1\t3 дня\nМагазин\t500\t5 дней');
+    await page.locator('#cms-graph-table-apply').click();
+    await page.locator('#cms-work-graph-table-paste').click();
+    const safeExport=page.waitForEvent('download');
+    await page.locator('#cms-graph-table-download').click();
+    const exportedText=fs.readFileSync(await (await safeExport).path(),'utf8');
+    assert.ok(exportedText.includes("Сайт\t'=1+1\t3 дня"),
+      'Downloaded TSV quotes formula-like content without changing site data');
+    await page.locator('#cms-graph-table-paste').getByRole('button',{name:'Отмена'}).click();
+    await page.locator('#cms-work-undo').click();
     await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
 
     // Real native Chromium interaction, without adding a custom public runtime.
