@@ -184,6 +184,10 @@ function build(input){
     crawl?.routeCoverage?.summary.preLaunchEvidenceIncomplete??null,
    firstClientRoutesWithThreeDevicePairs:
     crawl?.routeCoverage?.summary.renderedThreeDevicePairs??null,
+   internationalHreflangIncluded:!!crawl?.hreflang,
+   internationalHreflangP1:crawl?.hreflang?.summary.P1??null,
+   internationalHreflangRenderedMutations:
+    crawl?.hreflang?.summary.renderedMutatedPairs??null,
    crawlCandidateIncluded:!!crawl?.candidate,crawlManualHolds:crawl?.candidate?.holds??null,
    crawlCmsImplementationIncluded:!!crawl?.cmsReview,
    crawlCmsManualActions:crawl?.cmsReview?.summary.totalManualActions??null,

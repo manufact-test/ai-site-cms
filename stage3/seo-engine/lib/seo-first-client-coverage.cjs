@@ -23,7 +23,7 @@ function sourceMap(source,policy,label){
  return entries;
 }
 function build({policy,cmsReview=null,structuredData=null,renderedContent=null,
- fieldPerformance=null}={}){
+ fieldPerformance=null,hreflang=null}={}){
  if(policy?.readOnly!==true||policy.publicationAuthorized!==false||
   typeof policy.siteId!=='string'||typeof policy.base!=='string'||
   !Array.isArray(policy.pages)||policy.pages.length>80||
@@ -34,6 +34,10 @@ function build({policy,cmsReview=null,structuredData=null,renderedContent=null,
  const cms=sourceMap(cmsReview,policy,'CMS');
  const http=sourceMap(structuredData,policy,'public JSON-LD/HTTP');
  const rendered=sourceMap(renderedContent,policy,'rendered DOM');
+ if(hreflang&&(hreflang.format!=='manufact-seo-hreflang-qa-v1'||
+  hreflang.readOnly!==true||hreflang.releaseAuthorized!==false||
+  hreflang.siteId!==policy.siteId||hreflang.base!==policy.base))
+  fail('untrusted international hreflang source');
  if(fieldPerformance&&(fieldPerformance.format!=='manufact-seo-field-performance-review-v1'||
   fieldPerformance.readOnly!==true||fieldPerformance.releaseAuthorized!==false||
   fieldPerformance.siteId!==policy.siteId||fieldPerformance.base!==policy.base||
@@ -64,6 +68,7 @@ function build({policy,cmsReview=null,structuredData=null,renderedContent=null,
  };
  collect(policy,'policy');collect(cmsReview,'cms');collect(structuredData,'structured');
  collect(renderedContent,'rendered');
+ collect(hreflang,'hreflang');
  if(fieldPerformance){
   for(const f of fieldPerformance.findings||[]){
    const id=f.scope==='page'?byPath.get(f.path):null;

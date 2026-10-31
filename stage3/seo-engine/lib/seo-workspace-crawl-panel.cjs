@@ -17,6 +17,7 @@ const RENDERED_VIEW=require('./seo-rendered-content-view.cjs');
 const FIELD=require('./seo-field-performance.cjs');
 const FIELD_VIEW=require('./seo-field-performance-view.cjs');
 const COVERAGE=require('./seo-first-client-coverage.cjs');
+const HREFLANG=require('./seo-hreflang-qa.cjs');
 const HASH=/^[0-9a-f]{64}$/;
 const hex=s=>crypto.createHash('sha256').update(s).digest('hex');
 const escape=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -146,6 +147,7 @@ function build(data){
  }
  let publicFollowup=null,publicFollowupView=null,structuredData=null,structuredDataView=null;
  let renderedContent=null,renderedContentView=null;
+ let hreflang=null,hreflangView=null;
  let fieldPerformance=null,fieldPerformanceView=null;
  if(data.crux!==undefined){
   check(cmsReview&&HASH.test(hashes.crux||''),
@@ -181,9 +183,12 @@ function build(data){
     expectedBase:policy.base});
    renderedContentView=RENDERED_VIEW.render(renderedContent);
   }
+  hreflang=HREFLANG.review({policy,blueprint:data.cmsBlueprint,capture:data.publicCapture,
+   renderedContent,renderedCapture:data.renderedCapture||null});
+  hreflangView=HREFLANG.render(hreflang);
  }
  const routeCoverage=COVERAGE.build({policy,cmsReview,structuredData,renderedContent,
-  fieldPerformance});
+  fieldPerformance,hreflang});
  const routeCoverageView=COVERAGE.render(routeCoverage);
  const items=[],ids=new Set();
  function add(source,id,priority,path,message,manual,agent){
@@ -213,6 +218,9 @@ function build(data){
   add('candidate','hold-'+i,'P1',h.path||h.pageId,
    h.reason,'Manual hold: '+String(h.detail||'Review robots group, noindex or route intent.'),h.agent);
  }
+ if(hreflang)for(const f of hreflang.findings)
+  add('hreflang',f.pageId+':'+(f.device||'source')+':'+f.code,f.priority,
+   f.path,f.detail,'Review exact original alternate URLs and reciprocal live host with the owner; never auto-fix.',f.device);
  items.sort((a,b)=>priorities.indexOf(a.priority)-priorities.indexOf(b.priority)||
   a.path.localeCompare(b.path)||a.id.localeCompare(b.id));
  const counts=Object.fromEntries(priorities.map(p=>[p,items.filter(x=>x.priority===p).length]));
@@ -253,7 +261,8 @@ function build(data){
   '<p><a href="crawl-lead-worklist.md">Open private lead worklist</a></p><p>Regression '+(delta?'supplied':'not supplied')+' · GSC correlation '+(correlation?'supplied':'not supplied')+
   ' · candidate '+(candidate?'private draft only':'not supplied')+'</p><div class="scroll"><table><thead><tr><th>Priority</th><th>Source</th><th>Route / bot</th><th>Observation</th><th>Next manual check</th></tr></thead><tbody>'+
   (rows||'<tr><td colspan="5">No triggers in supplied input. This does NOT prove the public site is ready.</td></tr>')+
-  '</tbody></table></div></section>'+routeCoverageView.html+cmsLink+publicLink+schemaLink+renderedLink+fieldLink+propose+
+  '</tbody></table></div></section>'+routeCoverageView.html+
+  (hreflangView?hreflangView.html:'')+cmsLink+publicLink+schemaLink+renderedLink+fieldLink+propose+
   '<section><h2>Source fingerprints</h2><p>All original report bytes are pinned in the private workspace manifest. A matching hash is source consistency, not public-host authentication.</p><div class="scroll"><table><tbody>'+provenanceHtml+'</tbody></table></div></section>'+
   '<section><h2>Mandatory lead checks</h2><ol><li>Confirm approved site ID, Blueprint and current CMS revision with the owner.</li>'+
   '<li>Verify actual served HTTPS robots/sitemap, HTTP redirects, canonical and X-Robots-Tag before changes.</li>'+
@@ -270,7 +279,8 @@ function build(data){
   'P0 '+counts.P0+' / P1 '+counts.P1+' / P2 '+counts.P2,'',
   ...items.map(x=>'- '+x.priority+' ['+x.source+'] '+x.path+' '+x.agent+
    ': '+String(x.message).replace(/[\r\n]+/g,' ')+' — '+String(x.manual).replace(/[\r\n]+/g,' ')),
-  '',routeCoverageView.markdown,...(candidate?['DRAFT ONLY: '+candidate.robots+' / '+candidate.sitemap,
+  '',routeCoverageView.markdown,...(hreflangView?[hreflangView.markdown,'']:[]),
+  ...(candidate?['DRAFT ONLY: '+candidate.robots+' / '+candidate.sitemap,
    'Proposed SHA256: '+candidate.robotsSha256+' / '+candidate.sitemapSha256,
    'Manual holds: '+candidate.holds,'']:[]),
   ...(fieldPerformance?['CrUX historical field performance: approved pages with URL evidence '+
@@ -284,7 +294,7 @@ function build(data){
  return {siteId:policy.siteId,base:policy.base,blueprintSha256:policy.blueprintSha256,
   html,markdown:md,candidate,cmsReview,cmsView,cmsTemplate,cmsDecisionDeskHtml,cmsRecheck,cmsRecheckView,
   publicFollowup,publicFollowupView,structuredData,structuredDataView,
-  routeCoverage,
+  routeCoverage,hreflang,
    renderedContent,renderedContentView,fieldPerformance,fieldPerformanceView,
   counts,sourceIdentity:{policyRobotsSha256:policy.robotsSha256,
    policySitemapSha256:policy.sitemapSha256,
@@ -299,6 +309,10 @@ function build(data){
    routeCoverageIncomplete:routeCoverage.summary.preLaunchEvidenceIncomplete,
    routeCoverageThreeDevice:routeCoverage.summary.renderedThreeDevicePairs,
    routeCoverageExactCrux:routeCoverage.summary.fieldExactPageRepresented,
+   hreflangIncluded:!!hreflang,
+   hreflangPagesDeclaring:hreflang?.summary.pagesWithAlternates??null,
+   hreflangP1:hreflang?.summary.P1??null,
+   hreflangRenderedMutatedPairs:hreflang?.summary.renderedMutatedPairs??null,
    candidateIncluded:!!candidate,manualHolds:candidate?.holds??null,
    cmsImplementationIncluded:!!cmsReview,
    cmsImplementationManualActions:cmsReview?.summary.totalManualActions??null,
