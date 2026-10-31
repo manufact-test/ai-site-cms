@@ -152,12 +152,16 @@ $backgroundSite['assets'][]=['id'=>'asset-backdrop-clip','src'=>'/assets/asset-b
 $backgroundSite['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
     'id'=>'graph-background-container','type'=>'container',
     'backgroundVideo'=>['assetId'=>'asset-backdrop-clip','posterAssetId'=>'asset-art-fixture',
-        'mobilePosterAssetId'=>'asset-art-fixture','overlay'=>['color'=>'#000000','opacity'=>40]],
+        'mobilePosterAssetId'=>'asset-art-fixture','tabletPositionX'=>65,'mobilePositionY'=>25,
+        'overlay'=>['color'=>'#000000','opacity'=>40]],
     'children'=>[['id'=>'graph-background-title','type'=>'text','text'=>'Фон видео']]];
 $validator->validate($backgroundSite);
 $backdropHtml=PublicRenderer::html($backgroundSite,'/');
 graphTest(str_contains($backdropHtml,'class="cmsdg-video-backdrop" aria-hidden="true"')&&
     str_contains($backdropHtml,'autoplay muted loop playsinline preload="none"')&&
+    str_contains($backdropHtml,'type="video/mp4" media="(min-width: 601px) and (prefers-reduced-motion: no-preference)"')&&
+    str_contains($backdropHtml,'background-position:65% 50%')&&
+    str_contains($backdropHtml,'background-position:65% 25%')&&
     str_contains($backdropHtml,'prefers-reduced-motion:reduce'),'PHP MP4 decorative background');
 $badBackdrop=$backgroundSite;
 $last=count($badBackdrop['pages'][0]['sections'][2]['designGraph']['nodes'])-1;

@@ -1802,6 +1802,9 @@
         "backgroundMedia": {
           "$ref": "#/$defs/designBackgroundMedia"
         },
+        "backgroundVideo": {
+          "$ref": "#/$defs/designBackgroundVideo"
+        },
         "responsiveMedia": {
           "$ref": "#/$defs/designDeviceMedia"
         },
@@ -2028,6 +2031,26 @@
           "minimum": 0,
           "maximum": 100
         },
+        "tabletPositionX": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "tabletPositionY": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "mobilePositionX": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "mobilePositionY": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
         "overlay": {
           "type": "object",
           "additionalProperties": false,
@@ -2054,6 +2077,24 @@
             }
           }
         }
+      }
+    },
+    "designBackgroundVideo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assetId", "posterAssetId"],
+      "properties": {
+        "assetId": {"$ref": "#/$defs/id"},
+        "posterAssetId": {"$ref": "#/$defs/id"},
+        "tabletPosterAssetId": {"$ref": "#/$defs/id"},
+        "mobilePosterAssetId": {"$ref": "#/$defs/id"},
+        "positionX": {"type": "integer", "minimum": 0, "maximum": 100},
+        "positionY": {"type": "integer", "minimum": 0, "maximum": 100},
+        "tabletPositionX": {"type": "integer", "minimum": 0, "maximum": 100},
+        "tabletPositionY": {"type": "integer", "minimum": 0, "maximum": 100},
+        "mobilePositionX": {"type": "integer", "minimum": 0, "maximum": 100},
+        "mobilePositionY": {"type": "integer", "minimum": 0, "maximum": 100},
+        "overlay": {"$ref": "#/$defs/designBackgroundMedia/properties/overlay"}
       }
     },
     "designDeviceMedia": {

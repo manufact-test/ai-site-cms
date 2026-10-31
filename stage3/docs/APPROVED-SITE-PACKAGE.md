@@ -364,6 +364,8 @@ A typed Design Graph `container` may include this `backgroundVideo` object:
   "mobilePosterAssetId": "asset-local-mobile-cover",
   "positionX": 50,
   "positionY": 50,
+  "tabletPositionX": 65,
+  "mobilePositionY": 25,
   "overlay": {"color": "#000000", "opacity": 40}
 }
 ```
@@ -373,8 +375,14 @@ mandatory; optional tablet/mobile posters inherit when unspecified. Do not set
 backgroundMedia or gradient on this node. Background video is decorative:
 muted, looping, autoplay, no controls, no external provider. On phones and
 with reduced motion settings the visible fallback is the raster poster.
-CSS-only hiding cannot guarantee the browser won't request the video bytes;
-do not claim this feature fully prevents background video downloads.
+The first-party `<source media>` query now marks this MP4 eligible only when
+the viewport starts wider than 600 px and reduced motion is **not** requested,
+so the browser can skip an ineligible resource on its initial media selection.
+The media query is evaluated once for a video source: resizing a loaded page
+does **not** cause automatic re-selection. CSS independently hides the video
+and shows the correct raster backdrop on phone/reduced-motion, including after
+resizing. Do not claim zero video transfer for all browsers and navigation
+patterns without measuring the actual visitor device/host.
 The existing sealed handoff and media size restrictions apply. Check text
 contrast, video motion and all three poster crops against the actual client's
 approved references; the CI does not prove visual fidelity.
@@ -387,7 +395,23 @@ Switching between approved local video clips retains the user's poster/crop/
 overlay choices, while switching to an image/gradient explicitly removes the
 conflicting layer. Each change is a validated, undoable draft edit; neither
 the preview nor a backdrop change writes the published site until Save and
-Publish. Use the original three approved pictures to judge each poster crop.
+Publish. Workbench shows a three-device preview of the selected image/poster
+with the configured crop and tint, and offers the existing authorized media
+upload controls when no eligible MP4 or raster cover exists. Use the original
+three approved pictures to judge each poster crop.
+
+`positionX`/`positionY` define the desktop focal point. Optional
+`tabletPositionX`/`tabletPositionY` and `mobilePositionX`/`mobilePositionY`
+(integer 0–100) override only their respective axes; a missing mobile axis
+inherits the tablet axis, then desktop. The same contract now applies to
+`backgroundMedia` raster backgrounds. Both the Graph Inspector's device
+selector and the full-page Workbench edit these actual breakpoint properties
+in place; clearing a tablet/mobile position restores inheritance. PHP and JS
+publishers generate matching media-query crop rules, including phone poster
+position when the MP4 is hidden. The public site-v1 JSON Schema now declares
+the existing typed `backgroundVideo` object with these bounded fields, as
+well as the added raster crop overrides. Published state is still immutable
+until owner Save/Publish.
 
 ## Native popup / entrance-sequence Design Graph contract
 

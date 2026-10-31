@@ -635,18 +635,34 @@ async function execute(){
   await page.locator('#cms-work-backgroundVideo-overlay-color').dispatchEvent('change');
   await page.locator('#cms-work-backgroundVideo-overlay-opacity').fill('55');
   await page.locator('#cms-work-backgroundVideo-overlay-opacity').dispatchEvent('change');
+  const previewPosters=await page.locator('#cms-work-backgroundVideo-previews img').evaluateAll(images=>
+    images.map(img=>({src:img.getAttribute('src'),crop:img.style.objectPosition})));
+  assert.equal(previewPosters.length,3,'All approved viewport covers are visible in the Workbench');
+  assert.ok(previewPosters[0].src.includes(importedDesktopLogo.id));
+  assert.ok(previewPosters.slice(1).every(p=>p.src.includes(importedMobileLogo.id)&&p.crop==='20% 70%'));
+  await page.locator('.cms-page-preview-modes [data-mode="mobile"]').click();
+  for(const [id,value] of [['cms-work-backgroundVideo-mobilePositionX','85'],
+    ['cms-work-backgroundVideo-mobilePositionY','25']]){
+    await page.locator('#'+id).fill(value);
+    await page.locator('#'+id).dispatchEvent('change');
+  }
+  assert.equal(await page.locator('#cms-work-backgroundVideo-previews img').last()
+    .evaluate(img=>img.style.objectPosition),'85% 25%',
+  'Phone poster has an independent focal point in the same Workbench');
   const backdrop=()=>page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections
     .find(s=>s.id==='section-approved-custom').designGraph.nodes
     .find(n=>n.id==='approved-custom-container').backgroundVideo);
   assert.deepEqual(await backdrop(),{assetId:importedVideo.id,
     posterAssetId:importedDesktopLogo.id,tabletPosterAssetId:importedMobileLogo.id,
     mobilePosterAssetId:importedMobileLogo.id,positionX:20,positionY:70,
+    mobilePositionX:85,mobilePositionY:25,
     overlay:{color:'#123456',opacity:55}},
   'Workbench stores the full typed device-aware video backdrop');
   await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
-  assert.equal((await backdrop()).overlay.opacity,40,'Video overlay has shared Undo history');
+  assert.equal((await backdrop()).mobilePositionY,undefined,
+    'Independent phone crop is in shared Undo history');
   await page.locator('#cms-work-history').getByRole('button',{name:'↷ Повтор'}).click();
-  assert.equal((await backdrop()).overlay.opacity,55);
+  assert.equal((await backdrop()).mobilePositionY,25);
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
   // Graph editor retains the selected custom section. Explicitly restore
   // hero focus before exercising its separate responsive inspector controls.
@@ -895,7 +911,11 @@ async function execute(){
     '/published/site-approved-browser/assets/'+importedDesktopLogo.id+'.png');
   assert.equal(await visitor.locator('link[rel="icon"]').getAttribute('type'),'image/png');
   const publicBackdrop=visitor.locator('.cmsdg-n-approved-custom-container > .cmsdg-video-backdrop');
-  await publicBackdrop.locator('video[autoplay][muted][loop] source[type="video/mp4"]').waitFor();
+  await publicBackdrop.locator('video[autoplay][muted][loop] source[type="video/mp4"]')
+    .waitFor({state:'attached'});
+  assert.equal(await publicBackdrop.locator('video source').getAttribute('media'),
+    '(min-width: 601px) and (prefers-reduced-motion: no-preference)',
+    'Video is an eligible source only on first loads with motion allowed');
   assert.ok((await publicBackdrop.locator('video source').getAttribute('src'))
     .includes(importedVideo.id+'.mp4'),'Published video uses the sealed local MP4');
   assert.equal(await publicBackdrop.locator('video').evaluate(el=>getComputedStyle(el).objectPosition),
@@ -906,6 +926,8 @@ async function execute(){
   assert.equal(await publicBackdrop.locator('video').evaluate(el=>getComputedStyle(el).display),'none');
   assert.ok((await publicBackdrop.evaluate(el=>getComputedStyle(el).backgroundImage))
     .includes(importedMobileLogo.id+'.png'),'Mobile view uses the chosen poster');
+  assert.equal(await publicBackdrop.evaluate(el=>getComputedStyle(el).backgroundPosition),
+    '85% 25%','Mobile poster crop is independently published');
   await visitor.setViewportSize({width:1280,height:900});
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/assets/'+importedMobileLogo.id+'.png')).status(),200);
   const footer=visitor.locator('footer.cms-site-footer');

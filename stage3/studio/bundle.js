@@ -448,15 +448,16 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       if(['image','video','icon','divider','table-row','table-cell'].includes(node.type))
         fail(node.id,'background media not supported on this node');
       const m=node.backgroundMedia;
-      keys(m,['assetId','tabletAssetId','mobileAssetId','size','positionX','positionY','overlay'],'backgroundMedia');
+      keys(m,['assetId','tabletAssetId','mobileAssetId','size','positionX','positionY',
+        'tabletPositionX','tabletPositionY','mobilePositionX','mobilePositionY','overlay'],'backgroundMedia');
       for(const id of [m.assetId,m.tabletAssetId,m.mobileAssetId].filter(v=>v!==undefined)){
         if(typeof id!=='string'||!assetIds.has(id)||
           !['image/jpeg','image/png','image/webp'].includes(mediaKinds.get(id)))
           fail(node.id,'background must reference an uploaded raster image');
       }
       if(!m.assetId||own(m,'size')&&!['cover','contain'].includes(m.size)||
-        own(m,'positionX')&&!number(m.positionX,0,100)||
-        own(m,'positionY')&&!number(m.positionY,0,100))
+        ['positionX','positionY','tabletPositionX','tabletPositionY','mobilePositionX','mobilePositionY']
+          .some(k=>own(m,k)&&!number(m[k],0,100)))
         fail(node.id,'invalid background placement');
       if(own(m,'overlay')){
         keys(m.overlay,['color','opacity'],'background overlay');
@@ -471,7 +472,8 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
       if(node.type!=='container'||own(node,'backgroundMedia'))
         fail(node.id,'video backdrop requires a container without a raster background');
       const v=node.backgroundVideo;
-      keys(v,['assetId','posterAssetId','tabletPosterAssetId','mobilePosterAssetId','positionX','positionY','overlay'],node.id+'/backgroundVideo');
+      keys(v,['assetId','posterAssetId','tabletPosterAssetId','mobilePosterAssetId','positionX','positionY',
+        'tabletPositionX','tabletPositionY','mobilePositionX','mobilePositionY','overlay'],node.id+'/backgroundVideo');
       if(typeof v.assetId!=='string'||!assetIds.has(v.assetId)||mediaKinds.get(v.assetId)!=='video/mp4')
         fail(node.id,'video backdrop must reference a site-owned MP4');
       for(const key of ['posterAssetId','tabletPosterAssetId','mobilePosterAssetId']){
@@ -482,8 +484,8 @@ function validateGraph(graph,assetIds,existingIds,tokensInput,mediaKinds=new Map
             fail(node.id,'video backdrop poster must be a site-owned raster image');
         }
       }
-      if(own(v,'positionX')&&!number(v.positionX,0,100)||
-         own(v,'positionY')&&!number(v.positionY,0,100))fail(node.id,'invalid backdrop position');
+      if(['positionX','positionY','tabletPositionX','tabletPositionY','mobilePositionX','mobilePositionY']
+        .some(k=>own(v,k)&&!number(v[k],0,100)))fail(node.id,'invalid backdrop position');
       if(own(v,'overlay')){
         keys(v.overlay,['color','opacity'],node.id+'/backgroundVideo.overlay');
         resolve(v.overlay.color,'colors',tokens,node.id+'/video overlay');
@@ -945,7 +947,11 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
     return a?(mediaPreview?mediaPreview(id):null)||safeMount+a.src:null;
   };
   const cssUrl=url=>JSON.stringify(String(url)).replace(/</g,'\\3c ').replace(/>/g,'\\3e ');
-  const makeBackdrop=(m,id)=>{
+  const backdropPos=(m,bp,axis)=>bp==='mobile'?
+    (m['mobilePosition'+axis]??m['tabletPosition'+axis]??m['position'+axis]??50):
+    bp==='tablet'?(m['tabletPosition'+axis]??m['position'+axis]??50):
+      (m['position'+axis]??50);
+  const makeBackdrop=(m,id,bp='desktop')=>{
     const url=imageUrl(id);if(!url)return '';
     let image='url('+cssUrl(url)+')';
     if(m.overlay){
@@ -954,7 +960,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       image='linear-gradient('+color+','+color+'),'+image;
     }
     return 'background-image:'+image+';background-size:'+(m.size||'cover')+
-      ';background-position:'+(m.positionX??50)+'% '+(m.positionY??50)+'%;background-repeat:no-repeat';
+      ';background-position:'+backdropPos(m,bp,'X')+'% '+backdropPos(m,bp,'Y')+'%;background-repeat:no-repeat';
   };
   const tableHeaderIds=new Set(),tableRowHeaderIds=new Set(),tableCellLabels=new Map();
   const markHeaders=nodes=>{for(const node of nodes){
@@ -1011,8 +1017,10 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       const m=n.backgroundMedia;
       const desktop=makeBackdrop(m,m.assetId);if(desktop)rules.push(selector+'{'+desktop+'}');
       for(const [bp,limit] of [['tablet',900],['mobile',600]]){
-        const id=m[bp+'AssetId'];if(!id)continue;
-        const css=makeBackdrop(m,id);
+        if(!m[bp+'AssetId']&&m[bp+'PositionX']===undefined&&m[bp+'PositionY']===undefined)continue;
+        const id=bp==='mobile'?m.mobileAssetId||m.tabletAssetId||m.assetId:
+          m.tabletAssetId||m.assetId;
+        const css=makeBackdrop(m,id,bp);
         if(css)rules.push('@media(max-width:'+limit+'px){'+selector+'{'+css+'}}');
       }
     }
@@ -1023,15 +1031,21 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       rules.push(selector+'{position:'+basePosition+';isolation:isolate}'+b+
         '{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;border-radius:inherit;'+
         'background-image:'+poster(v.posterAssetId)+';background-size:cover;background-repeat:no-repeat;'+
-        'background-position:'+(v.positionX??50)+'% '+(v.positionY??50)+'%}');
+        'background-position:'+backdropPos(v,'desktop','X')+'% '+backdropPos(v,'desktop','Y')+'%}');
       for(const [bp,limit] of [['tablet',900],['mobile',600]]){
         const position=n.responsive?.[bp]?.position;
         if(position)rules.push('@media(max-width:'+limit+'px){'+selector+'{position:'+(position==='static'?'relative':position)+'}}');
         const id=v[bp+'PosterAssetId'];if(id)
           rules.push('@media(max-width:'+limit+'px){'+b+'{background-image:'+poster(id)+'}}');
+        if(v[bp+'PositionX']!==undefined||v[bp+'PositionY']!==undefined){
+          const pos=backdropPos(v,bp,'X')+'% '+backdropPos(v,bp,'Y')+'%';
+          rules.push('@media(max-width:'+limit+'px){'+b+'{background-position:'+pos+'}'+
+            (bp==='tablet'?b+' video{object-position:'+pos+'!important}':'')+'}');
+        }
       }
       rules.push(b+' video{position:absolute;inset:0;width:100%!important;height:100%!important;'+
-        'max-width:none!important;object-fit:cover;object-position:'+(v.positionX??50)+'% '+(v.positionY??50)+'%;display:block}');
+        'max-width:none!important;object-fit:cover;object-position:'+backdropPos(v,'desktop','X')+'% '+
+        backdropPos(v,'desktop','Y')+'%;display:block}');
       if(v.overlay){
         const tint=resolve(v.overlay.color,'colors',tokens,n.id+'/video overlay')+
           Math.round(v.overlay.opacity*255/100).toString(16).padStart(2,'0');
@@ -1066,7 +1080,7 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
         backdrop='<div class="cmsdg-video-backdrop" aria-hidden="true">'+
           (videoSrc?'<video autoplay muted loop playsinline preload="none"'+
             (poster?' poster="'+attr(poster)+'"':'')+'><source src="'+attr(videoSrc)+
-            '" type="video/mp4"></video>':'')+'</div>';
+            '" type="video/mp4" media="(min-width: 601px) and (prefers-reduced-motion: no-preference)"></video>':'')+'</div>';
       }
       const tag=n.semanticTag||'div';
       return '<'+tag+' class="'+cls+'"'+(n.ariaLabel?' aria-label="'+attr(n.ariaLabel)+'"':'')+'>'+backdrop+n.children.map(visit).join('')+'</'+tag+'>';
@@ -5939,19 +5953,71 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           const workBackdropPosition=(kind,backdrop)=>{
             for(const [key,label] of [['positionX','Горизонтальное положение, %'],
               ['positionY','Вертикальное положение, %']]){
+              const field=mode==='desktop'?key:mode+key[0].toUpperCase()+key.slice(1);
               const holder=document.createElement('label');holder.className='cms-work-field';
-              holder.textContent=label;
+              holder.textContent=label+' · '+({desktop:'ПК',tablet:'планшет',mobile:'телефон'}[mode])+
+                (mode==='desktop'?'':' (пусто = наследовать)');
               const inp=document.createElement('input');inp.className='control';inp.type='number';
               inp.min='0';inp.max='100';inp.step='1';inp.disabled=!canWrite();
-              inp.value=String(backdrop[key]??50);inp.id='cms-work-'+kind+'-'+key;
+              inp.value=backdrop[field]===undefined?(mode==='desktop'?'50':''):String(backdrop[field]);
+              inp.id='cms-work-'+kind+'-'+field;
               inp.addEventListener('change',()=>{
+                if(!inp.value.trim())return editGraphWork(node=>{delete node[kind][field];});
                 const value=Number(inp.value);
                 if(!Number.isInteger(value)||value<0||value>100)
                   return feedback('Позиция должна быть от 0 до 100%.',true);
-                editGraphWork(node=>{node[kind][key]=value;});
+                editGraphWork(node=>{node[kind][field]=value;});
               });
               holder.append(inp);panel.append(holder);
             }
+          };
+          const workBackdropPosters=(kind,backdrop)=>{
+            if(!HOSTED||!window.Stage3Host?.previewUrl)return;
+            const desktop=kind==='backgroundVideo'?backdrop.posterAssetId:backdrop.assetId;
+            const tablet=kind==='backgroundVideo'?backdrop.tabletPosterAssetId:
+              backdrop.tabletAssetId;
+            const mobile=kind==='backgroundVideo'?backdrop.mobilePosterAssetId:
+              backdrop.mobileAssetId;
+            const previews=document.createElement('div');previews.className='cms-work-backdrop-previews';
+            previews.id='cms-work-'+kind+'-previews';
+            let last=desktop;
+            const crop=(bp,axis)=>bp==='mobile'?
+              (backdrop['mobilePosition'+axis]??backdrop['tabletPosition'+axis]??backdrop['position'+axis]??50):
+              bp==='tablet'?(backdrop['tabletPosition'+axis]??backdrop['position'+axis]??50):
+                (backdrop['position'+axis]??50);
+            for(const [bp,label,assetId] of [['desktop','ПК',desktop],['tablet','Планшет',tablet],
+              ['mobile','Телефон',mobile]]){
+              last=assetId||last;
+              const url=window.Stage3Host.previewUrl(last);
+              if(!url?.startsWith('/'))continue;
+              const figure=document.createElement('figure');
+              const image=document.createElement('img');image.src=url;image.alt='';
+              image.loading='lazy';image.referrerPolicy='no-referrer';
+              image.style.objectPosition=crop(bp,'X')+'% '+crop(bp,'Y')+'%';
+              figure.append(image);
+              const cover=backdrop.overlay;
+              if(cover){
+                const colors=session.current.designTokens?.colors||DESIGN_GRAPH.DEFAULT_TOKENS.colors;
+                const tint=cover.color.startsWith('@')?colors[cover.color.slice(1)]:cover.color;
+                if(/^#[a-f\d]{6}$/i.test(tint)){
+                  const shade=document.createElement('span');shade.className='cms-work-backdrop-shade';
+                  shade.style.backgroundColor=tint;
+                  shade.style.opacity=String(cover.opacity/100);
+                  figure.append(shade);
+                }
+              }
+              const caption=document.createElement('figcaption');caption.textContent=label;
+              figure.append(caption);previews.append(figure);
+            }
+            if(previews.childElementCount)panel.append(previews);
+          };
+          const workBackdropUpload=(label,buttonId)=>{
+            if(!HOSTED)return;
+            const upload=workButton(label,()=>{
+              modal.close();$(buttonId)?.click();
+            });
+            upload.disabled=!canWrite();
+            panel.append(upload);
           };
           if(!['image','video','icon','divider','table-row','table-cell'].includes(current.type)){
             const bgImages=session.current.assets.filter(x=>/^image\/(png|jpeg|webp)$/.test(x.mime));
@@ -5976,7 +6042,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                 });
               });
               wrap.append(caption,picker);panel.append(wrap);
-            }
+            }else workBackdropUpload('+ Загрузить фоновое изображение','server-media-upload');
             if(current.backgroundMedia){
               const bg=current.backgroundMedia;
               const choices=[['','Наследовать ПК'],...bgImages.map(a=>[a.id,a.alt||a.id])];
@@ -6007,11 +6073,19 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
               size.append(choose);panel.append(size);
               workBackdropPosition('backgroundMedia',bg);
               workBackdropOverlay('backgroundMedia',bg);
+              workBackdropPosters('backgroundMedia',bg);
             }
           }
           if(current.type==='container'){
             const videos=session.current.assets.filter(a=>a.mime==='video/mp4');
             const posters=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
+            if(!videos.length||!posters.length){
+              const help=document.createElement('p');help.className='cms-work-hint';
+              help.textContent='Для декоративного видеофона нужны локальный MP4 и растровая обложка.';
+              panel.append(help);
+              if(!videos.length)workBackdropUpload('+ Загрузить MP4','server-video-upload');
+              if(!posters.length)workBackdropUpload('+ Загрузить обложку','server-media-upload');
+            }
             if(videos.length&&posters.length){
               const wrap=document.createElement('label');wrap.className='cms-work-field';
               const caption=document.createElement('span');caption.textContent='Фоновое MP4 (декоративное)';
@@ -6059,6 +6133,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
                 }
                 workBackdropPosition('backgroundVideo',current.backgroundVideo);
                 workBackdropOverlay('backgroundVideo',current.backgroundVideo);
+                workBackdropPosters('backgroundVideo',current.backgroundVideo);
                 const hint=document.createElement('p');hint.className='cms-work-hint';
                 hint.textContent='Без звука и по кругу на ПК/планшете. На телефоне и при уменьшении движения показывается обложка.';
                 panel.append(hint);
@@ -7618,8 +7693,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
               },'select'),
               ctl('Масштаб',{initial:bg.size||'cover',choices:[['cover','Заполнить'],['contain','Вписать']]},
                 v=>{bg.size=v;},'select'),
-              ctl('Позиция X, %',String(bg.positionX??50),v=>{bg.positionX=Number(v);},'number'),
-              ctl('Позиция Y, %',String(bg.positionY??50),v=>{bg.positionY=Number(v);},'number')
+              ...['X','Y'].map(axis=>{
+                const key=(mode==='tablet'||mode==='mobile'?mode+'Position':'position')+axis;
+                return ctl('Позиция '+axis+' · '+(mode==='desktop'?'ПК':'текущий экран')+
+                  (mode==='desktop'?', %':', % (пусто = наследовать)'),
+                  bg[key]??(mode==='desktop'?50:''),v=>{
+                    if(v==='')delete bg[key];else bg[key]=Number(v);
+                  },'number');
+              })
             );
             const colorChoices=[['','Без затемнения'],
               ...Object.keys(tokens.colors||{}).map(k=>['@'+k,k]),
@@ -7672,8 +7753,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
               ctl('Обложка телефона',{initial:bv.mobilePosterAssetId||'',
                 choices:[['','Наследовать планшет'],...imageChoices]},
                 v=>{if(v)bv.mobilePosterAssetId=v;else delete bv.mobilePosterAssetId;},'select'),
-              ctl('Позиция по X, %',String(bv.positionX??50),v=>{bv.positionX=Number(v);},'number'),
-              ctl('Позиция по Y, %',String(bv.positionY??50),v=>{bv.positionY=Number(v);},'number')
+              ...['X','Y'].map(axis=>{
+                const key=(mode==='tablet'||mode==='mobile'?mode+'Position':'position')+axis;
+                return ctl('Позиция '+axis+' · '+(mode==='desktop'?'ПК':'текущий экран')+
+                  (mode==='desktop'?', %':', % (пусто = наследовать)'),
+                  bv[key]??(mode==='desktop'?50:''),v=>{
+                    if(v==='')delete bv[key];else bv[key]=Number(v);
+                  },'number');
+              })
             );
             const colors=[['','Без затемнения'],...Object.keys(tokens.colors||{}).map(k=>['@'+k,k]),
               ['#000000','Чёрный'],['#ffffff','Белый']];

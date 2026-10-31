@@ -716,7 +716,8 @@ test('Individual artwork: responsive backgrounds, safe media actions and statefu
     id:'artwork-hero',type:'container',
     styles:{minHeight:160,borderWidth:2,borderStyle:'dashed',filterPreset:'contrast'},
     backgroundMedia:{assetId:one.id,mobileAssetId:two.id,size:'cover',
-      positionX:25,positionY:70,overlay:{color:'@foreground',opacity:40}},
+      positionX:25,positionY:70,tabletPositionX:45,mobilePositionY:20,
+      overlay:{color:'@foreground',opacity:40}},
     children:[{id:'artwork-picture',type:'image',assetId:one.id,
       alt:'Custom image with link',href:'tel:+48123456789',
       responsiveMedia:{tabletAssetId:two.id,mobileAssetId:two.id},
@@ -729,6 +730,8 @@ test('Individual artwork: responsive backgrounds, safe media actions and statefu
   const html=G.render(site,graph,'/published/example-site/');
   assert.match(html,/artwork-hero\{background-image:linear-gradient\(#182b3d66,#182b3d66\),url\("\/published\/example-site\/assets\/artwork-desktop.png"\)/);
   assert.match(html,/@media\(max-width:600px\).*artwork-mobile.png/);
+  assert.match(html,/@media\(max-width:900px\).*background-position:45% 70%/);
+  assert.match(html,/@media\(max-width:600px\).*background-position:45% 20%/);
   assert.match(html,/border-style:dashed/);
   assert.match(html,/filter:grayscale\(1\)/);
   assert.match(html,/:active\{background-color:#0a5bff;opacity:0.85\}/);
@@ -754,6 +757,10 @@ test('Individual artwork: responsive backgrounds, safe media actions and statefu
   const brokenOverlay=JSON.parse(JSON.stringify(graph));
   brokenOverlay.nodes[0].backgroundMedia.overlay.opacity=101;
   refuses(()=>G.validateGraph(brokenOverlay,assets,new Set(),site.designTokens,kinds),'Opaque overlay prohibited');
+  const badCrop=JSON.parse(JSON.stringify(graph));
+  badCrop.nodes[0].backgroundMedia.mobilePositionY=101;
+  refuses(()=>G.validateGraph(badCrop,assets,new Set(),site.designTokens,kinds),
+    'Viewport-specific background crop must remain bounded');
   const invalidGradient=JSON.parse(JSON.stringify(graph));
   invalidGradient.nodes[0].styles.gradient={angle:0,from:'@accent',to:'@background'};
   refuses(()=>G.validateGraph(invalidGradient,assets,new Set(),site.designTokens,kinds),'No competing backgrounds');
@@ -2118,7 +2125,8 @@ test('decorative background video is site-owned, muted and safely poster-backed'
   section.designGraph={version:1,id:'graph-background-video',nodes:[{
     id:'background-layout',type:'container',backgroundVideo:{
       assetId:'asset-background-mp4',posterAssetId:'asset-background-poster',
-      mobilePosterAssetId:'asset-background-poster',overlay:{color:'#000000',opacity:40}
+      mobilePosterAssetId:'asset-background-poster',tabletPositionX:65,
+      mobilePositionY:25,overlay:{color:'#000000',opacity:40}
     },children:[{id:'background-text',type:'heading',level:2,text:'Наша история'}]
   }]};
   site.pages[0].sections.push(section);
@@ -2126,12 +2134,20 @@ test('decorative background video is site-owned, muted and safely poster-backed'
   const html=graph.render(site,section.designGraph,'/published/'+site.siteId);
   assert.match(html,/class="cmsdg-video-backdrop" aria-hidden="true"/);
   assert.match(html,/<video autoplay muted loop playsinline preload="none"/);
+  assert.match(html,/type="video\/mp4" media="\(min-width: 601px\) and \(prefers-reduced-motion: no-preference\)"/,
+    'Video source must be ineligible on phone/reduced-motion first loads');
   assert.match(html,/prefers-reduced-motion:reduce/);
+  assert.match(html,/max-width:900px[^}]*cmsdg-video-backdrop\{background-position:65% 50%/,
+    'Tablet video has independent first-party focal X');
+  assert.match(html,/max-width:600px[^}]*cmsdg-video-backdrop\{background-position:65% 25%/,
+    'Phone poster inherits tablet X and overrides Y');
   const node=section.designGraph.nodes[0],v=node.backgroundVideo;
   const bad=()=>refuses(()=>sdk.validateSite(site,manifests));
   v.assetId='asset-background-poster';bad();v.assetId='asset-background-mp4';
   v.posterAssetId='asset-background-mp4';bad();v.posterAssetId='asset-background-poster';
   v.overlay.opacity=100;bad();v.overlay.opacity=40;
+  v.tabletPositionX=101;bad();v.tabletPositionX=65;
+  v.mobilePositionY='25';bad();v.mobilePositionY=25;
   node.backgroundMedia={assetId:'asset-background-poster'};bad();delete node.backgroundMedia;
   node.type='heading';bad();node.type='container';
   sdk.validateSite(site,manifests);
