@@ -1,3 +1,7 @@
+## 31 October 2026 — final verified GitHub delivery and lead handoff
+
+See **[SEO-FIRST-CLIENT-LEAD-TRANSFER-2026-10-31.md](SEO-FIRST-CLIENT-LEAD-TRANSFER-2026-10-31.md)** for current integration scope, evidence checklist and exact verified remote SHA `1317bc6403ed6f435bbb3af0bb44cb3179efa844` before the additional documentation commit. The three functional commits are on GitHub and their trees matched local originals. Older "local-only/push denied" details below are historical, not current status. Main lead alone integrates the SEO subtree, verifies on real client evidence and decides release/rollback.
+
 ## 31 October 2026 — latest SEO worker: published cross-route metadata and main copy collisions
 
 Added [PUBLISHED-CONTENT-COLLISION-QA.md](PUBLISHED-CONTENT-COLLISION-QA.md) and `lib/seo-published-content-collision.cjs` into the existing Rendered Content report/one Crawl Workspace. Reconciles **different approved self-canonical indexable public routes** against already captured original HTTP + three source-paired DOMs for exact normalized SEO title+description and substantial `<main>` copy; P1 only if four usable scopes corroborate, P2 for partial/single-field/DOM-only indications. V2 browser blocked/errors/unstable are unknown for strong claims; no private text, snippets or fingerprints exported. Existing route matrix shows both implicated pages; existing compact manual queue and operator overview include signals. No CMS, CI, new UI/CLI, browser fetch, site templates, PR, merge or release GO.
