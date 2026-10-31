@@ -2599,7 +2599,8 @@ async function stop(){
   assert.match(renamedInfoHtml,/class="lead-consent-policy" href="\/published\/site-consent-link-ci\/privacy\/">Информация &amp; условия<\/a>/);
   const infoExport=path.join(dbdir,'consent-policy-static');
   const policyExport=spawnSync('php',['stage3/server/bin/export-published.php',
-    'site-consent-link-ci',infoExport],{cwd:root,env,encoding:'utf8'});
+    'site-consent-link-ci',infoExport],{
+      cwd:root,env:{...env,STAGE3_FORM_ENDPOINT:origin},encoding:'utf8'});
   assert.equal(policyExport.status,0,policyExport.stderr);
   const policyHtml=fs.readFileSync(path.join(infoExport,'index.html'),'utf8');
   assert.match(policyHtml,/class="lead-consent-policy" href="\/privacy\/">Информация &amp; условия<\/a>/);
