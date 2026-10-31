@@ -1580,6 +1580,9 @@ async function execute(){
   await page.locator('#cms-footer-editor select').first().selectOption('primary');
   await page.locator('#cms-footer-editor-apply').click();
   await page.locator('#cms-footer-editor').waitFor({state:'hidden'});
+  // Return to the canvas before saving the footer or managing page media.
+  if(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open))
+    await page.locator('#server-site-tools-close').click();
   const beforeFooterSave=(await (await page.request.get(origin+
     '/api/sites/site-approved-browser')).json()).revision;
   await page.locator('#save').click();
