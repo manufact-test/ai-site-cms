@@ -2416,6 +2416,10 @@ test('individual mixed-content card carousel is responsive, navigable and typed'
   assert.match(html,/role="region" aria-roledescription="carousel" aria-label="Истории наших клиентов &amp; проекты"/);
   assert.match(html,/--cmsdg-card-desktop:3;--cmsdg-card-tablet:2;--cmsdg-card-mobile:1/);
   assert.match(html,/href="#cmsdg-card-card-layout-b"/);
+  assert.match(html,/role="group" aria-roledescription="slide" aria-label="1 \/ 3"/);
+  const markup=html.slice(html.indexOf('</style>')+8);
+  assert.ok(markup.indexOf('cmsdg-card-nav')<markup.indexOf('cmsdg-card-track'),
+    'Keyboard navigation precedes offscreen interactive card content');
   assert.match(html,/<article class="cmsdg-n-card-layout-a">/);
   assert.match(html,/<h3 class="cmsdg-n-card-heading-a">История a<\/h3>/);
   assert.match(html,/\.cmsdg-card-slide\{flex:0 0 calc/);

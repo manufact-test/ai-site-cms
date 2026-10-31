@@ -924,12 +924,12 @@ final class DesignGraph
                         ';--cmsdg-card-mobile:'.($n['visibleMobile']??1).'"';
                     $cards='';$nav='';
                     foreach($n['children'] as $index=>$child){
-                        $cards.='<div class="cmsdg-card-slide" id="cmsdg-card-'.$child['id'].'">'.$visit($child).'</div>';
+                        $cards.='<div class="cmsdg-card-slide" id="cmsdg-card-'.$child['id'].'" role="group" aria-roledescription="slide" aria-label="'.($index+1).' / '.count($n['children']).'">'.$visit($child).'</div>';
                         if(!empty($n['scrollControls']))$nav.='<a href="#cmsdg-card-'.$child['id'].'" aria-label="'.self::h($n['text']).' · '.($index+1).'">'.($index+1).'</a>';
                     }
                     return '<section class="'.$cls.' cmsdg-card-carousel" role="region" aria-roledescription="carousel" aria-label="'.self::h($n['text']).'"'.$vars.'>'.
-                        '<div class="cmsdg-card-track" tabindex="0">'.$cards.'</div>'.
-                        ($nav!==''?'<nav class="cmsdg-card-nav" aria-label="'.self::h($n['text']).'">'.$nav.'</nav>':'').'</section>';
+                        ($nav!==''?'<nav class="cmsdg-card-nav" aria-label="'.self::h($n['text']).'">'.$nav.'</nav>':'').
+                        '<div class="cmsdg-card-track" tabindex="0">'.$cards.'</div></section>';
                 case 'table':
                     $first=$visit($n['children'][0]);$rest='';
                     foreach(array_slice($n['children'],1) as $row)$rest.=$visit($row);

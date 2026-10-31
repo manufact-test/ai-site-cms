@@ -471,6 +471,8 @@ $carouselHtml=PublicRenderer::html($carouselSite,'/');
 graphTest(str_contains($carouselHtml,'aria-roledescription="carousel" aria-label="Клиентские проекты &amp; результаты"')&&
     str_contains($carouselHtml,'--cmsdg-card-desktop:3;--cmsdg-card-tablet:2;--cmsdg-card-mobile:1')&&
     str_contains($carouselHtml,'href="#cmsdg-card-graph-story-card-2"')&&
+    str_contains($carouselHtml,'aria-roledescription="slide" aria-label="1 / 3"')&&
+    preg_match('/<nav class="cmsdg-card-nav"[^>]*>.*?<\/nav><div class="cmsdg-card-track"/s',$carouselHtml)===1&&
     str_contains($carouselHtml,'<article class="cmsdg-n-graph-story-card-1">')&&
     str_contains($carouselHtml,'scroll-snap-type:x mandatory'),
     'PHP published mixed-content card carousel with keyboard navigation and responsive CSS');

@@ -1125,11 +1125,12 @@ function render(site,graph,mount='',mediaPreview=null,sectionId=graph.id,videoPr
       const vars=' style="--cmsdg-card-desktop:'+(n.visibleDesktop??1)+
         ';--cmsdg-card-tablet:'+(n.visibleTablet??1)+
         ';--cmsdg-card-mobile:'+(n.visibleMobile??1)+'"';
-      const cards=n.children.map(child=>'<div class="cmsdg-card-slide" id="cmsdg-card-'+child.id+'">'+visit(child)+'</div>').join('');
+      const cards=n.children.map((child,index)=>'<div class="cmsdg-card-slide" id="cmsdg-card-'+child.id+
+        '" role="group" aria-roledescription="slide" aria-label="'+(index+1)+' / '+n.children.length+'">'+visit(child)+'</div>').join('');
       const nav=n.scrollControls?'<nav class="cmsdg-card-nav" aria-label="'+attr(n.text)+'">'+
         n.children.map((child,index)=>'<a href="#cmsdg-card-'+child.id+'" aria-label="'+attr(n.text)+' · '+(index+1)+'">'+(index+1)+'</a>').join('')+'</nav>':'';
       return '<section class="'+cls+' cmsdg-card-carousel" role="region" aria-roledescription="carousel" aria-label="'+attr(n.text)+'"'+vars+'>'+
-        '<div class="cmsdg-card-track" tabindex="0">'+cards+'</div>'+nav+'</section>';
+        nav+'<div class="cmsdg-card-track" tabindex="0">'+cards+'</div></section>';
     }
     if(n.type==='table'){
       const tablet=n.tableLayoutTablet||'scroll',mobile=n.tableLayoutMobile||tablet;
