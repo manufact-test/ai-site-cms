@@ -160,11 +160,13 @@ function parseTableMatrix(source,format='auto'){
   }
   const separator=format==='tab'?'\t':format==='comma'?',':format==='semicolon'?';':
     separators['\t']?'\t':separators[';']>separators[',']?';':',';
-  const rows=[];let row=[],cell='',quoted=false,afterQuote=false,atStart=true;
+  const rows=[];let row=[],cell='',quoted=false,cellQuoted=false,afterQuote=false,atStart=true;
   const finishCell=()=>{
-    const value=cell.trim();
+    // Whitespace inside an explicitly quoted CSV cell is authored data;
+    // unquoted spreadsheet delimiters may have incidental padding.
+    const value=cellQuoted?cell:cell.trim();
     if(value.length>1600||/[\x00-\x1f\x7f]/.test(value))fail('table-paste','invalid cell text');
-    row.push(value);cell='';quoted=false;afterQuote=false;atStart=true;
+    row.push(value);cell='';quoted=false;cellQuoted=false;afterQuote=false;atStart=true;
   };
   const finishRow=()=>{
     finishCell();rows.push(row);row=[];
@@ -186,7 +188,7 @@ function parseTableMatrix(source,format='auto'){
       // Bare quotes are ordinary text in a copied TSV cell; a quote in the
       // FIRST position instead starts RFC-style quoted CSV/TSV content.
       if(!atStart){cell+='"';continue;}
-      quoted=true;atStart=false;continue;
+      quoted=true;cellQuoted=true;atStart=false;continue;
     }
     if(char===separator){finishCell();continue;}
     if(char==='\r'||char==='\n'){

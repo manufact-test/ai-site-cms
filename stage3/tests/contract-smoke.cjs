@@ -652,6 +652,9 @@ test('existing authored table accepts bounded spreadsheet paste without losing I
   assert.deepEqual(G.parseTableMatrix('"Услуга, категория";Цена\n"Сайт, большой";120'),
     [['Услуга, категория','Цена'],['Сайт, большой','120']],
     'Auto-detection ignores delimiters that are part of a quoted heading');
+  assert.deepEqual(G.parseTableMatrix('Название,Цена\n"  точное имя  ","  100  "'),
+    [['Название','Цена'],['  точное имя  ','  100  ']],
+    'Quoted CSV preserves intentionally authored leading/trailing whitespace');
   assert.deepEqual(G.parseTableMatrix('Параметр\tЗначение\nЭкран\t17"'),
     [['Параметр','Значение'],['Экран','17"']]);
   for(const bad of [
