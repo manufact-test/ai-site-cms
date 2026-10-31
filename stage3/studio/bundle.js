@@ -7759,13 +7759,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const undoButton=action('↶ Отменить',undoGraph,true);undoButton.id='cms-design-undo';
       const redoButton=action('↷ Повторить',redoGraph,true);redoButton.id='cms-design-redo';
       updateHistoryButtons();
-      action('+ Вложенный',()=>{
+      action('Добавить внутрь',()=>{
         if(!['container','disclosure','tab','list','popup'].includes(n.type))return notice('Для вложенности выберите контейнер или панель',true);
         const node={id:uniqueId('dg-node'),type:n.type==='list'?'list-item':'text',
           text:n.type==='list'?'Новый пункт':'Новый текст',styles:{}};
         changeTree({action:'insert',targetId:n.id,placement:'inside',node},node.id);
       });
-      action('+ Popup',()=>{
+      action('Добавить всплывающее окно',()=>{
         const id=uniqueId('dg-node');
         const popup={id,type:'popup',text:'Информация',styles:{padding:16},
           children:[{id:uniqueId('dg-node'),type:'heading',level:2,text:'Заголовок окна',styles:{}},
@@ -7860,16 +7860,22 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           children:[{id:uniqueId('dg-node'),type:'text',text:'Содержимое вкладки '+i,styles:{}}]};
         changeTree({action:'insert',targetId:n.id,placement:'inside',node:tab},tab.id);
       });
-      action('+ Рядом',()=>{
+      action('Добавить рядом',()=>{
         const node={id:uniqueId('dg-node'),type:'container',styles:{display:'grid',columns:2,gap:'@medium'},
           responsive:{mobile:{columns:1}},children:[]};
         changeTree({action:'insert',targetId:n.id,placement:'after',node},node.id);
       });
-      action('Тип +',()=>{
-        const type=prompt('Элемент: container / heading / text / button / link / quote / image / gallery / carousel / table / divider / icon / video / disclosure / tabs / list / popup'+
-          (['lead-form','lead-form-flex'].includes(sourceSection.component)?' / form-slot (рабочая форма)':''),'heading');
-        if(type===null)return;
-        if(!DESIGN_GRAPH.TYPES.includes(type))return notice('Неизвестный тип',true);
+      action('Добавить элемент',()=>{
+        const choices=[['container','Контейнер'],['heading','Заголовок'],['text','Текст'],
+          ['button','Кнопка'],['link','Ссылка'],['quote','Цитата'],['image','Изображение'],
+          ['gallery','Галерея'],['carousel','Карусель'],['table','Таблица'],['divider','Разделитель'],
+          ['icon','Иконка'],['video','Видео'],['disclosure','Раскрывающийся блок'],
+          ['tabs','Вкладки'],['list','Список'],['popup','Всплывающее окно'],
+          ...(['lead-form','lead-form-flex'].includes(sourceSection.component)?[['form-slot','Рабочая форма']]:[])];
+        const choice=prompt('Что добавить? Введите название элемента:\n'+choices.map(item=>item[1]).join(', '),'Заголовок');
+        if(choice===null)return;
+        const type=choices.find(item=>item[1].toLocaleLowerCase('ru')===choice.trim().toLocaleLowerCase('ru'))?.[0];
+        if(!type)return notice('Неизвестный тип. Выберите название элемента из списка.',true);
         if(type==='form-slot'&&(!['lead-form','lead-form-flex'].includes(sourceSection.component)||
           DESIGN_GRAPH.formSlotIds(graph).length))
           return notice('Рабочее место заявки разрешено один раз и только в блоке формы',true);
@@ -7929,15 +7935,15 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const index=selected.items.indexOf(n);
         if(index<selected.items.length-1)changeTree({action:'move',nodeId:n.id,targetId:selected.items[index+1].id,placement:'after'},n.id);
       });
-      action('Копировать группу',()=>{
+      action('Дублировать группу',()=>{
         const ids=subtreeIds(n).map(()=>uniqueId('dg-node'));
         changeTree({action:'duplicate',nodeId:n.id,ids},ids[0]);
       });
-      action('Объединить в контейнер',()=>{
+      action('Собрать в группу',()=>{
         const wrapperId=uniqueId('dg-node');
         changeTree({action:'wrap',nodeId:n.id,wrapperId},wrapperId);
       });
-      if(n.type==='container'&&n.children.length)action('Разобрать контейнер',()=>{
+      if(n.type==='container'&&n.children.length)action('Разгруппировать',()=>{
         if(!confirm('Удалить оболочку контейнера? Её стили будут потеряны, вложенные элементы сохранятся.'))return;
         changeTree({action:'unwrap',nodeId:n.id},n.children[0].id);
       });
@@ -7961,7 +7967,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const moveGroup=make('div',undefined,'cms-design-move-group');
         moveGroup.append(make('label','Переместить выбранный элемент'));
         moveGroup.append(moveDestination,placement);advancedActionList.append(moveGroup);
-        action('Переместить',()=>changeTree({action:'move',nodeId:n.id,
+        action('Переместить элемент',()=>changeTree({action:'move',nodeId:n.id,
           targetId:moveDestination.value,placement:placement.value},n.id));
       }
       action('Удалить элемент',()=>{
