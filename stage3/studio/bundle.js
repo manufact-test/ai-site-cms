@@ -7947,7 +7947,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const moveDestination=make('select',undefined,'control');
         moveDestination.id='cms-design-move-target';
         for(const {node,depth} of destinations){
-          const opt=make('option','  '.repeat(depth)+node.type+' · '+(node.text||node.alt||node.id).slice(0,45));
+          const opt=make('option','  '.repeat(depth)+(nodeLabels[node.type]||'Элемент')+' · '+nodeName(node).slice(0,45));
           opt.value=node.id;moveDestination.append(opt);
         }
         const firstContainer=destinations.find(row=>['container','disclosure','tab','list'].includes(row.node.type));
@@ -10011,6 +10011,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     $('inspector-title').textContent=m?.label||section.component;
     $('inspector-caption').textContent='Выберите элемент блока, чтобы изменить его содержимое.';
     const row=$('elements');row.replaceChildren();
+    let formSettingsPanel=null;
     if(section.component==='lead-form-flex'){
       const builder=button('Поля и шаги формы · '+(section.formFields||[]).length+'/9'+(section.formSteps?' · '+section.formSteps.length+' шага(ов)':''),
         'btn small',openFormBuilder);
@@ -10077,7 +10078,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const formSettings=document.createElement('details');formSettings.className='inspector-advanced-group';
       formSettings.id='cms-form-success-settings-group';
       const formSummary=document.createElement('summary');formSummary.textContent='Настройки формы';
-      formSettings.append(formSummary,targetBox);row.append(formSettings);
+      formSettings.append(formSummary,targetBox);formSettingsPanel=formSettings;
     }
     // Rare section-wide controls are available on demand, never mixed into the
     // selected element's everyday property list.
@@ -10142,7 +10143,6 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         sectionSettings.append(unlink);
       }
     }
-    row.append(sectionSettings);
     const elementHeading=document.createElement('div');
     elementHeading.className='inspector-group-title';elementHeading.textContent='Элементы блока';
     row.append(elementHeading);
@@ -10180,6 +10180,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         ()=>operateRepeat('addItem',null));
       add.id='cms-repeat-add';add.disabled=section.items.length>=m.repeat.max;row.append(add);
     }
+    if(formSettingsPanel)row.append(formSettingsPanel);
+    row.append(sectionSettings);
   }
   function operateRepeat(action,itemId,extra={}){
     if(action==='removeItem'&&!confirm('Удалить выбранный повторяемый элемент из черновика? Его можно вернуть кнопкой «Отменить».'))return;
