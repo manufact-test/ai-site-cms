@@ -2875,25 +2875,17 @@
       file.id='server-work-'+kind+'-file';
       file.accept='image/png,image/jpeg,image/webp';
       fileLabel.append(file);
-      const altLabel=element('label',null,kind==='graph'?
-        'Описание файла в медиабиблиотеке':'Описание изображения');
+      const altLabel=element('label',null,'Alt-текст изображения');
       const alt=element('input','control');alt.type='text';
       alt.id='server-work-'+kind+'-alt';alt.maxLength=200;
-      alt.placeholder='Что изображено?';altLabel.append(alt);
-      const altHint=element('small','hosted-work-media-hint',
-        'Это описание файла. Если изображение декоративное, поле можно оставить пустым.');
-      let graphAltLabel=null,graphAlt=null,graphAltHint=null;
+      alt.placeholder='Что изображено?';
       if(kind==='graph'){
-        graphAltLabel=element('label',null,'Описание изображения на странице');
-        graphAlt=element('input','control');graphAlt.type='text';
-        graphAlt.id='server-work-graph-public-alt';graphAlt.maxLength=200;
-        graphAlt.placeholder='Что увидит посетитель в описании изображения?';
         const currentAlt=workModal.querySelector('#cms-work-graph-panel [data-work-graph-field="alt"]');
-        graphAlt.value=currentAlt?.value||'';
-        graphAltLabel.append(graphAlt);
-        graphAltHint=element('small','hosted-work-media-hint',
-          'Это описание используется на сайте и для скринридеров. Пустое поле означает декоративное изображение.');
+        alt.value=currentAlt?.value||'';
       }
+      altLabel.append(alt);
+      const altHint=element('small','hosted-work-media-hint',
+        'Одно описание используется и в медиабиблиотеке, и на странице. Для декоративного изображения оставьте поле пустым.');
       const upload=action('Загрузить и выбрать','server-work-'+kind+'-apply',async()=>{
         const feedback=(message,error=false)=>{
           result.textContent=message;result.dataset.error=error?'true':'false';
@@ -2933,7 +2925,6 @@
             item.values&&Object.hasOwn(item.values,'content.media')))
           return feedback('Выберите фотографию нужного блока.',true);
         upload.disabled=true;file.disabled=true;alt.disabled=true;
-        if(graphAlt)graphAlt.disabled=true;
         feedback('Проверяем файл и загружаем приватно…');
         try{
           const engine=window.MediaMotionEngine;
@@ -2987,7 +2978,7 @@
             const control=mediaWorkFields.querySelector(
               '#cms-work-graph-panel [data-work-graph-field="alt"]');
             if(!control)throw Error('Поле описания изображения недоступно. Проверьте его вручную.');
-            control.value=graphAlt.value.trim();
+            control.value=description;
             control.dispatchEvent(new Event('change',{bubbles:true}));
           }
           const draft=editor.getSite();
@@ -3021,8 +3012,8 @@
               };
               return walk(actualSection?.designGraph?.nodes);
             })();
-            if(publicAlt!==graphAlt.value.trim())
-              throw Error('Изображение назначено, но описание на странице не совпало с введённым значением.');
+            if(publicAlt!==description)
+              throw Error('Изображение назначено, но alt-текст на странице не совпал с введённым значением.');
           }
           const currentPicker=kind==='graph'?
             mediaWorkFields.querySelector('#cms-work-graph-media'):
@@ -3036,16 +3027,13 @@
         }finally{
           if(body.isConnected){
             upload.disabled=false;file.disabled=false;alt.disabled=false;
-            if(graphAlt)graphAlt.disabled=false;
           }
         }
       });
       const result=element('small','hosted-work-media-result');
       result.id='server-work-'+kind+'-result';
       result.setAttribute('role','status');result.setAttribute('aria-live','polite');
-      body.append(title,fileLabel,altLabel,altHint);
-      if(kind==='graph')body.append(graphAltLabel,graphAltHint);
-      body.append(upload,result);
+      body.append(title,fileLabel,altLabel,altHint,upload,result);
       if(kind==='legacy'){
         // The original media selector had no search on large client libraries.
         const grid=picker.querySelector('.cms-work-media-grid');
