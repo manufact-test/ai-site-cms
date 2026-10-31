@@ -1010,10 +1010,10 @@ async function execute(){
     assert.ok(!source.url.includes('asset-external-hero'),'Responsive source must be server retargeted');
   }
   const artworkCss=await visitor.locator('.cmsdg-graph-approved-custom style').textContent();
-  assert.match(artworkCss,/background-image:linear-gradient\(#182b3d59,#182b3d59\),url\("/,
-    'PHP renders approved original site-owned raster with 35% dark overlay');
-  assert.match(artworkCss,/@media\(max-width:600px\)\{[^}]+background-image:/,
-    'PHP responsive art direction includes phone image rule');
+  assert.match(artworkCss,/\.cmsdg-video-backdrop\{[^}]*background-image:url\("/,
+    'Owner change from approved raster to video is represented in published PHP CSS');
+  assert.match(artworkCss,/cmsdg-video-backdrop::after\{[^}]*background-color:#1234568c\}/,
+    'Published tint reflects the actual Workbench edit, not the removed raster overlay');
   assert.match(artworkCss,/border-style:dashed/);
   assert.match(artworkCss,/filter:grayscale\(1\)/);
   assert.match(artworkCss,/:active\{opacity:0.70;border-color:#0a5bff;border-style:dotted\}/);
