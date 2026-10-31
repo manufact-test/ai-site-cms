@@ -2475,7 +2475,7 @@
   siteTools.id='server-site-tools';
   const siteSummary=element('summary','hosted-site-tools-summary');
   siteSummary.append(
-    element('span',null,'Инструменты сайта'),
+    element('span',null,'Настройки сайта'),
     element('small',null,'Внешний вид, SEO, навигация и контент')
   );
   siteTools.append(siteSummary);
