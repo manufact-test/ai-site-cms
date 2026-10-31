@@ -22,7 +22,18 @@
 <div class="workspace">
 <aside class="sidebar" aria-label="Навигация и структура сайта">
  <div class="panel-top"><span class="eyebrow">РАБОЧИЙ ПРОЕКТ</span><h1 id="site-name">Загрузка…</h1><p class="subdued">Структура сайта</p></div>
- <div class="site-actions"><button class="btn small" id="import" title="Открыть код и поля сайта, разработанного отдельно от CMS">Импорт сайта (JSON)</button><input type="file" id="import-file" accept=".json,application/json" hidden></div>
+ <details id="local-site-tools" class="local-site-tools">
+   <summary>Инструменты сайта</summary>
+   <div id="local-site-tools-content" class="local-site-tools-content">
+    <details class="local-tool-category" data-category="Импорт и экспорт">
+     <summary>Импорт и экспорт</summary>
+     <div class="local-tool-category-content">
+      <div class="site-actions"><button class="btn small" id="import" title="Открыть подготовленный сайт в формате JSON">Импорт сайта (JSON)</button><input type="file" id="import-file" accept=".json,application/json" hidden></div>
+     </div>
+    </details>
+  
+   </div>
+  </details>
  <div class="nav-title">СТРАНИЦЫ</div><nav id="pages" aria-label="Страницы"></nav>
  <div class="nav-title">БЛОКИ СТРАНИЦЫ</div><nav id="sections" aria-label="Блоки"></nav>
  <div class="sidebar-bottom"><span class="live-dot"></span>Работает локально и без сети<div class="subdued">Это изолированный прототип редактора. Не публикация и не Hostinger.</div></div>
