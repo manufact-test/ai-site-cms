@@ -1057,3 +1057,9 @@ html[data-stage3-mode="server"] .canvas-stage #preview{
   html[data-stage3-mode="server"] .cms-design-advanced-actions-list{grid-template-columns:1fr}
   html[data-stage3-mode="server"] .cms-design-move-group{grid-template-columns:1fr}
 }
+
+html[data-stage3-mode="server"] .history,
+html[data-stage3-mode="server"] .sidebar-bottom{display:none!important}
+html[data-stage3-mode="server"] .cms-design-advanced-actions{
+  flex:1 0 100%;width:100%;min-width:0;
+}
