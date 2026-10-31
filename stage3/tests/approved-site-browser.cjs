@@ -766,13 +766,15 @@ async function execute(){
   // "reviewed" device flags or trusting a different site's report.
   const revisionInfo=await (await page.request.get(origin+
     '/api/sites/site-approved-browser')).json();
+  assert.ok(revisionInfo.revision>1,'Archived review needs a previous saved revision');
   const importedNotes={
     format:'manufact-launch-review-v1',
     siteId:'site-approved-browser',
-    revision:revisionInfo.revision,
+    revision:revisionInfo.revision-1,
     sourceApproval:{packageSha:approvedPack.packageSha},
     visualFindings:[{pageId:imported.pages[0].id,path:'/',device:'desktop',
-      note:'Вернуть точную ширину главного блока',scrollY:110,resolved:false}]
+      note:'Вернуть точную ширину главного блока',scrollY:110,resolved:false,
+      targetSectionId:'section-retired',targetNodeId:'graph-node-retired'}]
   };
   await page.locator('#server-launch-import-input').setInputFiles({
     name:'review-notes.json',mimeType:'application/json',
@@ -780,7 +782,19 @@ async function execute(){
   });
   await page.waitForFunction(()=>document.querySelector('#server-launch-finding-list')
     ?.textContent?.includes('Вернуть точную ширину'));
+  assert.match(await page.locator('#toast').innerText(),/старых привязок сброшено: 1/,
+    'Retired nodes in old reports become Y-only notes, never lost observations');
   assert.equal(await page.locator('#server-launch-mark').isDisabled(),true);
+  const invalidCurrentReport={...importedNotes,revision:revisionInfo.revision,
+    visualFindings:[{...importedNotes.visualFindings[0],note:'Подменённая текущая привязка'}]};
+  await page.locator('#server-launch-import-input').setInputFiles({
+    name:'invalid-current-review.json',mimeType:'application/json',
+    buffer:Buffer.from(JSON.stringify(invalidCurrentReport))
+  });
+  await page.waitForFunction(()=>document.querySelector('#toast')?.textContent
+    ?.includes('Привязка текущей ревизии указывает на чужую секцию'));
+  assert.doesNotMatch(await page.locator('#server-launch-finding-list').innerText(),
+    /Подменённая текущая привязка/,'Foreign current-revision bindings fail closed');
   await page.locator('#server-launch-finding-list').getByRole('button',{name:/Отметить замечание исправленным/}).click();
   await page.waitForFunction(()=>document.querySelector('#server-launch-finding-list')
     ?.textContent?.includes('✓ Исправлено: Вернуть точную ширину'));
@@ -788,6 +802,10 @@ async function execute(){
   const savedFindings=(await (await page.request.get(visualUrl+
     '?revision='+revisionInfo.revision)).json()).findings;
   assert.equal(savedFindings.length,2,'Imported JSON notes are permanently stored with attribution');
+  const recoveredNote=savedFindings.find(row=>row.note==='Вернуть точную ширину главного блока');
+  assert.ok(recoveredNote,'Prior revision note is retained');
+  assert.equal(recoveredNote.targetSectionId,null);
+  assert.equal(recoveredNote.targetNodeId,null);
   assert.ok(savedFindings.every(row=>row.resolved&&row.resolvedBy));
   await page.locator('#server-launch-visual-history-open').click();
   await page.locator('#server-launch-review-history .hosted-launch-review-history-revisions button').first()

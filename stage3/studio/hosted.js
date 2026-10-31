@@ -3371,13 +3371,13 @@
         }
         if(!freshDraft())throw Error('Черновик изменился — сначала сохраните ревизию');
         const valid=new Set(site.pages.map(p=>p.id));
-        const incoming=[];
+        const incoming=[];let droppedTargets=0;
         for(const item of report.visualFindings){
           const note=offline?item?.text:item?.note;
-          const targetSectionId=offline?null:(item?.targetSectionId??null);
-          const targetNodeId=offline?null:(item?.targetNodeId??null);
+          let targetSectionId=offline?null:(item?.targetSectionId??null);
+          let targetNodeId=offline?null:(item?.targetNodeId??null);
           const pageForTarget=site.pages.find(p=>p.id===item?.pageId);
-          const sectionForTarget=pageForTarget?.sections.find(s=>s.id===targetSectionId);
+          let sectionForTarget=pageForTarget?.sections.find(s=>s.id===targetSectionId);
           const validGraphTarget=()=>{
             if(targetNodeId===null)return true;
             const visit=nodes=>(nodes||[]).some(n=>n.id===targetNodeId||visit(n.children));
@@ -3390,10 +3390,24 @@
             })
             ||!Number.isInteger(item.scrollY)||item.scrollY<0||item.scrollY>60000
             ||typeof item.resolved!=='boolean'
-            ||(targetSectionId!==null&&(!/^[a-z][a-z0-9-]{2,79}$/.test(targetSectionId)||!sectionForTarget))
-            ||(targetNodeId!==null&&(!/^[a-z][a-z0-9-]{2,79}$/.test(targetNodeId)||!validGraphTarget()))
+            ||(targetSectionId!==null&&(typeof targetSectionId!=='string'||
+              !/^[a-z][a-z0-9-]{2,79}$/.test(targetSectionId)))
+            ||(targetNodeId!==null&&(typeof targetNodeId!=='string'||
+              !/^[a-z][a-z0-9-]{2,79}$/.test(targetNodeId)))
             ||site.pages.find(p=>p.id===item.pageId)?.path!==item.path)
             throw Error('Некорректное замечание или изменён адрес страницы');
+          if(targetSectionId&&!sectionForTarget){
+            if(offline||report.revision===openedRevision)
+              throw Error('Привязка текущей ревизии указывает на чужую секцию');
+            targetSectionId=null;targetNodeId=null;droppedTargets++;
+          }else if(targetNodeId&&!validGraphTarget()){
+            if(offline||report.revision===openedRevision)
+              throw Error('Привязка текущей ревизии указывает на чужой элемент');
+            targetNodeId=null;droppedTargets++;
+          }
+          if(targetSectionId&&storedReview.available&&!storedReview.targetBindingsAvailable){
+            targetSectionId=null;targetNodeId=null;droppedTargets++;
+          }
           incoming.push({pageId:item.pageId,path:item.path,device:item.device,
             note,scrollY:item.scrollY,targetSectionId,targetNodeId,
             // Never import a remotely checked checkbox as CMS approval.
@@ -3413,6 +3427,7 @@
             replaceRemote(result);
             for(const row of incoming)reviewed.get(row.pageId)?.delete(row.device);
             notice('На сервер записано замечаний: '+result.added+
+              (droppedTargets?' · старых привязок сброшено: '+droppedTargets:'')+
               (offline?' · офлайн-запись, обязательна новая ручная проверка':
                 report.revision===openedRevision?'':' · старая ревизия: перепроверить'));
           }finally{
@@ -3430,6 +3445,7 @@
         }
         drawFindings();updateReviewed();syncActions();
         notice('Локально загружено: '+added+
+          (droppedTargets?' · старых привязок сброшено: '+droppedTargets:'')+
           (offline?' · офлайн-отчёт, все замечания требуют повторного просмотра':'')+
           ' · для долговременного хранения скачайте JSON');
       })().catch(e=>notice('Импорт замечаний отклонён: '+e.message,true));
