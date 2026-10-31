@@ -704,7 +704,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.match((await styledSection.getAttribute('class')),/cms-surface-dark cms-spacing-airy cms-align-center/);
     assert.match((await styledSection.getAttribute('class')),/cms-width-narrow cms-heading-expressive cms-corners-round cms-mobile-align-left cms-mobile-spacing-tight cms-button-pill/);
     await page.locator('#undo').click();
-    await canvas.locator('.cms-surface-default').waitFor();
+    await canvas.locator('.cms-section-skin.cms-surface-default').first().waitFor();
 
     // Full menu composer creates nested navigation, CTA and mobile layout
     // through one immutable Undo/Redo-compatible site document transaction.
