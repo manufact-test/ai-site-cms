@@ -148,6 +148,18 @@ function adapter(drift=false,flood=false,options={}){
   'blocked browser resources make DOM link-graph scope unknown even when source body matches');
  assert.equal(review.summary.publishedGraphStrongOrphans,0,
   'resource-blocked v2 capture cannot prove orphaned published routes');
+ assert.equal(review.summary.publishedDuplicateMetadataPairs,0,
+  'blocked v2 browser cannot corroborate duplicate metadata even when the original HTML is duplicated');
+ const noBlocked=structuredClone(data);
+ for(const p of noBlocked.pages)for(const v of Object.values(p.captures)){
+  v.blockedRequests=0;
+  for(const key of Object.keys(v.blockedReasons))v.blockedReasons[key]=0;
+ }
+ const cleanDuplicate=QA.analyze({blueprint,blueprintRawSha256:hash(json(blueprint)),
+  site,siteRawSha256:hash(json(site)),capture:http,captureRawSha256:sha,
+  viewports:noBlocked,viewportsRawSha256:hash(json(noBlocked)),expectedBase:origin});
+ assert.equal(cleanDuplicate.summary.publishedDuplicateMetadataPairs,1,
+  'all four source-paired usable scopes corroborate duplicate published SEO metadata');
  assert.equal(review.originalHttpBytePinnedInRenderedCapture,true);
  const changingText=await CAP.capture(input,adapter(false,false,{changingText:true}));
  assert(changingText.pages.every(p=>Object.values(p.captures).every(v=>

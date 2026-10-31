@@ -84,6 +84,15 @@ function render(report){
     ' · mobile homepage-reachability losses '+s.publishedGraphMobileReachLoss,
    'Only fully inspected HTTP and three source-paired DOM graphs can substantiate strong P1 route orphan/reachability findings. Partial graphs are unknown; sitemap discovery, Googlebot and ranking are not inferred.'
   ]:[]),
+  ...(report.contentCollisions?[
+   'Published canonical-route content collisions: fully comparable route pairs '+s.publishedCollisionComparablePairs+
+    ' · eligible indexable routes '+s.publishedCollisionEligiblePages+
+    ' · corroborated main-text duplicates '+s.publishedDuplicateMainPairs+
+    ' · corroborated title+description duplicates '+s.publishedDuplicateMetadataPairs+
+    ' · provisional collision signals '+s.publishedCollisionCandidateSignals+
+    ' · DOM-only collision signals '+s.publishedRuntimeCollisionSignals,
+   'Raw client copy and normalized signatures never leave this memory-only comparison. A duplicate is an owner-reviewed SEO candidate, not Google duplicate-content status; incomplete or blocked browser captures cannot corroborate a P1.'
+  ]:[]),
   'Rendered same-device fragments: observed '+s.fragmentObservedPairs+'/'+
    (s.plannedPages*3)+' · unknown '+s.fragmentUnknownPairs+
    ' · missing target IDs '+s.fragmentMissingTotal+
@@ -135,6 +144,12 @@ function render(report){
     ['Confirmed route orphans',s.publishedGraphStrongOrphans],
     ['Unreachable route groups',s.publishedGraphStrongUnreachable],
     ['Mobile navigation gaps',s.publishedGraphMobileReachLoss]]:[]),
+   ...(report.contentCollisions?[
+    ['Comparable content pairs',s.publishedCollisionComparablePairs],
+    ['Duplicate main pairs',s.publishedDuplicateMainPairs],
+    ['Duplicate SEO metadata pairs',s.publishedDuplicateMetadataPairs],
+    ['Provisional content signals',s.publishedCollisionCandidateSignals],
+    ['DOM-only collision signals',s.publishedRuntimeCollisionSignals]]:[]),
    ['Missing fragment-ID pairs',s.fragmentMissingPairs],
    ...(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?[
     ['HTTP body matches',s.browserResponseMatchedPairs+'/'+(s.plannedPages*3)],
@@ -165,6 +180,9 @@ function render(report){
   (report.siteGraph?'<section><h2>Published approved-route link graph</h2><p>Read-only internal anchor reachability from the approved homepage. Only all four complete source scopes can corroborate P1 orphan/unreachable routes. Missing evidence is unknown, not an orphan.</p><div class="scroll"><table><thead><tr><th>Source</th><th>Coverage</th><th>Approved pages observed</th></tr></thead><tbody>'+
    ['http','desktop','tablet','mobile'].map(k=>'<tr><td>'+esc(k)+'</td><td>'+esc(report.siteGraph.scopes[k].status)+'</td><td>'+esc(report.siteGraph.scopes[k].observedPages)+' / '+esc(report.siteGraph.scopes[k].requiredPages)+'</td></tr>').join('')+
    '</tbody></table></div><p>Links with rel=nofollow/ugc/sponsored or download are excluded; this is not a Google crawl, indexability confirmation, real-device menu interaction or release approval.</p></section>':'')+
+  (report.contentCollisions?'<section><h2>Published route content collisions</h2><p>Compares distinct approved self-canonical indexable routes across the original HTTP and three paired DOM scopes. Identical substantial main text or identical title + description in all four usable scopes warrants manual P1 review; incomplete evidence and single-field matches remain provisional P2.</p><div class="scroll"><table><thead><tr><th>Source</th><th>Comparable canonical pages</th></tr></thead><tbody>'+
+   ['http','desktop','tablet','mobile'].map(k=>'<tr><td>'+esc(k)+'</td><td>'+esc(report.contentCollisions.observedRoutes[k])+' / '+esc(report.contentCollisions.eligiblePageCount)+'</td></tr>').join('')+
+   '</tbody></table></div><p>Only known approved routes and counts are output. No customer text, fingerprint, Google duplicate decision, live revision proof or auto-fix is included.</p></section>':'')+
   '<section><h2>Human investigations</h2><div class="scroll"><table><thead><tr><th>Priority</th><th>Page</th><th>Device</th><th>Code</th><th>What to inspect</th></tr></thead><tbody>'+
   (report.findings.length?report.findings.map(row).join(''):'<tr><td colspan="5">No detected contradiction in supplied captures. This does not prove Google rendering or SEO acceptance.</td></tr>')+
   '</tbody></table></div></section>'+

@@ -64,6 +64,12 @@ function build({policy,cmsReview=null,structuredData=null,renderedContent=null,
    let pageId=f.pageId;
    if(!pageId&&f.path)pageId=byPath.get(f.path);
    if(pageId&&signalCounts.has(pageId))signalCounts.get(pageId)[f.priority]++;
+   // A published duplicate pair implicates BOTH approved routes, even though
+   // the compact rendered audit/queue stores only one finding per route pair.
+   if(kind==='rendered'&&typeof f.code==='string'&&
+    /^rendered:published-duplicate-(?:main|metadata)-confirmed$/.test(f.code)&&
+    f.toPageId!==pageId&&signalCounts.has(f.toPageId))
+    signalCounts.get(f.toPageId)[f.priority]++;
   }
  };
  collect(policy,'policy');collect(cmsReview,'cms');collect(structuredData,'structured');

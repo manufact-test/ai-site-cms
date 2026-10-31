@@ -7,6 +7,8 @@ const CRAWL=require('../lib/crawl-policy.cjs');
 const QA=require('../lib/seo-rendered-content-audit.cjs');
 const SCHEMA=require('../lib/seo-structured-data-audit.cjs');
 const LINKS=require('../lib/seo-rendered-link-semantics.cjs');
+const COLLISIONS=require('../lib/seo-published-content-collision.cjs');
+const COVERAGE=require('../lib/seo-first-client-coverage.cjs');
 const HTML=require('../lib/html-evidence.cjs');
 const FRAGMENTS=require('../lib/seo-rendered-fragment-audit.cjs');
 const VIEW=require('../lib/seo-rendered-content-view.cjs');
@@ -29,7 +31,7 @@ function body(p){
  const heads=p.sections.map(s=>'<h'+s.level+'>'+s.heading+'</h'+s.level+'>').join('');
  const links=[...p.links.map(l=>l.toPath),...p.sections.filter(s=>s.cta)
   .map(s=>bp.pages.find(t=>t.id===s.cta.toPageId).path)];
- return '<html><head><title>Private content</title><meta name="description" content="Synthetic snippet"><link rel="canonical" href="'+
+ return '<html><head><title>Private content '+p.id+'</title><meta name="description" content="Synthetic snippet '+p.id+'"><link rel="canonical" href="'+
   url(p.path)+'"><meta name="robots" content="index,follow">'+
   (p.path==='/'?schema:'')+'</head><body><main>'+heads+
   links.map(l=>'<a href="'+url(l)+'">Go</a>').join('')+'</main></body></html>';
@@ -65,6 +67,76 @@ assert.equal(clean.summary.schemaClaimChangedPairs,0);
 assert.equal(clean.summary.publishedGraphObservedScopes,4);
 assert.equal(clean.summary.publishedGraphStrongOrphans,0);
 assert.equal(clean.summary.publishedGraphStrongUnreachable,0);
+assert.equal(clean.summary.publishedDuplicateMetadataPairs,0);
+assert.equal(clean.summary.publishedDuplicateMainPairs,0);
+assert.equal(clean.summary.publishedCollisionComparablePairs,1);
+const duplicateMeta=h=>h.replace(/<title>[^<]*<\/title>/,'<title>Shared client private SEO title</title>')
+ .replace(/<meta name="description" content="[^"]*">/,
+  '<meta name="description" content="Shared client private meta description">');
+const duplicateHttp=http(),duplicateDom=dom();
+for(const row of duplicateHttp.pages)row.html=duplicateMeta(row.html);
+for(const row of duplicateDom.pages)for(const d of ['desktop','tablet','mobile'])
+ row.captures[d].html=duplicateMeta(row.captures[d].html);
+const repeatedMetadata=QA.analyze(input(duplicateHttp,duplicateDom));
+assert.equal(repeatedMetadata.summary.publishedDuplicateMetadataPairs,1);
+assert(repeatedMetadata.findings.some(f=>f.code==='rendered:published-duplicate-metadata-confirmed'&&
+ f.priority==='P1'&&f.toPageId));
+const privateMain='Distinct route content not actually published. '.repeat(12);
+const duplicateMain=h=>h.replace(/<main>[\s\S]*?<\/main>/,
+ '<main><h1>Private repeated content</h1><p>'+privateMain+'</p></main>');
+const mainHttp=http(),mainDom=dom();
+for(const row of mainHttp.pages)row.html=duplicateMain(row.html);
+for(const row of mainDom.pages)for(const d of ['desktop','tablet','mobile'])
+ row.captures[d].html=duplicateMain(row.captures[d].html);
+const repeatedMain=QA.analyze(input(mainHttp,mainDom));
+assert.equal(repeatedMain.summary.publishedDuplicateMainPairs,1);
+assert(repeatedMain.findings.some(f=>f.code==='rendered:published-duplicate-main-confirmed'&&
+ f.priority==='P1'));
+assert(!JSON.stringify(repeatedMain).includes(privateMain));
+assert(!VIEW.render(repeatedMain).html.includes(privateMain));
+const mobileDuplicate=dom();
+for(const row of mobileDuplicate.pages)row.captures.mobile.html=duplicateMeta(row.captures.mobile.html);
+const runtimeCollision=QA.analyze(input(evidence,mobileDuplicate));
+assert.equal(runtimeCollision.summary.publishedRuntimeCollisionSignals,1);
+assert(runtimeCollision.findings.some(f=>f.code==='rendered:published-duplicate-runtime-drift'&&
+ f.priority==='P2'));
+const partialMeta=dom();partialMeta.pages.pop();
+const incompleteDuplicate=QA.analyze(input(duplicateHttp,partialMeta));
+assert.equal(incompleteDuplicate.summary.publishedDuplicateMetadataPairs,0);
+assert(incompleteDuplicate.findings.some(f=>f.code==='rendered:published-duplicate-metadata-candidate'&&
+ f.priority==='P2'));
+const untrustedScope=COLLISIONS.review({pages:bp.pages,origin:base,scopes:{
+ http:new Map(duplicateHttp.pages.map(p=>[p.id,p])),
+ desktop:new Map(),tablet:new Map(),mobile:new Map()}});
+assert.equal(untrustedScope.counts.metadata,0);
+assert(untrustedScope.findings.some(f=>f.code==='published-duplicate-metadata-candidate'));
+assert(!JSON.stringify(untrustedScope).includes('Shared client private SEO title'));
+const xRobotsBlocked=structuredClone(duplicateHttp.pages);
+xRobotsBlocked[1].headers['X-Robots-Tag']='googlebot: noindex';
+const headerUnknown=COLLISIONS.review({pages:bp.pages,origin:base,scopes:{
+ http:new Map(xRobotsBlocked.map(p=>[p.id,p])),desktop:new Map(),
+ tablet:new Map(),mobile:new Map()}});
+assert.equal(headerUnknown.observedRoutes.http,1);
+assert.equal(headerUnknown.counts.metadata,0,
+ 'HTTP noindex must not corroborate an indexable canonical duplicate');
+xRobotsBlocked[1].headers['X-Robots-Tag']='none';
+assert.equal(COLLISIONS.review({pages:bp.pages,origin:base,scopes:{
+ http:new Map(xRobotsBlocked.map(p=>[p.id,p])),desktop:new Map(),
+ tablet:new Map(),mobile:new Map()}}).observedRoutes.http,1,
+ 'X-Robots-Tag none also excludes a page from strong indexable collision claims');
+const clusterPages=Array.from({length:6},(_,i)=>({id:'page-cluster-'+i,
+ path:'/cluster-'+i+'/',seo:{robots:'index',canonicalPath:'/cluster-'+i+'/'}}));
+const sharedCluster=new Map(clusterPages.map(p=>[p.id,{html:'<html><head><title>Shared private title</title>'+
+ '<meta name="description" content="Shared private description">'+
+ '<link rel="canonical" href="'+url(p.path)+'"></head><body><main><h1>'+p.id+'</h1></main></body></html>'}]));
+const cluster=COLLISIONS.review({pages:clusterPages,origin:base,
+ scopes:{http:sharedCluster,desktop:sharedCluster,tablet:sharedCluster,mobile:sharedCluster}});
+assert.equal(cluster.counts.metadata,15,
+ 'all colliding approved route pairs contribute to the numeric summary');
+assert(cluster.findings.length<=5,
+ 'a shared fallback title across six routes must not produce fifteen redundant manual tickets');
+assert.equal(new Set(cluster.findings.flatMap(f=>[f.pageId,f.toPageId])).size,6,
+ 'representative findings still implicate every canonical route');
 const stripContact=h=>h.replaceAll('<a href="'+url('/contact/')+'">Go</a>','');
 const orphanHttp=http(),orphanDom=dom();
 orphanHttp.pages[0].html=stripContact(orphanHttp.pages[0].html);
@@ -122,6 +194,7 @@ assert(!json(clean).includes('NEVER-REPEAT-CUSTOMER-FACT'));
 assert(!report.html.includes('NEVER-REPEAT-CUSTOMER-FACT'));
 assert(report.html.includes('JSON-LD semantic pairs'));
 assert(report.html.includes('Published approved-route link graph'));
+assert(report.html.includes('Published route content collisions'));
 // A client script can mutate facts inside the SAME @type without changing
 // type inventory. The existing semantic parser must catch the delta and
 // redact all original values from the private output.
@@ -274,6 +347,9 @@ const sitemap='<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+
  bp.pages.map(p=>'<url><loc>'+url(p.path)+'</loc></url>').join('')+'</urlset>';
 const policy=CRAWL.analyze({blueprint:bp,base,robotsText:robots,sitemapXml:sitemap,
  agents:['Googlebot','Bingbot','*'],scope:'complete'});
+const collisionRoutes=COVERAGE.build({policy,renderedContent:repeatedMetadata});
+assert(collisionRoutes.rows.every(r=>r.signals.P1>0),
+ 'both approved canonical routes implicated in a duplicate pair need route-level P1 visibility');
 const workspace=WORK.build({crawl:{policy,cmsBlueprint:bp,cmsSite:site,
  publicCapture:evidence,renderedCapture:broken,
  digests:{policy:hash(json(policy)),cmsBlueprint:hash(json(bp)),cmsSite:hash(json(site)),
@@ -293,6 +369,16 @@ assert.equal(graphWorkspace.overview.renderedLinkGraphOrphanRoutes,1);
 assert(graphWorkspace.crawlHtml.includes('published-indexable-page-orphaned'),
  'same existing crawl human queue must include corroborated source-bound orphan signal');
 assert(graphWorkspace.crawlLeadMarkdown.includes('published-indexable-page-orphaned'));
+const collisionWorkspace=WORK.build({crawl:{policy,cmsBlueprint:bp,cmsSite:site,
+ publicCapture:duplicateHttp,renderedCapture:duplicateDom,
+ digests:{policy:hash(json(policy)),cmsBlueprint:hash(json(bp)),cmsSite:hash(json(site)),
+  publicCapture:hash(json(duplicateHttp)),renderedCapture:hash(json(duplicateDom))}}});
+assert.equal(collisionWorkspace.overview.renderedDuplicateMetadataPairs,1);
+assert(collisionWorkspace.crawlHtml.includes('published-duplicate-metadata-confirmed'),
+ 'same existing crawl manual queue must include corroborated published duplicate metadata');
+assert(collisionWorkspace.crawlLeadMarkdown.includes('published-duplicate-metadata-confirmed'));
+assert(collisionWorkspace.overview.renderedCollisionProvisionalSignals===0);
+assert(!collisionWorkspace.renderedContentJson.includes('Shared client private SEO title'));
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'manufact-rendered-seo-'));
 try{
  const put=(name,value)=>{const file=path.join(tmp,name);fs.writeFileSync(file,json(value));return file;};

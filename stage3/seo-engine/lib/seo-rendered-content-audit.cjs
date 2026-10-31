@@ -15,6 +15,7 @@ const LINKS=require('./seo-rendered-link-semantics.cjs');
 const TIMING=require('./seo-browser-timing-observation.cjs');
 const FRAGMENTS=require('./seo-rendered-fragment-audit.cjs');
 const TEXT=require('./seo-browser-text-footprint.cjs');
+const COLLISIONS=require('./seo-published-content-collision.cjs');
 const crypto=require('node:crypto');
 const FORMAT='manufact-seo-rendered-content-audit-v1';
 const DEVICES=['desktop','tablet','mobile'];
@@ -707,6 +708,26 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
    }
   }
  }
+ // The only evidence supplied to this secondary analyzer is already approved
+ // canonical HTTP and source-paired rendered HTML. Unstable/blocked v2 Chromium
+ // is unknown for strong cross-route duplicate-content conclusions.
+ const collisionScopes=Object.fromEntries(['http',...DEVICES].map(k=>[k,new Map()]));
+ for(const p of plan.pages){
+  const source=byHttp.get(p.id),state=reportsById.get(p.id);
+  if(state.httpInspected)collisionScopes.http.set(p.id,source);
+  for(const device of DEVICES){
+   const v=byView.get(p.id)?.captures[device];
+   if(!state.devices[device]?.inspected||!v)continue;
+   if(version2&&(v.blockedRequests>0||v.pageErrors>0||!v.stableMarkup))continue;
+   collisionScopes[device].set(p.id,{html:v.html});
+  }
+ }
+ const contentCollisions=COLLISIONS.review({pages:plan.pages,origin,scopes:collisionScopes});
+ for(const collision of contentCollisions.findings){
+  const page=byPage.get(collision.pageId);
+  issue(page,null,collision.code,collision.priority,collision.detail,
+   {toPageId:collision.toPageId});
+ }
  findings.sort((a,b)=>LEVEL[a.priority]-LEVEL[b.priority]||
   a.pageId.localeCompare(b.pageId)||String(a.device).localeCompare(String(b.device))||
   a.code.localeCompare(b.code)||a.id.localeCompare(b.id));
@@ -731,6 +752,12 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   publishedGraphStrongOrphans:strongOrphans,
   publishedGraphStrongUnreachable:strongUnreachable,
   publishedGraphMobileReachLoss:mobileReachLoss,
+  publishedCollisionComparablePairs:contentCollisions.fullyComparablePairs,
+  publishedCollisionEligiblePages:contentCollisions.eligiblePageCount,
+  publishedDuplicateMainPairs:contentCollisions.counts.main,
+  publishedDuplicateMetadataPairs:contentCollisions.counts.metadata,
+  publishedCollisionCandidateSignals:contentCollisions.counts.partial,
+  publishedRuntimeCollisionSignals:contentCollisions.counts.runtime,
   fullyComparedPages:pages.filter(p=>p.evidenceState==='SOURCE-PAIR-OBSERVED').length,
   missingRenderPages:pages.filter(p=>p.evidenceState!=='SOURCE-PAIR-OBSERVED').length,
   inspectedDevicePairs:pages.reduce((n,p)=>n+DEVICES.filter(d=>p.devices[d].inspected).length,0),
@@ -803,9 +830,14 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   inputSHA256:{blueprint:blueprintRawSha256,site:siteRawSha256,
    publicHttp:captureRawSha256,viewports:viewportsRawSha256},
   pages,findings,summary,siteGraph,
+  contentCollisions:{eligiblePageCount:contentCollisions.eligiblePageCount,
+   fullyComparablePairs:contentCollisions.fullyComparablePairs,
+   observedRoutes:contentCollisions.observedRoutes,
+   counts:contentCollisions.counts,comparisonOnly:true,
+   sourceRevisionAuthenticated:false,googleDuplicationVerified:false},
   manualNext:['Confirm both captures refer to the same released revision and URL/mount.',
    'Resolve P0 canonical/robots changes before SEO signoff; inspect source and browser DOM.',
-   'Review published indexable-route inbound links, homepage reachability, headings, CTA routes, responsive overflow/touch targets, JSON-LD claims and accessibility on real devices.',
+   'Review published indexable-route inbound links, homepage reachability, cross-route metadata/main-content collisions, headings, CTA routes, responsive overflow/touch targets, JSON-LD claims and accessibility on real devices.',
    'Run existing Structured Data Semantic QA on original HTTP source; this rendered delta never verifies claim truth or Google eligibility.'],
   originalCustomerMarkupIncluded:false,sourceOriginAuthenticated:false,
   browserCaptureAuthenticated:false,sameReleaseRevisionProven:false,
