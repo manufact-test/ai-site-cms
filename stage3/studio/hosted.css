@@ -1113,3 +1113,12 @@ html[data-stage3-mode="server"] .hosted-site-tools-dialog #server-toolbar .hoste
 html[data-stage3-mode="server"] .hosted-site-tools-dialog #server-toolbar #server-public-link{
   display:inline-flex;justify-self:start;padding:7px 0;font-size:11px;
 }
+
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-tool-category-summary{
+  list-style:none;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-tool-category-summary::-webkit-details-marker{display:none}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-tool-category-summary::after{
+  content:"+";float:right;color:#8196ab;font-weight:500;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-tool-category[open] .hosted-tool-category-summary::after{content:"−"}
