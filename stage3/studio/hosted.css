@@ -1091,3 +1091,25 @@ html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-site-tool-link
 html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-site-tool-link:hover{
   background:#edf4fc;
 }
+
+html[data-stage3-mode="server"] #local-site-tools{display:none!important}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog #server-toolbar{
+  display:grid;grid-template-columns:minmax(0,1fr);gap:9px;margin:0;
+  padding:12px;border:1px solid #e0e8f0;border-radius:10px;background:#fff;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog #server-toolbar .hosted-label{
+  margin:0;color:#71859b;font-size:10px;font-weight:750;letter-spacing:.05em;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog #server-toolbar .control{width:100%;min-width:0}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog #server-toolbar .hosted-buttons{
+  display:flex;flex-wrap:wrap;gap:6px;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog #server-toolbar .hosted-buttons .btn{
+  min-height:34px;padding:7px 10px;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog #server-toolbar .hosted-status{
+  color:#6c8096;font-size:11px;line-height:1.45;
+}
+html[data-stage3-mode="server"] .hosted-site-tools-dialog #server-toolbar #server-public-link{
+  display:inline-flex;justify-self:start;padding:7px 0;font-size:11px;
+}
