@@ -397,7 +397,11 @@ conflicting layer. Each change is a validated, undoable draft edit; neither
 the preview nor a backdrop change writes the published site until Save and
 Publish. Workbench shows a three-device preview of the selected image/poster
 with the configured crop and tint, and offers the existing authorized media
-upload controls when no eligible MP4 or raster cover exists. Use the original
+upload controls when no eligible MP4 or raster cover exists. For a site with
+multiple uploaded pictures, the collapsible thumbnail library assigns the
+clicked picture to the **currently selected** desktop/tablet/mobile poster;
+the inheritance option clears an unnecessary tablet/mobile override. It uses
+only site-owned immutable media IDs and the existing Undo/Save path. Use the original
 three approved pictures to judge each poster crop.
 
 `positionX`/`positionY` define the desktop focal point. Optional

@@ -649,6 +649,16 @@ async function execute(){
   assert.equal(await page.locator('#cms-work-backgroundVideo-previews img').last()
     .evaluate(img=>img.style.objectPosition),'85% 25%',
   'Phone poster has an independent focal point in the same Workbench');
+  await page.locator('#cms-work-backgroundVideo-library summary').click();
+  await page.locator('#cms-work-backgroundVideo-library [data-backdrop-media-id="'+
+    importedDesktopLogo.id+'"]').click();
+  assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections
+    .find(s=>s.id==='section-approved-custom').designGraph.nodes[0]
+    .backgroundVideo.mobilePosterAssetId),importedDesktopLogo.id,
+  'Thumbnail picker edits only the active phone cover');
+  await page.locator('#cms-work-backgroundVideo-library summary').click();
+  await page.locator('#cms-work-backgroundVideo-library [data-backdrop-media-id="'+
+    importedMobileLogo.id+'"]').click();
   const backdrop=()=>page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections
     .find(s=>s.id==='section-approved-custom').designGraph.nodes
     .find(n=>n.id==='approved-custom-container').backgroundVideo);

@@ -765,7 +765,7 @@ final class DesignGraph
             }
             return $html;
         };
-        $visit=function (array $n,?string $parentType=null) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$rowHeaderIds,$cellLabels,$backdrop,$richText,$gl,&$firstImagePriorityAvailable,$formMarkup): string {
+        $visit=function (array $n,?string $parentType=null) use (&$visit,&$rules,$scope,$t,$assetMap,$mount,$assetBasePath,$headerIds,$rowHeaderIds,$cellLabels,$backdrop,$pos,$richText,$gl,&$firstImagePriorityAvailable,$formMarkup): string {
             $selector=$scope.' .cmsdg-n-'.$n['id'];
             $usesTranslate=false;
             foreach ([$n['styles']??[],$n['responsive']['tablet']??[],$n['responsive']['mobile']??[]] as $layer) {

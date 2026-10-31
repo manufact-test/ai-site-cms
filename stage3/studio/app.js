@@ -2827,6 +2827,38 @@
             }
             if(previews.childElementCount)panel.append(previews);
           };
+          const workBackdropLibrary=(kind,backdrop,images)=>{
+            if(!HOSTED||images.length<2)return;
+            const key=mode==='desktop'?(kind==='backgroundVideo'?'posterAssetId':'assetId'):
+              mode+(kind==='backgroundVideo'?'PosterAssetId':'AssetId');
+            const details=document.createElement('details');details.className='cms-work-media';
+            details.id='cms-work-'+kind+'-library';
+            const summary=document.createElement('summary');
+            summary.textContent='Выбрать обложку по фотографии · '+
+              ({desktop:'ПК',tablet:'планшет',mobile:'телефон'}[mode]);
+            const grid=document.createElement('div');grid.className='cms-work-media-grid';
+            if(mode!=='desktop'){
+              const inherit=workButton('Наследовать предыдущий экран',()=>
+                editGraphWork(node=>{delete node[kind][key];}));
+              inherit.classList.add('cms-work-media-choice');
+              inherit.setAttribute('aria-pressed',!backdrop[key]?'true':'false');
+              inherit.disabled=!canWrite();grid.append(inherit);
+            }
+            for(const asset of images){
+              const choice=workButton(asset.alt||asset.id,()=>
+                editGraphWork(node=>{node[kind][key]=asset.id;}));
+              choice.classList.add('cms-work-media-choice');
+              choice.dataset.backdropMediaId=asset.id;
+              choice.setAttribute('aria-pressed',backdrop[key]===asset.id?'true':'false');
+              const url=window.Stage3Host?.previewUrl?.(asset.id);
+              if(url?.startsWith('/')){
+                const thumb=document.createElement('img');thumb.src=url;thumb.alt='';
+                thumb.loading='lazy';thumb.referrerPolicy='no-referrer';choice.prepend(thumb);
+              }
+              choice.disabled=!canWrite();grid.append(choice);
+            }
+            details.append(summary,grid);panel.append(details);
+          };
           const workBackdropUpload=(label,buttonId)=>{
             if(!HOSTED)return;
             const upload=workButton(label,()=>{
@@ -2890,6 +2922,7 @@
               workBackdropPosition('backgroundMedia',bg);
               workBackdropOverlay('backgroundMedia',bg);
               workBackdropPosters('backgroundMedia',bg);
+              workBackdropLibrary('backgroundMedia',bg,bgImages);
             }
           }
           if(current.type==='container'){
@@ -2950,6 +2983,7 @@
                 workBackdropPosition('backgroundVideo',current.backgroundVideo);
                 workBackdropOverlay('backgroundVideo',current.backgroundVideo);
                 workBackdropPosters('backgroundVideo',current.backgroundVideo);
+                workBackdropLibrary('backgroundVideo',current.backgroundVideo,posters);
                 const hint=document.createElement('p');hint.className='cms-work-hint';
                 hint.textContent='Без звука и по кругу на ПК/планшете. На телефоне и при уменьшении движения показывается обложка.';
                 panel.append(hint);
