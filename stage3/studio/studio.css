@@ -884,7 +884,7 @@ button:disabled{opacity:.45}
   padding:9px 11px;color:#536d89;font-size:11px;font-weight:700;cursor:pointer;
 }
 #cms-design-graph-dialog .cms-design-advanced-actions-list{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:9px;border-top:1px solid #e3eaf2;
+  display:grid;grid-template-columns:minmax(0,1fr);gap:5px;padding:9px;border-top:1px solid #e3eaf2;
 }
 #cms-design-graph-dialog .cms-design-advanced-actions-list .btn{
   min-width:0;white-space:normal;text-align:left;justify-content:flex-start;
