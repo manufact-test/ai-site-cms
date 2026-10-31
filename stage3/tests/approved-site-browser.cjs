@@ -685,6 +685,14 @@ async function execute(){
   }
   assert.equal((await visitorCtx.request.get(evidenceRoute)).status(),401,
     'Approval files never exposed to public visitor');
+  assert.equal(await page.locator('#server-drawer-leads #server-notifications-count').count(),1,
+    'Unread lead status belongs inside the Leads resource drawer');
+  assert.equal(await page.locator('#server-drawer-backup #server-page-history-panel').count(),1,
+    'Page recovery belongs inside the archive drawer');
+  assert.equal(await page.locator('#server-drawer-transfer .hosted-templates').count(),2,
+    'Cross-site copy tools belong inside one transfer drawer');
+  assert.equal(await page.locator('.sidebar').evaluate(node=>getComputedStyle(node).overflowY),'auto',
+    'The desktop navigation rail must scroll independently');
   await page.locator('#server-approved-vault-open').click();
   await page.locator('#server-approval-vault-rows img').first().waitFor();
   assert.equal(await page.locator('#server-approval-vault-rows img').count(),3,

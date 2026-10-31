@@ -2537,17 +2537,19 @@
   };
   drawerRail.append(
     drawer('server-drawer-media','Медиафайлы','Изображения, видео и шрифты',mediaPanel),
-    drawer('server-drawer-leads','Заявки','Контакты и уведомления',leadsPanel,deliveryPanel),
+    drawer('server-drawer-leads','Заявки','Новые обращения, контакты и доставка',alertsRow,leadsPanel,deliveryPanel),
     drawer('server-drawer-blocks','Сохранённые блоки','Повторно используемые секции',templatesPanel),
-    drawer('server-drawer-backup','Архив и копии','Сохранённые версии и восстановление',backupPanel),
-    drawer('server-drawer-import','Подключение сайта','Импорт подготовленного сайта',document.querySelector('.site-actions'))
+    drawer('server-drawer-backup','Архив и восстановление','Резервные копии, история и возврат страниц',backupPanel,historyPanel),
+    drawer('server-drawer-transfer','Перенос между сайтами','Копирование готовых блоков и страниц',crossPanel,kitPanel),
+    drawer('server-drawer-import','Подключение сайта','Импорт подготовленного сайта и материалы согласования',
+      document.querySelector('.site-actions'))
   );
   const resources=element('details','hosted-resources-group');
   resources.id='server-resources';
   const resourcesSummary=element('summary','hosted-resources-summary');
   resourcesSummary.append(
     element('span',null,'Ресурсы и обслуживание'),
-    element('small',null,'Медиафайлы, заявки, библиотека блоков, архив и подключение')
+    element('small',null,'Медиафайлы, заявки, библиотека, архив, переносы и подключение')
   );
   resources.append(resourcesSummary,drawerRail);
   $('sections').after(siteTools,resources);
