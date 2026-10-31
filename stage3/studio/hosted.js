@@ -2489,6 +2489,25 @@
   syncContext();
 
 
+
+  // Preview device modes are toggle buttons, not unlabeled visual tabs.
+  for(const group of [
+    document.querySelector('.canvas-toolbar .devices'),
+    $('cms-page-preview')?.querySelector('.cms-page-preview-modes')
+  ]){
+    if(!group)continue;
+    group.setAttribute('role','group');
+    group.setAttribute('aria-label','Ширина предпросмотра');
+    const mark=()=>group.querySelectorAll('button').forEach(button=>
+      button.setAttribute('aria-pressed',button.classList.contains('active')?'true':'false'));
+    new MutationObserver(mark).observe(group,{
+      childList:true,subtree:true,attributes:true,attributeFilter:['class']
+    });
+    mark();
+  }
+  $('cms-work-section')?.setAttribute('aria-label','Блок выбранной страницы');
+  $('cms-work-element')?.setAttribute('aria-label','Элемент выбранного блока');
+
   // Keep Save and publication review reachable while the existing full-page
   // Workbench is open; do not introduce a separate editor or auto-publish.
   const workModal=$('cms-page-preview');
@@ -2527,6 +2546,7 @@
       if(note.dataset.ownerLabeled)continue;
       const raw=note.textContent||'';
       note.title=raw;
+      note.parentElement?.querySelector('.field-label')?.setAttribute('title',raw);
       const breakpointInfo=raw.indexOf(' · ');
       if(breakpointInfo<0)note.hidden=true;
       else note.textContent=raw.slice(breakpointInfo+3)

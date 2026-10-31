@@ -454,6 +454,39 @@ async function execute(){
   const imported=await page.evaluate(()=>window.Stage3Editor.getSite());
   assert.equal(imported.siteId,'site-approved-browser');
   assert.equal(imported.assets.length,4);
+
+  // Actual Chromium renders of the OWNER Studio (synthetic CI content only).
+  // These go into the existing screenshot artifact, not a new UI/test system;
+  // they are evidence for later human visual review, never owner sign-off.
+  const studioScreenDir=path.join(root,'stage3/studio/out');
+  fs.mkdirSync(studioScreenDir,{recursive:true});
+  await page.evaluate(()=>{
+    for(const node of document.querySelectorAll('#server-tools details,#server-admin-more'))
+      node.open=false;
+  });
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-desktop.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-mobile.png'),fullPage:true});
+  await page.setViewportSize({width:1400,height:1000});
+  await page.locator('#server-edit-page').click();
+  await page.locator('#cms-page-preview[open]').waitFor();
+  await page.waitForFunction(()=>{
+    const frame=document.querySelector('#cms-page-preview-frame');
+    return !!frame?.contentDocument?.querySelector('[data-cms-section-id],section[id]');
+  });
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-desktop.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="mobile"]').click();
+  await page.waitForFunction(()=>!!document.querySelector('#cms-page-preview-frame')?.contentDocument?.querySelector('[data-cms-section-id],section[id]'));
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-mobile.png'),fullPage:true});
+  await page.setViewportSize({width:1400,height:1000});
+  await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
+  await page.evaluate(()=>{
+    for(const node of document.querySelectorAll('#server-tools details,#server-admin-more')){
+      node.open=true;node.dispatchEvent(new Event('toggle'));
+    }
+  });
+
   const importedDesktopLogo=imported.assets.find(a=>a.alt==='Фото внешнего сайта');
   const importedMobileLogo=imported.assets.find(a=>a.alt==='Мобильный знак бренда');
   assert.ok(importedDesktopLogo&&importedMobileLogo);
