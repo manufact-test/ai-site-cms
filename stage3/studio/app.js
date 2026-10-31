@@ -132,6 +132,12 @@
     const n=document.createElement('button');n.type='button';
     n.textContent=text;n.className=cls;n.addEventListener('click',onClick);return n;
   }
+  function downloadGraphText(filename,content,mime){
+    const url=URL.createObjectURL(new Blob(['\uFEFF',content],{type:mime+';charset=utf-8'}));
+    const anchor=document.createElement('a');anchor.href=url;anchor.download=filename;
+    document.body.append(anchor);anchor.click();anchor.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1200);
+  }
   // One spreadsheet editor for a REAL existing Design Graph table, shared by
   // the full-page Workbench and the advanced graph Inspector.
   function openGraphTablePaste(graph,tableId,onApply){
@@ -158,6 +164,12 @@
     textarea.value=before.map(row=>row.join('\t')).join('\n');
     const status=document.createElement('p');status.id='cms-graph-table-status';
     status.setAttribute('aria-live','polite');
+    const fileLabel=document.createElement('label');
+    fileLabel.textContent='Или открыть локальный файл CSV / TSV (без загрузки на сервер)';
+    const fileInput=document.createElement('input');fileInput.type='file';
+    fileInput.id='cms-graph-table-file';fileInput.className='control';
+    fileInput.accept='.tsv,.csv,text/tab-separated-values,text/csv,text/plain';
+    fileLabel.append(fileInput);
     const preview=document.createElement('div');preview.id='cms-graph-table-preview';
     preview.style.cssText='overflow-x:auto;max-height:260px;overflow-y:auto';
     const actions=document.createElement('div');actions.className='modal-actions';
@@ -181,7 +193,10 @@
       }
     });
     copyData.id='cms-graph-table-copy';
-    actions.append(copyData,apply,cancel);
+    const exportData=button('Скачать TSV','btn',()=>downloadGraphText('table.tsv',
+      before.map(row=>row.join('\t')).join('\n'),'text/tab-separated-values'));
+    exportData.id='cms-graph-table-download';
+    actions.append(copyData,exportData,apply,cancel);
     const updatePreview=()=>{
       preview.replaceChildren();
       try{
@@ -210,8 +225,19 @@
     };
     textarea.addEventListener('input',updatePreview);
     separator.addEventListener('change',updatePreview);
+    fileInput.addEventListener('change',async()=>{
+      const file=fileInput.files?.[0];if(!file)return;
+      try{
+        if(file.size>50000)throw Error('Файл слишком большой (максимум 50 КБ)');
+        const content=await file.text();
+        if(content.length>12000)throw Error('Слишком много данных в файле');
+        textarea.value=content;
+        separator.value=/\.tsv$/i.test(file.name)?'tab':/\.csv$/i.test(file.name)?'auto':'auto';
+        updatePreview();
+      }catch(error){status.textContent='Файл не загружен: '+error.message;apply.disabled=true;}
+    });
     dialog.addEventListener('close',()=>dialog.remove());
-    dialog.append(heading,help,label,textarea,status,preview,actions);
+    dialog.append(heading,help,label,fileLabel,textarea,status,preview,actions);
     document.body.append(dialog);updatePreview();dialog.showModal();textarea.focus();
   }
   function openGraphListPaste(graph,listId,onApply){
@@ -230,6 +256,11 @@
     textarea.value=before.join('\n');
     const status=document.createElement('p');status.id='cms-graph-list-status';
     status.setAttribute('aria-live','polite');
+    const fileLabel=document.createElement('label');
+    fileLabel.textContent='Или открыть локальный текстовый файл (без загрузки на сервер)';
+    const fileInput=document.createElement('input');fileInput.type='file';
+    fileInput.id='cms-graph-list-file';fileInput.className='control';fileInput.accept='.txt,text/plain';
+    fileLabel.append(fileInput);
     const preview=document.createElement('div');preview.id='cms-graph-list-preview';
     preview.style.cssText='overflow:auto;max-height:250px';
     const apply=button('Применить в черновик','btn primary',()=>{
@@ -253,7 +284,10 @@
       }
     });
     copyData.id='cms-graph-list-copy';
-    actions.append(copyData,apply,cancel);
+    const exportData=button('Скачать TXT','btn',()=>downloadGraphText('list.txt',
+      before.join('\n'),'text/plain'));
+    exportData.id='cms-graph-list-download';
+    actions.append(copyData,exportData,apply,cancel);
     const updatePreview=()=>{
       preview.replaceChildren();
       try{
@@ -272,8 +306,17 @@
       }catch(error){status.textContent='Проверьте пункты: '+error.message;apply.disabled=true;}
     };
     textarea.addEventListener('input',updatePreview);
+    fileInput.addEventListener('change',async()=>{
+      const file=fileInput.files?.[0];if(!file)return;
+      try{
+        if(file.size>90000)throw Error('Файл слишком большой (максимум 90 КБ)');
+        const content=await file.text();
+        if(content.length>24000)throw Error('Слишком много пунктов в файле');
+        textarea.value=content;updatePreview();
+      }catch(error){status.textContent='Файл не загружен: '+error.message;apply.disabled=true;}
+    });
     dialog.addEventListener('close',()=>dialog.remove());
-    dialog.append(heading,help,textarea,status,preview,actions);
+    dialog.append(heading,help,fileLabel,textarea,status,preview,actions);
     document.body.append(dialog);updatePreview();dialog.showModal();textarea.focus();
   }
   const tableMoveSelection=new Map();
@@ -2974,13 +3017,15 @@
     workElementPicker.addEventListener('change',()=>{workElement=workElementPicker.value;workFocusPath='';workFormField='';dismissQuick();showWork();highlightWork();});
     pathSelect.addEventListener('change',()=>{previewScroll=0;workSection=pageForWork()?.sections[0]?.id||'';workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();showWork();});
     const history=document.createElement('div');history.id='cms-work-history';history.className='cms-work-history';
-    history.append(workButton('↶ Отмена',()=>{
+    const undoWork=workButton('↶ Отмена',()=>{
       if(!canWrite())return;session=D.undo(session,manifests);draw();showWork();render();
       feedback('Undo восстановил черновик, публикация не изменена.');
-    }),workButton('↷ Повтор',()=>{
+    });undoWork.id='cms-work-undo';
+    const redoWork=workButton('↷ Повтор',()=>{
       if(!canWrite())return;session=D.redo(session,manifests);draw();showWork();render();
       feedback('Redo обновил черновик, публикация не изменена.');
-    }));workPanel.append(history);
+    });redoWork.id='cms-work-redo';
+    history.append(undoWork,redoWork);workPanel.append(history);
     const open=button('Вся страница · редактировать','btn small',()=>{
       pathSelect.replaceChildren();
       for(const page of session.current.pages){

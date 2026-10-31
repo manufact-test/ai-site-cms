@@ -1308,6 +1308,18 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-node-select').selectOption('sheet-table-ui');
     await page.locator('#cms-design-table-paste').click();
+    await page.locator('#cms-graph-table-file').setInputFiles({
+      name:'edited-prices.csv',mimeType:'text/csv',
+      buffer:Buffer.from('Услуга;Цена;Срок\nСайт;245;4 дня\nМагазин;480;5 дней')
+    });
+    await page.waitForFunction(()=>document.querySelector('#cms-graph-table-data')
+      ?.value.includes('Сайт;245;4 дня'));
+    assert.match(await page.locator('#cms-graph-table-data').inputValue(),/Сайт;245;4 дня/,
+      'Local CSV file is read into the same paste preview, without server upload');
+    assert.match(await page.locator('#cms-graph-table-status').innerText(),/3 строк × 3 столбцов/);
+    const exportTable=page.waitForEvent('download');
+    await page.locator('#cms-graph-table-download').click();
+    assert.equal((await exportTable).suggestedFilename(),'table.tsv');
     await page.locator('#cms-graph-table-data').fill('Услуга\tЦена\tСрок\nСайт\t250\t3 дня\nМагазин\t500\t5 дней');
     assert.match(await page.locator('#cms-graph-table-status').innerText(),/3 строк × 3 столбцов/);
     await page.locator('#cms-graph-table-apply').click();
@@ -1326,6 +1338,16 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-design-undo').click();
     await page.locator('#cms-design-node-select').selectOption('sheet-list-ui');
     await page.locator('#cms-design-list-paste').click();
+    await page.locator('#cms-graph-list-file').setInputFiles({
+      name:'steps.txt',mimeType:'text/plain',
+      buffer:Buffer.from('Планирование\nДизайн\nЗапуск','utf8')
+    });
+    await page.waitForFunction(()=>document.querySelector('#cms-graph-list-data')
+      ?.value.includes('Дизайн'));
+    assert.match(await page.locator('#cms-graph-list-data').inputValue(),/Дизайн/);
+    const exportList=page.waitForEvent('download');
+    await page.locator('#cms-graph-list-download').click();
+    assert.equal((await exportList).suggestedFilename(),'list.txt');
     await page.locator('#cms-graph-list-data').fill('Планирование\nВёрстка\nЗапуск');
     await page.locator('#cms-graph-list-apply').click();
     await page.locator('#cms-design-apply').click();
@@ -1346,14 +1368,14 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-graph-table-apply').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
       .find(s=>s.id==='section-sheet-editor').designGraph.nodes[0].children[1].children[1].text,'300');
-    await page.locator('#undo').click();
+    await page.locator('#cms-work-undo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
       .find(s=>s.id==='section-sheet-editor').designGraph.nodes[0].children[1].children[1].text,'250');
     await page.locator('#cms-work-graph-table-column').selectOption('1');
     await page.locator('#cms-work-graph-table-column-previous').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
       .find(s=>s.id==='section-sheet-editor').designGraph.nodes[0].children[0].children[0].text,'Цена');
-    await page.locator('#undo').click();
+    await page.locator('#cms-work-undo').click();
     await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
 
     // Real native Chromium interaction, without adding a custom public runtime.
