@@ -465,3 +465,15 @@ html[data-stage3-mode="server"] .hosted-work-commands .btn{white-space:normal}
  html[data-stage3-mode="server"] .hosted-work-commands .btn{flex:1 1 140px}
  html[data-stage3-mode="server"] .hosted-work-state{flex:1 1 100%}
 }
+
+
+/* Draft save leads. Publication remains an explicit, separate guarded choice. */
+html[data-stage3-mode="server"] #server-publish.btn.primary{
+  background:#fff;border:1px solid #b4cdef;color:#205eae;box-shadow:none;
+}
+html[data-stage3-mode="server"] #server-publish.btn.primary:hover:not(:disabled){
+  background:#eaf3ff;border-color:#82b1ec;
+}
+html[data-stage3-mode="server"] #server-launch-review{
+  background:#eaf2ff;border-color:#b9d4f5;color:#1d5aa8;
+}

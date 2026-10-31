@@ -2393,6 +2393,8 @@
   }
 
   document.title='MANUFACT Studio — управление сайтом';
+  label.textContent='ВЫБОР САЙТА';
+  templatesTitle.textContent='Сохранённые секции';
   document.querySelector('.brand small').textContent='MANUFACT · STUDIO';
   document.querySelector('.panel-top .eyebrow').textContent='ТЕКУЩИЙ САЙТ';
   document.querySelector('.panel-top .subdued').textContent='Страницы и блоки';
@@ -2415,7 +2417,7 @@
   row.removeChild(launchReviewButton);
   launchReviewButton.textContent='Проверка перед публикацией';
   launchReviewButton.classList.add('hosted-review-primary');
-  document.querySelector('.top-actions').append(launchReviewButton);
+  document.querySelector('.top-actions').insertBefore(launchReviewButton,publish);
 
   const adminMore=element('details','hosted-admin-more');
   adminMore.id='server-admin-more';
@@ -2692,6 +2694,7 @@
     publicLink.hidden=!exists||!meta?.published_version;
     if(!publicLink.hidden)publicLink.href='/published/'+encodeURIComponent(state.siteId)+'/';
     $('save').title=isDirty()?'Сохранить новую серверную ревизию':'Все изменения уже сохранены';
+    publish.title=isDirty()?'Сначала сохраните черновик':'Опубликовать только сохранённую ревизию после подтверждения';
     syncWorkStatus();
   }
   async function safe(fn){
