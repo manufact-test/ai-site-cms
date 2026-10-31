@@ -4291,7 +4291,7 @@
         gallery:'Галерея',carousel:'Карусель',table:'Таблица','table-row':'Строка таблицы',
         'table-cell':'Ячейка таблицы',divider:'Разделитель',disclosure:'Раскрывающийся блок',
         tabs:'Вкладки',tab:'Вкладка',list:'Список','list-item':'Пункт списка',popup:'Всплывающее окно',
-        'form-slot':'Форма'};
+        'form-slot':'Форма заявки'};
       const nodeName=node=>node.text||node.alt||nodeLabels[node.type]||'Элемент';
       const chooser=make('select',undefined,'control');chooser.id='cms-design-node-select';
       chooser.setAttribute('aria-label','Выбранный элемент');
@@ -4816,7 +4816,7 @@
         fields.append(ctl('Ссылка по клику (необязательно)',n.href||'',v=>{if(v.trim())n.href=v.trim();else delete n.href;}));
         const options=session.current.assets.filter(a=>a.mime!=='video/mp4').map(a=>[a.id,a.alt||a.id]);
         fields.append(ctl('Изображение',{initial:n.assetId,choices:options},v=>{n.assetId=v;},'select'),
-          ctl('Описание изображения',n.alt||'',v=>{n.alt=v;}));
+          ctl('Alt-текст изображения',n.alt||'',v=>{n.alt=v;}));
         fields.append(make('small','Заполняйте, если на фото есть важная информация. Для декоративного изображения оставьте поле пустым.'));
         const raster=session.current.assets.filter(a=>/^image\/(?:png|jpeg|webp)$/.test(a.mime));
         const artChoices=[['','Наследовать предыдущий размер'],...raster.map(a=>[a.id,a.alt||a.id])];
@@ -6857,7 +6857,7 @@
         wrap.append(responsiveNote);
       }
       if(field.responsive&&breakpoint!=='desktop'&&overridden){
-        const clear=button('Вернуть значение компьютера','btn small inspector-inherit-button',()=>{
+        const clear=button('Вернуть наследуемое значение','btn small inspector-inherit-button',()=>{
           try{
             const before=session.revision;
             session=D.inheritBreakpoint(session,manifests,{
