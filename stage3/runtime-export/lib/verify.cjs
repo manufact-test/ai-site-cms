@@ -55,6 +55,22 @@ function inspect(root) {
     pages.set(page.path, bytes.toString('utf8'));
   }
   insist(pages.has('/'), 'home page missing');
+  if (m.notFound !== undefined) {
+    insist(m.notFound && typeof m.notFound === 'object' && !Array.isArray(m.notFound)
+      && Object.keys(m.notFound).sort().join(',') === 'file,path,sha256'
+      && m.notFound.file === '404.html' && pages.has(m.notFound.path)
+      && m.notFound.path !== '/', 'invalid custom 404 mapping');
+    const html=verifyFile(m.notFound.file,m.notFound.sha256).toString('utf8');
+    const authored=pages.get(m.notFound.path);
+    insist(/<meta name="robots" content="noindex,follow">/.test(authored)
+      && !/<form\b/i.test(authored),
+      '404 source route must be noindex and form-free');
+    insist(html.startsWith('<!doctype html>')
+      && /<meta name="robots" content="noindex,follow">/.test(html)
+      && !/<form\b/i.test(html)
+      && !/<link rel="canonical"|<meta property="og:url"|<script type="application\/ld\+json">/i.test(html),
+      'custom 404 must be noindex and without a canonical/structured-data claim');
+  }
   for (const redirect of m.redirects) {
     insist(redirect && typeof redirect.from === 'string' && safeRoute.test(redirect.from)
       && redirect.from !== '/' && !routeSet.has(redirect.from), 'conflicting redirect route');
@@ -84,6 +100,10 @@ function inspect(root) {
       for(const [route,html] of pages)
         insist(html.includes('<link rel="stylesheet" href="/'+style.file+'">'),
           'stylesheet missing from route '+route);
+      if(m.notFound)
+        insist(fs.readFileSync(path.join(root,m.notFound.file),'utf8')
+          .includes('<link rel="stylesheet" href="/'+style.file+'">'),
+          'stylesheet missing from custom 404');
     }
   }
   if (m.searchFiles !== undefined) {

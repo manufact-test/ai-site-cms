@@ -2478,6 +2478,91 @@ async function stop(){
   assert.equal(sizeOverflow.status,422,'Oversized video refused before staging');
 
 
+  // Reuse the client's authored page for real HTTP 404, never a synthetic
+  // template and never expose structured data or a canonical for a missing URL.
+  const bespoke404=structuredClone(fixture);
+  bespoke404.siteId='site-bespoke-404-ci';
+  bespoke404.pages[1].navigation={label:'Ошибка 404',hidden:true};
+  bespoke404.pages[1].seo={title:'Такой страницы нет',description:'Вернитесь на главную',
+    robots:'noindex',ogTitle:'',ogDescription:'',ogImage:''};
+  bespoke404.notFoundPageId=bespoke404.pages[1].id;
+  const made404=await request('POST','/api/sites',{site:bespoke404});
+  assert.equal(made404.status,201,JSON.stringify(made404.body));
+  assert.equal((await request('POST','/api/sites/site-bespoke-404-ci/publish',
+    {expectedRevision:1})).status,200);
+  const missing404=await request('GET','/published/site-bespoke-404-ci/unknown-client-route/');
+  assert.equal(missing404.status,404);
+  assert.match(missing404.body,/Такой страницы нет/);
+  assert.match(missing404.body,/name="robots" content="noindex,follow"/);
+  assert.doesNotMatch(missing404.body,/rel="canonical"|application\/ld\+json|property="og:url"/);
+  assert.match(missing404.headers.get('cache-control'),/no-store/);
+  assert.equal(missing404.headers.get('x-robots-tag'),'noindex, follow');
+  const missing404Head=await request('HEAD','/published/site-bespoke-404-ci/unknown-client-route/');
+  assert.equal(missing404Head.status,404);
+  assert.equal(missing404Head.body,'');
+  assert.equal(Number(missing404Head.headers.get('content-length')),
+    Buffer.byteLength(missing404.body));
+  const authored404=await request('GET','/published/site-bespoke-404-ci/contact/');
+  assert.equal(authored404.status,200,'authoring route remains a real CMS page');
+  const exported404=path.join(dbdir,'bespoke-404-static');
+  const export404=spawnSync('php', ['stage3/server/bin/export-published.php',
+    'site-bespoke-404-ci',exported404],{cwd:root,env,encoding:'utf8'});
+  assert.equal(export404.status,0,export404.stderr);
+  const json404=JSON.parse(fs.readFileSync(path.join(exported404,'release-manifest.json'),'utf8'));
+  assert.equal(json404.notFound.path,'/contact/');
+  assert.equal(json404.notFound.file,'404.html');
+  const html404=fs.readFileSync(path.join(exported404,'404.html'),'utf8');
+  assert.match(html404,/Такой страницы нет/);
+  assert.match(html404,/name="robots" content="noindex,follow"/);
+  assert.doesNotMatch(html404,/rel="canonical"|application\/ld\+json|property="og:url"/);
+  assert.equal(json404.notFound.sha256,
+    require('node:crypto').createHash('sha256').update(html404).digest('hex'));
+  const verify404=spawnSync('node',['-e',
+    'require("./stage3/runtime-export/lib/verify.cjs").inspect(process.argv[1]);',exported404],
+    {cwd:root,encoding:'utf8'});
+  assert.equal(verify404.status,0,verify404.stderr);
+  const deploy404=path.join(dbdir,'bespoke-404-delivery.zip');
+  const pack404=spawnSync('node',['stage3/runtime-export/bin/prepare-delivery.cjs',
+    exported404,deploy404],{cwd:root,encoding:'utf8'});
+  assert.equal(pack404.status,0,pack404.stderr);
+  const zip404=require('../runtime-export/lib/delivery-zip.cjs').readArchive(fs.readFileSync(deploy404));
+  assert.ok(zip404.has('deploy/404.html'));
+  assert.match(String(zip404.get('deploy/.htaccess')),/ErrorDocument 404 \/404[.]html/);
+  assert.match(String(zip404.get('handoff/nginx-redirects.example.conf')),
+    /error_page 404 \/404[.]html;/);
+  const runtime404=path.join(dbdir,'bespoke-404-php');
+  const build404=spawnSync('node',['stage3/runtime-export/bin/build.cjs',
+    exported404,'php',runtime404],{cwd:root,encoding:'utf8'});
+  assert.equal(build404.status,0,build404.stderr);
+  const port404=await port(),public404=path.join(runtime404,'public');
+  const php404=spawn('php',['-S','127.0.0.1:'+port404,'-t',public404,
+    path.join(public404,'index.php')],{cwd:root,env,stdio:['ignore','ignore','pipe']});
+  try{
+    const host404='http://127.0.0.1:'+port404;
+    let ready404=false;
+    for(let i=0;i<50;i++){
+      if(php404.exitCode!==null)break;
+      try{if((await fetch(host404+'/')).status===200){ready404=true;break;}}catch{}
+      await new Promise(resolve=>setTimeout(resolve,75));
+    }
+    assert.ok(ready404,'Independent PHP visitor adapter starts');
+    const missing=await fetch(host404+'/still-missing/');
+    assert.equal(missing.status,404);
+    assert.equal(missing.headers.get('x-robots-tag'),'noindex, follow');
+    assert.match(missing.headers.get('cache-control'),/no-store/);
+    const content=await missing.text();
+    assert.match(content,/Такой страницы нет/);
+    assert.match(content,/name="robots" content="noindex,follow"/);
+    assert.doesNotMatch(content,/rel="canonical"|application\/ld\+json|property="og:url"/);
+    assert.equal((await fetch(host404+'/still-missing/',{method:'HEAD'})).status,404);
+    assert.equal((await fetch(host404+'/contact/')).status,200);
+  }finally{
+    if(php404.exitCode===null){
+      const closed404=new Promise(resolve=>php404.once('exit',resolve));
+      php404.kill('SIGTERM');await closed404;
+    }
+  }
+
   // Full URL rename flow through the same validated SDK used by Studio.
   const urlSite=structuredClone(fixture);urlSite.siteId='site-url-ci';
   const english=structuredClone(urlSite);

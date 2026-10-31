@@ -99,7 +99,17 @@ export function visitorStructuredData(html){
 export function renderPage(route,serverRedirect=false){
   const redirect=manifest.redirects.find(r=>r.from===route);
   if(serverRedirect&&redirect)permanentRedirect(redirect.to); // middleware returns HTTP 301
-  const html=htmlFor(route);
+  return renderHtml(htmlFor(route),route);
+}
+/** The sealed 404.html has different SEO head data than its source route.
+ * Reusing source route HTML here could accidentally reproduce JSON-LD or
+ * canonical identity for an unknown URL; always render the verified 404 file.
+ */
+export function renderNotFound(){
+  if(!manifest.notFound)notFound();
+  return renderHtml(fs.readFileSync(path.join(base,manifest.notFound.file),'utf8'),'/_missing_/');
+}
+function renderHtml(html,route){
   const {body,wizard}=visitorBody(html);
   const structured=visitorStructuredData(html);
   const styles=Array.from(html.matchAll(/<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/gi),m=>m[1]).join('\n');

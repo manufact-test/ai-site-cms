@@ -1801,7 +1801,7 @@ function validateSharedSections(groups){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding','footer','header'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding','footer','header','notFoundPageId'],'site');
   GRAPH_HOST.validateTokens(raw.designTokens);
   if(own(raw,'menu'))validMenu(raw.menu);
   if(own(raw,'theme'))validTheme(raw.theme);
@@ -1928,6 +1928,14 @@ function validateSite(raw,regInput){
   }
   validateSharedSections(sharedGroups);
   validMenuRelations(raw);
+  if(own(raw,'notFoundPageId')){
+    id(raw.notFoundPageId,'notFoundPageId');
+    const fallback=raw.pages.find(page=>page.id===raw.notFoundPageId);
+    if(!fallback||fallback.path==='/'||fallback.seo?.robots!=='noindex'||
+      fallback.navigation?.hidden!==true||
+      fallback.sections.some(section=>['lead-form','lead-form-flex'].includes(section.component)))
+      fail('404 page must be an existing, hidden, noindex, form-free non-home page');
+  }
   if(own(raw,'redirects')){
     if(!Array.isArray(raw.redirects)||raw.redirects.length>60)fail('Invalid redirect count');
     const aliases=new Set();
@@ -2705,6 +2713,7 @@ function structure(raw,manifests,command){
       if(c.menu?.ctaPageId===page.id){c.menu.ctaPageId='';c.menu.ctaLabel='';}
       if(c.footer?.links)c.footer.links=c.footer.links.filter(link=>link.pageId!==page.id);
       if(c.header?.noticePageId===page.id)c.header.noticePageId='';
+      if(c.notFoundPageId===page.id)delete c.notFoundPageId;
       if(c.redirects){
         c.redirects=c.redirects.filter(r=>r.to!==page.path);
         if(!c.redirects.length)delete c.redirects;
@@ -4542,6 +4551,20 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       global.append(title,field('Сообщение',note),field('Ссылка сообщения на страницу',noticePage),
         field('Телефон',phone),field('Email',email),field('Цвет полосы',tone),
         field('На мобильном экране',mobileTop));
+      const fallbackTitle=document.createElement('h3');fallbackTitle.textContent='Страница ошибки 404';
+      const fallbackHelp=document.createElement('p');
+      fallbackHelp.textContent='Можно назначить только уже созданную индивидуальную страницу: не главную, скрытую из меню, закрытую от индексации и без форм. Настройте noindex через «SEO и меню» этой страницы. Незнакомые адреса будут возвращать настоящий HTTP 404; черновик сам не публикуется.';
+      const eligible=draft.pages.filter(page=>page.path!=='/'&&
+        page.navigation?.hidden===true&&page.seo?.robots==='noindex'&&
+        !page.sections.some(section=>['lead-form','lead-form-flex'].includes(section.component)));
+      const fallbackOptions=[['','Стандартный ответ 404'],...eligible.map(page=>[page.id,page.title+' · '+page.path])];
+      if(draft.notFoundPageId&&!eligible.some(page=>page.id===draft.notFoundPageId))
+        fallbackOptions.push([draft.notFoundPageId,'Недопустимая страница — выберите другую']);
+      const fallback=select(fallbackOptions,draft.notFoundPageId||'',value=>{
+        if(value)draft.notFoundPageId=value;else delete draft.notFoundPageId;
+      });
+      fallback.id='cms-menu-not-found';
+      global.append(fallbackTitle,fallbackHelp,field('Страница для неизвестных адресов',fallback));
       draft.pages.forEach((page,i)=>{
         const nav=page.navigation||{label:'',hidden:false};page.navigation=nav;
         const row=document.createElement('fieldset');row.dataset.menuPage=page.id;

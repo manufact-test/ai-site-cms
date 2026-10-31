@@ -1149,6 +1149,20 @@
       global.append(title,field('Сообщение',note),field('Ссылка сообщения на страницу',noticePage),
         field('Телефон',phone),field('Email',email),field('Цвет полосы',tone),
         field('На мобильном экране',mobileTop));
+      const fallbackTitle=document.createElement('h3');fallbackTitle.textContent='Страница ошибки 404';
+      const fallbackHelp=document.createElement('p');
+      fallbackHelp.textContent='Можно назначить только уже созданную индивидуальную страницу: не главную, скрытую из меню, закрытую от индексации и без форм. Настройте noindex через «SEO и меню» этой страницы. Незнакомые адреса будут возвращать настоящий HTTP 404; черновик сам не публикуется.';
+      const eligible=draft.pages.filter(page=>page.path!=='/'&&
+        page.navigation?.hidden===true&&page.seo?.robots==='noindex'&&
+        !page.sections.some(section=>['lead-form','lead-form-flex'].includes(section.component)));
+      const fallbackOptions=[['','Стандартный ответ 404'],...eligible.map(page=>[page.id,page.title+' · '+page.path])];
+      if(draft.notFoundPageId&&!eligible.some(page=>page.id===draft.notFoundPageId))
+        fallbackOptions.push([draft.notFoundPageId,'Недопустимая страница — выберите другую']);
+      const fallback=select(fallbackOptions,draft.notFoundPageId||'',value=>{
+        if(value)draft.notFoundPageId=value;else delete draft.notFoundPageId;
+      });
+      fallback.id='cms-menu-not-found';
+      global.append(fallbackTitle,fallbackHelp,field('Страница для неизвестных адресов',fallback));
       draft.pages.forEach((page,i)=>{
         const nav=page.navigation||{label:'',hidden:false};page.navigation=nav;
         const row=document.createElement('fieldset');row.dataset.menuPage=page.id;

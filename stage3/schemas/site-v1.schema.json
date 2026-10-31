@@ -52,6 +52,10 @@
         "$ref": "#/$defs/page"
       }
     },
+    "notFoundPageId": {
+      "$ref": "#/$defs/id",
+      "description": "Optional existing hidden, noindex, form-free page used only as a public 404 fallback."
+    },
     "theme": {
       "type": "object",
       "additionalProperties": false,

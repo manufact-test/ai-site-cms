@@ -28,7 +28,8 @@ if (!is_string($path) || preg_match('/%(?:2e|2f|5c|00)/i', $path)
  * and HEAD exposes the exact chosen Content-Length without a response body.
  * No Node, extension installation or dynamic cache directory required.
  */
-$serveText=static function(string $file,string $mime,string $sha,bool $immutable): never {
+$serveText=static function(string $file,string $mime,string $sha,bool $immutable,int $status=200): never {
+    http_response_code($status);
     if(!is_file($file)||is_link($file)){http_response_code(503);exit;}
     $size=filesize($file);
     if(!is_int($size)||$size<0){http_response_code(503);exit;}
@@ -39,11 +40,12 @@ $serveText=static function(string $file,string $mime,string $sha,bool $immutable
         &&(!isset($m[1])||(float)$m[1]>0);
     $etag='"'.$sha.($gzip?'-gz':'').'"';
     header('Content-Type: '.$mime);
-    header('Cache-Control: '.($immutable?'public, max-age=31536000, immutable':'public, no-cache, must-revalidate'));
+    header('Cache-Control: '.($status===404?'no-store':
+        ($immutable?'public, max-age=31536000, immutable':'public, no-cache, must-revalidate')));
     header('Vary: Accept-Encoding');
     header('ETag: '.$etag);
     if($gzip)header('Content-Encoding: gzip');
-    if(trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){
+    if($status===200&&trim((string)($_SERVER['HTTP_IF_NONE_MATCH']??''))===$etag){
         http_response_code(304);exit;
     }
     $plain=file_get_contents($file);
@@ -182,5 +184,10 @@ foreach ($manifest['pages'] as $page) {
     }
 }
 http_response_code(404);
+header('X-Robots-Tag: noindex, follow');
+if(isset($manifest['notFound'])&&($manifest['notFound']['file']??null)==='404.html'){
+    header("Content-Security-Policy: default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self'; media-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+    $serveText($release.'/404.html','text/html; charset=utf-8',$manifest['notFound']['sha256'],false,404);
+}
 header('Content-Type: text/plain; charset=utf-8');
 if ($_SERVER['REQUEST_METHOD'] !== 'HEAD') echo "Page not found\n";

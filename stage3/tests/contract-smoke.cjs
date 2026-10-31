@@ -17,6 +17,35 @@ const same=x=>JSON.parse(JSON.stringify(x));
 const reg=sdk.registry(manifests);
 const hero=manifests[0],highlights=manifests[1],contact=manifests[2];
 
+test('optional bespoke 404 page is hidden, noindex, form-free and survives ordinary page edits',()=>{
+  const D=require('../sdk/draft.cjs'),site=same(initial),page=site.pages[1];
+  page.navigation={label:'Ошибка 404',hidden:true};
+  page.seo={title:'Страница не найдена',description:'Проверьте адрес',robots:'noindex',
+    ogTitle:'',ogDescription:'',ogImage:''};
+  site.notFoundPageId=page.id;
+  sdk.validateSite(site,manifests);
+  const missing=same(site);missing.notFoundPageId='page-absent';
+  refuses(()=>sdk.validateSite(missing,manifests),'404 target must exist');
+  const homepage=same(site);homepage.notFoundPageId=site.pages[0].id;
+  refuses(()=>sdk.validateSite(homepage,manifests),'404 cannot be homepage');
+  const indexed=same(site);indexed.pages[1].seo.robots='index';
+  refuses(()=>sdk.validateSite(indexed,manifests),'404 cannot be indexed');
+  const visible=same(site);visible.pages[1].navigation.hidden=false;
+  refuses(()=>sdk.validateSite(visible,manifests),'404 cannot appear in navigation');
+  const form=same(site);form.pages[1].sections.push(sdk.sectionFrom(
+    manifests.find(x=>x.id==='lead-form'),'section-404-form'));
+  refuses(()=>sdk.validateSite(form,manifests),'404 cannot collect leads');
+  const draft=D.begin(site,manifests),updated=D.structure(draft,manifests,{
+    action:'updatePage',pageId:page.id,title:page.title,path:'/lost/',expectedRevision:draft.revision});
+  assert.equal(updated.current.notFoundPageId,page.id,'page identity follows renamed URLs');
+  const removed=D.structure(updated,manifests,{
+    action:'removePage',pageId:page.id,expectedRevision:updated.revision});
+  assert.equal(Object.hasOwn(removed.current,'notFoundPageId'),false,
+    'removing the designated page resets the optional error page');
+  sdk.validateSite(removed.current,manifests);
+  assert.equal(Object.hasOwn(initial,'notFoundPageId'),false,'existing sites remain unchanged');
+});
+
 test('optional site header is safe, page-ID linked and editable',()=>{
   const X=require('../sdk/draft.cjs'),site=same(initial),target=site.pages.find(p=>p.path!=='/');
   site.header={notice:'Бесплатная консультация',noticePageId:target.id,

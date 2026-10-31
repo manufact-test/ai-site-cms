@@ -342,6 +342,7 @@ function structure(raw,manifests,command){
       if(c.menu?.ctaPageId===page.id){c.menu.ctaPageId='';c.menu.ctaLabel='';}
       if(c.footer?.links)c.footer.links=c.footer.links.filter(link=>link.pageId!==page.id);
       if(c.header?.noticePageId===page.id)c.header.noticePageId='';
+      if(c.notFoundPageId===page.id)delete c.notFoundPageId;
       if(c.redirects){
         c.redirects=c.redirects.filter(r=>r.to!==page.path);
         if(!c.redirects.length)delete c.redirects;

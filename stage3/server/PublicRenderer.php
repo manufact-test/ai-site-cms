@@ -594,6 +594,16 @@ JS;
         return null;
     }
 
+    /** Reuse an approved, already-authored page; never synthesize a template. */
+    public static function notFoundPath(array $site): ?string
+    {
+        $id=$site['notFoundPageId']??null;
+        if (!is_string($id)) return null;
+        foreach ($site['pages'] as $page)
+            if ($page['id']===$id) return $page['path'];
+        return null;
+    }
+
     public static function sitemap(array $site, string $mount, string $origin): string
     {
         self::origin($origin);
@@ -703,7 +713,7 @@ JS;
         return $body;
     }
 
-    public static function html(array $site, string $path, ?string $basePath = null, ?string $collectorBase = null, int $publishedVersion = 0, ?string $publicOrigin = null, ?string $assetBasePath = null, bool $preview = false): ?string
+    public static function html(array $site, string $path, ?string $basePath = null, ?string $collectorBase = null, int $publishedVersion = 0, ?string $publicOrigin = null, ?string $assetBasePath = null, bool $preview = false, bool $notFound = false): ?string
     {
         $page = null;
         foreach ($site['pages'] as $candidate) {
@@ -990,15 +1000,15 @@ JS;
         $title=self::h($titleValue);
         $descriptionValue=(string)($seo['description']??'');
         $description = $descriptionValue !== '' ? '<meta name="description" content="'.self::h($descriptionValue).'">' : '';
-        $robots = ($seo['robots']??'index') === 'noindex' ? '<meta name="robots" content="noindex,follow">' : '';
+        $robots = $notFound||($seo['robots']??'index') === 'noindex' ? '<meta name="robots" content="noindex,follow">' : '';
         $ogTitleValue=trim((string)($seo['ogTitle']??''))!==''?trim((string)$seo['ogTitle']):$titleValue;
         $ogTitle=self::h($ogTitleValue);
         $ogDescriptionValue=trim((string)($seo['ogDescription']??''))!==''?trim((string)$seo['ogDescription']):trim($descriptionValue);
         // Root-mounted exports use mount='/' and path='/'. Join once rather
         // than leaking a second slash into canonical/OG/JSON-LD identity.
-        $absolute=$publicOrigin===null?null:$publicOrigin.rtrim($mount,'/').$path;
+        $absolute=$notFound||$publicOrigin===null?null:$publicOrigin.rtrim($mount,'/').$path;
         $canonical=$absolute===null?'':'<link rel="canonical" href="'.self::h($absolute).'">';
-        $structured=self::structuredData($site,$page,$absolute,$mount,$preview);
+        $structured=$notFound?'':self::structuredData($site,$page,$absolute,$mount,$preview);
         $social='<meta property="og:type" content="website">'
             .'<meta property="og:locale" content="'.self::h($socialLocale).'">'
             .'<meta property="og:title" content="'.$ogTitle.'">';

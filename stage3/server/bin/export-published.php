@@ -130,6 +130,19 @@ try {
                 'sha256' => hash('sha256', $split['html'])
             ];
         }
+        $notFoundPath=PublicRenderer::notFoundPath($site);
+        if($notFoundPath!==null){
+            $errorHtml=PublicRenderer::html($site,$notFoundPath,'',null,
+                $published['version'],$exportOrigin,null,false,true);
+            if(!is_string($errorHtml))failExport('Approved 404 page is missing');
+            $errorSplit=PublicRenderer::externalizeBaseCss($errorHtml);
+            if($errorSplit['css']!==$sharedCss||$errorSplit['file']!==$sharedFile)
+                failExport('404 page differs from published global stylesheet');
+            if(file_put_contents($temp.'/404.html',$errorSplit['html'],LOCK_EX)===false)
+                failExport('Cannot write custom 404 page');
+            $manifest['notFound']=['path'=>$notFoundPath,'file'=>'404.html',
+                'sha256'=>hash('sha256',$errorSplit['html'])];
+        }
         if($sharedCss===null||$sharedFile===null)failExport('Global stylesheet missing');
         if(!mkdir($temp.'/styles',0755,true)||
             file_put_contents($temp.'/'.$sharedFile,$sharedCss,LOCK_EX)===false)

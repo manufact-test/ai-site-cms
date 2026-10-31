@@ -35,9 +35,10 @@ function walk(root,base='',max=180000000){
   return result;
 }
 const json=value=>Buffer.from(JSON.stringify(value,null,2)+'\n','utf8');
-function apache(redirects){
+function apache(redirects,hasNotFound=false){
   const rules=['# Generated for Apache mod_rewrite. Upload next to index.html.',
     'Options -Indexes','DirectoryIndex index.html','RewriteEngine On'];
+  if(hasNotFound)rules.push('ErrorDocument 404 /404.html');
   for(const [from,to] of redirects){
     if(!(/^\/(?:[a-z0-9-]+\/)+$/).test(from)
        ||!(/^\/(?:[a-z0-9-]+\/)*$/).test(to))fail('unsafe redirect for Apache');
@@ -59,9 +60,10 @@ function apache(redirects){
     '</IfModule>');
   return Buffer.from(rules.join('\n')+'\n');
 }
-function nginx(routes){
+function nginx(routes,hasNotFound=false){
   const lines=['# Include in an Nginx server block, after configuring root and TLS.',
     '# These are ACTUAL 301 rules (unlike HTML redirect fallback pages).'];
+  if(hasNotFound)lines.push('error_page 404 /404.html;');
   for(const [from,to] of routes){
     lines.push('location = '+from+' { return 301 '+to+'; }');
     lines.push('location = '+from.replace(/\/$/,'')+' { return 301 '+to+'; }');
@@ -134,13 +136,13 @@ function main(){
       if(f.relative==='release-manifest.json')continue; // internal provenance belongs outside visitor document root
       add('deploy/'+f.relative,f.data);
     }
-    add('deploy/.htaccess',apache(redirectPairs));
+    add('deploy/.htaccess',apache(redirectPairs,Boolean(m.notFound)));
   }else if(technology==='php'){
     for(const f of walk(path.join(source,'data')))add('deploy/data/'+f.relative,f.data);
     for(const f of walk(path.join(source,'public')))add('deploy/public/'+f.relative,f.data);
   }else if(technology==='next-static'){
     for(const f of walk(path.join(source,'out')))add('deploy/'+f.relative,f.data);
-    add('deploy/.htaccess',apache(redirectPairs));
+    add('deploy/.htaccess',apache(redirectPairs,Boolean(m.notFound)));
   }else{
     // Source-only Next SSR kit. No untrusted node_modules or hidden .next build
     // artifacts are shipped as a pretend deployable runtime.
@@ -159,6 +161,7 @@ function main(){
   if(!m.publicOrigin)warnings.push('Configure explicit canonical HTTPS origin and rebuild the immutable release before going live.');
   if(formCount)warnings.push('Confirm HTTPS collector and submission storage independently before going live.');
   if(isStatic&&redirectPairs.length)warnings.push('Real 301 requires Apache mod_rewrite (bundled .htaccess) or explicit Nginx rules. HTML fallback is NOT HTTP 301.');
+  if(isStatic&&m.notFound)warnings.push('Serve generated 404.html with HTTP status 404 on unknown routes. Bundled Apache/Nginx configurations include the ErrorDocument/error_page rule; verify the host applies it.');
   if(technology==='next-ssr')warnings.push('Source-only. Install dependencies, build and run on Node-capable host; NOT upload-ready. Never use on PHP-only hosting.');
   if(technology==='php')warnings.push('Only deploy/public is a document root. NEVER expose deploy/data or the package parent.');
   warnings.push('Manual owner approval, HTTPS, security headers, host routing, backups and operator smoke checks still required. This ZIP does NOT deploy.');
@@ -183,7 +186,7 @@ function main(){
     '',...warnings.map(x=>'WARNING: '+x),''
   ].join('\n');
   add('handoff/INSTALL.txt',Buffer.from(instructions));
-  add('handoff/nginx-redirects.example.conf',nginx(redirectPairs));
+  add('handoff/nginx-redirects.example.conf',nginx(redirectPairs,Boolean(m.notFound)));
   add('handoff/source-release-manifest.json',fs.readFileSync(path.join(data,'release-manifest.json')));
   if(adapter)add('handoff/runtime-build.json',fs.readFileSync(path.join(source,'runtime-build.json')));
 

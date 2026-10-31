@@ -326,6 +326,20 @@ final class Api
                 foreach($published['site']['pages'] as $page)
                     if($page['path']===$match[2]){$pageFound=true;break;}
                 if(!$pageFound){
+                    $notFoundPath=PublicRenderer::notFoundPath($published['site']);
+                    if($notFoundPath!==null){
+                        $notFoundHtml=PublicRenderer::html($published['site'],$notFoundPath,
+                            null,null,$published['version'],$origin,null,false,true);
+                        if(!is_string($notFoundHtml))throw new \RuntimeException('Invalid published 404 page');
+                        http_response_code(404);
+                        header('Cache-Control: no-store');
+                        header('X-Robots-Tag: noindex, follow');
+                        header("Content-Security-Policy: default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self'; media-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+                        header('Content-Type: text/html; charset=utf-8');
+                        header('Content-Length: '.strlen($notFoundHtml));
+                        if($method!=='HEAD')echo $notFoundHtml;
+                        exit;
+                    }
                     http_response_code(404);
                     if($method!=='HEAD')echo 'Not found';
                     exit;

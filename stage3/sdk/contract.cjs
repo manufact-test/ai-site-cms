@@ -357,7 +357,7 @@ function validateSharedSections(groups){
 }
 function validateSite(raw,regInput){
   const reg=regInput instanceof Map?regInput:registry(regInput);
-  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding','footer','header'],'site');
+  objectKeys(raw,['format','siteId','title','schemaVersion','assets','pages','theme','redirects','menu','designTokens','language','branding','footer','header','notFoundPageId'],'site');
   GRAPH_HOST.validateTokens(raw.designTokens);
   if(own(raw,'menu'))validMenu(raw.menu);
   if(own(raw,'theme'))validTheme(raw.theme);
@@ -484,6 +484,14 @@ function validateSite(raw,regInput){
   }
   validateSharedSections(sharedGroups);
   validMenuRelations(raw);
+  if(own(raw,'notFoundPageId')){
+    id(raw.notFoundPageId,'notFoundPageId');
+    const fallback=raw.pages.find(page=>page.id===raw.notFoundPageId);
+    if(!fallback||fallback.path==='/'||fallback.seo?.robots!=='noindex'||
+      fallback.navigation?.hidden!==true||
+      fallback.sections.some(section=>['lead-form','lead-form-flex'].includes(section.component)))
+      fail('404 page must be an existing, hidden, noindex, form-free non-home page');
+  }
   if(own(raw,'redirects')){
     if(!Array.isArray(raw.redirects)||raw.redirects.length>60)fail('Invalid redirect count');
     const aliases=new Set();

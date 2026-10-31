@@ -284,7 +284,7 @@ final class ContractValidator
     }
     public function validate(mixed $site): array
     {
-        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens', 'language', 'branding', 'footer', 'header']);
+        self::keys($site, ['format', 'siteId', 'title', 'schemaVersion', 'assets', 'pages', 'theme', 'redirects', 'menu', 'designTokens', 'language', 'branding', 'footer', 'header', 'notFoundPageId']);
         DesignGraph::tokens($site['designTokens']??null);
         if (array_key_exists('menu',$site)) self::menu($site['menu']);
         if (array_key_exists('header',$site)) self::header($site['header'],$site['pages']??[]);
@@ -499,6 +499,17 @@ final class ContractValidator
         }
         $pageIds=[];
         foreach ($site['pages'] as $page) $pageIds[$page['id']]=$page;
+        if (array_key_exists('notFoundPageId',$site)) {
+            $fallbackId=$site['notFoundPageId'];
+            $fallback=is_string($fallbackId)?($pageIds[$fallbackId]??null):null;
+            self::must($fallback!==null&&($fallback['path']??'/')!=='/'
+                &&($fallback['seo']['robots']??'index')==='noindex'
+                &&($fallback['navigation']['hidden']??false)===true,
+                '404 page must be an existing hidden noindex non-home page');
+            foreach($fallback['sections'] as $section)
+                self::must(!in_array($section['component'],['lead-form','lead-form-flex'],true),
+                    '404 page cannot contain a form');
+        }
         foreach ($site['pages'] as $page) {
             $parentId=$page['navigation']['parentId']??null;
             if ($parentId===null) continue;

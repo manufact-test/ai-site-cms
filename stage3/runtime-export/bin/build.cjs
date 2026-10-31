@@ -55,6 +55,19 @@ function compile() {
       const templates = path.join(sourcePath,'next');
       copyTree(path.join(templates,'lib'),path.join(temp,'lib'));
       copyTree(path.join(templates,'app'),path.join(temp,'app'));
+      if(manifest.notFound){
+        // Next 404 status is supplied by the framework's not-found route.
+        // Reuse only the sealed, already-authored CMS page; do not synthesize
+        // a second design or copy its canonical metadata to unknown URLs.
+        const route=JSON.stringify(manifest.notFound.path);
+        put(temp,'app/not-found.jsx',[
+          "import {renderNotFound,metadataFor} from '../lib/runtime.js';",
+          'const source=metadataFor('+route+');',
+          'export const metadata={title:source.title,description:source.description,robots:{index:false,follow:true}};',
+          'export default function NotFound(){return renderNotFound();}',
+          ''
+        ].join('\n'));
+      }
       // Bind the Next visitor to the EXACT FIRST-PARTY published PHP form
       // wizard: release HTML is integrity-checked, but must never become an
       // unchecked executable script in an independent Next runtime.
@@ -130,6 +143,7 @@ function compile() {
       publishedVersion:manifest.publishedVersion,sourceRevision:manifest.sourceRevision,
       releaseManifestSha256:sha256,
       pages:[...pages.keys()],redirects:[...redirects.keys()],
+      ...(manifest.notFound?{notFoundPath:manifest.notFound.path}:{}),
       publicOrigin:manifest.publicOrigin??null,formCollector:manifest.formCollector??null
     },null,2)+'\n');
     if (exists(destination)) fail('destination appeared during build');

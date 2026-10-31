@@ -37,8 +37,9 @@ async function probe() {
   const sheet=put('styles/site-'+hash(sharedCss)+'.css',sharedCss);
   const page = (title,body) => '<!doctype html><html lang="en"><head><meta charset="utf-8">'
     +'<title>'+title+'</title><meta name="description" content="Page '+title+'">'
+    +(title==='404'?'<meta name="robots" content="noindex,follow">':'')
     +'<meta property="og:title" content="'+title+'">'
-    +'<link rel="canonical" href="https://example.test/'+(title==='Home'?'':'about/')+'">'
+    +'<link rel="canonical" href="https://example.test/'+(title==='Home'?'':title==='404'?'404/':'about/')+'">'
     +(title==='Home'?'<script type="application/ld+json">'+JSON.stringify({
       '@context':'https://schema.org','@type':'WebPage',name:'Home',url:'https://example.test/'
     })+'</script>':'')
@@ -46,13 +47,20 @@ async function probe() {
     +'<body><header><a href="/about/">About</a></header><main class="probe">'+body+'</main></body></html>';
   const home=put('index.html',page('Home','Visible CMS published home'));
   const about=put('about/index.html',page('About','Visible CMS published about'));
+  const authoredError=put('404/index.html',page('404','Bespoke published 404 design'));
+  const lost=put('404.html','<!doctype html><html lang="en"><head><meta charset="utf-8">'
+    +'<title>Page not found</title><meta name="description" content="Choose another address">'
+    +'<meta name="robots" content="noindex,follow">'
+    +'<link rel="stylesheet" href="/'+sheet.file+'"></head>'
+    +'<body><main class="probe">Bespoke published 404 design</main></body></html>');
   const old=put('old/index.html','<!doctype html><html><head><meta name="robots" content="noindex,follow">'
     +'<title>Moved</title></head><body><a href="/about/">Moved</a></body></html>');
   const img=put('assets/image-abc.png',Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/vmkAAAAASUVORK5CYII=','base64'));
   put('release-manifest.json',JSON.stringify({
     format:'manufact-ai-static-site-v1',siteId:'site-next-proof',
     publishedVersion:2,sourceRevision:7,
-    pages:[{path:'/',...home},{path:'/about/',...about}],
+    pages:[{path:'/',...home},{path:'/about/',...about},{path:'/404/',...authoredError}],
+    notFound:{path:'/404/',...lost},
     assets:[{id:'image-abc',parentId:'image-abc',mime:'image/png',...img}],
     stylesheets:[{file:sheet.file,sha256:sheet.sha256}],
     redirects:[{from:'/old/',to:'/about/',...old}],
@@ -94,9 +102,15 @@ async function probe() {
   assert.equal(report.counts.blockers,0);
   assert.equal(report.httpRehearsal.status,'local-http-pass');
   assert.equal(report.httpRehearsal.technology,'next-static');
-  assert.equal(report.stats.pages,2);
+  assert.equal(report.stats.pages,3);
   const zipTree=require('../lib/delivery-zip.cjs').readArchive(fs.readFileSync(readyZip));
   assert.ok(zipTree.has('deploy/about/index.html'));
+  assert.ok(zipTree.has('deploy/404/index.html'));
+  assert.ok(zipTree.has('deploy/404.html'));
+  assert.match(String(zipTree.get('deploy/404.html')),/Bespoke published 404 design/);
+  assert.match(String(zipTree.get('deploy/.htaccess')),/ErrorDocument 404 \/404[.]html/);
+  assert.match(String(zipTree.get('handoff/nginx-redirects.example.conf')),
+    /error_page 404 \/404[.]html;/);
   assert.ok(zipTree.has('deploy/old/index.html'));
   assert.ok(String(zipTree.get('deploy/.htaccess')).includes('RewriteRule ^old'));
   assert.match(String(zipTree.get('deploy/index.html')),/Visible CMS published home/);
@@ -131,6 +145,8 @@ async function probe() {
     const aboutHtml=await aboutRes.text();
     assert.match(aboutHtml,/Visible CMS published about/);
     assert.doesNotMatch(aboutHtml,/application\/ld\+json/,'No JSON-LD must be invented for unconfigured pages');
+    assert.equal((await fetch(origin+'/404/')).status,200,
+      'The authored /404/ route is a genuine CMS page while unknown routes are 404');
     const redirect=await fetch(origin+'/old/',{redirect:'manual'});
     assert.equal(redirect.status,301);
     assert.equal(new URL(redirect.headers.get('location'),origin).pathname,'/about/');
@@ -142,7 +158,12 @@ async function probe() {
     const image=await fetch(origin+'/assets/image-abc.png');
     assert.equal(image.status,200);
     assert.deepEqual(Buffer.from(await image.arrayBuffer()),fs.readFileSync(path.join(dir,img.file)));
-    assert.equal((await fetch(origin+'/does-not-exist/')).status,404);
+    const notFoundRes=await fetch(origin+'/does-not-exist/');
+    assert.equal(notFoundRes.status,404);
+    const notFoundHtml=await notFoundRes.text();
+    assert.match(notFoundHtml,/Bespoke published 404 design/);
+    assert.match(notFoundHtml,/noindex/);
+    assert.doesNotMatch(notFoundHtml,/rel="canonical"|application\/ld\+json|property="og:url"/);
     console.log('Next static BUILD + Next SSR HTTP PROOF PASS (disposable loopback)');
   } finally {
     // npm starts a shell and next-server child. Kill the whole disposable
