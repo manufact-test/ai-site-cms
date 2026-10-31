@@ -7734,6 +7734,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       renderAudit();
     }
     function render(){
+      // Keep the owner's chosen advanced-actions state during graph edits.
+      const advancedActionsOpen=Boolean(toolbar.querySelector('#cms-design-structure-actions')?.open);
       root.replaceChildren();toolbar.replaceChildren();
       const rows=all();
       if(!rows.length)return;
@@ -7775,6 +7777,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       }
       const advancedActions=make('details',undefined,'cms-design-advanced-actions');
       advancedActions.id='cms-design-structure-actions';
+      advancedActions.open=advancedActionsOpen;
       advancedActions.append(make('summary','Действия с элементом'));
       const advancedActionList=make('div',undefined,'cms-design-advanced-actions-list');
       advancedActions.append(advancedActionList);
@@ -8751,7 +8754,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       }
       undoStack=[];redoStack=[];activeGesture=null;suppressPreviewClick=false;
       title.textContent='Дизайн-композиция · '+(manifest(section)?.label||section.id);
-      dlg.showModal();render();
+      // Each new editing session starts with only the primary controls visible.
+      toolbar.replaceChildren();dlg.showModal();render();
     };
   }
 
