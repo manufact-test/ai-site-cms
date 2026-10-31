@@ -656,16 +656,26 @@ async function execute(){
     'Visual search narrows to one image plus the inheritance control');
   await page.locator('#cms-work-graph-image-library [data-graph-device-asset-id="'+
     importedMobileLogo.id+'"]').click();
-  let customImage=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
-    .find(s=>s.id==='section-approved-custom').designGraph.nodes.find(n=>n.id==='approved-custom-photo');
+  const customPhoto=()=>page.evaluate(()=>{
+    const nodes=window.Stage3Editor.getSite().pages[0].sections
+      .find(s=>s.id==='section-approved-custom').designGraph.nodes;
+    const find=children=>{
+      for(const node of children){
+        if(node.id==='approved-custom-photo')return node;
+        if(node.children){const nested=find(node.children);if(nested)return nested;}
+      }
+      return null;
+    };
+    return find(nodes);
+  });
+  let customImage=await customPhoto();
   assert.equal(customImage.responsiveMedia.mobileAssetId,importedMobileLogo.id);
   assert.equal(await page.locator('#cms-work-graph-image-previews figure').nth(2)
     .locator('figcaption').innerText(),'Телефон · свой файл');
   await page.locator('#cms-work-graph-image-library > summary').click();
   await page.locator('#cms-work-graph-image-library [data-graph-device-asset-id="'+
     importedDesktopLogo.id+'"]').click();
-  customImage=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections
-    .find(s=>s.id==='section-approved-custom').designGraph.nodes.find(n=>n.id==='approved-custom-photo');
+  customImage=await customPhoto();
   assert.equal(customImage.responsiveMedia.mobileAssetId,importedDesktopLogo.id);
   await page.locator('#cms-page-preview [data-mode="desktop"]').click();
   await page.locator('#cms-work-graph-node').selectOption('approved-custom-container');
