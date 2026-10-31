@@ -184,7 +184,14 @@ final class FormGateway
                     $returnTarget=self::returnPage($sites,$siteId,$sectionId,(int)$release,
                         $returnRequest,$ours,$origin,$allow);
                     $successTarget=self::successTarget($published,$sectionId,$returnTarget,$origin,$ours);
-                }catch(\Throwable $ignored){$returnTarget='';}
+                    if($successTarget!==''){
+                        // An old open form may still save a legitimate lead after a
+                        // newer publication. Never send it to an obsolete page
+                        // whose deployment/revision can no longer be assumed.
+                        $current=$sites->published($siteId);
+                        if($current['version']!==(int)$release)$successTarget='';
+                    }
+                }catch(\Throwable $ignored){$returnTarget='';$successTarget='';}
                 $messageKey='success';
                 $status = 201;
             }

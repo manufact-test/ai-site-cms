@@ -2611,6 +2611,21 @@ async function stop(){
   const thankInventory=(await request('GET','/api/sites/site-thank-you-ci/launch-forms')).body;
   assert.equal(thankInventory.forms[0].savedSubmissionCount,2,
     'Accepted leads persist even when the visitor returns to a bespoke page');
+  const revisedThank=structuredClone(thankSite);
+  delete revisedThank.pages[0].sections.at(-1).successPageId;
+  const savedThank=await request('POST','/api/sites/site-thank-you-ci/save',{
+    expectedRevision:1,site:revisedThank});
+  assert.equal(savedThank.status,200,JSON.stringify(savedThank.body));
+  assert.equal((await request('POST','/api/sites/site-thank-you-ci/publish',
+    {expectedRevision:2})).status,200);
+  const staleFormThank=await thankPost({});
+  assert.equal(staleFormThank.status,201,
+    'A previously opened release can still save its valid submission');
+  assert.equal(staleFormThank.headers.get('location'),null,
+    'A stale published release may not redirect to an obsolete confirmation page');
+  assert.match(await staleFormThank.text(),/заявка сохранена/);
+  const latestThankInventory=(await request('GET','/api/sites/site-thank-you-ci/launch-forms')).body;
+  assert.equal(latestThankInventory.forms[0].savedSubmissionCount,3);
 
   // Full URL rename flow through the same validated SDK used by Studio.
   const urlSite=structuredClone(fixture);urlSite.siteId='site-url-ci';

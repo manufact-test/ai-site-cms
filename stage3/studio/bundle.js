@@ -10014,7 +10014,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         }catch(e){notice('Настройка формы отклонена: '+e.message,true);draw();}
       });
       label.append(chooser);
-      const hint=document.createElement('p');hint.textContent='Только уже созданная скрытая страница с noindex и без форм. Переход после принятой сервером заявки; ошибки остаются в форме. Если страницу не выбрать, остаётся штатное подтверждение. Для стороннего HTTPS-хостинга необходимо проверить реальную доставку и маршрут.';
+      const hint=document.createElement('p');hint.textContent='Только уже созданная скрытая страница с noindex и без форм. Переход выполняется после принятой сервером заявки; при ошибках и устаревшей публикации показывается штатный ответ сервера. Если страницу не выбрать, остаётся штатное подтверждение. Для стороннего HTTPS-хостинга необходимо проверить реальную доставку и маршрут.';
       targetBox.append(legend,label,hint);row.append(targetBox);
     }
     // Device-specific visibility applies to the existing section, not a new template.
