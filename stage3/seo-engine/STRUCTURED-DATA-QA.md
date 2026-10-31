@@ -1,3 +1,5 @@
+> **31 October 2026 — complementary runtime semantic comparison:** the existing HTTP source Structured Data QA remains the authority for inspecting unchanged original public JSON-LD. Its bounded parser/graph helpers now also support the **existing** rendered-content audit to compare mutations from HTTP HTML to supplied desktop/tablet/mobile DOM, including changed owner-sensitive claim values inside the same type. See [RENDERED-STRUCTURED-DATA-QA.md](RENDERED-STRUCTURED-DATA-QA.md). No duplicate dashboard, client claim copying or Google guarantee.
+
 # MANUFACT SEO — actual per-client Structured Data / JSON-LD Semantic QA
 
 **2026-10-30 · independent SEO worker · `feature/site-seo-engine` / `stage3/seo-engine/**` only.** Main CMS/Studio/Publisher integrator remains sole developer on `feature/stage3-ai-site-contract`. There is **no** schema template library, no generic site generator, no new CMS, no public fetcher, no auto publication and no rich-result guarantee.

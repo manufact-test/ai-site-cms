@@ -9,6 +9,7 @@ const PARITY=require('./parity.cjs');
 const CHROME=require('./seo-rendered-capture.cjs');
 const VIS=require('./seo-browser-css-visibility.cjs');
 const MEDIA=require('./seo-browser-image-observation.cjs');
+const SCHEMA=require('./seo-structured-data-audit.cjs');
 const crypto=require('node:crypto');
 const FORMAT='manufact-seo-rendered-content-audit-v1';
 const DEVICES=['desktop','tablet','mobile'];
@@ -345,11 +346,64 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
    if(current.parsed.structuredDataErrors.length)
     issue(p,device,'rendered-jsonld-invalid','P1',
      'Rendered DOM contains malformed or oversized JSON-LD.');
+   // A root @type comparison alone misses JS-mutated offers, prices, reviews,
+   // breadcrumbs and factual claims inside unchanged schema entities. Reuse
+   // the existing bounded semantic parser; only allowlisted field/type names
+   // and numeric changes leave this per-device comparison.
+   const schemaDelta=SCHEMA.compareRenderedSemantics({
+    sourceHtml:source.html,renderedHtml:v.html,page:p,base:origin,knownPaths:allPaths});
+   const schemaRuntimeStatus=schemaDelta.status;
+   let schemaClaimChange=false,schemaUnapprovedType=false,
+    schemaUnconfirmedType=false,schemaUnsafeEntity=false;
+   if(schemaRuntimeStatus!=='observed'){
+    issue(p,device,'jsonld-semantic-comparison-incomplete','P1',
+     'HTTP or rendered JSON-LD could not be safely inspected ('+schemaDelta.reason+
+      '); semantic parity is unknown.');
+   }else{
+    const claimFields=[...schemaDelta.addedClaimFields,...schemaDelta.changedClaimFields];
+    if(claimFields.length){
+     schemaClaimChange=true;
+     issue(p,device,'jsonld-owner-claim-mutated','P1',
+      'JavaScript added or changed owner-sensitive JSON-LD fields ('+
+       claimFields.join(', ')+'); compare evidence with the owner. No values are retained.',
+      {changedClaimFieldNames:claimFields});
+    }
+    if(schemaDelta.addedUnconfirmedTypes>0){
+     schemaUnconfirmedType=true;
+     issue(p,device,'jsonld-unconfirmed-candidate-injected','P0',
+      'Rendered JSON-LD introduces '+schemaDelta.addedUnconfirmedTypes+
+       ' entity type occurrence(s) linked to Blueprint candidates without confirmed owner facts.');
+    }
+    if(schemaDelta.addedUnapprovedTypes>0){
+     schemaUnapprovedType=true;
+     issue(p,device,'jsonld-unapproved-type-injected','P1',
+      'Rendered JSON-LD introduces '+schemaDelta.addedUnapprovedTypes+
+       ' material schema entity occurrence(s) absent from the approved Blueprint candidates.');
+    }
+    if(schemaDelta.addedUnsafeUrls||schemaDelta.addedCanonicalDrift||
+     schemaDelta.addedBreadcrumbProblems||schemaDelta.addedContextProblems){
+     schemaUnsafeEntity=true;
+     issue(p,device,'jsonld-semantic-regression','P1',
+      'Rendered JSON-LD introduces unsafe entity URLs, page-canonical mismatches, '+
+       'breadcrumb errors or context issues; review the actual private DOM.');
+    }
+    if(schemaDelta.removedTypes.length||schemaDelta.addedTypes.length||
+     schemaDelta.addedUnknownTypes||schemaDelta.removedClaimFields.length){
+     issue(p,device,'jsonld-nested-entity-drift','P2',
+      'Typed schema entities or owner-sensitive claim fields appeared/disappeared, '+
+       'or unrecognized types increased; verify semantic intent against original HTTP HTML.',
+      {removedKnownTypeNames:schemaDelta.removedTypes,
+       addedKnownTypeNames:schemaDelta.addedTypes,
+       removedClaimFieldNames:schemaDelta.removedClaimFields});
+    }
+   }
    if(current.parsed.unlabelledControls.length>server.parsed.unlabelledControls.length)
     issue(p,device,'unlabelled-controls-increased','P2',
      'Rendered DOM introduced form controls without detectable static labels; browser accessibility review needed.');
    report.devices[device]={inspected:true,method:'rendered-dom',
     mediaStatus,mediaCounts,
+    schemaRuntimeStatus,schemaClaimChange,schemaUnapprovedType,
+    schemaUnconfirmedType,schemaUnsafeEntity,
     cssVisibilityStatus,cssHiddenH1,cssHiddenMain,cssHiddenCtaRoutes,
     cssCollapsedNavRoutes,cssHiddenSecondaryHeadings,
     h1Count:h1.length,mainCount:current.parsed.mainCount,
@@ -374,6 +428,7 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
  const cssDevices=pages.flatMap(p=>DEVICES.map(d=>p.devices[d]));
  const cssObserved=cssDevices.filter(d=>d.cssVisibilityStatus==='observed');
  const mediaObserved=cssDevices.filter(d=>d.mediaStatus==='observed'&&d.mediaCounts);
+ const semanticObserved=cssDevices.filter(d=>d.schemaRuntimeStatus==='observed');
  const summary={plannedPages:plan.pages.length,httpInspectedPages:pages.filter(p=>p.httpInspected).length,
   fullyComparedPages:pages.filter(p=>p.evidenceState==='SOURCE-PAIR-OBSERVED').length,
   missingRenderPages:pages.filter(p=>p.evidenceState!=='SOURCE-PAIR-OBSERVED').length,
@@ -401,6 +456,12 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   mediaVisibleMissingAlt:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.visibleMissingAlt,0):null,
   mediaVisibleMissingDimensions:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.visibleMissingDimensions,0):null,
   mediaVisibleUpscaled:version2?mediaObserved.reduce((n,d)=>n+d.mediaCounts.visibleUpscaled,0):null,
+  schemaRuntimeObservedPairs:semanticObserved.length,
+  schemaRuntimeUnknownPairs:plan.pages.length*3-semanticObserved.length,
+  schemaClaimChangedPairs:semanticObserved.filter(d=>d.schemaClaimChange).length,
+  schemaUnapprovedTypePairs:semanticObserved.filter(d=>d.schemaUnapprovedType).length,
+  schemaUnconfirmedFactPairs:semanticObserved.filter(d=>d.schemaUnconfirmedType).length,
+  schemaUnsafeEntityPairs:semanticObserved.filter(d=>d.schemaUnsafeEntity).length,
   P0:findings.filter(f=>f.priority==='P0').length,
   P1:findings.filter(f=>f.priority==='P1').length,
   P2:findings.filter(f=>f.priority==='P2').length};
@@ -412,8 +473,8 @@ function analyze({blueprint,blueprintRawSha256,site,siteRawSha256,
   pages,findings,summary,
   manualNext:['Confirm both captures refer to the same released revision and URL/mount.',
    'Resolve P0 canonical/robots changes before SEO signoff; inspect source and browser DOM.',
-   'Verify headings, CTA routes, schema claims and visual accessibility on real devices.',
-   'Run existing Structured Data Semantic QA for JSON-LD claims and separate live acceptance.'],
+   'Verify headings, CTA routes, JS-mutated JSON-LD claims and visual accessibility on real devices.',
+   'Run existing Structured Data Semantic QA on original HTTP source; this rendered delta never verifies claim truth or Google eligibility.'],
   originalCustomerMarkupIncluded:false,sourceOriginAuthenticated:false,
   browserCaptureAuthenticated:false,sameReleaseRevisionProven:false,
   googleRenderingVerified:false,visualAccessibilityVerified:false,

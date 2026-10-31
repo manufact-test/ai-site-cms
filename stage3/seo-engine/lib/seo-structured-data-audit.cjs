@@ -8,6 +8,7 @@ const DELIVERY=require('./delivery-evidence.cjs');
 const crypto=require('node:crypto');
 const FORMAT='manufact-seo-structured-data-audit-v1',SHA=/^[a-f0-9]{64}$/;
 const TYPES=new Set(['Organization','LocalBusiness','BreadcrumbList','Article','Product','Service','FAQPage']);
+const RENDER_TYPES=new Set([...TYPES,'WebPage','WebSite']);
 const CLAIMS=new Set(['aggregateRating','review','offers','price','priceCurrency','priceSpecification',
  'availability','lowPrice','highPrice','ratingValue','ratingCount','reviewCount','geo',
  'address','telephone','openingHours','openingHoursSpecification','award','sameAs',
@@ -83,6 +84,126 @@ function listBreadcrumbs(value){
   out.push({position:x.position,name:x.name||x.item?.name||null,target});
  }
  return {ok:true,items:out};
+}
+// Cross-source JSON-LD semantic delta for the existing HTTP/rendered-DOM audit.
+// All customer claim values and their temporary fingerprints stay in memory;
+// only allowlisted Schema.org type/field names and bounded numeric differences
+// leave this function. It is not a second schema report or owner verification.
+function stableValue(value,depth=0){
+ if(depth>LIMIT.depth)throw Error('JSON-LD claim nesting limit');
+ if(Array.isArray(value))return value.map(x=>stableValue(x,depth+1));
+ if(value&&typeof value==='object')
+  return Object.fromEntries(Object.keys(value).sort().map(k=>[k,stableValue(value[k],depth+1)]));
+ return value;
+}
+function inspectRuntimePage(html,page,base,knownPaths){
+ const result={status:'observed',reason:null,scriptCount:0,types:Object.create(null),
+  unknownTypes:0,claims:Object.create(null),claimHashes:Object.create(null),
+  unapprovedTypes:0,unconfirmedTypes:0,unsafeUrls:0,canonicalDrift:0,
+  breadcrumbProblems:0,contextProblems:0};
+ let scripts;
+ try{scripts=parse(html)}catch{
+  result.status='incomplete';result.reason='html-or-script-limit';return result;
+ }
+ result.scriptCount=scripts.length;
+ const approved=new Map((page.schemaCandidates||[]).map(c=>[c.type,c]));
+ const canonical=canonicalUrl(base,page.seo.canonicalPath);
+ const mount=new URL(base).pathname;
+ for(const script of scripts){
+  if(script.error){
+   result.status='incomplete';result.reason='malformed-jsonld';continue;
+  }
+  const roots=Array.isArray(script.value)?script.value:[script.value];
+  if(!roots.some(x=>x&&typeof x==='object'&&
+   arr(x['@context']).some(ctx=>ctx==='https://schema.org'||ctx==='http://schema.org'||
+    ctx&&typeof ctx==='object'&&ctx['@vocab']==='https://schema.org/')))
+   result.contextProblems++;
+  let nodes;
+  try{nodes=extract(script.value)}catch{
+   result.status='incomplete';result.reason='schema-graph-limit';continue;
+  }
+  if(!nodes.length)result.contextProblems++;
+  for(const node of nodes){
+   const normalized=node.types.map(x=>x.replace(/^https?:\/\/schema\.org\//,''));
+   for(const type of normalized){
+    if(RENDER_TYPES.has(type))result.types[type]=(result.types[type]||0)+1;
+    else result.unknownTypes++;
+    if(TYPES.has(type)){
+     const candidate=approved.get(type);
+     if(!candidate)result.unapprovedTypes++;
+     else if(!candidate.eligible)result.unconfirmedTypes++;
+    }
+   }
+   for(const key of CLAIMS){
+    if(node.object[key]===undefined)continue;
+    result.claims[key]=(result.claims[key]||0)+1;
+    try{
+     const digest=sha(JSON.stringify(stableValue(node.object[key])));
+     (result.claimHashes[key]??=[]).push(digest);
+    }catch{
+     result.status='incomplete';result.reason='claim-comparison-limit';
+    }
+   }
+   for(const field of ['@id','url','mainEntityOfPage']){
+    const raw=field==='mainEntityOfPage'&&node.object[field]&&
+     typeof node.object[field]==='object'?
+     (node.object[field]['@id']||node.object[field].url):node.object[field];
+    if(raw===undefined)continue;
+    const checked=safeUrl(raw,base);
+    if(checked.status!=='same-site')
+     result.unsafeUrls++;
+    else if(checked.status==='same-site'&&
+     normalized.some(t=>t==='WebPage'||t==='Article')&&
+     checked.url.split('#')[0]!==canonical)result.canonicalDrift++;
+   }
+   if(normalized.includes('BreadcrumbList')){
+    const crumbs=listBreadcrumbs(node.object.itemListElement);
+    if(!crumbs.ok){result.breadcrumbProblems++;continue}
+    if(crumbs.items.some((x,i)=>x.position!==i+1))result.breadcrumbProblems++;
+    const targets=crumbs.items.map(x=>safeUrl(x.target,base));
+    if(targets.some(t=>t.status!=='same-site'))result.breadcrumbProblems++;
+    else{
+     if(targets.at(-1).url.split('#')[0]!==canonical)result.breadcrumbProblems++;
+     if(targets.some(t=>!knownPaths.has('/'+new URL(t.url).pathname.slice(mount.length))))
+      result.breadcrumbProblems++;
+    }
+   }
+  }
+ }
+ return result;
+}
+function compareRenderedSemantics({sourceHtml,renderedHtml,page,base,knownPaths}){
+ assert(typeof base==='string'&&page&&Array.isArray(page.schemaCandidates)&&
+  page.seo&&knownPaths instanceof Set,'approved runtime schema context required');
+ const before=inspectRuntimePage(sourceHtml,page,base,knownPaths);
+ const after=inspectRuntimePage(renderedHtml,page,base,knownPaths);
+ if(before.status!=='observed'||after.status!=='observed')
+  return {status:'incomplete',reason:before.status!=='observed'?
+   'http-jsonld-uninspectable':'rendered-jsonld-uninspectable'};
+ const addedTypes=[],removedTypes=[],addedClaimFields=[],removedClaimFields=[],changedClaimFields=[];
+ for(const type of RENDER_TYPES){
+  const delta=(after.types[type]||0)-(before.types[type]||0);
+  if(delta>0)addedTypes.push(type);
+  if(delta<0)removedTypes.push(type);
+ }
+ for(const field of CLAIMS){
+  const prior=before.claims[field]||0,now=after.claims[field]||0;
+  if(now>prior)addedClaimFields.push(field);
+  if(now<prior)removedClaimFields.push(field);
+  if(now&&now===prior&&
+   (before.claimHashes[field]||[]).sort().join(',')!==
+    (after.claimHashes[field]||[]).sort().join(','))
+   changedClaimFields.push(field);
+ }
+ const increase=key=>Math.max(0,after[key]-before[key]);
+ return {status:'observed',addedTypes,removedTypes,addedClaimFields,removedClaimFields,
+  changedClaimFields,addedUnknownTypes:increase('unknownTypes'),
+  addedUnapprovedTypes:increase('unapprovedTypes'),
+  addedUnconfirmedTypes:increase('unconfirmedTypes'),
+  addedUnsafeUrls:increase('unsafeUrls'),
+  addedCanonicalDrift:increase('canonicalDrift'),
+  addedBreadcrumbProblems:increase('breadcrumbProblems'),
+  addedContextProblems:increase('contextProblems')};
 }
 function review({blueprint,blueprintRawSha256,site,siteRawSha256,
  capture,captureRawSha256,expectedBase=null}={}){
@@ -291,4 +412,4 @@ function markdown(r){
  out.push('','## Limits','');for(const l of r.boundaries)out.push('- '+clip(l));
  return out.join('\n')+'\n';
 }
-module.exports=Object.freeze({FORMAT,LIMIT,parse,extract,review,markdown});
+module.exports=Object.freeze({FORMAT,LIMIT,parse,extract,review,markdown,compareRenderedSemantics});

@@ -1,5 +1,15 @@
 # SEO worker — next-chat handoff, 31 October 2026
 
+## Newest 31 October continuation — rendered JSON-LD semantic QA
+
+The live SEO branch was verified at baseline `f16b782c8ccd6ec47bb16c46f4dcedc32c3f51f3` before this pass. **Fetch live HEAD again after this handoff**; new commit SHA must be obtained from GitHub, not guessed from this document.
+
+The existing `lib/seo-structured-data-audit.cjs` now provides in-memory, bounded `compareRenderedSemantics` over original HTTPS HTML and the existing desktop/tablet/mobile rendered DOM. The original `lib/seo-rendered-content-audit.cjs` and `lib/seo-rendered-content-view.cjs` use it to detect price/rating/review and other owner-sensitive JSON-LD claim mutations even with unchanged root type, unconfirmed/unapproved entity injections, unsafe entity URLs, invalid breadcrumbs/context, and incomplete evidence. Existing private Workspace/readiness receives P0/P1/P2 without new config or dashboard. No client values or even claim-value hashes enter reports. Read [RENDERED-STRUCTURED-DATA-QA.md](RENDERED-STRUCTURED-DATA-QA.md) for implementation and pilot use.
+
+A real checkout was available and the worker ran the five focused **real Node** smoke programs: `seo-browser-image-observation-smoke.cjs`, `seo-css-visibility-smoke.cjs`, `seo-rendered-capture-smoke.cjs`, `seo-rendered-content-smoke.cjs`, `seo-structured-data-smoke.cjs` — all passed before changes; the expanded rendered-content smoke also passed after implementation. These tests use synthetic sources and mocked Chromium; **no real Chromium launch, GitHub Actions or client-site test** is implied. Main lead stays sole integrator; only `stage3/seo-engine/**` changed.
+
+**Highest next priority:** the lead/operator-approved real customer pilot with matched Blueprint, Site v1, original HTTPS capture, Chromium on all three viewports, schema/crawl/readiness evidence and owner confirmation. When no approved live host/source is available, avoid inventing facts or a second dashboard. Only add another missing diagnostic if it is genuinely material; focus on integration, real evidence and resolution of actual findings.
+
 ## Ownership and canonical branch
 
 - Product: **MANUFACT AI Site CMS — SEO Intelligence & Blueprint Engine**.

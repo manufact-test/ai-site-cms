@@ -40,6 +40,13 @@ function render(report){
    ' · visible upscaling '+s.mediaVisibleUpscaled,
    'Image observations are not LCP/CLS or lab/field Core Web Vitals; CSS placeholders may reserve dimensions.',
   ]:[]),
+  'JSON-LD semantic runtime comparison: observed '+s.schemaRuntimeObservedPairs+'/'+
+   (s.plannedPages*3)+' · unknown '+s.schemaRuntimeUnknownPairs+
+   ' · changed owner-sensitive claims '+s.schemaClaimChangedPairs+
+   ' · unapproved type injections '+s.schemaUnapprovedTypePairs+
+   ' · unconfirmed owner-fact types '+s.schemaUnconfirmedFactPairs+
+   ' · unsafe semantic regressions '+s.schemaUnsafeEntityPairs,
+  'Runtime comparisons reuse the original Schema.org parser; claim values are never copied. Neither unchanged JSON-LD nor successful comparison proves owner truth or Google eligibility.',
   '',
   '## Coverage',
   '',
@@ -48,7 +55,7 @@ function render(report){
  ];
  for(const p of report.pages)md.push('| '+clean(p.pageId)+' | '+clean(p.path)+
   ' | '+(p.httpInspected?'observed':'unknown')+
-  ' | '+['desktop','tablet','mobile'].map(d=>p.devices[d].inspected?'rendered DOM'+(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?' / CSS '+clean(p.devices[d].cssVisibilityStatus||'unknown')+' / images '+clean(p.devices[d].mediaStatus||'unknown'):''):clean(p.devices[d].reason)).join(' | ')+' |');
+  ' | '+['desktop','tablet','mobile'].map(d=>p.devices[d].inspected?'rendered DOM / schema '+clean(p.devices[d].schemaRuntimeStatus||'unknown')+(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?' / CSS '+clean(p.devices[d].cssVisibilityStatus||'unknown')+' / images '+clean(p.devices[d].mediaStatus||'unknown'):''):clean(p.devices[d].reason)).join(' | ')+' |');
  md.push('','## Manual investigations','','| Priority | Page | Device | Finding | Human next step |',
   '|---|---|---|---|---|');
  for(const f of report.findings)md.push('| '+f.priority+' | '+clean(f.pageId)+
@@ -74,6 +81,10 @@ function render(report){
   '<h1>Rendered SEO content reconciliation</h1>'+
   '<p>Operator-provided original HTTP HTML vs desktop, tablet and mobile rendered DOM; linked to approved Blueprint. No host/browser provenance or deployed source revision is authenticated.</p>'+
   '<div class="kpis">'+[['Compared',s.fullyComparedPages+'/'+s.plannedPages],['Device pairs',s.inspectedDevicePairs],['P0',s.P0],['P1',s.P1],['P2',s.P2],
+   ['JSON-LD semantic pairs',s.schemaRuntimeObservedPairs+'/'+(s.plannedPages*3)],
+   ['Changed schema claims',s.schemaClaimChangedPairs],
+   ['Unconfirmed schema types',s.schemaUnconfirmedFactPairs],
+   ['Unsafe schema regressions',s.schemaUnsafeEntityPairs],
    ...(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?[
     ['HTTP body matches',s.browserResponseMatchedPairs+'/'+(s.plannedPages*3)],
     ['Body drift',s.browserResponseDriftPairs],['Blocked request pairs',s.browserBlockedPairs],
@@ -89,13 +100,13 @@ function render(report){
     ['Visible images missing alt',s.mediaVisibleMissingAlt]]:[])].map(x=>'<div class="kpi"><b>'+esc(x[1])+'</b>'+esc(x[0])+'</div>').join('')+'</div>'+
   '<section><h2>Evidence coverage</h2><div class="scroll"><table><thead><tr><th>Page</th><th>Route</th><th>HTTP</th><th>Desktop</th><th>Tablet</th><th>Mobile</th></tr></thead><tbody>'+
   report.pages.map(p=>'<tr><td>'+esc(p.pageId)+'</td><td>'+esc(p.path)+'</td><td>'+(p.httpInspected?'observed':'unknown')+
-   '</td>'+['desktop','tablet','mobile'].map(d=>'<td>'+esc(p.devices[d].inspected?'rendered DOM'+(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?' / CSS '+(p.devices[d].cssVisibilityStatus||'unknown')+' / images '+(p.devices[d].mediaStatus||'unknown'):''):p.devices[d].reason)+'</td>').join('')+'</tr>').join('')+
+   '</td>'+['desktop','tablet','mobile'].map(d=>'<td>'+esc(p.devices[d].inspected?'rendered DOM / schema '+(p.devices[d].schemaRuntimeStatus||'unknown')+(report.renderedCaptureFormat==='manufact-seo-viewport-evidence-v2'?' / CSS '+(p.devices[d].cssVisibilityStatus||'unknown')+' / images '+(p.devices[d].mediaStatus||'unknown'):''):p.devices[d].reason)+'</td>').join('')+'</tr>').join('')+
   '</tbody></table></div></section>'+
   '<section><h2>Human investigations</h2><div class="scroll"><table><thead><tr><th>Priority</th><th>Page</th><th>Device</th><th>Code</th><th>What to inspect</th></tr></thead><tbody>'+
   (report.findings.length?report.findings.map(row).join(''):'<tr><td colspan="5">No detected contradiction in supplied captures. This does not prove Google rendering or SEO acceptance.</td></tr>')+
   '</tbody></table></div></section>'+
   '<section><h2>Before pilot SEO signoff</h2><ol>'+report.manualNext.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol></section>'+
-  '<footer>CSS and image loading observations are heuristics, not Core Web Vitals, Google rendering, menu interaction or accessibility approval. Original source byte digests recorded. Private report excludes customer HTML, pricing, reviews, research and heading text. Not Google Search Console data; never automatic GO.</footer>'+
+  '<footer>CSS/image loading and JSON-LD semantic comparisons are observations, not Core Web Vitals, Google rendering, factual claims, menu interaction or accessibility approval. Original source byte digests recorded. Private report excludes customer HTML, pricing, reviews, research and heading text. Not Google Search Console data; never automatic GO.</footer>'+
   '</body></html>';
  return {html,markdown:md.join('\n')};
 }

@@ -5,6 +5,7 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),cryp
 const BP=require('../lib/blueprint.cjs');
 const CRAWL=require('../lib/crawl-policy.cjs');
 const QA=require('../lib/seo-rendered-content-audit.cjs');
+const SCHEMA=require('../lib/seo-structured-data-audit.cjs');
 const VIEW=require('../lib/seo-rendered-content-view.cjs');
 const WORK=require('../lib/seo-operator-workspace.cjs');
 const PACKET=require('../lib/seo-private-lead-integrity.cjs');
@@ -52,12 +53,85 @@ assert.equal(clean.summary.inspectedDevicePairs,6);
 assert.equal(clean.summary.P0,0);
 assert.equal(clean.summary.P1,0);
 assert.equal(clean.summary.P2,0);
+assert.equal(clean.summary.schemaRuntimeObservedPairs,6);
+assert.equal(clean.summary.schemaClaimChangedPairs,0);
 assert.equal(clean.releaseAuthorized,false);
 assert.equal(clean.sameReleaseRevisionProven,false);
 const report=VIEW.render(clean);
 assert(report.html.includes('default-src &#39;none&#39;'));
 assert(!json(clean).includes('NEVER-REPEAT-CUSTOMER-FACT'));
 assert(!report.html.includes('NEVER-REPEAT-CUSTOMER-FACT'));
+assert(report.html.includes('JSON-LD semantic pairs'));
+// A client script can mutate facts inside the SAME @type without changing
+// type inventory. The existing semantic parser must catch the delta and
+// redact all original values from the private output.
+const originalSchema=JSON.parse(schema.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1]);
+const jsonld=x=>'<script type="application/ld+json">'+JSON.stringify(x)+'</script>';
+const changedClaim=dom();
+changedClaim.pages[0].captures.mobile.html=body(bp.pages[0]).replace(schema,
+ jsonld({...originalSchema,aggregateRating:{
+  '@type':'AggregateRating',ratingValue:'SECRET-RATING-NOT-FOR-REPORT'}}));
+const added=QA.analyze(input(evidence,changedClaim));
+assert(added.findings.some(x=>x.code==='rendered:jsonld-owner-claim-mutated'&&
+ x.device==='mobile'));
+assert.equal(added.summary.schemaClaimChangedPairs,1);
+assert(!JSON.stringify(added).includes('SECRET-RATING-NOT-FOR-REPORT'));
+assert(!VIEW.render(added).html.includes('SECRET-RATING-NOT-FOR-REPORT'));
+const changedValueHttp=http();
+const published={...originalSchema,price:'FIRST-PRIVATE-PRICE'};
+changedValueHttp.pages[0].html=body(bp.pages[0]).replace(schema,jsonld(published));
+const sameTypePrice=dom();
+sameTypePrice.pages[0].captures.mobile.html=changedValueHttp.pages[0].html
+ .replace('FIRST-PRIVATE-PRICE','SECOND-PRIVATE-PRICE');
+for(const device of ['desktop','tablet'])
+ sameTypePrice.pages[0].captures[device].html=changedValueHttp.pages[0].html;
+const priceDelta=QA.analyze(input(changedValueHttp,sameTypePrice));
+assert.equal(priceDelta.summary.schemaClaimChangedPairs,1);
+assert(priceDelta.findings.some(x=>x.code==='rendered:jsonld-owner-claim-mutated'));
+assert(!JSON.stringify(priceDelta).includes('PRIVATE-PRICE'));
+const unapproved=dom();
+unapproved.pages[0].captures.mobile.html=body(bp.pages[0]).replace(schema,
+ jsonld({'@context':'https://schema.org','@graph':[
+  originalSchema,{'@type':'Product',offers:{'@type':'Offer',price:'SECRET-PRICE'}}]}));
+const unapprovedReport=QA.analyze(input(evidence,unapproved));
+assert(unapprovedReport.findings.some(x=>x.code==='rendered:jsonld-unapproved-type-injected'));
+assert.equal(unapprovedReport.summary.schemaUnapprovedTypePairs,1);
+assert(!JSON.stringify(unapprovedReport).includes('SECRET-PRICE'));
+const unsafe=dom();
+unsafe.pages[0].captures.mobile.html=body(bp.pages[0]).replace(schema,
+ jsonld({...originalSchema,url:'https://outside.example/secret/'}));
+assert(QA.analyze(input(evidence,unsafe)).findings.some(x=>
+ x.code==='rendered:jsonld-semantic-regression'));
+const malformedSchema=dom();
+malformedSchema.pages[0].captures.mobile.html=body(bp.pages[0]).replace(schema,
+ '<script type="application/ld+json">{invalid-json}</script>');
+const incomplete=QA.analyze(input(evidence,malformedSchema));
+assert.equal(incomplete.pages[0].devices.mobile.schemaRuntimeStatus,'incomplete');
+assert(incomplete.findings.some(x=>x.code==='rendered:jsonld-semantic-comparison-incomplete'));
+assert.equal(incomplete.summary.schemaRuntimeUnknownPairs,1);
+// Key reordering must not trigger a false factual mutation.
+const canonicalDelta=SCHEMA.compareRenderedSemantics({sourceHtml:jsonld({
+ '@context':'https://schema.org','@type':'Organization',price:{currency:'EUR',amount:12}}),
+ renderedHtml:jsonld({'@type':'Organization',price:{amount:12,currency:'EUR'},
+  '@context':'https://schema.org'}),page:bp.pages[0],base,knownPaths:new Set(bp.pages.map(p=>p.path))});
+assert.equal(canonicalDelta.status,'observed');
+assert.deepEqual(canonicalDelta.changedClaimFields,[]);
+const factBlocked=SCHEMA.compareRenderedSemantics({sourceHtml:'<html></html>',
+ renderedHtml:jsonld(originalSchema),
+ page:{...bp.pages[0],schemaCandidates:[{type:'Organization',eligible:false}]},
+ base,knownPaths:new Set(bp.pages.map(p=>p.path))});
+assert.equal(factBlocked.addedUnconfirmedTypes,1);
+const removedClaim=SCHEMA.compareRenderedSemantics({sourceHtml:jsonld(published),
+ renderedHtml:jsonld(originalSchema),page:bp.pages[0],base,
+ knownPaths:new Set(bp.pages.map(p=>p.path))});
+assert.deepEqual(removedClaim.removedClaimFields,['price']);
+const breadcrumbDelta=SCHEMA.compareRenderedSemantics({
+ sourceHtml:jsonld(originalSchema),
+ renderedHtml:jsonld({'@context':'https://schema.org','@graph':[originalSchema,{
+  '@type':'BreadcrumbList',itemListElement:[{
+   '@type':'ListItem',position:2,item:'https://outside.example/'}]}]}),
+ page:bp.pages[0],base,knownPaths:new Set(bp.pages.map(p=>p.path))});
+assert(breadcrumbDelta.addedBreadcrumbProblems>0);
 const broken=dom();
 broken.pages[0].captures.mobile.html=body(bp.pages[0])
  .replace('<meta name="robots" content="index,follow">','<meta name="robots" content="noindex">')

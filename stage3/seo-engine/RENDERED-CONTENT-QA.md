@@ -1,3 +1,5 @@
+> **31 October 2026 — rendered JSON-LD semantic claims extension:** the same HTTP-to-DOM reconciliation now reuses existing Structured Data parser to detect owner-sensitive field additions/value mutations, unapproved/unconfirmed types and unsafe entity/canonical/breadcrumb/context drift, even when root `@type` stays unchanged. P0/P1/P2 enter the same private Workspace/lead gate. See [RENDERED-STRUCTURED-DATA-QA.md](RENDERED-STRUCTURED-DATA-QA.md); no claim values/digests exported, Google/owner approval not inferred.
+
 > **31 October 2026 — browser image loading QA:** the same approved Chromium capture can additionally include source-pinned, double-sampled image loading/first-viewport observations. The existing rendered-content audit flags broken visible images, lazy first-screen images and missing media attributes; old v2 remains valid with image evidence unknown. See [RENDERED-IMAGE-LOADING-QA.md](RENDERED-IMAGE-LOADING-QA.md). No LCP/CLS/Google claim or automatic GO.
 
 # MANUFACT SEO — Rendered Content / HTTP-to-DOM reconciliation
