@@ -1258,7 +1258,9 @@ async function execute(){
     ?.textContent?.includes('✓ Исправлено: Вернуть точную ширину'));
   await page.locator('#server-launch-close').click();
   await page.locator('#server-publish').click();
-  await page.locator('#server-status').getByText(/Опубликовано: v1/).waitFor();
+  // The server status lives in the closed site-tools dialog; its state still updates.
+  await page.waitForFunction(()=>/Опубликовано: v1/.test(
+    document.querySelector('#server-status')?.textContent||''));
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/')).status(),200);
   const approvedPage=await visitor.goto(origin+'/published/site-approved-browser/');
   assert.equal(approvedPage.status(),200);
@@ -1556,12 +1558,26 @@ async function execute(){
   const preRestoreRevision=(await (await page.request.get(
     origin+'/api/sites/site-approved-browser')).json()).revision;
   await page.locator('#save').click();
-  await page.locator('#history-details').evaluate(node=>{node.open=true;});
-  await page.locator('#versions .version').first()
-    .getByText('Ревизия #'+(preRestoreRevision+1)).waitFor();
-  await page.locator('#versions .version').nth(1).click();
-  await page.locator('#server-status')
-    .getByText(new RegExp('Черновик #'+(preRestoreRevision+2))).waitFor();
+  // Hosted page recovery is in the site's archive tools, not local-only history.
+  await page.locator('#server-site-tools-open').click();
+  await page.locator('#server-site-tools-dialog[open]').waitFor();
+  await page.locator('#server-site-tools').evaluate(node=>{node.open=true;});
+  await page.locator('#server-drawer-backup').evaluate(node=>{node.open=true;});
+  await page.locator('#server-history-open').click();
+  await page.locator('#server-history-dialog[open]').waitFor();
+  await page.locator('#server-history-number option[value="'+preRestoreRevision+'"]')
+    .waitFor({state:'attached'});
+  await page.locator('#server-history-number').selectOption(String(preRestoreRevision));
+  await page.locator('#server-history-page option[value="'+imported.pages[0].id+'"]')
+    .waitFor({state:'attached'});
+  await page.locator('#server-history-page').selectOption(imported.pages[0].id);
+  await page.locator('#server-history-section').selectOption('section-approved-faq');
+  await page.locator('#server-history-plan').click();
+  await page.waitForFunction(()=>!document.querySelector('#server-history-apply')?.disabled);
+  await page.locator('#server-history-apply').click();
+  await page.locator('#server-history-dialog').waitFor({state:'hidden'});
+  await page.waitForFunction(expected=>document.querySelector('#server-status')?.textContent
+    ?.includes('Черновик #'+expected),preRestoreRevision+2);
   assert.deepEqual((await page.evaluate(()=>window.Stage3Editor.getSite()))
     .pages[0].sections.find(s=>s.id==='section-approved-faq')
     .items.map(i=>i.values['content.question']),
@@ -1592,8 +1608,8 @@ async function execute(){
   const beforeFooterSave=(await (await page.request.get(origin+
     '/api/sites/site-approved-browser')).json()).revision;
   await page.locator('#save').click();
-  await page.locator('#server-status')
-    .getByText(new RegExp('Черновик #'+(beforeFooterSave+1))).waitFor();
+  await page.waitForFunction(expected=>document.querySelector('#server-status')?.textContent
+    ?.includes('Черновик #'+expected),beforeFooterSave+1);
   const footerDraft=(await (await page.request.get(origin+
     '/api/sites/site-approved-browser')).json());
   assert.equal(footerDraft.site.footer.description,'Обновлённые контакты после запуска');
