@@ -2732,6 +2732,57 @@
               labelEl.append(caption,select);panel.append(labelEl);
             }
           }
+          // The page Workbench and Graph Inspector must edit the same typed
+          // backdrop contract. Every control goes through the validated draft
+          // transaction, so invalid inputs never pollute Undo/Save/Publish.
+          const workBackdropOverlay=(kind,backdrop)=>{
+            const color=document.createElement('label');color.className='cms-work-field';
+            const caption=document.createElement('span');caption.textContent='Цвет затемнения · #112233 / @token (пусто = выкл.)';
+            const input=document.createElement('input');input.className='control';
+            input.id='cms-work-'+kind+'-overlay-color';input.value=backdrop.overlay?.color||'';
+            input.placeholder='#000000 или @foreground';input.disabled=!canWrite();
+            input.addEventListener('change',()=>{
+              const value=input.value.trim();
+              if(value&&!/^#[a-f\d]{6}$/i.test(value)&&!/^@[a-z][a-z0-9-]{1,39}$/.test(value))
+                return feedback('Цвет наложения: #112233 или @имя-токена.',true);
+              editGraphWork(node=>{
+                if(!value)delete node[kind].overlay;
+                else node[kind].overlay={color:value,opacity:node[kind].overlay?.opacity??40};
+              });
+            });
+            color.append(caption,input);panel.append(color);
+            if(!backdrop.overlay)return;
+            const opacity=document.createElement('label');opacity.className='cms-work-field';
+            opacity.textContent='Непрозрачность затемнения, % (0–90)';
+            const amount=document.createElement('input');amount.type='number';amount.className='control';
+            amount.id='cms-work-'+kind+'-overlay-opacity';amount.min='0';amount.max='90';
+            amount.step='1';amount.value=String(backdrop.overlay.opacity);
+            amount.disabled=!canWrite();
+            amount.addEventListener('change',()=>{
+              const value=Number(amount.value);
+              if(!Number.isInteger(value)||value<0||value>90)
+                return feedback('Затемнение должно быть от 0 до 90%.',true);
+              editGraphWork(node=>{node[kind].overlay.opacity=value;});
+            });
+            opacity.append(amount);panel.append(opacity);
+          };
+          const workBackdropPosition=(kind,backdrop)=>{
+            for(const [key,label] of [['positionX','Горизонтальное положение, %'],
+              ['positionY','Вертикальное положение, %']]){
+              const holder=document.createElement('label');holder.className='cms-work-field';
+              holder.textContent=label;
+              const inp=document.createElement('input');inp.className='control';inp.type='number';
+              inp.min='0';inp.max='100';inp.step='1';inp.disabled=!canWrite();
+              inp.value=String(backdrop[key]??50);inp.id='cms-work-'+kind+'-'+key;
+              inp.addEventListener('change',()=>{
+                const value=Number(inp.value);
+                if(!Number.isInteger(value)||value<0||value>100)
+                  return feedback('Позиция должна быть от 0 до 100%.',true);
+                editGraphWork(node=>{node[kind][key]=value;});
+              });
+              holder.append(inp);panel.append(holder);
+            }
+          };
           if(!['image','video','icon','divider','table-row','table-cell'].includes(current.type)){
             const bgImages=session.current.assets.filter(x=>/^image\/(png|jpeg|webp)$/.test(x.mime));
             if(bgImages.length){
@@ -2784,19 +2835,8 @@
               choose.value=bg.size||'cover';choose.disabled=!canWrite();
               choose.addEventListener('change',()=>editGraphWork(node=>{node.backgroundMedia.size=choose.value;}));
               size.append(choose);panel.append(size);
-              for(const [key,label] of [['positionX','Горизонтальное положение, %'],['positionY','Вертикальное положение, %']]){
-                const holder=document.createElement('label');holder.className='cms-work-field';
-                holder.textContent=label;
-                const inp=document.createElement('input');inp.className='control';inp.type='number';
-                inp.min='0';inp.max='100';inp.step='1';inp.disabled=!canWrite();
-                inp.value=String(bg[key]??50);inp.id='cms-work-background-'+key;
-                inp.addEventListener('change',()=>{
-                  const v=Number(inp.value);
-                  if(!Number.isInteger(v)||v<0||v>100)return feedback('Позиция должна быть от 0 до 100%.',true);
-                  editGraphWork(node=>{node.backgroundMedia[key]=v;});
-                });
-                holder.append(inp);panel.append(holder);
-              }
+              workBackdropPosition('backgroundMedia',bg);
+              workBackdropOverlay('backgroundMedia',bg);
             }
           }
           if(current.type==='container'){
@@ -2812,7 +2852,7 @@
               sel.value=current.backgroundVideo?.assetId||'';sel.disabled=!canWrite();
               sel.addEventListener('change',()=>editGraphWork(node=>{
                 if(!sel.value){delete node.backgroundVideo;return;}
-                node.backgroundVideo={assetId:sel.value,
+                node.backgroundVideo={...(node.backgroundVideo||{}),assetId:sel.value,
                   posterAssetId:node.backgroundVideo?.posterAssetId||posters[0].id};
                 delete node.backgroundMedia;
                 delete node.styles?.gradient;
@@ -2824,10 +2864,34 @@
                 const label=document.createElement('label');label.className='cms-work-field';
                 const txt=document.createElement('span');txt.textContent='Обложка фонового видео';
                 const pick=document.createElement('select');pick.className='control';pick.disabled=!canWrite();
+                pick.id='cms-work-backgroundVideo-posterAssetId';
                 for(const a of posters){const o=document.createElement('option');o.value=a.id;o.textContent=a.alt||a.id;pick.append(o);}
                 pick.value=current.backgroundVideo.posterAssetId;
                 pick.addEventListener('change',()=>editGraphWork(node=>{node.backgroundVideo.posterAssetId=pick.value;}));
                 label.append(txt,pick);panel.append(label);
+                for(const [key,title,inherit] of [
+                  ['tabletPosterAssetId','Обложка на планшете','Наследовать ПК'],
+                  ['mobilePosterAssetId','Обложка на телефоне','Наследовать планшет']]){
+                  const holder=document.createElement('label');holder.className='cms-work-field';
+                  const name=document.createElement('span');name.textContent=title;
+                  const select=document.createElement('select');select.className='control';
+                  select.id='cms-work-backgroundVideo-'+key;select.disabled=!canWrite();
+                  for(const [id,text] of [['',inherit],...posters.map(a=>[a.id,a.alt||a.id])]){
+                    const option=document.createElement('option');option.value=id;
+                    option.textContent=text;select.append(option);
+                  }
+                  select.value=current.backgroundVideo[key]||'';
+                  select.addEventListener('change',()=>editGraphWork(node=>{
+                    if(select.value)node.backgroundVideo[key]=select.value;
+                    else delete node.backgroundVideo[key];
+                  }));
+                  holder.append(name,select);panel.append(holder);
+                }
+                workBackdropPosition('backgroundVideo',current.backgroundVideo);
+                workBackdropOverlay('backgroundVideo',current.backgroundVideo);
+                const hint=document.createElement('p');hint.className='cms-work-hint';
+                hint.textContent='Без звука и по кругу на ПК/планшете. На телефоне и при уменьшении движения показывается обложка.';
+                panel.append(hint);
               }
             }
           }

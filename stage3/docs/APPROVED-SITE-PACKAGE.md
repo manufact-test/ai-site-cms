@@ -379,6 +379,16 @@ The existing sealed handoff and media size restrictions apply. Check text
 contrast, video motion and all three poster crops against the actual client's
 approved references; the CI does not prove visual fidelity.
 
+In the real PHP page **Workbench**, select the authored container to assign the
+existing MP4, a required desktop poster, and optional tablet/mobile posters.
+It now exposes the same exact crop X/Y, typed overlay color and 0–90% tint as
+the Graph Inspector; raster image backdrops also expose their overlay here.
+Switching between approved local video clips retains the user's poster/crop/
+overlay choices, while switching to an image/gradient explicitly removes the
+conflicting layer. Each change is a validated, undoable draft edit; neither
+the preview nor a backdrop change writes the published site until Save and
+Publish. Use the original three approved pictures to judge each poster crop.
+
 ## Native popup / entrance-sequence Design Graph contract
 
 To place a non-modal popup in a client-approved individual page, add a

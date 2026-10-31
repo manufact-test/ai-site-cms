@@ -616,6 +616,38 @@ async function execute(){
       gallery:find('approved-rich-gallery').children.length,cite:find('approved-rich-quote').cite};
   });
   assert.deepEqual(authored,{rows:4,columns:4,gallery:3,cite:'Технический редактор'});
+  // Owner finishes the existing custom container's decorative MP4 directly
+  // in the PHP page Workbench, including three poster sizes and the tint.
+  await page.locator('#cms-open-page-preview').click();
+  await page.locator('#cms-page-preview[open]').waitFor();
+  await page.locator('#cms-work-section').selectOption('section-approved-custom');
+  await page.locator('#cms-work-graph-node').selectOption('approved-custom-container');
+  await page.locator('#cms-work-graph-background-video').selectOption(importedVideo.id);
+  await page.locator('#cms-work-backgroundVideo-posterAssetId').selectOption(importedDesktopLogo.id);
+  await page.locator('#cms-work-backgroundVideo-tabletPosterAssetId').selectOption(importedMobileLogo.id);
+  await page.locator('#cms-work-backgroundVideo-mobilePosterAssetId').selectOption(importedMobileLogo.id);
+  for(const [id,value] of [['cms-work-backgroundVideo-positionX','20'],
+    ['cms-work-backgroundVideo-positionY','70']]){
+    await page.locator('#'+id).fill(value);
+    await page.locator('#'+id).dispatchEvent('change');
+  }
+  await page.locator('#cms-work-backgroundVideo-overlay-color').fill('#123456');
+  await page.locator('#cms-work-backgroundVideo-overlay-color').dispatchEvent('change');
+  await page.locator('#cms-work-backgroundVideo-overlay-opacity').fill('55');
+  await page.locator('#cms-work-backgroundVideo-overlay-opacity').dispatchEvent('change');
+  const backdrop=()=>page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections
+    .find(s=>s.id==='section-approved-custom').designGraph.nodes
+    .find(n=>n.id==='approved-custom-container').backgroundVideo);
+  assert.deepEqual(await backdrop(),{assetId:importedVideo.id,
+    posterAssetId:importedDesktopLogo.id,tabletPosterAssetId:importedMobileLogo.id,
+    mobilePosterAssetId:importedMobileLogo.id,positionX:20,positionY:70,
+    overlay:{color:'#123456',opacity:55}},
+  'Workbench stores the full typed device-aware video backdrop');
+  await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+  assert.equal((await backdrop()).overlay.opacity,40,'Video overlay has shared Undo history');
+  await page.locator('#cms-work-history').getByRole('button',{name:'↷ Повтор'}).click();
+  assert.equal((await backdrop()).overlay.opacity,55);
+  await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
   // Graph editor retains the selected custom section. Explicitly restore
   // hero focus before exercising its separate responsive inspector controls.
   await page.locator('#sections .nav-entry').first().click();
@@ -862,6 +894,19 @@ async function execute(){
   assert.equal(await visitor.locator('link[rel="icon"]').getAttribute('href'),
     '/published/site-approved-browser/assets/'+importedDesktopLogo.id+'.png');
   assert.equal(await visitor.locator('link[rel="icon"]').getAttribute('type'),'image/png');
+  const publicBackdrop=visitor.locator('.cmsdg-n-approved-custom-container > .cmsdg-video-backdrop');
+  await publicBackdrop.locator('video[autoplay][muted][loop] source[type="video/mp4"]').waitFor();
+  assert.ok((await publicBackdrop.locator('video source').getAttribute('src'))
+    .includes(importedVideo.id+'.mp4'),'Published video uses the sealed local MP4');
+  assert.equal(await publicBackdrop.locator('video').evaluate(el=>getComputedStyle(el).objectPosition),
+    '20% 70%','Published video keeps the Workbench crop');
+  assert.match(await publicBackdrop.evaluate(el=>getComputedStyle(el,'::after').backgroundColor),
+    /rgba?\(18, 52, 86/,'Published video keeps Workbench tint');
+  await visitor.setViewportSize({width:390,height:844});
+  assert.equal(await publicBackdrop.locator('video').evaluate(el=>getComputedStyle(el).display),'none');
+  assert.ok((await publicBackdrop.evaluate(el=>getComputedStyle(el).backgroundImage))
+    .includes(importedMobileLogo.id+'.png'),'Mobile view uses the chosen poster');
+  await visitor.setViewportSize({width:1280,height:900});
   assert.equal((await page.request.get(origin+'/published/site-approved-browser/assets/'+importedMobileLogo.id+'.png')).status(),200);
   const footer=visitor.locator('footer.cms-site-footer');
   assert.match(await footer.getAttribute('class'),/cms-footer-style-dark/);
