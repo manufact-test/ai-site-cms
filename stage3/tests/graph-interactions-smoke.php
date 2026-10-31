@@ -111,6 +111,59 @@ catch(InvalidArgumentException $expected){}
 $rootHtml=PublicRenderer::html($site,'/','/');
 graphTest(str_contains($rootHtml,'<a class="cmsdg-n-graph-rich-link" href="/">На главную</a>'),
     'PHP root mount must not create protocol-relative URL');
+// A release gate must follow every *published* link source, not merely Graph
+// buttons or rollback-only legacy fields hidden underneath an approved Graph.
+$assertBlocked=function(array $candidate,string $source) use ($validator): void {
+    $validator->validate($candidate);
+    try {
+        PublicRenderer::assertPublishable($candidate);
+    } catch (InvalidArgumentException $expected) {
+        graphTest(str_contains($expected->getMessage(),$source),
+            'Link publication error must identify the real authored node: '.$source);
+        return;
+    }
+    throw new RuntimeException('Unsafe published internal link accepted: '.$source);
+};
+$badLink=$site;
+$badLink['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'graph-broken-link','type'=>'link','text'=>'Неизвестная страница','href'=>'/missing-link/'];
+$assertBlocked($badLink,'graph-broken-link');
+$badImage=$site;
+$badImage['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'graph-broken-image','type'=>'image','assetId'=>'asset-art-fixture',
+    'alt'=>'Ссылка на несуществующую секцию','href'=>'/contact/#missing-anchor'];
+$assertBlocked($badImage,'graph-broken-image');
+$badRun=$site;
+$badRun['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'graph-broken-runs','type'=>'text','text'=>'Читайте продолжение',
+    'runs'=>[['text'=>'Читайте '],['text'=>'продолжение','href'=>'/gone/']]];
+$assertBlocked($badRun,'graph-broken-runs.runs[1].href');
+$shadow=$site;
+$shadow['pages'][0]['sections'][0]['designGraph']=['version'=>1,'id'=>'graph-replaces-hero',
+    'nodes'=>[['id'=>'graph-hero-replacement','type'=>'heading','level'=>1,'text'=>'Настоящий заголовок']]];
+foreach ($shadow['pages'][0]['sections'][0]['elements'] as &$legacyElement)
+    if (isset($legacyElement['values']['behavior.href']))
+        $legacyElement['values']['behavior.href']='/no-longer-used/';
+unset($legacyElement);
+$validator->validate($shadow);
+PublicRenderer::assertPublishable($shadow);
+$goodAnchor=$site;
+$goodAnchor['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'graph-good-anchor','type'=>'link','text'=>'Перейти к началу',
+    'href'=>'/?source=menu#section-hero'];
+$validator->validate($goodAnchor);
+PublicRenderer::assertPublishable($goodAnchor);
+$redirectAnchor=$site;
+$redirectAnchor['redirects']=[['from'=>'/old-contact/','to'=>'/contact/']];
+$redirectAnchor['pages'][0]['sections'][2]['designGraph']['nodes'][]=[
+    'id'=>'graph-redirect-anchor','type'=>'link','text'=>'Старый адрес с якорем',
+    'href'=>'/old-contact/#section-contact'];
+$validator->validate($redirectAnchor);
+PublicRenderer::assertPublishable($redirectAnchor);
+$redirectAnchor['pages'][0]['sections'][2]['designGraph']['nodes'][
+    count($redirectAnchor['pages'][0]['sections'][2]['designGraph']['nodes'])-1]['href']=
+    '/old-contact/#no-longer-there';
+$assertBlocked($redirectAnchor,'graph-redirect-anchor');
 $invalid=$site;
 $invalid['pages'][0]['sections'][2]['designGraph']['nodes'][5]['children'][1]['children'][]=
     ['id'=>'graph-rich-extra-cell','type'=>'table-cell','text'=>'Лишняя ячейка'];

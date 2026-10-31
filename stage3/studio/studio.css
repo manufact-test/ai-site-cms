@@ -372,10 +372,12 @@
 #cms-repair-list{display:grid;gap:8px;max-height:340px;overflow:auto;margin:10px 0}
 .cms-repair-row{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(155px,220px) auto;gap:9px;align-items:center;background:#1b3848;border:1px solid #37505e;padding:9px;border-radius:9px;font-size:12px}
 .cms-repair-row input[type=checkbox]{width:18px;height:18px}
+.cms-repair-destinations{display:grid;gap:5px;min-width:0}
+.cms-repair-destinations .control{width:100%;min-width:0}
 .cms-repair-label{min-width:0;overflow-wrap:anywhere;display:grid;gap:4px}
 .cms-repair-label small{font-size:11px;color:#bad4e1}
 #cms-repair-preview{color:#bce8d3}
-@media(max-width:680px){.cms-repair-row{grid-template-columns:auto minmax(0,1fr);align-items:start}.cms-repair-row .control{grid-column:2;max-width:100%}.cms-repair-row .btn{grid-column:2;justify-self:start}}
+@media(max-width:680px){.cms-repair-row{grid-template-columns:auto minmax(0,1fr);align-items:start}.cms-repair-destinations{grid-column:2}.cms-repair-row .btn{grid-column:2;justify-self:start}}
 
 .cms-design-recipe,.cms-design-inheritance{display:flex;flex-wrap:wrap;gap:9px;align-items:center;background:#132d3c;border:1px solid #3e6574;border-radius:11px;padding:12px;margin:9px 0}
 .cms-design-recipe strong,.cms-design-inheritance strong{width:100%}

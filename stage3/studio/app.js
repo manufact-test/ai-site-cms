@@ -1331,7 +1331,7 @@
     panel.className='cms-quality-repairs';panel.id='cms-site-repairs';
     const title=document.createElement('h3');title.textContent='Ссылки и медиа всего сайта';
     const description=document.createElement('p');
-    description.textContent='Исправьте устаревшие и битые внутренние ссылки, заполните пустые медиаполя или переназначьте изображения. Выбирайте изменения вручную; сначала предпросмотр, потом одно Undo. Внешние адреса не затрагиваются. Поддерживаются также кнопки, изображения, видео и постеры Design Graph.';
+    description.textContent='Исправьте реальные внутренние ссылки (в том числе якоря секций), заполните медиаполя или переназначьте изображения. Исходные параметры URL сохраняются; изменения выбранных привязок проверяются до одного Undo. Скрытые исходные поля заменённой Design Graph секции не редактируются. Save и Publish отдельно.';
     const filters=document.createElement('div');filters.className='cms-repair-filters';
     const pageFilter=document.createElement('select');pageFilter.id='cms-repair-page';pageFilter.className='control';
     pageFilter.setAttribute('aria-label','Страница для исправлений');
@@ -1343,7 +1343,7 @@
     filters.append(pageFilter,mode);
     const summary=document.createElement('p');summary.id='cms-repair-summary';
     const list=document.createElement('div');list.id='cms-repair-list';
-    const previewOutput=document.createElement('p');previewOutput.id='cms-repair-preview';
+    const previewOutput=document.createElement('div');previewOutput.id='cms-repair-preview';
     previewOutput.setAttribute('role','status');
     const buttons=document.createElement('div');buttons.className='cms-settings-actions';
     const preview=button('Предпросмотр изменений','btn small',()=>prepare());
@@ -1354,9 +1354,18 @@
     panel.append(title,description,filters,summary,list,previewOutput,buttons);
     let entries=[],prepared=null;
     const writable=()=>!HOSTED||window.Stage3Host?.canEditStudio?.();
+    const linkParts=value=>{
+      const match=/^([^?#]*)(\?[^#]*)?(?:#(.*))?$/.exec(String(value||''));
+      return {path:match?.[1]||'',query:match?.[2]||'',anchor:match?.[3]||''};
+    };
+    const proposedValue=row=>{
+      if(row.kind!=='link')return row.target.value;
+      const {query}=linkParts(row.value);
+      return row.target.value+query+(row.anchor?.value?'#'+row.anchor.value:'');
+    };
     const invalidate=()=>{
       prepared=null;apply.disabled=true;
-      const choices=entries.filter(item=>item.checked.checked&&item.target.value!==item.value);
+      const choices=entries.filter(item=>item.checked.checked&&proposedValue(item)!==item.value);
       preview.disabled=!writable()||!choices.length;
       previewOutput.textContent=choices.length?
         choices.length+' выбранных замен. Нажмите «Предпросмотр изменений» для проверки полного черновика.':
@@ -1473,11 +1482,25 @@
         caption.append(head,detail);
         const target=document.createElement('select');target.className='control';
         target.setAttribute('aria-label','Новое значение для '+item.fieldLabel+' — '+item.pageTitle);
+        let anchor=null;
         if(item.kind==='link'){
+          const source=linkParts(item.value);
           for(const page of session.current.pages)
             makeOption(target,page.path,page.title+' · '+page.path);
-          target.value=(session.current.redirects||[]).find(r=>r.from===item.value)?.to||
-            (session.current.pages.some(page=>page.path===item.value)?item.value:session.current.pages[0].path);
+          target.value=(session.current.redirects||[]).find(r=>r.from===source.path)?.to||
+            (session.current.pages.some(page=>page.path===source.path)?source.path:session.current.pages[0].path);
+          anchor=document.createElement('select');anchor.className='control';
+          anchor.setAttribute('aria-label','Якорь секции для '+item.fieldLabel+' — '+item.pageTitle);
+          const drawAnchors=()=>{
+            anchor.replaceChildren();makeOption(anchor,'','Без якоря');
+            const destination=session.current.pages.find(page=>page.path===target.value);
+            for(const section of destination?.sections||[])
+              makeOption(anchor,section.id,'#'+section.id);
+            anchor.value=destination?.sections.some(section=>section.id===source.anchor)?source.anchor:'';
+          };
+          drawAnchors();
+          target.addEventListener('change',()=>{drawAnchors();invalidate();});
+          anchor.addEventListener('change',invalidate);
         }else{
           if(!item.graph||item.mediaKind==='poster')makeOption(target,'','Без изображения');
           for(const asset of session.current.assets)
@@ -1491,8 +1514,11 @@
         });
         checked.disabled=target.disabled=!writable();
         checked.addEventListener('change',invalidate);target.addEventListener('change',invalidate);
-        line.append(checked,caption,target,jump);list.append(line);
-        entries.push({...item,checked,target});
+        const destinations=document.createElement('div');destinations.className='cms-repair-destinations';
+        destinations.append(target);
+        if(anchor)destinations.append(anchor);
+        line.append(checked,caption,destinations,jump);list.append(line);
+        entries.push({...item,checked,target,anchor});
       }
       if(filtered.length>150){
         const remainder=document.createElement('p');
@@ -1504,7 +1530,7 @@
       invalidate();
     };
     const makeCandidate=()=>{
-      const chosen=entries.filter(item=>item.checked.checked&&item.target.value!==item.value);
+      const chosen=entries.filter(item=>item.checked.checked&&proposedValue(item)!==item.value);
       if(!chosen.length)throw Error('Не выбраны изменения');
       const candidate=cp(session.current);
       const changes=[];
@@ -1512,8 +1538,8 @@
         const page=candidate.pages.find(page=>page.id===row.pageId);
         const section=page?.sections.find(section=>section.id===row.sectionId);
         if(!section)throw Error('Блок удалён. Обновите список.');
-        const to=row.target.value;
-        if(row.kind==='link'&&!candidate.pages.some(page=>page.path===to))
+        const to=proposedValue(row);
+        if(row.kind==='link'&&!candidate.pages.some(page=>page.path===row.target.value))
           throw Error('Целевая страница отсутствует');
         if(row.kind==='media'){
           const asset=candidate.assets.find(asset=>asset.id===to);
@@ -1562,14 +1588,34 @@
         const next=makeCandidate();
         const before=C.inspectSite(session.current,manifests);
         const after=C.inspectSite(next.candidate,manifests);
+        const linkErrors=report=>report.errors.filter(item=>
+          ['broken-link','broken-anchor'].includes(item.kind));
+        const errorKey=item=>[item.kind,item.pageId,item.sectionId,item.elementId,
+          item.nodeId,item.path].join('|');
+        const original=new Set(linkErrors(before).map(errorKey));
+        const introduced=linkErrors(after).filter(item=>!original.has(errorKey(item)));
+        if(introduced.length)throw Error('Новые ошибки ссылок: '+introduced.map(item=>item.path).join(', '));
         prepared={...next,source};
         apply.disabled=false;
-        previewOutput.textContent='Предпросмотр: '+next.changes.length+
+        const result=document.createElement('p');
+        result.textContent='Предпросмотр: '+next.changes.length+
           ' привязок · ошибок ссылок/SEO до: '+before.errors.length+
           ', после: '+after.errors.length+
           ' · рекомендаций до: '+before.warnings.length+
           ', после: '+after.warnings.length+
           '. Применение изменит только выбранные поля, один Undo. Save/Publish отдельно.';
+        const details=document.createElement('ul');
+        for(const change of next.changes.slice(0,30)){
+          const line=document.createElement('li');
+          line.textContent=(change.nodeId||change.elementId)+' · '+change.path+': '+
+            (change.from||'не выбрано')+' → '+(change.to||'без медиа');
+          details.append(line);
+        }
+        if(next.changes.length>30){
+          const more=document.createElement('p');
+          more.textContent='Ещё '+(next.changes.length-30)+' привязок (выбраны явно).';
+          previewOutput.replaceChildren(result,details,more);
+        }else previewOutput.replaceChildren(result,details);
       }catch(error){invalidate();notice('Предпросмотр отклонён: '+error.message,true);}
     }
     function commit(){

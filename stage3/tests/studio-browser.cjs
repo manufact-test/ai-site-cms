@@ -511,12 +511,16 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       .filter({hasText:'Ссылка: /contact/'}).first();
     const linkBefore=await page.evaluate(()=>window.Stage3Editor.getSite());
     await linkRow.locator('input[type=checkbox]').check();
-    await linkRow.locator('select').selectOption('/');
+    await linkRow.locator('select').first().selectOption('/contact/');
+    await linkRow.locator('select').nth(1).selectOption('section-contact');
     await page.locator('#cms-repair-check').click();
     assert.match(await page.locator('#cms-repair-preview').innerText(),/Предпросмотр/);
     await page.locator('#cms-repair-apply').click();
     const linkAfter=await page.evaluate(()=>window.Stage3Editor.getSite());
     assert.notDeepEqual(linkAfter,linkBefore,'Bulk link repair must edit the draft');
+    assert.equal(linkAfter.pages[0].sections[0].elements.find(e=>e.id==='section-hero-action')
+      .values['behavior.href'],'/contact/#section-contact',
+      'Anchor repair must bind to a real destination section in the approved site');
     await page.locator('#cms-site-report').getByRole('button',{name:'Закрыть'}).click();
     await page.locator('#undo').click();
     assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),linkBefore,
@@ -1234,7 +1238,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       .filter({hasText:'Кнопка · graph-b1-button'}).first();
     assert.equal(await b1LinkRow.count(),1,'Graph CTA is visible to site-wide link repair');
     await b1LinkRow.locator('input[type=checkbox]').check();
-    await b1LinkRow.locator('select').selectOption('/contact/');
+    await b1LinkRow.locator('select').first().selectOption('/contact/');
     const b1ImageRow=page.locator('#cms-repair-list .cms-repair-row')
       .filter({hasText:'Изображение · graph-b1-image'}).first();
     assert.equal(await b1ImageRow.count(),1,'Graph image is visible to site-wide media repair');

@@ -526,6 +526,31 @@ JS;
         return $origin;
     }
 
+    /**
+     * Enforce the actual visitor-visible route contract for every authored link.
+     * SDK inspection is advisory and can run on a draft; a server publication
+     * must independently reject stale routes/anchors before changing a release.
+     */
+    private static function assertInternalLink(string $href,array $pages,array $redirects,string $source): void
+    {
+        if (!str_starts_with($href,'/')||str_starts_with($href,'//')) return;
+        $parts=explode('#',$href,2);
+        $route=explode('?',$parts[0],2)[0];
+        if (!isset($pages[$route])&&!isset($redirects[$route]))
+            throw new \InvalidArgumentException('Cannot publish broken internal link at '.$source.': '.$href);
+        // Redirects are validated against the FINAL page, not the obsolete
+        // alias: browsers can retain a URL fragment when following a 301.
+        $destination=$redirects[$route]??$route;
+        if (!isset($pages[$destination]))
+            throw new \InvalidArgumentException('Cannot publish invalid redirect link at '.$source.': '.$href);
+        if (!isset($parts[1])||$parts[1]==='') return;
+        $anchor=explode('?',$parts[1],2)[0];
+        if ($anchor==='') return;
+        foreach ($pages[$destination]['sections'] as $section)
+            if ($section['id']===$anchor) return;
+        throw new \InvalidArgumentException('Cannot publish broken section anchor at '.$source.': '.$href);
+    }
+
     /** Publication barrier: no broken internal links or missing root in a release. */
     public static function assertPublishable(array $site): void
     {
@@ -535,47 +560,31 @@ JS;
             throw new \InvalidArgumentException('Cannot publish without a home page');
         $redirects=[];
         foreach ($site['redirects']??[] as $redirect) $redirects[$redirect['from']]=$redirect['to'];
-        // AI graph links obey the same publication barrier as manifest buttons.
+        // Inspect only the content actually emitted by PublicRenderer::html.
+        // A Design Graph replaces (but preserves for rollback) legacy elements.
         foreach ($site['pages'] as $page) foreach ($page['sections'] as $section) {
-            $walk=function(array $nodes) use (&$walk,$pages,$redirects): void {
+            if (!isset($section['designGraph'])) {
+                foreach (array_merge($section['elements'],$section['items']??[]) as $element) {
+                    $href=$element['values']['behavior.href']??null;
+                    if (is_string($href)) self::assertInternalLink($href,$pages,$redirects,
+                        $page['path'].'#'.$section['id'].'/'.$element['id']);
+                }
+                continue;
+            }
+            $walk=function(array $nodes) use (&$walk,$pages,$redirects,$page,$section): void {
                 foreach ($nodes as $node) {
-                    $href=$node['type']==='button'?($node['href']??''):null;
-                    if (is_string($href)&&str_starts_with($href,'/')&&!str_starts_with($href,'//')) {
-                        $parts=explode('#',$href,2);
-                        $route=explode('?',$parts[0],2)[0];
-                        if(!isset($pages[$route])&&!isset($redirects[$route]))
-                            throw new \InvalidArgumentException('Cannot publish broken design link: '.$href);
-                        if(isset($parts[1]) && $parts[1]!=='' && isset($pages[$route])) {
-                            $anchor=explode('?',$parts[1],2)[0];$found=false;
-                            foreach($pages[$route]['sections'] as $sectionTarget)
-                                if($sectionTarget['id']===$anchor){$found=true;break;}
-                            if(!$found)throw new \InvalidArgumentException('Broken design anchor: '.$href);
-                        }
-                    }
+                    $source=$page['path'].'#'.$section['id'].'/'.$node['id'];
+                    if (in_array($node['type'],['button','link','image'],true)
+                        &&isset($node['href'])&&is_string($node['href']))
+                        self::assertInternalLink($node['href'],$pages,$redirects,$source.'.href');
+                    foreach ($node['runs']??[] as $index=>$run)
+                        if (isset($run['href'])&&is_string($run['href']))
+                            self::assertInternalLink($run['href'],$pages,$redirects,$source.'.runs['.$index.'].href');
                     $walk($node['children']??[]);
                 }
             };
             $walk($section['designGraph']['nodes']??[]);
         }
-        foreach ($site['pages'] as $page) foreach ($page['sections'] as $section)
-            foreach (array_merge($section['elements'],$section['items']??[]) as $el) {
-                $href=$el['values']['behavior.href']??null;
-                if (!is_string($href)||!str_starts_with($href,'/')||str_starts_with($href,'//')) continue;
-                $parts=explode('#',$href,2);
-                $route=explode('?',$parts[0],2)[0];
-                if ($route==='') $route=$page['path'];
-                if (!isset($pages[$route])&&!isset($redirects[$route]))
-                    throw new \InvalidArgumentException('Cannot publish broken internal link: '.$href);
-                if (isset($pages[$route])&&isset($parts[1])&&$parts[1]!=='') {
-                    $anchor=explode('?',$parts[1],2)[0];
-                    $found=false;
-                    foreach ($pages[$route]['sections'] as $target) {
-                        if ($target['id']===$anchor) {$found=true;break;}
-                    }
-                    if (!$found)
-                        throw new \InvalidArgumentException('Cannot publish broken section anchor: '.$href);
-                }
-            }
     }
 
     public static function redirectTarget(array $site, string $path): ?string

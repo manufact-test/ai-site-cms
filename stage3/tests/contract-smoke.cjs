@@ -1061,6 +1061,16 @@ test('URL changes rewrite internal links and preserve aliases, fragments, repeat
   visibleGraphButton.href='/support/#ghost-section';
   report=sdk.inspectSite(updated,manifests);
   assert.ok(report.errors.some(x=>x.kind==='broken-anchor'));
+  visibleGraphButton.href='/help/?from=legacy#section-contact';
+  report=sdk.inspectSite(updated,manifests);
+  assert.ok(report.warnings.some(x=>x.kind==='old-link'));
+  assert.ok(!report.errors.some(x=>x.kind==='broken-anchor'),
+    'A 301 alias with a real final-page anchor remains usable');
+  visibleGraphButton.href='/help/#lost-fragment';
+  report=sdk.inspectSite(updated,manifests);
+  assert.ok(report.warnings.some(x=>x.kind==='old-link'));
+  assert.ok(report.errors.some(x=>x.kind==='broken-anchor'&&x.path==='/help/#lost-fragment'),
+    'An obsolete 301 URL must not conceal a missing anchor on its final page');
   const escaping=structuredClone(d.current);
   escaping.redirects.push({from:'/something/',to:'/support/?malicious'});
   refuses(()=>sdk.validateSite(escaping,manifests),'No query/HTML injection in redirects');

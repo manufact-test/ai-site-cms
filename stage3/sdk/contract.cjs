@@ -552,17 +552,22 @@ function inspectSite(raw,regInput){
     const extra={sectionId,elementId,nodeId};
     if(!known.has(route)&&!redirected.has(route))
       errors.push(add('broken-link',page,href,'Внутренняя ссылка ведёт на отсутствующую страницу.',extra));
-    else if(redirected.has(route))
-      warnings.push(add('old-link',page,href,'Ссылка ведёт через перенаправление '+redirected.get(route)+'.',extra));
-    else if(hash&&!pageByPath.get(route).sections.some(section=>section.id===hash))
-      errors.push(add('broken-anchor',page,href,'Якорь секции не существует.',extra));
-    else if(hash){
-      const targetPage=pageByPath.get(route),target=targetPage.sections.find(section=>section.id===hash);
-      const source=page.sections.find(section=>section.id===sectionId);
-      if(target)for(const device of BREAKPOINTS)
-        if(target.deviceVisibility?.[device]===false&&source?.deviceVisibility?.[device]!==false)
-          warnings.push(add('hidden-anchor-device',page,href,
-            'Ссылка ведёт к скрытой на '+device+' секции.',{...extra,device,targetSectionId:hash,targetPageId:targetPage.id}));
+    else {
+      const finalRoute=redirected.get(route)||route;
+      if(redirected.has(route))
+        warnings.push(add('old-link',page,href,'Ссылка ведёт через перенаправление '+finalRoute+'.',extra));
+      const targetPage=pageByPath.get(finalRoute);
+      if(hash&&!targetPage?.sections.some(section=>section.id===hash))
+        errors.push(add('broken-anchor',page,href,
+          'Якорь секции отсутствует на '+finalRoute+(redirected.has(route)?' после 301.':'.'),extra));
+      else if(hash){
+        const target=targetPage.sections.find(section=>section.id===hash);
+        const source=page.sections.find(section=>section.id===sectionId);
+        if(target)for(const device of BREAKPOINTS)
+          if(target.deviceVisibility?.[device]===false&&source?.deviceVisibility?.[device]!==false)
+            warnings.push(add('hidden-anchor-device',page,href,
+              'Ссылка ведёт к скрытой на '+device+' секции.',{...extra,device,targetSectionId:hash,targetPageId:targetPage.id}));
+      }
     }
   };
   const checkMedia=(assetId,page,section,elementId)=>{
