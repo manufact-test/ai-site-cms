@@ -494,7 +494,7 @@ async function execute(){
   const contrastSamples=await page.evaluate(()=>{
     const linear=c=>{c/=255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;};
     const luminance=value=>{
-      const m=value.match(/[\\d.]+/g)?.map(Number)||[0,0,0];
+      const m=value.match(/[\d.]+/g)?.map(Number)||[0,0,0];
       return .2126*linear(m[0])+.7152*linear(m[1])+.0722*linear(m[2]);
     };
     const background=element=>{
