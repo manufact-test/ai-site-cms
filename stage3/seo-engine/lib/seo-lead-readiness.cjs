@@ -35,6 +35,7 @@ function build({siteId,first=null,launch=null,search=null,visibility=null,
   crawlerPolicy:crawl?.sourceIdentity?.files?.policy||null,
   currentPublicHttp:crawl?.sourceIdentity?.files?.publicCapture||null,
   renderedDOM:crawl?.sourceIdentity?.files?.renderedCapture||null,
+  fieldCrux:crawl?.sourceIdentity?.files?.crux||null,
   ownerHumanLeadContract:human?.contractSha||null,
   indexingReport:indexingSourceSha256||crawl?.sourceIdentity?.files?.indexingReport||null
  };
@@ -107,15 +108,21 @@ function build({siteId,first=null,launch=null,search=null,visibility=null,
   {humanReportedPassed:checks?.passed??null,humanReportedFailed:checks?.failed??null,
    humanReportedPending:checks?.pending??null,operatorReviewStatus:human?.report?.status||null});
  const searchCount=visibility?.summary?.tasks??null;
+ const field=crawl?.fieldPerformance||null;
  push('search-performance-followup','POST_LAUNCH','P2',
-  !visibility?'POST-LAUNCH-DEFERRED':searchCount>0?'LEAD-REVIEW-REQUIRED':
-   'LEAD-REVIEW-REQUIRED','SEO_OPERATOR',
-  'Search Console performance and editorial tasks',
-  visibility?'Private reported Search History has '+searchCount+' human SEO task(s).':
-   'Search History absent: expected before accumulating real Google data, not a launch clearance.',
+  !visibility&&!field?'POST-LAUNCH-DEFERRED':'LEAD-REVIEW-REQUIRED','SEO_OPERATOR',
+  'Search Console editorial tasks and optional historical CrUX field performance',
+  (visibility?'Private reported Search History has '+searchCount+' human SEO task(s). ':
+   'Search History absent; no Google ranking or traffic conclusion. ')+
+   (field?'Operator-supplied CrUX: '+field.summary.records+' URL/origin record(s), '+
+    field.summary.poorMetricValues+' poor and '+field.summary.unknownMetricValues+
+    ' unknown field p75 metrics. Not current-release proof.':'No CrUX evidence supplied; field Web Vitals unknown.'),
   ['Import authenticated Search Console property evidence only after the site is serving',
-   'Review URL/query mapping and editorial decisions without assuming rankings or causation'],
-  ['public-release-evidence'],sources.searchHistory,{operatorSearchTasks:searchCount});
+   'Review URL/query mapping and editorial decisions without assuming rankings or causation',
+   'Independently examine historical CrUX collection window, scope and device-specific LCP/INP/CLS; do not equate with a new release'],
+  ['public-release-evidence'],sources.searchHistory||sources.fieldCrux,
+  {operatorSearchTasks:searchCount,cruxRecords:field?.summary.records??null,
+   cruxPoorMetrics:field?.summary.poorMetricValues??null});
  const indexCount=indexed?.summary?.actions??null;
  push('gsc-indexing-followup','POST_LAUNCH','P1',
   !indexed?'POST-LAUNCH-DEFERRED':'LEAD-REVIEW-REQUIRED','SEO_OPERATOR',

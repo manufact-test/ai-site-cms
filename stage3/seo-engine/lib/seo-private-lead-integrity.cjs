@@ -12,6 +12,7 @@ const FILES=new Set([
  'human.html','next-actions.html','lead-readiness.html','lead-readiness.md','lead-readiness.json',
  'structured-data.html','structured-data.md','structured-data.json',
  'rendered-content.html','rendered-content.md','rendered-content.json',
+ 'field-performance.html','field-performance.md','field-performance.json',
  'crawl-lead-worklist.md','crawl-cms.html','crawl-cms-worklist.md','crawl-cms-worklist.json',
  'crawl-cms-decisions-TEMPLATE.json','crawl-cms-decisions.html',
  'crawl-cms-recheck.html','crawl-cms-recheck.md','crawl-cms-recheck.json',

@@ -36,7 +36,7 @@ function readConfiguration(source){
   throw Error('Unexpected private operator desk path');
  const shapes={firstSite:['summary','bundle','postDeploy','operatorReview'],
   search:['history','decisions','releases'],liveAcceptance:['report','contract'],
-  crawl:['policy','regression','correlation','repair','repairManifest','proposedRobots','proposedSitemap','cmsBlueprint','cmsSite','cmsBaseline','cmsDecisions','publicCapture','renderedCapture']};
+  crawl:['policy','regression','correlation','repair','repairManifest','proposedRobots','proposedSitemap','cmsBlueprint','cmsSite','cmsBaseline','cmsDecisions','publicCapture','renderedCapture','crux']};
  if(source.indexing&&(!source.indexing.report||Object.keys(source.indexing).some(k=>k!=='report')||
    typeof source.indexing.report!=='string'||!path.isAbsolute(source.indexing.report)))
   throw Error('Indexing workspace source must be a private absolute report path');
@@ -64,6 +64,8 @@ function readConfiguration(source){
     throw Error('Public crawl CMS follow-up requires original current Blueprint and Site v1');
    if(s.renderedCapture&&!s.publicCapture)
     throw Error('Rendered content requires same-session approved public HTTP capture');
+   if(s.crux&&!s.cmsBlueprint)
+    throw Error('CrUX field evidence requires approved Blueprint and Site v1 context');
   }
  }
  return source;
@@ -102,7 +104,7 @@ function main(argv){
  const crawl=collect('crawl',{policy:4000000,regression:4000000,correlation:4500000,
   repair:7000000,repairManifest:350000,proposedRobots:{max:250000},proposedSitemap:{max:750000},
   cmsBlueprint:2000000,cmsSite:3500000,cmsBaseline:3500000,cmsDecisions:3500000,
-  publicCapture:36000000,renderedCapture:65000000});
+  publicCapture:36000000,renderedCapture:65000000,crux:8000000});
  if(crawl){crawl.digests=digests.crawl;crawl.indexingReportSha256=digests.indexing?.report||null;}
  if(human)human.contractSha=digests.liveAcceptance.contract;
  const out=PRIVATE.privateOutput(args.out);
@@ -152,6 +154,9 @@ function main(argv){
   if(workspace.renderedContentHtml)write('rendered-content.html',workspace.renderedContentHtml);
   if(workspace.renderedContentMarkdown)write('rendered-content.md',workspace.renderedContentMarkdown);
   if(workspace.renderedContentJson)write('rendered-content.json',workspace.renderedContentJson);
+  if(workspace.fieldPerformanceHtml)write('field-performance.html',workspace.fieldPerformanceHtml);
+  if(workspace.fieldPerformanceMarkdown)write('field-performance.md',workspace.fieldPerformanceMarkdown);
+  if(workspace.fieldPerformanceJson)write('field-performance.json',workspace.fieldPerformanceJson);
   if(workspace.crawlCandidateRobots!==null)write('DRAFT-ONLY-robots.txt',workspace.crawlCandidateRobots);
   if(workspace.crawlCandidateSitemap!==null)write('DRAFT-ONLY-sitemap.xml',workspace.crawlCandidateSitemap);
   if(workspace.humanHtml)write('human.html',workspace.humanHtml);

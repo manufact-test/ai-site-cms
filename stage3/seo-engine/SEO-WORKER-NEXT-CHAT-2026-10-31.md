@@ -1,5 +1,11 @@
 # SEO worker — next-chat handoff, 31 October 2026
 
+## Newest continuation — historical real-user CrUX field-performance QA
+
+After verified remote SEO HEAD `b21eca8bbd0c37411e65517eeae5076884b48ac2`, the independent worker built [FIELD-PERFORMANCE-CRUX-QA.md](FIELD-PERFORMANCE-CRUX-QA.md). It extends only the **existing** private SEO Operator Workspace with optional `crawl.crux` operator-exported CrUX JSON (one raw response or array). Exact Blueprint page or matching origin, form factor, 28-day collection window, LCP/INP/CLS P75 ranges, missing-page/metric coverage and stale dates are checked; unknown evidence is never a pass. Output uses the existing Crawl page links, byte-integrity manifest and the existing post-launch human Search Performance gate. There is no Google key or request, CMS edit, new dashboard, publishing, PR or merge. The focused offline Node test `tests/seo-field-performance-smoke.cjs` covers local CLI and private report; see final handoff for exact checks and new **GitHub** SHA after upload. Current release/customer/Google property identity remains unauthenticated. The lead integrator must source actual customer evidence outside Git before field SEO signoff.
+
+Actually executed on full checkout (real Node, all successful): `tests/seo-field-performance-smoke.cjs`, `tests/seo-workspace-crawl-smoke.cjs`, `tests/seo-operator-workspace-smoke.cjs`, `tests/seo-lead-readiness-smoke.cjs`, `tests/seo-rendered-content-smoke.cjs`, `tests/seo-structured-data-smoke.cjs`. The focused CrUX test was rerun successfully after adding exact-threshold and manifest-tampering assertions. These are synthetic/offline checks, **not** actual Google API, site deployment, GitHub Actions, authorized customer evidence or integration on the lead's branch. Do not run a live customer pilot without the lead's owner-approved host and source.
+
 ## Newest continuation — responsive/content/navigation/performance pilot QA
 
 At start of this worker pass, the live SEO branch was verified at `d959a06281f5b2a79b8658f1e4056574c9b43b6c`; before acting next time **fetch the live branch HEAD again**. The new commit produced by this pass will have a different GitHub SHA and must be verified after upload.

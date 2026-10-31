@@ -14,6 +14,8 @@ const SCHEMA=require('./seo-structured-data-audit.cjs');
 const SCHEMA_VIEW=require('./seo-structured-data-view.cjs');
 const RENDERED=require('./seo-rendered-content-audit.cjs');
 const RENDERED_VIEW=require('./seo-rendered-content-view.cjs');
+const FIELD=require('./seo-field-performance.cjs');
+const FIELD_VIEW=require('./seo-field-performance-view.cjs');
 const HASH=/^[0-9a-f]{64}$/;
 const hex=s=>crypto.createHash('sha256').update(s).digest('hex');
 const escape=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -143,6 +145,16 @@ function build(data){
  }
  let publicFollowup=null,publicFollowupView=null,structuredData=null,structuredDataView=null;
  let renderedContent=null,renderedContentView=null;
+ let fieldPerformance=null,fieldPerformanceView=null;
+ if(data.crux!==undefined){
+  check(cmsReview&&HASH.test(hashes.crux||''),
+   'original Blueprint/Site and SHA256-pinned CrUX export are required');
+  fieldPerformance=FIELD.review({source:data.crux,sourceSha256:hashes.crux,
+   siteId:policy.siteId,base:policy.base,
+   paths:data.cmsBlueprint.pages.map(p=>p.path),
+   referenceDate:new Date().toISOString().slice(0,10)});
+  fieldPerformanceView=FIELD_VIEW.render(fieldPerformance);
+ }
  if(data.renderedCapture!==undefined)check(data.publicCapture&&cmsReview&&HASH.test(hashes.renderedCapture||''),
   'rendered DOM QA needs original public HTTPS, Blueprint, Site v1 and SHA256-pinned viewport captures');
  if(data.publicCapture!==undefined){
@@ -229,6 +241,7 @@ function build(data){
  const publicLink=publicFollowupView?'<section><h2>Observed public HTTPS after SEO work</h2><p><a href="crawl-public-followup.html">Open public observation follow-up</a> · <a href="crawl-public-followup.md">Lead Markdown</a> · <a href="crawl-public-followup.json">Read-only source record</a></p><p>Still conflicting: '+publicFollowup.summary.conflict+' · Aligned, NOT verified: '+publicFollowup.summary.alignedNotVerified+' · Unknown: '+publicFollowup.summary.unknown+' · Independent delivery errors: '+publicFollowup.summary.independentDeliveryBlockers+'.</p><p>This is an operator-supplied transcript, not authenticated Google indexation or owner approval.</p></section>':'';
  const schemaLink=structuredDataView?'<section><h2>Actual public JSON-LD semantic QA</h2><p><a href="structured-data.html">Open schema.org QA</a> · <a href="structured-data.md">Lead worklist</a> · <a href="structured-data.json">Private JSON</a></p><p>P0 '+structuredData.summary.P0+' · P1 '+structuredData.summary.P1+' · unknown pages '+structuredData.summary.uninspectedPages+'. Published structured-data claims are NOT owner-verified.</p></section>':'';
  const renderedLink=renderedContentView?'<section><h2>Rendered content: HTTPS vs browser DOM</h2><p><a href="rendered-content.html">Review render parity</a> · <a href="rendered-content.md">Manual findings</a> · <a href="rendered-content.json">Source-bound JSON</a></p><p>P0 '+renderedContent.summary.P0+' · P1 '+renderedContent.summary.P1+' · compared '+renderedContent.summary.fullyComparedPages+'/'+renderedContent.summary.plannedPages+' pages · responsive unknown '+(renderedContent.summary.responsiveUnknownPairs??'n/a')+' · empty visible main pairs '+(renderedContent.summary.textEmptyMainPairs??'n/a')+' · restricted link pairs '+(renderedContent.summary.linkRestrictedRoutePairs??'n/a')+' · missing fragment IDs '+(renderedContent.summary.fragmentMissingTotal??'n/a')+'. Browser/source revision NOT authenticated. All findings require human review.</p></section>':'';
+ const fieldLink=fieldPerformanceView?'<section><h2>Operator-supplied CrUX field performance</h2><p><a href="field-performance.html">Review historical real-user p75</a> · <a href="field-performance.md">Lead Markdown</a> · <a href="field-performance.json">Private JSON</a></p><p>Approved page coverage '+fieldPerformance.summary.representedApprovedPages+'/'+fieldPerformance.summary.approvedPages+' · origin-wide records '+fieldPerformance.summary.originRecords+' · poor metric values '+fieldPerformance.summary.poorMetricValues+' · unknown metric values '+fieldPerformance.summary.unknownMetricValues+'. This is not the same-release performance proof, Google account authentication or automatic GO.</p></section>':'';
  const cmsLink=cmsView?'<section><h2>CMS / publisher implementation mapping</h2><p><a href="crawl-cms.html">Open source-bound CMS and publisher implementation worklist</a> · <a href="crawl-cms-worklist.md">Lead Markdown</a> · <a href="crawl-cms-worklist.json">Private JSON</a> · <a href="crawl-cms-decisions-TEMPLATE.json">NEW-cycle human decision template</a> · <a href="crawl-cms-decisions.html">Private offline Decision Desk</a>'+
   (cmsRecheckView?' · <a href="crawl-cms-recheck.html">Compare old vs current tasks</a> · <a href="crawl-cms-recheck.md">Lead recheck summary</a>':'')+'</p><p>Source-drift pages: '+cmsReview.summary.driftPages+' · Extra pages: '+cmsReview.summary.unapprovedExtraPages+' · Manual implementation actions: '+cmsReview.summary.totalManualActions+'. No CMS Save or publishing is authorized.</p></section>':'';
  const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;"><title>MANUFACT — Private Crawl Operations</title><style>'+css+'</style></head><body><main><header><div>MANUFACT · PRIVATE SEO OPERATOR WORKSPACE</div><h1>Search delivery &amp; crawl intelligence</h1><p>Site '+escape(policy.siteId)+' · '+escape(policy.base)+'</p><p>Original-source observations, not authenticated crawler traffic or Google URL Inspection.</p></header>'+
@@ -236,7 +249,7 @@ function build(data){
   '<p><a href="crawl-lead-worklist.md">Open private lead worklist</a></p><p>Regression '+(delta?'supplied':'not supplied')+' · GSC correlation '+(correlation?'supplied':'not supplied')+
   ' · candidate '+(candidate?'private draft only':'not supplied')+'</p><div class="scroll"><table><thead><tr><th>Priority</th><th>Source</th><th>Route / bot</th><th>Observation</th><th>Next manual check</th></tr></thead><tbody>'+
   (rows||'<tr><td colspan="5">No triggers in supplied input. This does NOT prove the public site is ready.</td></tr>')+
-  '</tbody></table></div></section>'+cmsLink+publicLink+schemaLink+renderedLink+propose+
+  '</tbody></table></div></section>'+cmsLink+publicLink+schemaLink+renderedLink+fieldLink+propose+
   '<section><h2>Source fingerprints</h2><p>All original report bytes are pinned in the private workspace manifest. A matching hash is source consistency, not public-host authentication.</p><div class="scroll"><table><tbody>'+provenanceHtml+'</tbody></table></div></section>'+
   '<section><h2>Mandatory lead checks</h2><ol><li>Confirm approved site ID, Blueprint and current CMS revision with the owner.</li>'+
   '<li>Verify actual served HTTPS robots/sitemap, HTTP redirects, canonical and X-Robots-Tag before changes.</li>'+
@@ -256,12 +269,18 @@ function build(data){
   '',...(candidate?['DRAFT ONLY: '+candidate.robots+' / '+candidate.sitemap,
    'Proposed SHA256: '+candidate.robotsSha256+' / '+candidate.sitemapSha256,
    'Manual holds: '+candidate.holds,'']:[]),
+  ...(fieldPerformance?['CrUX historical field performance: approved pages with URL evidence '+
+   fieldPerformance.summary.representedApprovedPages+'/'+fieldPerformance.summary.approvedPages+
+   '; origin records '+fieldPerformance.summary.originRecords+
+   '; poor p75 metrics '+fieldPerformance.summary.poorMetricValues+
+   '; unknown p75 metrics '+fieldPerformance.summary.unknownMetricValues+
+   '. See field-performance.md; this is not a same-release claim.','']:[]),
   'Requires independent owner approval, source revision, actual public HTTPS and rollback review.',
   'No autonomous fixes, no release GO, no Google proof.',''].join('\n');
  return {siteId:policy.siteId,base:policy.base,blueprintSha256:policy.blueprintSha256,
   html,markdown:md,candidate,cmsReview,cmsView,cmsTemplate,cmsDecisionDeskHtml,cmsRecheck,cmsRecheckView,
   publicFollowup,publicFollowupView,structuredData,structuredDataView,
-   renderedContent,renderedContentView,
+   renderedContent,renderedContentView,fieldPerformance,fieldPerformanceView,
   counts,sourceIdentity:{policyRobotsSha256:policy.robotsSha256,
    policySitemapSha256:policy.sitemapSha256,
    canonicalBlueprintSha256:policy.blueprintSha256,
@@ -287,6 +306,9 @@ function build(data){
    structuredDataP0:structuredData?.summary.P0??null,
    structuredDataP1:structuredData?.summary.P1??null,
    structuredDataUninspected:structuredData?.summary.uninspectedPages??null,
+   fieldPerformanceIncluded:!!fieldPerformance,
+   fieldPerformancePoor:fieldPerformance?.summary.poorMetricValues??null,
+   fieldPerformanceUnknown:fieldPerformance?.summary.unknownMetricValues??null,
     renderedContentIncluded:!!renderedContent,
     renderedContentP0:renderedContent?.summary.P0??null,
     renderedContentCompared:renderedContent?.summary.fullyComparedPages??null,
