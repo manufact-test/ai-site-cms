@@ -117,6 +117,7 @@ async function execute(){
     'owner receives the separate CMS engine maintenance entrypoint');
   await page.locator('#server-engine-open').click();
   await page.locator('#server-engine-dialog[open]').waitFor();
+  await page.locator('#server-engine-status').getByText(/Текущая версия: legacy-installed/).waitFor();
   const engineSummary=await page.locator('#server-engine-status').innerText();
   assert.match(engineSummary,/Текущая версия: legacy-installed/,
     'maintenance dialog reads the active CMS generation from the real owner API');
