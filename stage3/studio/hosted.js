@@ -5829,7 +5829,7 @@
     if(isDirty()&&!confirm('Выйти без сохранения текущих правок?'))return;
     await api('/api/logout','POST',{});
     reviewNotesByRevision.clear();
-    clearArchive();backupDialog.close();operationsDialog.close();connectionDialog.close();releaseList.replaceChildren();
+    clearArchive();backupDialog.close();operationsDialog.close();connectionDialog.close();siteToolsDialog.close();releaseList.replaceChildren();
     state.authorized=false;state.principal=null;state.csrf=null;state.siteId=null;state.revision=null;
     state.revisions=[];state.sites=[];picker.replaceChildren();
     mediaList.replaceChildren();templatesList.replaceChildren();deliveryReport.replaceChildren();deliveryRecent.replaceChildren();currentDelivery=null;
