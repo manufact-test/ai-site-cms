@@ -288,6 +288,31 @@ try{
   fs.rmSync(corruptSnapshot,{recursive:true,force:true});
   engine(engineScript,'verify-snapshot',[rolledBack.snapshotId],env);
 
+  // Simulate a process crash after the active pointer is written but before
+  // its activation receipt is committed. The stable control plane must remain
+  // reachable and require an explicit owner-selected recovery direction.
+  const recoveryIntentCode=[
+    "require $argv[1].'/EngineLifecycle.php';",
+    "$class=new \\ReflectionClass(\\Manufact\\Stage3\\EngineLifecycle::class);",
+    "$invoke=static function(string $name,array $args)use($class){$method=$class->getMethod($name);$method->setAccessible(true);return $method->invokeArgs(null,$args);};",
+    "$layout=$invoke('layout',[$argv[2]]);$old=$invoke('readState',[$layout]);",
+    "$next=$old;$next['sequence']=$old['sequence']+1;$next['previous']=$old['active'];$next['active']=$old['previous'];$next['lastSnapshotId']=$argv[3];",
+    "$intent=['createdAt'=>gmdate('Y-m-d\\TH:i:s\\Z'),'direction'=>'forward','format'=>'manufact-stage3-engine-intent-v1','newState'=>$next,'oldState'=>$old,'snapshotId'=>$argv[3]];",
+    "$invoke('writeFresh',[$layout['intent'],$invoke('canonicalJson',[$intent]).\"\\n\"]);",
+    "$invoke('writeAtomic',[$layout['state'],$invoke('canonicalJson',[$next]).\"\\n\"]);",
+    "echo json_encode(['sequence'=>$next['sequence']],JSON_THROW_ON_ERROR);"
+  ].join('\n');
+  const pendingIntent=parseJson(php(recoveryIntentCode,[serverRoot,privateDir,rolledBack.snapshotId],env));
+  assert.ok(pendingIntent.sequence>rolledBack.sequence);
+  const pendingStatus=apiOk(await apiCall(web.base,'/api/engine','GET',null,session));
+  assert.equal(pendingStatus.status,'recovery_required','stable control plane must remain reachable with an unresolved activation journal');
+  const recovered=apiOk(await apiCall(web.base,'/api/engine/recover','POST',{direction:'finalize'},session));
+  assert.equal(recovered.state,'finalized');
+  assert.equal(recovered.currentVersion,'1.1.0');
+  const recoveredStatus=apiOk(await apiCall(web.base,'/api/engine','GET',null,session));
+  assert.equal(recoveredStatus.status,'ready');
+  assert.equal(recoveredStatus.current.releaseVersion,'1.1.0');
+
   let mysqlSnapshotResult={skipped:true};
   const mysqlHost=process.env.STAGE3_INSTALL_MYSQL_HOST;
   if(mysqlHost){
