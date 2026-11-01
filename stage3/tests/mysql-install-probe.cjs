@@ -19,7 +19,7 @@ const password=process.env.STAGE3_INSTALL_MYSQL_PASSWORD||'';
 const adminDsn='mysql:host='+host+';port='+port+';charset=utf8mb4';
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'stage3-mysql-install-'));
 const suffix=crypto.randomBytes(5).toString('hex');
-const names=['a','b','locked','nonempty'].map(x=>'stage3_install_'+suffix+'_'+x);
+const names=['a','b','locked','nonempty','runner'].map(x=>'stage3_install_'+suffix+'_'+x);
 const created=[];
 
 function run(command,args,env={},expected=0,cwd=root){
@@ -226,6 +226,91 @@ try{
   assert.equal(incomplete.checks.schemaIntegrity.ok,false);
   assert.ok(incomplete.checks.schemaIntegrity.missingTables.includes('stage3_visual_findings'));
 
+  // Private two-step runner intended for a manually reviewed hPanel Cron Job.
+  const dbRunner=names[4];
+  createDatabase(dbRunner);
+  const codeRootRunner=createCodeRoot('cms-runner');
+  const privateRunner=privateDir('private-runner');
+  const publicRunner=fs.realpathSync(path.join(codeRootRunner,'server/public'));
+  const envRunner=envFor(dbRunner,privateRunner,publicRunner,'runner');
+  const runnerConfigPath=path.join(privateRunner,'hosted-install-runner.json');
+  const runnerConfig={
+    format:'manufact-stage3-hosted-install-runner-config-v1',
+    values:{
+      STAGE3_DSN:envRunner.STAGE3_DSN,
+      STAGE3_DB_USER:envRunner.STAGE3_DB_USER,
+      STAGE3_DB_PASSWORD:envRunner.STAGE3_DB_PASSWORD,
+      STAGE3_OWNER_USER:envRunner.STAGE3_OWNER_USER,
+      STAGE3_OWNER_PASSWORD:envRunner.STAGE3_OWNER_PASSWORD,
+      STAGE3_FORM_SECRET:envRunner.STAGE3_FORM_SECRET,
+      STAGE3_FORM_ORIGINS:envRunner.STAGE3_FORM_ORIGINS,
+      STAGE3_FORM_ENDPOINT:envRunner.STAGE3_FORM_ENDPOINT,
+      STAGE3_PRIVATE_DIR:envRunner.STAGE3_PRIVATE_DIR,
+      STAGE3_PUBLIC_ROOT:envRunner.STAGE3_PUBLIC_ROOT
+    }
+  };
+  function writeRunnerConfig(document){
+    fs.writeFileSync(runnerConfigPath,JSON.stringify(document,null,4)+'\n',{mode:0o600});
+    fs.chmodSync(runnerConfigPath,0o600);
+  }
+  function runRunner(action,expected=0){
+    return run('php',[path.join(codeRootRunner,'server/bin/hosted-install-runner.php'),
+      '--config='+runnerConfigPath,action],{},expected,codeRootRunner);
+  }
+  writeRunnerConfig(runnerConfig);
+  const runnerPlanResponse=runRunner('--plan');
+  const runnerPlan=JSON.parse(runnerPlanResponse.stdout);
+  assert.equal(runnerPlan.state,'install_required');
+  assert.equal(runnerPlan.applyAllowed,true);
+  assert.equal('token' in runnerPlan,false,'private plan token must never be printed');
+  assert.match(runnerPlan.approvalFingerprint,/^[a-f0-9]{64}$/);
+  for(const secret of [envRunner.STAGE3_DSN,envRunner.STAGE3_DB_PASSWORD,
+    envRunner.STAGE3_OWNER_PASSWORD,envRunner.STAGE3_FORM_SECRET]){
+    assert.equal(runnerPlanResponse.stdout.includes(secret),false,'plan output must not expose credentials');
+  }
+  const runnerReviewPath=path.join(privateRunner,'hosted-install-plan-review.json');
+  const runnerStatePath=path.join(privateRunner,'hosted-install-plan-state.json');
+  const runnerApplyingPath=path.join(privateRunner,'hosted-install-runner-applying.json');
+  const runnerConsumedPath=path.join(privateRunner,'hosted-install-runner-consumed.json');
+  assert.equal(fs.statSync(runnerConfigPath).mode&0o777,0o600);
+  assert.equal(fs.statSync(runnerReviewPath).mode&0o777,0o600);
+  assert.equal(fs.statSync(runnerStatePath).mode&0o777,0o600);
+  const runnerState=JSON.parse(fs.readFileSync(runnerStatePath,'utf8'));
+  assert.match(runnerState.token,/^[a-f0-9]{64}$/);
+  assert.equal(tableCount(dbRunner),0,'plan must remain read-only');
+
+  runRunner('--apply='+'0'.repeat(64),1);
+  assert.equal(tableCount(dbRunner),0,'wrong approval fingerprint must not mutate MySQL');
+  assert.equal(fs.existsSync(runnerApplyingPath),false);
+
+  const changedRunnerConfig=JSON.parse(JSON.stringify(runnerConfig));
+  changedRunnerConfig.values.STAGE3_OWNER_PASSWORD='Changed-after-plan-password-2026';
+  writeRunnerConfig(changedRunnerConfig);
+  runRunner('--apply='+runnerPlan.approvalFingerprint,1);
+  assert.equal(tableCount(dbRunner),0,'stale credentials must block apply before schema creation');
+  assert.equal(fs.existsSync(runnerApplyingPath),false);
+  writeRunnerConfig(runnerConfig);
+
+  const runnerApplied=JSON.parse(runRunner('--apply='+runnerPlan.approvalFingerprint).stdout);
+  assert.equal(runnerApplied.state,'installed');
+  assert.equal(runnerApplied.deploymentPerformed,false);
+  assert.equal(runnerApplied.runnerConfigRemoved,true);
+  assert.deepEqual(runnerApplied.cleanupWarnings,[]);
+  assert.equal(fs.existsSync(runnerStatePath),false);
+  assert.equal(fs.existsSync(runnerApplyingPath),false);
+  assert.equal(fs.existsSync(runnerConsumedPath),true);
+  assert.equal(fs.statSync(runnerConsumedPath).mode&0o777,0o600);
+  assert.equal(fs.existsSync(runnerReviewPath),true,'redacted review plan is retained privately for audit');
+  assert.equal(fs.existsSync(runnerConfigPath),false,'credential-bearing runner config is removed after success');
+  assert.equal(tableCount(dbRunner),25,'approved runner installs the complete schema once');
+  const consumedText=fs.readFileSync(runnerConsumedPath,'utf8');
+  for(const secret of [envRunner.STAGE3_DSN,envRunner.STAGE3_DB_PASSWORD,
+    envRunner.STAGE3_OWNER_PASSWORD,envRunner.STAGE3_FORM_SECRET]){
+    assert.equal(consumedText.includes(secret),false,'consumed marker must not expose credentials');
+  }
+  runRunner('--plan',1);
+  assert.equal(tableCount(dbRunner),25,'consumed runner must not execute again');
+
   process.stdout.write(JSON.stringify({
     ok:true,
     checks:[
@@ -239,7 +324,10 @@ try{
       'independent MySQL database accepts the same site ID',
       'database-scoped GET_LOCK rejects a concurrent installer',
       'lock release permits a fresh approved retry',
-      'non-empty MySQL database refused without mutation'
+      'non-empty MySQL database refused without mutation',
+      'private hPanel runner keeps credentials and plan token outside web root and out of plan output',
+      'wrong approval and changed credentials are refused before any database write',
+      'separate fingerprint approval installs once, removes runner credentials and writes a consumed marker'
     ],
     instanceIds:[installed.instanceId,installedB.instanceId],
     deploymentPerformed:false
