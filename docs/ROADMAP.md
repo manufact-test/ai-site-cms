@@ -772,3 +772,22 @@ Implemented on feature/stage3-ai-site-contract:
 **Validation is not green on the exact current SHA.** HEAD ab04bc0ac87645cc7882a726a2b18c2d5a7c1312; [Actions #41239753483](https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483): technology-runtime=SUCCESS, contract=FAILED. PHP/SQLite HTTP, D3 loopback cutover/rollback and the separate full Studio browser journey passed; the final approved-site browser journey failed at stage3/tests/approved-site-browser.cjs:700 because Playwright's click on #server-approved-vault-open was intercepted by #server-resources or .sidebar. Inspect the real DOM/scroll/stacking and repair the user interaction; do not force-click or weaken the test. Screenshot artifact: [run 41239753483](https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483/artifacts/13056942380).
 
 No owner UI/UX GO, first-client pilot or Stage3 acceptance is implied. Stage2 remains NO-GO; mandatory ledger remains 124 candidates + 5 partial + 6 external gates, ownerAccepted=0/135. No main/Hostinger/production/CELIKOM change.
+
+
+### 1 November 2026 — pointer-interception исправлен, Studio временно согласована владельцем (handoff v9.9)
+
+**Точная контрольная точка:** lead branch `feature/stage3-ai-site-contract`, последний функциональный SHA `3a5fe6072600b7d74152673ae3316b5cc1e1483b`. Полный GitHub Actions [#41252586497](https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497) завершился **SUCCESS** на этом точном SHA:
+- `technology-runtime` — SUCCESS;
+- `contract` — SUCCESS, включая hosted approved-site browser journey.
+
+**Закрытие дефекта v9.8:** исходное падение [Actions #41239753483](https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483) на `#server-approved-vault-open` было связано с геометрией боковой панели: крупные flex-панели ресурсов и инструментов сайта могли сжиматься при раскрытии содержимого и перекрывать соседние области. Исправление сохранено в существующей Studio: обе панели сохраняют естественную высоту, вертикальной прокруткой управляет sidebar. Браузерная проверка измеряет размеры/прокрутку и `elementFromPoint()`, затем выполняет обычный пользовательский click; `force: true` и обход интерфейса не применялись. Последующие assertions также приведены к реальной контекстной навигации: раскрытие действий блока, восстановление истории и выход через диалог инструментов сайта.
+
+Артефакты успешного запуска:
+- Offline Studio package: [artifact 13062460096](https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497/artifacts/13062460096).
+- Studio screenshots: [artifact 13062350507](https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497/artifacts/13062350507).
+
+**Новое решение владельца от 01.11.2026 по админке:** текущая Studio временно согласована как рабочая база до подключения первого реального сайта и самостоятельного редактирования владельцем. До этого не продолжать абстрактные UX/UI-перестановки и редизайн. После практического использования на первом сайте собрать конкретные замечания и выполнить адресные улучшения. Это временное согласование не равно финальному UI/UX GO, формальной приёмке Stage 3 или принятию 135 MUST.
+
+**Продуктовые границы не изменились:** Stage 2 — NO-GO, gates #5–#9 открыты; Stage 3 остаётся изолированной инженерной веткой; 135 MUST = 124 инженерных кандидата + 5 partial + 6 external gates; формально принято владельцем 0/135. Первый пилот — существующий лендинг владельца, который ещё не передан. Не выбирать случайный сайт и не выдумывать материалы.
+
+`main` остался на `12e9c3feb707e5ad46b2caeeed379eb40618466b`; merge, Hostinger, production, CELIKOM и реальные клиентские данные не затрагивались. Следующий макроблок выбирать после чтения v9.9 handoff и проверки фактических незакрытых пользовательских сценариев; не возвращаться к pointer-interception, не повторять интеграцию SEO Engine и не запускать заново уже выполненные runtime-адаптеры.
