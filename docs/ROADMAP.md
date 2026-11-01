@@ -806,3 +806,18 @@ No owner UI/UX GO, first-client pilot or Stage3 acceptance is implied. Stage2 re
 Artifacts from the exact run: [offline Studio ZIP · 13081654908](https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827/artifacts/13081654908), [desktop/phone screenshots · 13082202778](https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827/artifacts/13082202778). The collector ZIP was verified inside CI but is not separately uploaded as an Actions artifact.
 
 Product acceptance is unchanged: Stage 2 NO-GO, gates #5–#9 open; Stage 3 isolated and not formally accepted; 135 MUST = 124 engineering candidates + 5 partial + 6 external gates; ownerAccepted=0/135. No `main`, Hostinger, production, CELIKOM or real customer data was touched.
+
+
+## 2026-11-01 — v9.11 Lead Integrator: CMS engine update/rollback design
+
+**Audit checkpoint:** functional source remains `19a74e77c1acdfb43a7b3840f8e05bd10f2b0427`; exact full CI #41302974827 is SUCCESS for both `technology-runtime` and `contract`. Documentation-only design commit: `18e4c86365ccb4bbbb93abc8c79e26c2a10071d3`. No functional source, main, deployment, Hostinger or production state changed.
+
+**Audited:** the Stage2 `cms/src/Release/Lab*` signed release verifier, trust-chain verifier, package stager, schema gate, generation switcher, trusted coordinator, operator preapproval/receipt/settlement gates and existing adversarial tests; Stage3 `cms-release.cjs`, installer, RuntimeConfig, front controller, API, SiteRepository and full CI workflow.
+
+**Confirmed gaps:** Stage3 CMS package is an unsigned SHA-256 inventory, not an authenticated release; no CMS-engine activation or rollback exists. Stage3 schema is version 1 with 25 required tables and no migration journal. Existing Lab* code is explicitly Stage2/CI-only. D3 rollback is visitor-site-only. The current installer remains CLI-only (#183 open).
+
+**Design:** [CMS Engine Update & Rollback](CMS-ENGINE-UPDATE-ROLLBACK-DESIGN.md). Next macroblock has four connected vertical packages: (1) signed `php-host` package and PHP verifier; (2) private immutable engine slots, stable loader, request leases, activation, rollback and explicit recovery; (3) full private 25-table DB snapshot and schema guard; (4) owner-only Studio review/apply/rollback.
+
+**Signing decision:** project status records Hostinger web PHP `sodium=false`; Stage3 therefore uses RSA-3072 minimum + SHA-256 via the already-required PHP OpenSSL extension, not Ed25519/Sodium or an unapproved polyfill. First engine releases are schema-preserving only (schema 1 → 1, no migrations). Schema-changing releases remain blocked until reversible migrations and verified snapshots exist.
+
+**Still open:** #183 guided setup is separate; #184–185 remain unimplemented and unaccepted. Stage 2 NO-GO (#5–#9), Stage 3 isolated/not accepted, owner acceptance 0/135. Work only on `feature/stage3-ai-site-contract`; no Design Factory, main, Hostinger, production or real customer data.
