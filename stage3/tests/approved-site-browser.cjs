@@ -1807,6 +1807,8 @@ async function execute(){
   await page.locator('#server-site-tools-dialog[open]').waitFor();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
+  assert.equal(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open),false,
+    'Signing out closes the site tools modal before returning to login');
 
   // Reproduce the post-authentication recovery edge case: credentials are
   // accepted, the site list is readable, but opening the selected site's
