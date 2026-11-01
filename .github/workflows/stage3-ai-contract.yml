@@ -157,6 +157,23 @@ jobs:
           path: stage3/studio/out/ai-site-stage3-offline-studio.zip
           retention-days: 7
           if-no-files-found: error
+      - name: Build and verify Hostinger sibling-layout package (no deployment)
+        run: |
+          node --check stage3/bin/cms-release.cjs
+          node --check stage3/tests/hostinger-package-smoke.cjs
+          node stage3/tests/hostinger-package-smoke.cjs
+          mkdir -p "$RUNNER_TEMP/hostinger-stage3-package"
+          node stage3/bin/cms-release.cjs pack-hostinger-sibling "$GITHUB_WORKSPACE" "$RUNNER_TEMP/hostinger-stage3-package/release"
+          node stage3/bin/cms-release.cjs verify "$RUNNER_TEMP/hostinger-stage3-package/release"
+          cd "$RUNNER_TEMP/hostinger-stage3-package/release"
+          zip -q -r "$RUNNER_TEMP/hostinger-stage3-package/ai-site-stage3-hostinger-sibling.zip" stage3 public_html cms-release.json
+      - name: Upload Hostinger sibling-layout Stage3 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-site-stage3-hostinger-sibling
+          path: ${{ runner.temp }}/hostinger-stage3-package/ai-site-stage3-hostinger-sibling.zip
+          retention-days: 7
+          if-no-files-found: error
       - name: Upload desktop and phone smoke screenshots
         if: always()
         uses: actions/upload-artifact@v4

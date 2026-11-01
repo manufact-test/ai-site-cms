@@ -278,7 +278,8 @@ try{
   else if(cmd==='pack-php-host'&&args.length===2)pack(args[0],args[1],'php-host');
   else if(cmd==='verify'&&args.length===1){
     const x=verify(args[0]);report({action:'verify',profile:x.manifest.profile,fingerprint:x.manifest.fingerprint,
-      files:x.manifest.files.length,bytes:x.manifest.bytes,valid:true});
+      files:x.manifest.files.length,bytes:x.manifest.bytes,
+      hostingerSiblingLayout:x.hostingerSiblingLayout,valid:true});
   }else if(cmd==='compare'&&args.length===2)compare(args[0],args[1]);
   else if(cmd==='pack-signed-php-host'&&args.length===5)signedPhpHost(args[0],args[1],args[2],args[3],args[4]);
   else if(cmd==='verify-signed-php-host'&&args.length===2)verifySignedPhpHost(args[0],args[1]);
