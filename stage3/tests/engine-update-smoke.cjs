@@ -8,6 +8,7 @@ const crypto=require('node:crypto');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
+const net=require('node:net');
 const {spawn,spawnSync}=require('node:child_process');
 
 const root=path.resolve(__dirname,'../..');
@@ -95,6 +96,40 @@ function phpVerify(serverRoot,release,publicKey,env,expected=0){
   ].join('\n');
   return php(code,[serverRoot,release,publicKey],env,expected);
 }
+async function freePort(){
+  return new Promise((resolve,reject)=>{
+    const server=net.createServer();server.once('error',reject);
+    server.listen(0,'127.0.0.1',()=>{const port=server.address().port;server.close(error=>error?reject(error):resolve(port));});
+  });
+}
+async function startPhpServer(publicRoot,env){
+  const port=await freePort(),base='http://127.0.0.1:'+port;
+  const server=spawn('php',['-S','127.0.0.1:'+port,'-t',publicRoot,path.join(publicRoot,'index.php')],
+    {cwd:root,env:{...process.env,...env},stdio:['ignore','pipe','pipe']});
+  let stderr='';server.stderr.on('data',chunk=>{stderr+=chunk.toString();});
+  for(let i=0;i<80;i++){
+    if(server.exitCode!==null)throw new Error('PHP web server exited: '+stderr);
+    try{const response=await fetch(base+'/api/session');if(response.status===200)return {server,base};}catch{}
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  server.kill('SIGKILL');throw new Error('PHP web server did not become ready: '+stderr);
+}
+async function apiCall(base,path,method='GET',body=null,session=null){
+  const headers={accept:'application/json'};
+  if(session?.cookie)headers.cookie=session.cookie;
+  if(method!=='GET'){
+    headers.origin=base;headers['content-type']='application/json';
+    if(session?.csrfToken)headers['x-csrf-token']=session.csrfToken;
+  }
+  const response=await fetch(base+path,{method,headers,body:body===null?undefined:JSON.stringify(body)});
+  let data={};try{data=await response.json();}catch{}
+  return {status:response.status,data,headers:response.headers};
+}
+function apiOk(result){
+  if(result.status!==200)throw new Error('CMS engine API returned '+result.status+': '+JSON.stringify(result.data));
+  return result.data;
+}
+
 async function waitForText(child,needle,timeoutMs=12000){
   return new Promise((resolve,reject)=>{
     let output='';
@@ -105,6 +140,8 @@ async function waitForText(child,needle,timeoutMs=12000){
   });
 }
 
+async function main(){
+let activeLease=null,phpServer=null;
 try{
   const builder=path.join(stage3,'bin/cms-release.cjs');
   const sourceV1=makeReleaseSource('source-v1','release-one');
@@ -145,17 +182,36 @@ try{
   const engineScript=path.join(serverRoot,'bin/engine.php');
   engine(engineScript,'trust',[publicKeyPath],{...env,STAGE3_ALLOW_ENGINE_TRUST_SETUP:'YES'});
   copyIncoming(releaseV1,'release-one',privateDir);copyIncoming(releaseV2,'release-two',privateDir);
+  const web=await startPhpServer(publicRoot,env);phpServer=web.server;
+  const anonymous=await apiCall(web.base,'/api/engine');
+  assert.equal(anonymous.status,401,'CMS engine API must require an authenticated session');
+  const login=await apiCall(web.base,'/api/login','POST',{
+    username:'engineowner',password:env.STAGE3_OWNER_PASSWORD
+  });
+  assert.equal(login.status,200,'owner login for CMS engine maintenance API');
+  const cookieHeader=login.headers.get('set-cookie');
+  assert.ok(cookieHeader,'owner login must issue a session cookie');
+  const session={cookie:cookieHeader.split(';')[0],csrfToken:login.data.csrfToken};
+  assert.ok(session.csrfToken);
+  const csrfDenied=await apiCall(web.base,'/api/engine/rollback-plan','POST',{},{
+    cookie:session.cookie,csrfToken:'invalid-csrf-token'
+  });
+  assert.equal(csrfDenied.status,403,'CMS engine mutation API must enforce CSRF');
+  const initialStatus=apiOk(await apiCall(web.base,'/api/engine','GET',null,session));
+  assert.equal(initialStatus.trustConfigured,true);
+  assert.ok(initialStatus.incomingPackages.includes('release-one'));
 
-  // Outcome 1: review a publisher-authenticated release and receive a one-time plan.
-  const reviewedV1=engine(engineScript,'review',['release-one'],{...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'});
+  // Outcome 1: owner reviews a publisher-authenticated release through the real PHP API.
+  const reviewedV1=apiOk(await apiCall(web.base,'/api/engine/review','POST',{packageId:'release-one'},session));
   assert.equal(reviewedV1.releaseVersion,'1.0.0');
   assert.equal(reviewedV1.currentVersion,'legacy-installed');
   assert.equal(reviewedV1.snapshotRequired,true);
   assert.match(reviewedV1.planToken,/^[a-f0-9]{64}$/);
 
-  // Outcome 2: activate an immutable engine slot without touching visitor-site data.
-  const appliedV1=engine(engineScript,'apply',[reviewedV1.releaseId,reviewedV1.planToken],
-    {...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'});
+  // Outcome 2: owner activates an immutable engine slot without touching visitor-site data.
+  const appliedV1=apiOk(await apiCall(web.base,'/api/engine/apply','POST',{
+    releaseId:reviewedV1.releaseId,planToken:reviewedV1.planToken
+  },session));
   assert.equal(appliedV1.currentVersion,'1.0.0');
   assert.equal(appliedV1.previousVersion,'legacy-installed');
   assert.equal(appliedV1.databasePreserved,true);
@@ -166,22 +222,25 @@ try{
   assert.equal(activeRoot,path.join(privateDir,'engine','slots',reviewedV1.releaseId,'stage3'));
 
   // Upgrade once more; a live request lease must block an engine switch.
-  const reviewedV2=engine(engineScript,'review',['release-two'],{...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'});
-  const appliedV2=engine(engineScript,'apply',[reviewedV2.releaseId,reviewedV2.planToken],
-    {...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'});
+  const reviewedV2=apiOk(await apiCall(web.base,'/api/engine/review','POST',{packageId:'release-two'},session));
+  const appliedV2=apiOk(await apiCall(web.base,'/api/engine/apply','POST',{
+    releaseId:reviewedV2.releaseId,planToken:reviewedV2.planToken
+  },session));
   assert.equal(appliedV2.currentVersion,'1.1.0');assert.equal(appliedV2.previousVersion,'1.0.0');
-  const rollbackPlan=engine(engineScript,'rollback-plan',[],env);
+  const rollbackPlan=apiOk(await apiCall(web.base,'/api/engine/rollback-plan','POST',{},session));
   const leaseCode="require $argv[1].'/EngineRuntime.php';\\Manufact\\Stage3\\EngineRuntime::boot($argv[1]);echo '|LEASED';usleep(8000000);";
-  const lease=spawn('php',['-r',leaseCode,serverRoot],{cwd:root,env:{...process.env,...env},stdio:['ignore','pipe','pipe']});
-  await waitForText(lease,'|LEASED');
-  const blocked=run('php',[engineScript,'rollback',rollbackPlan.planId,rollbackPlan.planToken],
-    {...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'},1);
-  assert.match(blocked.stderr,/active PHP request|in use/i);
-  await new Promise((resolve,reject)=>lease.once('exit',code=>code===0?resolve():reject(new Error('PHP lease exited '+code))));
+  activeLease=spawn('php',['-r',leaseCode,serverRoot],{cwd:root,env:{...process.env,...env},stdio:['ignore','pipe','pipe']});
+  await waitForText(activeLease,'|LEASED');
+  const blocked=await apiCall(web.base,'/api/engine/rollback','POST',{
+    planId:rollbackPlan.planId,planToken:rollbackPlan.planToken
+  },session);
+  assert.equal(blocked.status,422,'CMS engine activation must refuse while a PHP request lease is active');
+  await new Promise((resolve,reject)=>activeLease.once('exit',code=>code===0?resolve():reject(new Error('PHP lease exited '+code))));
 
   // Outcome 3: explicit rollback to the previous engine; database and publication remain intact.
-  const rolledBack=engine(engineScript,'rollback',[rollbackPlan.planId,rollbackPlan.planToken],
-    {...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'});
+  const rolledBack=apiOk(await apiCall(web.base,'/api/engine/rollback','POST',{
+    planId:rollbackPlan.planId,planToken:rollbackPlan.planToken
+  },session));
   assert.equal(rolledBack.currentVersion,'1.0.0');assert.equal(rolledBack.previousVersion,'1.1.0');
   assert.equal(rolledBack.databasePreserved,true);
   status=engine(engineScript,'inspect',[],env);
@@ -295,5 +354,9 @@ try{
 }catch(error){
   process.stderr.write((error.stack||error.message)+'\n');process.exitCode=1;
 }finally{
+  if(activeLease&&activeLease.exitCode===null)activeLease.kill('SIGKILL');
+  if(phpServer&&phpServer.exitCode===null)phpServer.kill('SIGTERM');
   fs.rmSync(tmp,{recursive:true,force:true});
 }
+}
+main().catch(error=>{process.stderr.write((error.stack||error.message)+'\n');process.exitCode=1;});

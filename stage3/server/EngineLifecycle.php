@@ -55,10 +55,34 @@ final class EngineLifecycle
         }
         $state = self::readStateOrNull($layout);
         $incoming = [];
+        $installedIds = array_filter([
+            is_array($state['active'] ?? null) ? ($state['active']['releaseId'] ?? null) : null,
+            is_array($state['previous'] ?? null) ? ($state['previous']['releaseId'] ?? null) : null
+        ], 'is_string');
+        foreach (scandir($layout['slots']) ?: [] as $slotName) {
+            if ($slotName !== '.' && $slotName !== '..' && preg_match('/^[0-9]+\\.[0-9]+\\.[0-9]+-[a-f0-9]{16}$/D', $slotName)) {
+                $installedIds[] = $slotName;
+            }
+        }
         foreach (scandir($layout['incoming']) ?: [] as $name) {
             if ($name === '.' || $name === '..' || !preg_match('/^[a-z0-9][a-z0-9-]{0,79}$/D', $name)) continue;
             $path = $layout['incoming'] . DIRECTORY_SEPARATOR . $name;
-            if (is_dir($path) && !is_link($path)) $incoming[] = $name;
+            if (!is_dir($path) || is_link($path)) continue;
+            $manifestPath = $path . DIRECTORY_SEPARATOR . 'cms-release.json';
+            if (is_file($manifestPath) && !is_link($manifestPath)) {
+                try {
+                    $manifest = json_decode(self::readSourceFile($manifestPath, 262144), true, 32, JSON_THROW_ON_ERROR);
+                    if (is_array($manifest) && is_string($manifest['releaseVersion'] ?? null)
+                        && is_string($manifest['fingerprint'] ?? null)
+                        && preg_match('/^[a-f0-9]{64}$/D', $manifest['fingerprint'])) {
+                        $candidateId = $manifest['releaseVersion'] . '-' . substr($manifest['fingerprint'], 0, 16);
+                        if (in_array($candidateId, $installedIds, true)) continue;
+                    }
+                } catch (Throwable) {
+                    // Invalid packages remain visible for explicit review, which will reject them.
+                }
+            }
+            $incoming[] = $name;
         }
         return [
             'available' => true,
@@ -332,9 +356,10 @@ final class EngineLifecycle
                 || !preg_match('/^snapshot-[0-9]{14}-[a-f0-9]{16}$/D', $intent['snapshotId'])) {
                 throw new RuntimeException('Engine activation journal is invalid');
             }
-            self::validateStateDocument($intent['oldState'], $layout, $serverRoot, true);
             if ($direction === 'finalize') {
                 self::validateStateDocument($intent['newState'], $layout, $serverRoot, true);
+            } else {
+                self::validateStateDocument($intent['oldState'], $layout, $serverRoot, true);
             }
             $snapshotCheck = DatabaseSnapshot::verify($layout['snapshots'] . DIRECTORY_SEPARATOR . $intent['snapshotId']);
             $receiptCheck = self::installationReceipt($privateDir);
@@ -370,6 +395,9 @@ final class EngineLifecycle
         require_once $serverRoot . DIRECTORY_SEPARATOR . 'EngineReleaseVerifier.php';
         require_once $serverRoot . DIRECTORY_SEPARATOR . 'DatabaseSnapshot.php';
         RuntimeConfig::load($serverRoot);
+        $requestPath = parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
+        $engineControlRequest = is_string($requestPath)
+            && ($requestPath === '/api/engine' || str_starts_with($requestPath, '/api/engine/'));
         $privateDir = (string)getenv('STAGE3_PRIVATE_DIR');
         $layout = self::layout($privateDir);
         $lock = self::openLock($layout);
@@ -379,7 +407,9 @@ final class EngineLifecycle
         }
         try {
             if (file_exists($layout['intent']) || is_link($layout['intent'])) {
-                throw new RuntimeException('CMS engine activation requires explicit recovery');
+                if (!$engineControlRequest) throw new RuntimeException('CMS engine activation requires explicit recovery');
+                flock($lock, LOCK_UN); fclose($lock);
+                return dirname($serverRoot);
             }
             $state = self::readStateOrNull($layout);
             if ($state === null) {
@@ -395,11 +425,26 @@ final class EngineLifecycle
                     throw new RuntimeException('CMS engine is switching; retry the request shortly');
                 }
                 if (file_exists($layout['intent']) || is_link($layout['intent'])) {
-                    throw new RuntimeException('CMS engine activation requires explicit recovery');
+                    if (!$engineControlRequest) throw new RuntimeException('CMS engine activation requires explicit recovery');
+                    flock($lock, LOCK_UN); fclose($lock);
+                    return dirname($serverRoot);
                 }
                 $state = self::readState($layout);
             }
-            self::validatePointer($state['active'], $layout, $serverRoot, true);
+            try {
+                self::validatePointer($state['active'], $layout, $serverRoot, true);
+            } catch (Throwable $error) {
+                if (!$engineControlRequest) throw $error;
+                flock($lock, LOCK_UN); fclose($lock);
+                return dirname($serverRoot);
+            }
+            $selectedRoot = $state['active']['slotPath'];
+            if ($engineControlRequest) {
+                // Keep the engine control plane on the stable loader generation.
+                // The request only holds the shared lock while resolving state.
+                flock($lock, LOCK_UN); fclose($lock);
+                return dirname($serverRoot);
+            }
             self::$requestLease = $lock;
             register_shutdown_function(static function (): void {
                 if (is_resource(self::$requestLease)) {
@@ -408,7 +453,7 @@ final class EngineLifecycle
                     self::$requestLease = null;
                 }
             });
-            return $state['active']['slotPath'];
+            return $selectedRoot;
         } catch (Throwable $error) {
             if (is_resource($lock)) {
                 @flock($lock, LOCK_UN);
@@ -556,8 +601,9 @@ final class EngineLifecycle
             || ($state['lastSnapshotId'] !== null && !is_string($state['lastSnapshotId']))) {
             throw new RuntimeException('CMS engine recovery state document is invalid');
         }
+        // Only the selected generation must be healthy for recovery. The retained
+        // previous pointer is validated immediately before a rollback uses it.
         self::validatePointer($state['active'], $layout, $serverRoot, $verifyFiles);
-        if ($state['previous'] !== null) self::validatePointer($state['previous'], $layout, $serverRoot, $verifyFiles);
     }
 
     private static function nextState(array $current,array $active,string $snapshotId): array
