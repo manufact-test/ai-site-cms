@@ -10,12 +10,12 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v9.9-2026-11-01.md",
-  "latest_source_sha": "3a5fe6072600b7d74152673ae3316b5cc1e1483b",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v9.10-2026-11-01.md",
+  "latest_source_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
   "source_offweb_ci": null,
-  "source_ci_result": "Exact functional SHA 3a5fe6072600b7d74152673ae3316b5cc1e1483b on feature/stage3-ai-site-contract; GitHub Actions #41252586497 completed SUCCESS: technology-runtime SUCCESS and contract SUCCESS. The prior pointer-interception failure from #41239753483 was fixed in the existing Studio layout; the approved-site browser journey now passes using normal user clicks and real geometry assertions. CI is engineering evidence only, not Stage 2/Stage 3/owner acceptance.",
+  "source_ci_result": "Exact functional SHA 19a74e77c1acdfb43a7b3840f8e05bd10f2b0427 on feature/stage3-ai-site-contract; full GitHub Actions #41302974827 completed SUCCESS on that exact SHA: technology-runtime SUCCESS and contract SUCCESS. The run includes D8 collector package verification and extracted-package PHP/SQLite HTTP E2E, Stage3 CLI installer SQLite/MySQL 8.4 probes, Studio Chromium, D3 visitor-release rollback and full HTTP persistence/publish. Engineering evidence only; no owner acceptance or deployment.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly with cross-subsystem workflows (no duration padding), then correct issues from real use; avoid tiny features and endless tests",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "3a5fe6072600b7d74152673ae3316b5cc1e1483b",
+    "stage3_code_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -55,20 +55,20 @@
       "D: Technology adapters + deploy foundations (2/13/12; isolated only)",
       "E: System checks + 135 owner approvals + release (14/15/16/17; owner GO required)"
     ],
-    "next_macroblock": "Pointer-interception is resolved and exact-SHA full CI is green. The owner temporarily agreed to the current Studio until hands-on work with the first real site; pause abstract UX redesign. Inspect current branch and remaining product workflows, then choose one substantial cross-layer macroblock. Do not repeat SEO Engine integration or completed D1-D6 runtime adapter work.",
+    "next_macroblock": "D8 and Stage3 CLI installer hardening are green on exact SHA 19a74e77. Next: inspect the legacy cms/src/Release/Lab* signed-upgrade experiments and Stage3 package/runtime; implement a separate CMS-engine update/rollback lifecycle for #184-185. Audit #183 because the current initial installer is CLI-only. Do not confuse D3 visitor-site rollback with CMS-engine rollback.",
     "execution_policy_document": "docs/ACCELERATED-MACROBLOCK-PROGRAM.md",
     "policy_owner_request_date": "2026-10-27",
     "current_code_checkpoint_at_policy_change": "cf369988ec16904d945413f36ad292fb94d17da2",
-    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731"
+    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827"
   },
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Continue lead-integrator work only after reading handoff v9.9 and inspecting the exact current branch head. The pointer-interception defect is closed. The owner temporarily agreed to the current Studio as the working baseline until the first real site is connected and he can edit it hands-on; do not continue abstract Studio redesign before that. The first pilot is the owner's existing landing, not yet supplied. Do not invent a site or client assets. Select the next substantial macroblock from verified remaining user workflows; do not repeat SEO Engine integration or completed runtime-adapter work.",
+  "next_step": "Continue lead-integrator work from handoff v9.10 after verifying the live branch tip and exact-head CI. D8 collector sidecar and Stage3 CLI installer hardening are complete in isolated CI. Next inspect existing cms/src/Release/Lab* signed-upgrade work and current Stage3 packaging, then design a substantial CMS-engine update/rollback workflow for mandatory requirements #184-185. Keep #183 open: the current installer is CLI-only and no safe shared-hosting browser setup wizard exists. Distinguish D3 visitor-site release rollback from CMS-engine rollback. Do not repeat D1-D8, SEO Engine integration, pointer-interception repair or abstract Studio redesign.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "9.9-verified-green-temporary-studio-agreement-2026-11-01",
+  "checkpoint_version": "9.10-green-d8-collector-installer-hardening-2026-11-01",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -668,7 +668,7 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v9.9-2026-11-01.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v9.10-2026-11-01.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -1237,9 +1237,9 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "v9.9",
-  "last_docs_handoff_note": "Owner-requested handoff 01.11.2026: functional SHA 3a5fe607 full CI green; pointer-interception resolved; Studio temporarily agreed until first real-site hands-on use; v9.9 handoff and first message saved.",
-  "latest_tested_code_sha": "ab04bc0ac87645cc7882a726a2b18c2d5a7c1312",
+  "last_docs_handoff_version": "v9.10",
+  "last_docs_handoff_note": "Owner-requested handoff 01.11.2026: D8 optional form collector sidecar and Stage3 single-site CLI installer hardening verified on functional SHA 19a74e77; full Actions #41302974827 both jobs SUCCESS; installer remains CLI-only; CMS engine updater/rollback #184-185 and simple shared-hosting setup #183 remain open.",
+  "latest_tested_code_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
     "owner_directive": "large_coherent_product_verticals_not_small_8_minute_fixes",
@@ -1768,8 +1768,8 @@
     ]
   },
   "latest_known_failed_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483",
-  "latest_confirmed_successful_functional_sha": "3a5fe6072600b7d74152673ae3316b5cc1e1483b",
-  "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497",
+  "latest_confirmed_successful_functional_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
+  "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
   "stage3_engineering_estimate": "Approximate subjective core-editor progress 70-80%, not a verified acceptance fraction; all 135 required Stage3 items still require formal owner acceptance (0/135).",
   "stage3_v1_72_checkpoint": {
     "date": "2026-10-26",
@@ -1794,18 +1794,21 @@
     "ci_final_status": "SUCCESS"
   },
   "last_completed_macroblock": {
-    "name": "D6 published-ZIP local visitor HTTP rehearsal",
-    "date": "2026-10-27",
-    "source_sha": "32297b94b009c3fbe1cd6e730356261442d849cd",
-    "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
-    "ci_result_at_handoff": "completed SUCCESS / #40551009731",
+    "name": "D8 form collector sidecar + Stage3 single-site installer hardening",
+    "date": "2026-11-01",
+    "source_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
+    "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
+    "ci_result_at_handoff": "completed SUCCESS / #41302974827; technology-runtime and contract both SUCCESS",
     "features": [
-      "Immutable ZIP verification before disposable loopback visitor",
-      "Real PHP public router and static/Next Static host simulation",
-      "HTTP page 200/HEAD, 301, media SHA256, 404/private boundary, POST 405",
-      "Opt-in ship --http-rehearsal and sidecar evidence; Next SSR source-only refusal"
+      "Optional separately packaged collector ZIP with strict PHP allowlist and SHA-256 inventory",
+      "Collector public document root restricted to index.php and .htaccess; CMS admin API and secrets excluded",
+      "Extracted collector PHP/SQLite loopback HTTP E2E: origin/HMAC/conditional-field rejection and valid lead persistence into same disposable CMS database",
+      "CLI-only single-site install plan/apply with exact configuration-bound approval token",
+      "Private runtime configuration outside public document root and database-scoped install lock",
+      "MySQL 8.0+ gate, 25-table schema integrity inventory and private canonical receipt/hard-link checks",
+      "Approval token bound to database password hash"
     ],
-    "previous_confirmed_green_sha": "bf66650cefcea7159d81dad859e55baaaa50266a"
+    "previous_confirmed_green_sha": "3a5fe6072600b7d74152673ae3316b5cc1e1483b"
   },
   "latest_engineering_macroblocks": [
     {
@@ -1840,7 +1843,7 @@
       "stage": "B/C links",
       "sha": "8b097eef0980211ce2cb80f1e6c4c41d47a336ad",
       "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40502513858",
-      "verified": "PENDING — verify",
+      "verified": "success",
       "scope": "Link audit, page URL migrations, bulk repairs and 301s"
     },
     {
@@ -1884,6 +1887,20 @@
       "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/40551009731",
       "verified": "success",
       "scope": "Disposable local real PHP/static HTTP visitor rehearsal"
+    },
+    {
+      "stage": "D8",
+      "sha": "86381f34386c4d7c6f52ef52a5b10b822de157c3",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
+      "verified": "success",
+      "scope": "Optional independently packaged form collector sidecar; extracted package PHP/SQLite HTTP E2E into existing CMS inbox"
+    },
+    {
+      "stage": "Stage3 installer",
+      "sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
+      "verified": "success",
+      "scope": "Single-site CLI install hardening: private config, MySQL 8+, 25-table inventory, canonical receipt and DB-password-bound plan token"
     }
   ],
   "stage3_v1_75_checkpoint": {
@@ -2015,6 +2032,50 @@
     "owner_studio_decision": "Current Studio temporarily agreed as the working baseline until the first real owner site is connected and the owner can edit it hands-on. No abstract UI redesign before that; collect concrete feedback during real use and then make targeted changes. This is not final UI/UX GO or Stage 3 acceptance.",
     "product_acceptance": {
       "stage2": "NO-GO; gates #5–#9 remain open",
+      "stage3": "isolated engineering; not formally accepted",
+      "mandatory_total": 135,
+      "engineering_candidates": 124,
+      "partial": 5,
+      "external_gates": 6,
+      "owner_accepted": 0
+    },
+    "main_branch_sha_observed": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
+    "no_merge": true,
+    "no_hostinger_or_production": true,
+    "no_celikom_production": true
+  },
+  "stage3_v9_10_checkpoint": {
+    "date": "2026-11-01",
+    "branch": "feature/stage3-ai-site-contract",
+    "functional_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
+    "latest_full_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
+    "latest_full_ci_result": {
+      "technology_runtime": "SUCCESS",
+      "contract": "SUCCESS"
+    },
+    "completed": [
+      "D8 optional collector sidecar ZIP with strict package allowlist, hashes and public/private boundary",
+      "Disposable extracted-collector HTTP/SQLite E2E for conditional multi-step form validation and lead persistence",
+      "Stage3 CLI single-site installer with read-only plan and exact apply token",
+      "Private runtime configuration outside document root, single-instance database identity and database-scoped lock",
+      "MySQL 8.0+ gate, MariaDB rejection and complete 25-table schema inventory",
+      "Canonical private installation receipt checks including hard-link rejection",
+      "Approval token bound to the configured database password hash"
+    ],
+    "artifacts": {
+      "offline_studio": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827/artifacts/13081654908",
+      "studio_screenshots": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827/artifacts/13082202778",
+      "collector_zip": "Verified inside CI; not separately uploaded as an Actions artifact"
+    },
+    "limits": [
+      "Installer remains CLI-only; no browser setup wizard, so requirement #183 is not formally complete",
+      "No integrated Stage3 CMS-engine updater or rollback entrypoint; requirements #184-185 remain open",
+      "D3 rollback is for the published visitor-site release, not the CMS engine",
+      "MySQL verified only in disposable GitHub Actions infrastructure, not Hostinger or another real host",
+      "No real deployment, production database, customer data, live email or Telegram delivery"
+    ],
+    "product_acceptance": {
+      "stage2": "NO-GO; gates #5-#9 remain open",
       "stage3": "isolated engineering; not formally accepted",
       "mandatory_total": 135,
       "engineering_candidates": 124,
