@@ -27,9 +27,12 @@ const EXT=/\.(?:php|cjs|js|jsx|mjs|css|html|json|txt|md)$/i;
 const MAX_FILES=2000,MAX_BYTES=60000000;
 const REQUIRED=[
   'stage3/server/bootstrap.php','stage3/server/public/index.php','stage3/server/public/.htaccess',
+  'stage3/server/Api.php','stage3/server/RuntimeConfig.php',
   'stage3/server/EngineReleaseVerifier.php','stage3/server/EngineLifecycle.php',
   'stage3/server/DatabaseSnapshot.php','stage3/server/EngineRuntime.php',
-  'stage3/studio/bundle.js','stage3/studio/hosted.js',
+  'stage3/server/bin/Stage3Installer.php','stage3/server/bin/install.php',
+  'stage3/server/bin/hosted-install-runner.php',
+  'stage3/studio/bundle.js','stage3/studio/hosted.js','stage3/studio/hosted.css',
   'stage3/sdk/contract.cjs','stage3/components/custom-section.json',
   'stage3/runtime-export/bin/build.cjs'
 ];

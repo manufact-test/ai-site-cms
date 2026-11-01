@@ -166,7 +166,7 @@ async function execute(){
     'owner can reach engine maintenance from the dedicated site-tools surface');
   await page.locator('#server-engine-open').click();
   await page.locator('#server-engine-dialog[open]').waitFor();
-  await page.locator('#server-hosting-diagnostics-status').getByText(/cli-server/).waitFor();
+  await page.locator('#server-hosting-diagnostics-status').getByText(/cli-server/).first().waitFor();
   await page.locator('#server-hosting-diagnostics-status').getByText(/Среда требует внимания/).waitFor();
   await page.locator('#server-engine-status').getByText(/Текущая версия: legacy-installed/).waitFor();
   const engineSummary=await page.locator('#server-engine-status').innerText();

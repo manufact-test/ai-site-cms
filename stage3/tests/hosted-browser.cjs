@@ -85,7 +85,7 @@ async function execute(){
     if(secret)assert.equal(diagnosticJson.includes(secret),false,'diagnostics must not disclose credentials or private paths');
   }
   await page.locator('#server-engine-open').click();
-  await page.locator('#server-hosting-diagnostics-status').getByText(/cli-server/).waitFor();
+  await page.locator('#server-hosting-diagnostics-status').getByText(/cli-server/).first().waitFor();
   await page.locator('#server-hosting-diagnostics-refresh').click();
   await page.locator('#server-hosting-diagnostics-status').getByText(/Среда требует внимания/).waitFor();
   await page.locator('#server-engine-close').click();

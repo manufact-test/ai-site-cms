@@ -163,6 +163,14 @@ try{
   const releaseManifest=JSON.parse(fs.readFileSync(path.join(releaseV1,'cms-release.json'),'utf8'));
   assert.ok(releaseManifest.files.some(file=>file.path==='stage3/server/public/.htaccess'),
     'signed PHP-host release retains the stable Apache routing policy');
+  for(const required of [
+    'stage3/server/Api.php','stage3/server/RuntimeConfig.php',
+    'stage3/server/bin/Stage3Installer.php','stage3/server/bin/install.php',
+    'stage3/server/bin/hosted-install-runner.php','stage3/studio/hosted.css'
+  ]){
+    assert.ok(releaseManifest.files.some(file=>file.path===required),
+      'signed PHP-host release must retain staging installer/diagnostics file: '+required);
+  }
   run('node',[builder,'verify-signed-php-host',releaseV1,publicKeyPath]);
   run('node',[builder,'verify-signed-php-host',releaseV2,publicKeyPath]);
 
