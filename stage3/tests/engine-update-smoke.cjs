@@ -248,10 +248,36 @@ try{
   assert.equal(blocked.status,422,'CMS engine activation must refuse while a PHP request lease is active');
   await new Promise((resolve,reject)=>activeLease.once('exit',code=>code===0?resolve():reject(new Error('PHP lease exited '+code))));
 
+  // Corrupt the active slot after its request lease is released. The stable
+  // control plane and Studio shell must remain reachable so the owner can roll back.
+  const activeState=JSON.parse(fs.readFileSync(path.join(privateDir,'engine/state.json'),'utf8'));
+  const activeEngineFile=path.join(activeState.active.slotPath,'server','VideoGuard.php');
+  const originalEngineFile=fs.readFileSync(activeEngineFile);
+  fs.chmodSync(activeEngineFile,0o600);
+  fs.writeFileSync(activeEngineFile,Buffer.concat([originalEngineFile,Buffer.from('\\n// recovery test tamper\\n')]));
+  fs.chmodSync(activeEngineFile,0o400);
+  const damagedStatus=apiOk(await apiCall(web.base,'/api/engine','GET',null,session));
+  assert.equal(damagedStatus.status,'active_integrity_failure','owner API reports active-slot integrity failure');
+  const damagedStudio=await fetch(web.base+'/studio');
+  assert.equal(damagedStudio.status,200,'stable Studio recovery shell remains available when active engine files are damaged');
+  const damagedHosted=await fetch(web.base+'/hosted.js');
+  assert.equal(damagedHosted.status,200);
+  const damagedSession=await apiCall(web.base,'/api/session','GET',null,session);
+  assert.equal(damagedSession.status,200);assert.equal(damagedSession.data.authenticated,true);
+  const damagedSites=await apiCall(web.base,'/api/sites','GET',null,session);
+  assert.equal(damagedSites.status,200);
+  const deniedDamagedWrite=await apiCall(web.base,'/api/sites','POST',{site:{}},session);
+  assert.equal(deniedDamagedWrite.status,503,'site mutations remain fail-closed while active engine integrity is broken');
+
   // Outcome 3: explicit rollback to the previous engine; database and publication remain intact.
   const rolledBack=apiOk(await apiCall(web.base,'/api/engine/rollback','POST',{
     planId:rollbackPlan.planId,planToken:rollbackPlan.planToken
   },session));
+  fs.chmodSync(activeEngineFile,0o600);
+  fs.writeFileSync(activeEngineFile,originalEngineFile);
+  fs.chmodSync(activeEngineFile,0o400);
+  const repairedStatus=apiOk(await apiCall(web.base,'/api/engine','GET',null,session));
+  assert.equal(repairedStatus.status,'ready','restoring the previous slot integrity leaves rollback state healthy');
   assert.equal(rolledBack.currentVersion,'1.0.0');assert.equal(rolledBack.previousVersion,'1.1.0');
   assert.equal(rolledBack.databasePreserved,true);
   status=engine(engineScript,'inspect',[],env);
@@ -309,6 +335,17 @@ try{
   assert.ok(pendingIntent.sequence>rolledBack.sequence);
   const pendingStatus=apiOk(await apiCall(web.base,'/api/engine','GET',null,session));
   assert.equal(pendingStatus.status,'recovery_required','stable control plane must remain reachable with an unresolved activation journal');
+  const pendingStudio=await fetch(web.base+'/studio');
+  assert.equal(pendingStudio.status,200,'stable Studio recovery shell remains available during interrupted activation');
+  assert.match(await pendingStudio.text(),/data-stage3-mode="server"/);
+  const pendingHosted=await fetch(web.base+'/hosted.js');
+  assert.equal(pendingHosted.status,200,'stable Studio scripts remain available during interrupted activation');
+  const pendingSession=await apiCall(web.base,'/api/session','GET',null,session);
+  assert.equal(pendingSession.status,200);assert.equal(pendingSession.data.authenticated,true);
+  const pendingSites=await apiCall(web.base,'/api/sites','GET',null,session);
+  assert.equal(pendingSites.status,200,'owner can load the read-only site list for the maintenance shell');
+  const deniedSiteWrite=await apiCall(web.base,'/api/sites','POST',{site:{}},session);
+  assert.equal(deniedSiteWrite.status,503,'site mutations remain fail-closed while activation recovery is pending');
   const recovered=apiOk(await apiCall(web.base,'/api/engine/recover','POST',{direction:'finalize'},session));
   assert.equal(recovered.state,'finalized');
   assert.equal(recovered.currentVersion,'1.1.0');

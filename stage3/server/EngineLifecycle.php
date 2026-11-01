@@ -415,8 +415,12 @@ final class EngineLifecycle
         require_once $serverRoot . DIRECTORY_SEPARATOR . 'DatabaseSnapshot.php';
         RuntimeConfig::load($serverRoot);
         $requestPath = parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
-        $engineControlRequest = is_string($requestPath)
+        $requestPath = is_string($requestPath) ? $requestPath : null;
+        $requestMethod = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        $engineControlRequest = $requestPath !== null
             && ($requestPath === '/api/engine' || str_starts_with($requestPath, '/api/engine/'));
+        $recoveryShellRequest = self::isRecoveryShellRequest($requestPath, $requestMethod);
+        $stableControlRequest = $engineControlRequest || $recoveryShellRequest;
         $privateDir = (string)getenv('STAGE3_PRIVATE_DIR');
         $layout = self::layout($privateDir);
         $lock = self::openLock($layout);
@@ -426,7 +430,7 @@ final class EngineLifecycle
         }
         try {
             if (file_exists($layout['intent']) || is_link($layout['intent'])) {
-                if (!$engineControlRequest) throw new RuntimeException('CMS engine activation requires explicit recovery');
+                if (!$stableControlRequest) throw new RuntimeException('CMS engine activation requires explicit recovery');
                 flock($lock, LOCK_UN); fclose($lock);
                 return dirname($serverRoot);
             }
@@ -444,7 +448,7 @@ final class EngineLifecycle
                     throw new RuntimeException('CMS engine is switching; retry the request shortly');
                 }
                 if (file_exists($layout['intent']) || is_link($layout['intent'])) {
-                    if (!$engineControlRequest) throw new RuntimeException('CMS engine activation requires explicit recovery');
+                    if (!$stableControlRequest) throw new RuntimeException('CMS engine activation requires explicit recovery');
                     flock($lock, LOCK_UN); fclose($lock);
                     return dirname($serverRoot);
                 }
@@ -456,7 +460,15 @@ final class EngineLifecycle
                 flock($lock, LOCK_UN); fclose($lock);
                 return dirname($serverRoot);
             }
-            self::validatePointer($state['active'], $layout, $serverRoot, true);
+            try {
+                self::validatePointer($state['active'], $layout, $serverRoot, true);
+            } catch (Throwable $error) {
+                if (!$recoveryShellRequest) throw $error;
+                // Serve only the stable recovery shell when the active slot is
+                // damaged. Site editing/publication routes remain fail-closed.
+                flock($lock, LOCK_UN); fclose($lock);
+                return dirname($serverRoot);
+            }
             $selectedRoot = $state['active']['slotPath'];
             self::$requestLease = $lock;
             register_shutdown_function(static function (): void {
@@ -474,6 +486,18 @@ final class EngineLifecycle
             }
             throw $error;
         }
+    }
+
+    private static function isRecoveryShellRequest(?string $path, string $method): bool
+    {
+        if ($method === 'GET' && in_array($path, [
+            '/studio','/studio.css','/bundle.js','/hosted.js','/access.js','/hosted.css',
+            '/media-processing.js','/media-motion-contract.js','/media-motion-sha256.js',
+            '/media-motion-engine.js','/api/session','/api/sites'
+        ], true)) {
+            return true;
+        }
+        return $method === 'POST' && in_array($path, ['/api/login','/api/logout'], true);
     }
 
     public static function databaseFromEnvironment(): PDO
