@@ -247,6 +247,8 @@ function verifySignedPhpHost(directoryArg,publicKeyArg){
   const raw=fs.readFileSync(path.join(root,'cms-release.json'));
   const signature=fs.readFileSync(path.join(root,'cms-release.sig'));
   const publicPem=readKeyFile(path.resolve(publicKeyArg??''),false);
+  if(!publicPem.toString('utf8').includes('-----BEGIN PUBLIC KEY-----')||publicPem.toString('utf8').includes('PRIVATE KEY'))
+    die('trusted key must be a standalone public SubjectPublicKeyInfo PEM');
   const publicKey=crypto.createPublicKey(publicPem);
   const details=publicKey.asymmetricKeyDetails||{};
   if(publicKey.asymmetricKeyType!=='rsa'||(details.modulusLength||0)<3072)die('trusted publisher key must be RSA-3072 or stronger');
