@@ -177,7 +177,16 @@ async function main() {
   const cookieValues = typeof loginResponse.headers.getSetCookie === 'function'
     ? loginResponse.headers.getSetCookie()
     : [loginResponse.headers.get('set-cookie')].filter(Boolean);
-  const cookiePairs = cookieValues.map(value => value.split(';')[0]).filter(value => value.includes('='));
+  // PHP may emit the initial session cookie and a rotated cookie in the same
+  // login response. A browser cookie jar keeps the last value for each name;
+  // do the same instead of sending duplicate PHPSESSID pairs back to Apache.
+  const cookieJar = new Map();
+  for (const value of cookieValues) {
+    const pair = value.split(';')[0];
+    const equals = pair.indexOf('=');
+    if (equals > 0) cookieJar.set(pair.slice(0, equals), pair.slice(equals + 1));
+  }
+  const cookiePairs = [...cookieJar.entries()].map(([name, value]) => name + '=' + value);
   const cookieSummary = cookiePairs.map(value => ({
     name: value.split('=')[0],
     valueLength: value.slice(value.indexOf('=') + 1).length
