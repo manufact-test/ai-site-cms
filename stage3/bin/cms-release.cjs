@@ -77,7 +77,7 @@ function collect(root,strict=false,profile='full'){
       die('missing required first-party runtime directory: '+dir);
     visit(folder,'stage3/'+dir);
   }
-  files.sort((a,b)=>a.path.localeCompare(b.path,'en'));
+  files.sort((a,b)=>a.path<b.path?-1:(a.path>b.path?1:0));
   const requiredPaths=profile==='php-host'?REQUIRED.filter(p=>!p.startsWith('stage3/sdk/')&&!p.startsWith('stage3/runtime-export/')):REQUIRED;
   for(const required of requiredPaths)if(!files.some(f=>f.path===required))
     die('missing essential engine file: '+required);
