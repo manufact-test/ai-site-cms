@@ -18,6 +18,57 @@ const requiredEnvironment=[
   'STAGE3_DSN','STAGE3_DB_USER','STAGE3_DB_PASSWORD',
   'STAGE3_FORM_SECRET','STAGE3_FORM_ORIGINS'
 ];
+const EXPECTED_SERVER_PHP=[
+  "AccessControl.php",
+  "ApprovalEvidence.php",
+  "ArchiveBundle.php",
+  "ContractValidator.php",
+  "CrossSiteCollections.php",
+  "CrossSiteTransfer.php",
+  "DesignGraph.php",
+  "FlexForm.php",
+  "FontGuard.php",
+  "FormDelivery.php",
+  "FormGateway.php",
+  "FormRoutes.php",
+  "LeadWorkflow.php",
+  "Licenses.php",
+  "LinkOperations.php",
+  "MediaOperations.php",
+  "PageHistory.php",
+  "PublicRenderer.php",
+  "SiteArchives.php",
+  "SiteOperations.php",
+  "SiteRepository.php",
+  "SmtpTransport.php",
+  "TechnologyHandoff.php",
+  "VideoGuard.php",
+  "VideoUploads.php",
+  "VisualReview.php",
+  "bootstrap.php"
+];
+const EXPECTED_COMPONENTS=[
+  "accordion.json",
+  "button.json",
+  "card-grid.json",
+  "contact-panel.json",
+  "cta.json",
+  "faq.json",
+  "feature-grid.json",
+  "gallery.json",
+  "header.json",
+  "hero.json",
+  "lead-form-flex.json",
+  "lead-form.json",
+  "logo-strip.json",
+  "map.json",
+  "pricing.json",
+  "rich-text.json",
+  "stats.json",
+  "steps.json",
+  "testimonials.json",
+  "video.json"
+];
 const apacheRules=[
   'Options -Indexes -MultiViews',
   'DirectoryIndex index.php',
@@ -53,6 +104,8 @@ function main(){
   if(!serverFiles.includes('bootstrap.php')||!serverFiles.includes('FormGateway.php')
     ||!serverFiles.includes('SiteRepository.php')||!serverFiles.includes('ContractValidator.php'))
     fail('collector runtime source set is incomplete');
+  if(JSON.stringify(serverFiles)!==JSON.stringify(EXPECTED_SERVER_PHP))
+    fail('collector PHP source allowlist changed; review package boundary before updating it');
   const sourceBootstrap=readRegular(path.join(server,'bootstrap.php')).toString('utf8');
   const apiRequire="require_once __DIR__ . '/Api.php';\n";
   if(!sourceBootstrap.includes(apiRequire))fail('admin API boundary cannot be isolated safely');
@@ -72,7 +125,8 @@ function main(){
   const componentFiles=fs.readdirSync(components,{withFileTypes:true})
     .filter(de=>de.isFile()&&de.name.endsWith('.json'))
     .map(de=>de.name).sort();
-  if(componentFiles.length<1)fail('component manifest registry is empty');
+  if(JSON.stringify(componentFiles)!==JSON.stringify(EXPECTED_COMPONENTS))
+    fail('component manifest allowlist changed; review the collector package contract');
   for(const name of componentFiles){
     const bytes=readRegular(path.join(components,name));
     const manifest=JSON.parse(bytes.toString('utf8'));
@@ -159,7 +213,8 @@ function main(){
     const verified=inspect(temp);
     if(verified.sha256!==zip.hash(bytes))fail('post-build checksum mismatch');
     if(exists(target))fail('destination changed; refusing to overwrite');
-    fs.renameSync(temp,target);
+    fs.linkSync(temp,target); // atomic no-overwrite publication
+    fs.rmSync(temp,{force:true});
     process.stdout.write(JSON.stringify({
       format:manifest.format,zip:target,sha256:verified.sha256,
       files:verified.files,bytes:verified.bytes,documentRoot:verified.documentRoot,

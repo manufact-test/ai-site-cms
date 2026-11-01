@@ -8,6 +8,58 @@ const REQUIRED_ENV=[
   'STAGE3_DSN','STAGE3_DB_USER','STAGE3_DB_PASSWORD',
   'STAGE3_FORM_SECRET','STAGE3_FORM_ORIGINS'
 ];
+const EXPECTED_SERVER_PHP=[
+  "AccessControl.php",
+  "ApprovalEvidence.php",
+  "ArchiveBundle.php",
+  "ContractValidator.php",
+  "CrossSiteCollections.php",
+  "CrossSiteTransfer.php",
+  "DesignGraph.php",
+  "FlexForm.php",
+  "FontGuard.php",
+  "FormDelivery.php",
+  "FormGateway.php",
+  "FormRoutes.php",
+  "LeadWorkflow.php",
+  "Licenses.php",
+  "LinkOperations.php",
+  "MediaOperations.php",
+  "PageHistory.php",
+  "PublicRenderer.php",
+  "SiteArchives.php",
+  "SiteOperations.php",
+  "SiteRepository.php",
+  "SmtpTransport.php",
+  "TechnologyHandoff.php",
+  "VideoGuard.php",
+  "VideoUploads.php",
+  "VisualReview.php",
+  "bootstrap.php"
+];
+const EXPECTED_COMPONENTS=[
+  "accordion.json",
+  "button.json",
+  "card-grid.json",
+  "contact-panel.json",
+  "cta.json",
+  "faq.json",
+  "feature-grid.json",
+  "gallery.json",
+  "header.json",
+  "hero.json",
+  "lead-form-flex.json",
+  "lead-form.json",
+  "logo-strip.json",
+  "map.json",
+  "pricing.json",
+  "rich-text.json",
+  "stats.json",
+  "steps.json",
+  "testimonials.json",
+  "video.json"
+];
+
 function inspect(file){
   if(!path.isAbsolute(file)||!fs.existsSync(file)||fs.lstatSync(file).isSymbolicLink()
     ||!fs.statSync(file).isFile()||fs.realpathSync(file)!==file)
@@ -23,12 +75,18 @@ function inspect(file){
     ||meta.entrypoint!=='collector/server/collector-public/index.php'
     ||meta.sharedDatabase!=='same dedicated Stage3 database used by the CMS inbox'
     ||JSON.stringify(meta.requiredEnvironment)!==JSON.stringify(REQUIRED_ENV)
-    ||!Array.isArray(meta.files)||meta.files.length<10||meta.files.length>1500)
+    ||!Array.isArray(meta.files)||meta.files.length!==EXPECTED_SERVER_PHP.length+EXPECTED_COMPONENTS.length+3)
     fail('invalid collector package contract');
+  const EXPECTED_PACKAGE_FILES=new Set([
+    'collector/README.txt','collector/server/collector-public/index.php',
+    'collector/server/collector-public/.htaccess',
+    ...EXPECTED_SERVER_PHP.map(name=>'collector/server/'+name),
+    ...EXPECTED_COMPONENTS.map(name=>'collector/components/'+name)
+  ]);
   const listed=new Set([manifestPath]);let total=0;
   for(const item of meta.files){
     if(!item||typeof item!=='object'||!zip.nameOK(item.path)
-      ||!item.path.startsWith('collector/')||listed.has(item.path)
+      ||!EXPECTED_PACKAGE_FILES.has(item.path)||listed.has(item.path)
       ||!Number.isSafeInteger(item.bytes)||item.bytes<0
       ||!(/^[a-f0-9]{64}$/).test(item.sha256))fail('unsafe or duplicate file inventory');
     const segments=item.path.split('/');
@@ -41,7 +99,8 @@ function inspect(file){
     listed.add(item.path);total+=bytes.length;
     if(total>150000000)fail('collector package size limit exceeded');
   }
-  if(listed.size!==entries.size)fail('ZIP contains an unlisted file');
+  if(listed.size!==entries.size||[...EXPECTED_PACKAGE_FILES].some(name=>!listed.has(name)))
+    fail('ZIP inventory differs from the exact collector allowlist');
   const publicPrefix='collector/server/collector-public/';
   const publicFiles=[...entries.keys()].filter(name=>name.startsWith(publicPrefix)).sort();
   if(JSON.stringify(publicFiles)!==JSON.stringify([
@@ -52,11 +111,8 @@ function inspect(file){
     const rest=name.startsWith('collector/server/')?name.slice('collector/server/'.length):'';
     return rest.endsWith('.php')&&!rest.includes('/');
   });
-  if(!phpFiles.includes('collector/server/bootstrap.php')
-    ||!phpFiles.includes('collector/server/FormGateway.php')
-    ||!phpFiles.includes('collector/server/SiteRepository.php')
-    ||!phpFiles.includes('collector/server/ContractValidator.php'))
-    fail('required collector PHP files missing');
+  if(JSON.stringify(phpFiles.sort())!==JSON.stringify(EXPECTED_SERVER_PHP.map(name=>'collector/server/'+name).sort()))
+    fail('collector PHP runtime differs from the reviewed allowlist');
   if(entries.has('collector/server/Api.php'))fail('CMS admin API must not be packaged');
   const bootstrap=entries.get('collector/server/bootstrap.php').toString('utf8');
   if(bootstrap.includes("require_once __DIR__ . '/Api.php';"))fail('collector bootstrap must not load the CMS admin API');
@@ -68,7 +124,8 @@ function inspect(file){
     const rest=name.startsWith('collector/components/')?name.slice('collector/components/'.length):'';
     return rest.endsWith('.json')&&!rest.includes('/');
   });
-  if(components.length<1)fail('component registry missing');
+  if(JSON.stringify(components.sort())!==JSON.stringify(EXPECTED_COMPONENTS.map(name=>'collector/components/'+name).sort()))
+    fail('component registry differs from the reviewed allowlist');
   for(const name of components){
     let component;
     try{component=JSON.parse(entries.get(name).toString('utf8'));}catch(_){fail('invalid component manifest: '+name);}

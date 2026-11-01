@@ -56,7 +56,7 @@ async function main(){
   assert.equal(entries.has('collector/server/collector-public/index.php'),true);
   assert.equal(entries.has('collector/server/collector-public/.htaccess'),true);
   assert.equal([...entries.keys()].filter(x=>x.startsWith('collector/server/collector-public/')).length,2);
-  assert.equal([...entries.keys()].some(x=>/\\.env$|\\.sqlite$|\\.db$|\\/studio\\//i.test(x)),false);
+  assert.equal([...entries.keys()].some(x=>/[.]env$|[.]sqlite$|[.]db$|[/]studio[/]/i.test(x)),false);
   assert.equal([...entries.values()].some(b=>b.includes(Buffer.from(secret))),false,
     'The HMAC secret must never enter the package');
   const overwritten=run(process.execPath,['stage3/runtime-export/bin/package-collector.cjs',packageFile]);
