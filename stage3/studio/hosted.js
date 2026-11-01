@@ -5870,7 +5870,24 @@
       await refreshSites();
       if(state.sites.length)await openSite(state.sites[0].site_id);
       else{editorVisible(false);notice('Вход выполнен. Подключите готовый сайт.');}
-    }catch(err){info.textContent=err.message;state.authorized=false;state.principal=null;setGate(true);}
+    }catch(err){
+      info.textContent=err.message;
+      // Authentication is independent from the active engine/site editor.
+      // If credentials were accepted but loading a draft is blocked by an
+      // interrupted switch or integrity failure, preserve the owner session
+      // and expose the stable CMS recovery center instead of showing a false
+      // "login failed" state.
+      if(state.authorized&&isOwner()){
+        pass.value='';
+        setGate(false);
+        editorVisible(false);
+        notice('Вход выполнен. Обычное редактирование временно недоступно — откройте восстановление CMS.');
+        try{await openEngineCenter();}
+        catch(recoveryError){info.textContent+=' · Не удалось открыть обслуживание CMS: '+recoveryError.message;}
+      }else{
+        state.authorized=false;state.principal=null;state.csrf=null;setGate(true);
+      }
+    }
     finally{state.busy=false;submit.disabled=false;drawStatus();}
   }
   // The ordinary offline editor already warns about tab closure; mirror the
