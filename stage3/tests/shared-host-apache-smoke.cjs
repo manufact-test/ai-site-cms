@@ -140,7 +140,7 @@ async function main() {
     instanceId:applied.instanceId,
     installedAt:new Date().toISOString()
   };
-  const topologyBase64=Buffer.from(JSON.stringify(topology,null,4)+'\\n','utf8').toString('base64');
+  const topologyBase64=Buffer.from(JSON.stringify(topology,null,4)+'\n','utf8').toString('base64');
   docker(['exec','--user','www-data',containerName,'php','-r',
     '$path="/var/private/stage3/hosted-install-topology.json";$raw=base64_decode("'+topologyBase64+'",true);if($raw===false||file_put_contents($path,$raw,LOCK_EX)===false||!chmod($path,0600))exit(2);'
   ]);
