@@ -2145,10 +2145,10 @@
     "production_or_main_changed": false
   },
   "engine_update_design_commit": "18e4c86365ccb4bbbb93abc8c79e26c2a10071d3",
-  "latest_docs_sha": "fca63e3c15900dd6909eb29fb8dee8d171750556",
-  "latest_branch_head_before_handoff": "73deff8626b66308b011a52dd27e1508795920ac",
+  "latest_docs_sha": "43366ac50eee5b0dfd314b866ca4e805f5d8933a",
+  "latest_branch_head_before_handoff": "43366ac50eee5b0dfd314b866ca4e805f5d8933a",
   "stage3_docs_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333649907",
-  "stage3_docs_checkpoint_sha": null,
+  "stage3_docs_checkpoint_sha": "43366ac50eee5b0dfd314b866ca4e805f5d8933a",
   "stage3_v9_13_checkpoint": {
     "date": "2026-11-01",
     "branch": "feature/stage3-ai-site-contract",
@@ -2206,6 +2206,18 @@
     "host_files_or_settings_changed": false,
     "owner_acceptance": "0/135",
     "stage2_formally_accepted": false,
-    "next": "Owner confirms isolated staging target and upload/extraction method; run --probe, then private --plan. --apply requires separate explicit owner decision."
+    "next": "Owner confirms isolated staging target and upload/extraction method; run --probe, then private --plan. --apply requires separate explicit owner decision.",
+    "docs_checkpoint_sha": "43366ac50eee5b0dfd314b866ca4e805f5d8933a",
+    "docs_updated": [
+      "docs/NEXT-CHAT.md",
+      "PROJECT-STATUS.json",
+      "docs/HOSTINGER-STAGING-ADDENDUM.md",
+      "docs/ACCELERATED-MACROBLOCK-PROGRAM.md",
+      "docs/ROADMAP.md",
+      "stage3/docs/HOSTED-INSTALL-RUNNER.md",
+      "stage3/docs/STAGING-SHARED-HOSTING.md",
+      "handoffs/lead-integrator/MAIN-HANDOFF-v9.14-2026-11-01.md",
+      "handoffs/lead-integrator/FIRST-MESSAGE-v9.14-2026-11-01.md"
+    ]
   }
 }
