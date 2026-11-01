@@ -250,7 +250,7 @@ final class EngineReleaseVerifier
             if (!$item->isFile()) {
                 throw new RuntimeException('CMS engine release contains a special file');
             }
-            $relative = 'stage3/' . str_replace(DIRECTORY_SEPARATOR, '/', substr($item->getPathname(), strlen($root) + 1));
+            $relative = 'stage3/' . str_replace(DIRECTORY_SEPARATOR, '/', substr($item->getPathname(), strlen($stage3) + 1));
             if (!isset($expected[$relative])) {
                 throw new RuntimeException('CMS engine release contains an unlisted file: ' . $relative);
             }
