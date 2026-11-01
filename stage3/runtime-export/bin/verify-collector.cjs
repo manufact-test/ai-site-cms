@@ -38,26 +38,25 @@ const EXPECTED_SERVER_PHP=[
   "bootstrap.php"
 ];
 const EXPECTED_COMPONENTS=[
-  "accordion.json",
-  "button.json",
-  "card-grid.json",
+  "adaptive-gallery.json",
+  "company-hero.json",
+  "comparison-matrix.json",
   "contact-panel.json",
-  "cta.json",
-  "faq.json",
-  "feature-grid.json",
-  "gallery.json",
-  "header.json",
-  "hero.json",
+  "content-switcher.json",
+  "cta-banner.json",
+  "custom-section.json",
+  "faq-accordion.json",
+  "feature-highlights.json",
+  "image-showcase.json",
   "lead-form-flex.json",
   "lead-form.json",
-  "logo-strip.json",
-  "map.json",
-  "pricing.json",
-  "rich-text.json",
-  "stats.json",
-  "steps.json",
-  "testimonials.json",
-  "video.json"
+  "media-story.json",
+  "partner-logos.json",
+  "photo-gallery.json",
+  "pricing-plans.json",
+  "process-timeline.json",
+  "service-grid.json",
+  "testimonials.json"
 ];
 
 function inspect(file){
