@@ -573,9 +573,10 @@ async function execute(){
       node.open=false;
   });
   // Hosted PHP output uses native section[id], while local preview uses
-  // data-cms-section-id wrappers. Both must show more than one page section.
+  // data-cms-section-id wrappers. Keep the full page in the document even when
+  // deviceVisibility intentionally hides a section at the selected breakpoint.
   await page.frameLocator('#preview').locator('[data-cms-section-id],section[id]')
-    .filter({visible:true}).nth(1).waitFor();
+    .nth(1).waitFor({state:'attached'});
   assert.equal(await page.locator('#canvas-title').innerText(),imported.pages[0].title,
     'Main canvas shows the full selected page, not an isolated block preview');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-desktop.png'),fullPage:true});
