@@ -187,7 +187,11 @@ The four vertical packages above are implemented on the branch:
 
 Automated evidence demonstrates review → apply → second update → blocked concurrent switch → rollback → interrupted activation → explicit recovery, while the published visitor-site record and binary media remain unchanged. Manual owner usability/acceptance and production-host verification remain open.
 
-## 6. Validation completed — full CI #41315175195
+## 6. Validation completed — baseline CI #41315175195; latest recovery-login regression pending
+
+The prior full two-job run [#41315175195](https://github.com/manufact-test/ai-site-cms/actions/runs/41315175195) passed before the owner-login recovery edge-case patch.
+
+The latest code regression commit `a1bc3032231b88dbe53847872efd3be8b682a2d5` is under full CI [#41318864811](https://github.com/manufact-test/ai-site-cms/actions/runs/41318864811). At the documentation checkpoint, the technology-runtime job has passed and the contract job has passed the offline editor, PHP runtime, engine update/rollback/snapshot, and D3 release checks; the final server persistence/publish HTTP + Chromium step is still running. Do not call the new regression fully green until this run completes successfully.
 
 The full two-job run [#41313513423](https://github.com/manufact-test/ai-site-cms/actions/runs/41313513423) passed on HEAD 9a16b26052fd50dd631848d07708e5d77f104ebd.
 
