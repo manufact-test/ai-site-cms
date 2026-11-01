@@ -112,6 +112,12 @@ async function main() {
   docker(runArgs);
   containerStarted = true;
 
+  const sessionStorage = JSON.parse(docker(['exec', '--user', 'www-data', containerName, 'php', '-r',
+    '$raw=(string)session_save_path();$parts=explode(";",$raw);$path=(string)end($parts);if($path==="")$path=sys_get_temp_dir();echo json_encode(["savePath"=>$raw,"pathExists"=>is_dir($path),"writable"=>is_dir($path)&&is_writable($path)]);'
+  ]));
+  assert.equal(sessionStorage.writable, true,
+    'PHP session storage must be writable by the Apache account: ' + JSON.stringify(sessionStorage));
+
   const planRaw = docker(['exec', '--user', 'www-data', containerName, 'php',
     '/var/www/stage3/server/bin/install.php', '--plan']);
   const plan = JSON.parse(planRaw);
@@ -171,8 +177,25 @@ async function main() {
   const cookieValues = typeof loginResponse.headers.getSetCookie === 'function'
     ? loginResponse.headers.getSetCookie()
     : [loginResponse.headers.get('set-cookie')].filter(Boolean);
-  const cookie = cookieValues.map(value => value.split(';')[0]).filter(Boolean).join('; ');
-  assert.ok(cookie.length > 0, 'Apache response must preserve the owner session cookie');
+  const cookiePairs = cookieValues.map(value => value.split(';')[0]).filter(value => value.includes('='));
+  const cookieSummary = cookiePairs.map(value => ({
+    name: value.split('=')[0],
+    valueLength: value.slice(value.indexOf('=') + 1).length
+  }));
+  assert.ok(cookiePairs.some(value => value.startsWith('PHPSESSID=') && value.length > 16),
+    'Apache response must preserve a non-empty PHPSESSID cookie: ' + JSON.stringify(cookieSummary));
+  const cookie = cookiePairs.join('; ');
+
+  const ownerSessionResponse = await fetch(base + '/api/session', { headers: { cookie }, redirect: 'manual' });
+  const ownerSessionRaw = await ownerSessionResponse.text();
+  const ownerSession = JSON.parse(ownerSessionRaw);
+  assert.equal(ownerSession.authenticated, true,
+    'PHP session must survive the login response: ' + JSON.stringify({
+      cookieSummary,
+      authenticated: ownerSession.authenticated,
+      principalRole: ownerSession.principal && ownerSession.principal.role,
+      error: ownerSession.error
+    }));
 
   const ownerSites = await fetch(base + '/api/sites', { headers: { cookie }, redirect: 'manual' });
   assert.equal(ownerSites.status, 200, 'authenticated owner site listing must work through Apache');
