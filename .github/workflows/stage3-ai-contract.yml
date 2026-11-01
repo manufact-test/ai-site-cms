@@ -16,7 +16,21 @@ permissions:
 jobs:
   contract:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: stage3-ci-root
+          MYSQL_ROOT_HOST: '%'
+          MYSQL_DATABASE: stage3_install_seed
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --user=root --password=stage3-ci-root"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,11 +77,11 @@ jobs:
         run: npm ci --prefix cms/editor --no-audit --no-fund
       - name: One real offline browser E2E for entire Stage 3 editor workflow
         run: node stage3/tests/studio-browser.cjs
-      - name: PHP 8.3 isolated SQLite runtime
+      - name: PHP 8.3 isolated SQLite and MySQL runtime
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: pdo_sqlite
+          extensions: pdo_sqlite, pdo_mysql, mbstring
           coverage: none
       - name: D3 isolated release cutover and rollback on loopback
         run: |
@@ -83,16 +97,23 @@ jobs:
           node --check stage3/runtime-export/bin/verify-collector.cjs
           node --check stage3/runtime-export/tests/collector-package.cjs
           node --check stage3/tests/install-probe.cjs
+          node --check stage3/tests/mysql-install-probe.cjs
           node --check stage3/runtime-export/lib/delivery-preflight.cjs
           node --check stage3/runtime-export/bin/audit-delivery.cjs
           node --check stage3/runtime-export/bin/ship.cjs
           node --check stage3/runtime-export/bin/rehearse-delivery.cjs
           node stage3/runtime-export/tests/delivery-probe.cjs
       - name: Server syntax and one full HTTP persistence/publish E2E
+        env:
+          STAGE3_INSTALL_MYSQL_HOST: 127.0.0.1
+          STAGE3_INSTALL_MYSQL_PORT: 3306
+          STAGE3_INSTALL_MYSQL_USER: root
+          STAGE3_INSTALL_MYSQL_PASSWORD: stage3-ci-root
         run: |
           for file in stage3/server/*.php stage3/server/public/*.php stage3/server/bin/*.php stage3/server/collector-public/*.php; do php -l "$file"; done
           node stage3/runtime-export/tests/collector-package.cjs
           node stage3/tests/install-probe.cjs
+          node stage3/tests/mysql-install-probe.cjs
           php stage3/tests/smtp-config-smoke.php
           php stage3/tests/graph-interactions-smoke.php
           php stage3/tests/archive-bundle-smoke.php

@@ -104,6 +104,40 @@ final class Stage3Installer
             $checks['publicDocumentRoot']['ok'] = false;
         }
 
+        if ($driver === 'mysql') {
+            try {
+                $databaseName = $db->query('SELECT DATABASE()')->fetchColumn();
+                $checks['databaseTarget'] = ['ok' => is_string($databaseName) && $databaseName !== '', 'driver' => 'mysql'];
+                if (!is_string($databaseName) || $databaseName === '') {
+                    $errors[] = 'Select a dedicated MySQL database in STAGE3_DSN before installation';
+                }
+            } catch (Throwable) {
+                $checks['databaseTarget'] = ['ok' => false, 'driver' => 'mysql'];
+                $errors[] = 'Unable to identify the selected MySQL database';
+            }
+        } elseif ($driver === 'sqlite') {
+            $sqlitePath = str_starts_with($dsn, 'sqlite:') ? substr($dsn, 7) : '';
+            $sqliteReal = $sqlitePath !== '' ? realpath($sqlitePath) : false;
+            $sqliteParent = is_string($sqliteReal) ? realpath(dirname($sqliteReal)) : false;
+            $sqlitePermissions = is_string($sqliteReal) ? fileperms($sqliteReal) : false;
+            $parentPermissions = is_string($sqliteParent) ? fileperms($sqliteParent) : false;
+            $sqliteSafe = is_string($sqliteReal) && $sqliteReal === $sqlitePath
+                && is_file($sqliteReal) && !is_link($sqlitePath)
+                && $sqlitePermissions !== false && (($sqlitePermissions & 0077) === 0) && is_writable($sqliteReal)
+                && is_string($sqliteParent) && $sqliteParent === dirname($sqliteReal)
+                && $parentPermissions !== false && (($parentPermissions & 0077) === 0)
+                && is_writable($sqliteParent)
+                && is_string($publicRoot) && !self::isWithin($sqliteReal, $publicRoot);
+            $checks['databaseFile'] = [
+                'ok' => $sqliteSafe,
+                'privatePermissions' => $sqlitePermissions === false ? null : sprintf('%04o', $sqlitePermissions & 0777),
+                'directoryPermissions' => $parentPermissions === false ? null : sprintf('%04o', $parentPermissions & 0777)
+            ];
+            if (!$sqliteSafe) {
+                $errors[] = 'SQLite lab database must be a canonical regular file in a private 0700 directory, outside the public document root';
+            }
+        }
+
         $receiptPath = $privateOk ? $privateDir . DIRECTORY_SEPARATOR . 'installation.json' : null;
         $lockPath = $privateOk ? $privateDir . DIRECTORY_SEPARATOR . 'installation.lock' : null;
         if ($receiptPath !== null && is_link($receiptPath)) {
@@ -213,6 +247,8 @@ final class Stage3Installer
                 'driver' => $driver,
                 'databaseFingerprint' => $databaseFingerprint,
                 'ownerUsername' => $ownerUser,
+                'ownerPasswordHash' => hash('sha256', $ownerPassword),
+                'formSecretHash' => hash('sha256', $formSecret),
                 'privateDirectory' => $privateDir,
                 'publicRoot' => $publicRoot,
                 'phpVersionId' => PHP_VERSION_ID,
@@ -256,12 +292,17 @@ final class Stage3Installer
         if ($lock === false) {
             throw new RuntimeException('Unable to create private installation lock');
         }
-        @chmod($lockPath, 0600);
+        if (!chmod($lockPath, 0600)) {
+            fclose($lock);
+            throw new RuntimeException('Unable to secure private installation lock');
+        }
         if (!flock($lock, LOCK_EX | LOCK_NB)) {
             fclose($lock);
             throw new RuntimeException('Another installation process is active');
         }
+        $databaseLock = null;
         try {
+            $databaseLock = self::acquireDatabaseLock($db, $env);
             $plan = self::plan($db, $env);
             if (($plan['state'] ?? null) !== 'install_required' || !is_string($plan['token'] ?? null)
                 || !hash_equals($plan['token'], $approvalToken)) {
@@ -296,8 +337,69 @@ final class Stage3Installer
                 'deploymentPerformed' => false
             ];
         } finally {
+            if ($databaseLock !== null) {
+                self::releaseDatabaseLock($db, $databaseLock);
+            }
             flock($lock, LOCK_UN);
             fclose($lock);
+        }
+    }
+
+    /** Serialize installations by the actual database identity, not only by private receipt path. */
+    private static function acquireDatabaseLock(PDO $db, array $env): array
+    {
+        $driver = (string)$db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'mysql') {
+            $database = $db->query('SELECT DATABASE()')->fetchColumn();
+            $host = $db->query('SELECT @@hostname')->fetchColumn();
+            if (!is_string($database) || $database === '' || !is_string($host) || $host === '') {
+                throw new RuntimeException('Cannot identify the dedicated MySQL database for installation locking');
+            }
+            $name = 'stage3-install-' . substr(hash('sha256', $host . "\n" . $database), 0, 48);
+            $stmt = $db->prepare('SELECT GET_LOCK(?, 0)');
+            $stmt->execute([$name]);
+            if ((int)$stmt->fetchColumn() !== 1) {
+                throw new RuntimeException('Another installer is already operating on this MySQL database');
+            }
+            return ['kind' => 'mysql', 'name' => $name];
+        }
+        if ($driver === 'sqlite') {
+            $dsn = self::value($env, 'STAGE3_DSN');
+            $path = str_starts_with($dsn, 'sqlite:') ? realpath(substr($dsn, 7)) : false;
+            if (!is_string($path) || !is_file($path) || is_link($path)) {
+                throw new RuntimeException('Cannot establish the private SQLite installation lock');
+            }
+            $lockPath = dirname($path) . DIRECTORY_SEPARATOR . '.stage3-install-' . substr(hash('sha256', $path), 0, 32) . '.lock';
+            if (is_link($lockPath)) {
+                throw new RuntimeException('SQLite installation lock must not be a symlink');
+            }
+            $handle = @fopen($lockPath, 'c+');
+            if ($handle === false) {
+                throw new RuntimeException('Unable to create the private SQLite installation lock');
+            }
+            if (!chmod($lockPath, 0600) || !flock($handle, LOCK_EX | LOCK_NB)) {
+                fclose($handle);
+                throw new RuntimeException('Another installer is already operating on this SQLite database');
+            }
+            return ['kind' => 'sqlite', 'handle' => $handle];
+        }
+        throw new RuntimeException('Unsupported database driver for installation lock');
+    }
+
+    private static function releaseDatabaseLock(PDO $db, array $lock): void
+    {
+        if (($lock['kind'] ?? null) === 'mysql') {
+            try {
+                $stmt = $db->prepare('SELECT RELEASE_LOCK(?)');
+                $stmt->execute([$lock['name']]);
+            } catch (Throwable) {
+                // Preserve the original installation result; the connection close also releases GET_LOCK.
+            }
+            return;
+        }
+        if (($lock['kind'] ?? null) === 'sqlite' && is_resource($lock['handle'] ?? null)) {
+            flock($lock['handle'], LOCK_UN);
+            fclose($lock['handle']);
         }
     }
 

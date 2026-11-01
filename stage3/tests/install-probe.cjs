@@ -87,7 +87,10 @@ try{
   const env1=envFor(db1,private1,public1,'one');
 
   const beforeHash=crypto.createHash('sha256').update(fs.readFileSync(db1)).digest('hex');
+  const dbLockPath=path.join(tmp,'.stage3-install-'+crypto.createHash('sha256').update(db1).digest('hex').slice(0,32)+'.lock');
+  assert.equal(fs.existsSync(dbLockPath),false,'read-only plan must not create a database lock file');
   const firstPlan=plan(env1);
+  assert.equal(fs.existsSync(dbLockPath),false,'read-only plan must not create a database lock file');
   assert.equal(firstPlan.state,'install_required');
   assert.equal(firstPlan.applyAllowed,true);
   assert.match(firstPlan.token,/^[a-f0-9]{64}$/);
@@ -110,6 +113,8 @@ try{
   assert.equal(applied.state,'installed');
   assert.equal(applied.instanceMode,'single-site');
   assert.equal(applied.deploymentPerformed,false);
+  assert.equal(fs.existsSync(dbLockPath),true,'apply serializes the selected database');
+  assert.equal(fs.statSync(dbLockPath).mode&0o777,0o600);
   assert.match(applied.instanceId,/^[a-f0-9]{32}$/);
   const receiptPath=path.join(private1,'installation.json');
   assert.equal(fs.existsSync(receiptPath),true);
