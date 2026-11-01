@@ -131,6 +131,19 @@ async function main() {
   const applied = JSON.parse(applyRaw);
   assert.equal(applied.state, 'installed');
   assert.equal(applied.deploymentPerformed, false);
+  const topology={
+    format:'manufact-stage3-hosted-install-topology-v1',
+    serverRoot:'/var/www/stage3/server',
+    publicRoot:'/var/www/stage3/server/public',
+    privateDir:'/var/private/stage3',
+    accountWebRoots:['/var/www/stage3/server/public'],
+    instanceId:applied.instanceId,
+    installedAt:new Date().toISOString()
+  };
+  const topologyBase64=Buffer.from(JSON.stringify(topology,null,4)+'\\n','utf8').toString('base64');
+  docker(['exec','--user','www-data',containerName,'php','-r',
+    '$path="/var/private/stage3/hosted-install-topology.json";$raw=base64_decode("'+topologyBase64+'",true);if($raw===false||file_put_contents($path,$raw,LOCK_EX)===false||!chmod($path,0600))exit(2);'
+  ]);
 
   const base = 'http://127.0.0.1:' + port;
   let studioResponse = null;
@@ -153,6 +166,10 @@ async function main() {
     const body = await response.text();
     assert.equal(response.status, 200, asset + ' must be routed through the front controller');
     assert.ok(body.length > 20, asset + ' must return its first-party asset bytes');
+    if (asset === '/hosted.js') {
+      assert.ok(body.includes('server-hosting-diagnostics-refresh'),
+        'the Apache-served Studio asset must contain the owner hosting diagnostics panel');
+    }
   }
 
   const sessionResponse = await fetch(base + '/api/session', { redirect: 'manual' });
@@ -160,6 +177,8 @@ async function main() {
   const session = await sessionResponse.json();
   assert.equal(session.authenticated, false);
 
+  const anonymousDiagnostics = await fetch(base + '/api/hosting/diagnostics', { redirect: 'manual' });
+  assert.equal(anonymousDiagnostics.status, 401, 'hosting diagnostics must require an owner session');
   const anonymousSites = await fetch(base + '/api/sites', { redirect: 'manual' });
   assert.equal(anonymousSites.status, 401, '/api/sites must reach the auth gate, not Apache 404');
 
@@ -206,6 +225,28 @@ async function main() {
       error: ownerSession.error
     }));
 
+  const diagnosticsResponse = await fetch(base + '/api/hosting/diagnostics', { headers: { cookie }, redirect: 'manual' });
+  assert.equal(diagnosticsResponse.status, 200, 'owner hosting diagnostics must work through Apache');
+  const diagnostics = await diagnosticsResponse.json();
+  assert.ok(diagnostics.runtime.phpVersion.startsWith('8.3.'));
+  assert.notEqual(diagnostics.runtime.sapi, 'cli');
+  assert.notEqual(diagnostics.runtime.sapi, 'cli-server');
+  assert.equal(diagnostics.database.driver, 'sqlite');
+  assert.equal(diagnostics.database.tableCount, 25);
+  assert.equal(diagnostics.database.instanceBound, true);
+  assert.equal(diagnostics.filesystem.documentRootMatches, true);
+  assert.equal(diagnostics.filesystem.privateDirectoryPermissions, '0700');
+  assert.equal(diagnostics.filesystem.privateRuntimeConfigValid, true);
+  assert.equal(diagnostics.filesystem.accountWebRootIsolationValid, true);
+  assert.equal(diagnostics.filesystem.publicRootPolicyValid, false,
+    'the deliberately planted hostile files must be reported as a public-root policy failure');
+  assert.equal(diagnostics.security.https, false);
+  assert.equal(diagnostics.ready, false, 'HTTP + SQLite must never be reported as staging-ready');
+  const diagnosticsJson = JSON.stringify(diagnostics);
+  for (const secret of [ownerPassword, formSecret, '/var/private/stage3', 'sqlite:/var/private/stage3/stage3.sqlite']) {
+    assert.equal(diagnosticsJson.includes(secret), false, 'diagnostics must not disclose credentials or private paths');
+  }
+
   const ownerSites = await fetch(base + '/api/sites', { headers: { cookie }, redirect: 'manual' });
   assert.equal(ownerSites.status, 200, 'authenticated owner site listing must work through Apache');
 
@@ -230,7 +271,7 @@ async function main() {
   const unknown = await fetch(base + '/__stage3_missing_route__', { redirect: 'manual' });
   assert.equal(unknown.status, 404, 'unknown paths must reach the CMS router and return its 404');
 
-  process.stdout.write('PASS: Apache 2.4 + PHP 8.3, Stage3 CLI install, /studio, assets, API auth/session, engine status, hidden/PHP/dir protections.\n');
+  process.stdout.write('PASS: Apache 2.4 + PHP 8.3, Stage3 CLI install, owner hosting diagnostics, /studio, assets, API auth/session, engine status, hidden/PHP/dir protections.\n');
 }
 
 main().catch(error => {
