@@ -54,6 +54,11 @@ final class EngineLifecycle
             } finally { self::releaseLock($lock); }
         }
         $state = self::readStateOrNull($layout);
+        $activeHealthy = false;
+        if (is_array($state['active'] ?? null)) {
+            try { self::validatePointer($state['active'], $layout, $serverRoot, true); $activeHealthy = true; }
+            catch (Throwable) { $activeHealthy = false; }
+        }
         $incoming = [];
         $installedIds = array_filter([
             is_array($state['active'] ?? null) ? ($state['active']['releaseId'] ?? null) : null,
@@ -88,7 +93,8 @@ final class EngineLifecycle
             'available' => true,
             'trustConfigured' => is_file($layout['trust'] . DIRECTORY_SEPARATOR . 'publisher.pem')
                 && !is_link($layout['trust'] . DIRECTORY_SEPARATOR . 'publisher.pem'),
-            'status' => $pending ? 'recovery_required' : 'ready',
+            'status' => $pending ? 'recovery_required' : ($activeHealthy ? 'ready' : 'active_integrity_failure'),
+            'activeIntegrityHealthy' => $activeHealthy,
             'sequence' => $state['sequence'] ?? 0,
             'current' => is_array($state['active'] ?? null) ? self::publicPointer($state['active']) : null,
             'previous' => is_array($state['previous'] ?? null) ? self::publicPointer($state['previous']) : null,
@@ -431,20 +437,14 @@ final class EngineLifecycle
                 }
                 $state = self::readState($layout);
             }
-            try {
-                self::validatePointer($state['active'], $layout, $serverRoot, true);
-            } catch (Throwable $error) {
-                if (!$engineControlRequest) throw $error;
-                flock($lock, LOCK_UN); fclose($lock);
-                return dirname($serverRoot);
-            }
-            $selectedRoot = $state['active']['slotPath'];
             if ($engineControlRequest) {
                 // Keep the engine control plane on the stable loader generation.
-                // The request only holds the shared lock while resolving state.
+                // It needs no active-slot code and must remain reachable during recovery.
                 flock($lock, LOCK_UN); fclose($lock);
                 return dirname($serverRoot);
             }
+            self::validatePointer($state['active'], $layout, $serverRoot, true);
+            $selectedRoot = $state['active']['slotPath'];
             self::$requestLease = $lock;
             register_shutdown_function(static function (): void {
                 if (is_resource(self::$requestLease)) {

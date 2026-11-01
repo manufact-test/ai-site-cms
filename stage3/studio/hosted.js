@@ -295,7 +295,7 @@
     const active=info.current||{};
     const previous=info.previous||null;
     engineStatus.replaceChildren(
-      element('strong',null,info.status==='recovery_required'?'Требуется восстановление':'Движок CMS готов к обслуживанию'),
+      element('strong',null,info.status==='recovery_required'?'Требуется восстановление':(info.status==='active_integrity_failure'?'Обнаружено повреждение активной версии':'Движок CMS готов к обслуживанию')),
       element('p',null,'Текущая версия: '+(active.releaseVersion||'не определена')+
         ' · схема БД: '+(active.schemaVersion??'—')+' · поколение: '+(info.sequence??0)),
       element('p',null,'Предыдущая версия: '+(previous?.releaseVersion||'нет')+
@@ -306,7 +306,7 @@
       const option=element('option',null,id);option.value=id;enginePackage.append(option);
     }
     engineReviewButton.disabled=!info.trustConfigured||!info.incomingPackages?.length||info.status!=='ready';
-    engineRollbackPlanButton.disabled=!previous||info.status!=='ready';
+    engineRollbackPlanButton.disabled=!previous||!['ready','active_integrity_failure'].includes(info.status);
     engineRecovery.hidden=info.status!=='recovery_required';
     engineTrustGuide.hidden=!!info.trustConfigured;
     enginePackageGuide.hidden=false;
