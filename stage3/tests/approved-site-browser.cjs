@@ -1807,6 +1807,31 @@ async function execute(){
   await page.locator('#server-site-tools-dialog[open]').waitFor();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
+
+  // Reproduce the post-authentication recovery edge case: credentials are
+  // accepted, the site list is readable, but opening the selected site's
+  // draft is blocked (503) while the CMS engine requires recovery.
+  await page.route('**/api/sites/site-approved-browser',route=>
+    route.fulfill({status:503,contentType:'application/json',
+      body:JSON.stringify({error:'CMS engine recovery required'})}),
+    {times:1});
+  await page.locator('#server-username').fill('testowner');
+  await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
+  await page.locator('#server-signin').click();
+  await page.locator('#server-login').waitFor({state:'hidden'});
+  await page.locator('#server-engine-dialog[open]').waitFor();
+  assert.equal(await page.locator('#server-engine-open').evaluate(node=>node.hidden),false,
+    'A successful owner login is preserved when the first site draft is unavailable');
+  assert.match(await page.locator('#server-engine-status').innerText(),/Текущая версия:/,
+    'Owner is taken to the CMS maintenance surface instead of a false login error');
+  assert.equal(await page.locator('#server-engine-apply').isDisabled(),true,
+    'A recovery redirect never starts an engine update automatically');
+  await page.unroute('**/api/sites/site-approved-browser');
+  await page.locator('#server-engine-close').click();
+  await page.locator('#server-site-tools-open').click();
+  await page.locator('#server-site-tools-dialog[open]').waitFor();
+  await page.locator('#server-logout').click();
+  await page.locator('#server-login:not([hidden])').waitFor();
   assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
     'Real public visitor remains accessible without CMS login');
   assert.deepEqual(errors,[],'No unhandled browser script exceptions');
