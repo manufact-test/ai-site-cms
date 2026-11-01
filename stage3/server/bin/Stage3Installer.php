@@ -118,7 +118,9 @@ final class Stage3Installer
         $publicOk = is_string($serverRoot) && is_dir($serverRoot) && !is_link(dirname(__DIR__))
             && is_string($runtimeRoot) && is_dir($runtimeRoot) && !is_link(dirname($serverRoot))
             && is_string($publicRoot) && is_dir($publicRoot) && !is_link($publicInput)
-            && $publicRoot === $publicInput && ($publicLayout['ok'] ?? false) === true;
+            && $publicRoot === $publicInput && ($publicLayout['ok'] ?? false) === true
+            && (($publicLayout['mode'] ?? null) !== 'hostinger-sibling'
+                || ($publicLayout['permissionsOk'] ?? false) === true);
         $checks['publicDocumentRoot'] = [
             'ok' => $publicOk,
             'path' => is_string($publicRoot) ? $publicRoot : null,

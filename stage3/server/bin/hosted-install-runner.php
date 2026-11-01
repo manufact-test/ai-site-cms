@@ -194,6 +194,7 @@ try {
         }
     }
 
+    require_once __DIR__ . '/Stage3Installer.php';
     $configuredPrivate = realpath($values['STAGE3_PRIVATE_DIR']);
     $publicRoot = realpath($values['STAGE3_PUBLIC_ROOT']);
     $serverRoot = realpath(dirname(__DIR__));
@@ -232,7 +233,7 @@ try {
     putenv('CI=');
     putenv('STAGE3_ALLOW_SQLITE_INSTALL=');
     require dirname(__DIR__) . '/bootstrap.php';
-    require __DIR__ . '/Stage3Installer.php';
+    require_once __DIR__ . '/Stage3Installer.php';
 
     $env = $values + ['CI'=>'','STAGE3_ALLOW_SQLITE_INSTALL'=>''];
     $db = new PDO($values['STAGE3_DSN'], $values['STAGE3_DB_USER'], $values['STAGE3_DB_PASSWORD'], [
