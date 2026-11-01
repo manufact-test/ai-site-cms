@@ -1237,8 +1237,8 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "v9.8",
-  "last_docs_handoff_note": "Owner-requested handoff 31.10.2026: Studio navigation clutter reduction, exact current branch/CI state, outstanding pointer-interception defect and ready first message for next lead chat.",
+  "last_docs_handoff_version": "v9.9",
+  "last_docs_handoff_note": "Owner-requested handoff 01.11.2026: functional SHA 3a5fe607 full CI green; pointer-interception resolved; Studio temporarily agreed until first real-site hands-on use; v9.9 handoff and first message saved.",
   "latest_tested_code_sha": "ab04bc0ac87645cc7882a726a2b18c2d5a7c1312",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
