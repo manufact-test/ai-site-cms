@@ -2088,7 +2088,6 @@
     "no_hostinger_or_production": true,
     "no_celikom_production": true
   },
-  "latest_documentation_sha": "18e4c86365ccb4bbbb93abc8c79e26c2a10071d3",
   "stage3_v9_11_design_checkpoint": {
     "date": "2026-11-01",
     "branch": "feature/stage3-ai-site-contract",
@@ -2124,5 +2123,6 @@
     "requirements_183": "Separate workstream: safe guided setup audit; current installer remains CLI-only.",
     "functional_code_changed": false,
     "production_or_main_changed": false
-  }
+  },
+  "engine_update_design_commit": "18e4c86365ccb4bbbb93abc8c79e26c2a10071d3"
 }
