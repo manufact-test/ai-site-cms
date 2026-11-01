@@ -95,22 +95,22 @@ async function main() {
   const runArgs = [
     'run', '--detach', '--rm', '--name', containerName,
     '--publish', '127.0.0.1:' + port + ':80',
-    '--volume', stage3Copy + ':/var/www/stage3'
+    '--volume', stage3Copy + ':/source/stage3:ro'
   ];
   for (const value of env) runArgs.push('--env', value);
-  runArgs.push(imageName);
-  docker(runArgs);
-  containerStarted = true;
-
-  docker(['exec', containerName, 'sh', '-c',
-    'chown -R www-data:www-data /var/www/stage3' +
+  runArgs.push(imageName, 'sh', '-c',
+    'mkdir -p /var/www && cp -a /source/stage3 /var/www/stage3' +
+    ' && chown -R www-data:www-data /var/www/stage3' +
     ' && mkdir -p /var/private/stage3' +
     ' && chown www-data:www-data /var/private/stage3' +
     ' && chmod 0700 /var/private/stage3' +
     ' && touch /var/private/stage3/stage3.sqlite' +
     ' && chown www-data:www-data /var/private/stage3/stage3.sqlite' +
-    ' && chmod 0600 /var/private/stage3/stage3.sqlite'
-  ]);
+    ' && chmod 0600 /var/private/stage3/stage3.sqlite' +
+    ' && exec apache2-foreground'
+  );
+  docker(runArgs);
+  containerStarted = true;
 
   const planRaw = docker(['exec', '--user', 'www-data', containerName, 'php',
     '/var/www/stage3/server/bin/install.php', '--plan']);
