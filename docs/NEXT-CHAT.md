@@ -10,7 +10,7 @@
 - Last verified functional SHA: `19a74e77c1acdfb43a7b3840f8e05bd10f2b0427`.
 - Exact-SHA full Actions: [#41302974827](https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827) — `technology-runtime=SUCCESS`, `contract=SUCCESS`.
 - Current `main` observed: `12e9c3feb707e5ad46b2caeeed379eb40618466b`; no merge/deploy.
-- Documentation-only commits v9.10 and v9.11 are on top of the functional SHA. Current observed branch HEAD at this checkpoint: `18e4c86365ccb4bbbb93abc8c79e26c2a10071d3`; it is documentation-only. The functional SHA and its exact green CI remain unchanged.
+- Documentation-only commits v9.10/v9.11 and subsequent roadmap/status synchronization commits are on top of the functional SHA. The design itself is recorded in `18e4c86365ccb4bbbb93abc8c79e26c2a10071d3`; verify the live branch tip before coding. The functional SHA and its exact green CI remain unchanged.
 
 ## Completed in v9.10
 
