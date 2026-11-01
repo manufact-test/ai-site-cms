@@ -247,6 +247,7 @@ final class EngineLifecycle
             ];
             $next = self::nextState($current, $active, $snapshot['snapshotId']);
             self::commitTransition($layout, $current, $next, $snapshot['snapshotId']);
+            self::pruneSnapshotsSafely($privateDir, $snapshot['snapshotId']);
             @unlink($planPath);
             return [
                 'state' => 'updated',
@@ -330,6 +331,7 @@ final class EngineLifecycle
             self::validatePointer($target, $layout, $serverRoot, true);
             $next = self::nextState($current, $target, $snapshot['snapshotId']);
             self::commitTransition($layout, $current, $next, $snapshot['snapshotId']);
+            self::pruneSnapshotsSafely($privateDir, $snapshot['snapshotId']);
             @unlink($planPath);
             return [
                 'state' => 'rolled_back',
@@ -387,10 +389,21 @@ final class EngineLifecycle
                 self::writeAtomic($layout['state'], self::canonicalJson($intent['oldState']) . "\n");
             }
             if (!unlink($layout['intent'])) throw new RuntimeException('Unable to clear the recovered engine activation journal');
+            $recoveredState = $direction === 'finalize' ? $intent['newState'] : $intent['oldState'];
+            self::pruneSnapshotsSafely($privateDir, $recoveredState['lastSnapshotId'] ?? null);
             return ['state' => $direction === 'finalize' ? 'finalized' : 'aborted',
                 'currentVersion' => ($direction === 'finalize' ? $intent['newState'] : $intent['oldState'])['active']['releaseVersion']];
         } finally {
             self::releaseLock($lock);
+        }
+    }
+
+    private static function pruneSnapshotsSafely(string $privateDir, ?string $pinnedSnapshotId): void
+    {
+        try {
+            DatabaseSnapshot::prune($privateDir, $pinnedSnapshotId === null ? [] : [$pinnedSnapshotId], 10);
+        } catch (Throwable $error) {
+            error_log('Stage3 snapshot retention cleanup deferred: ' . get_class($error));
         }
     }
 

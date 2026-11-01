@@ -118,6 +118,40 @@ final class DatabaseSnapshot
         }
     }
 
+    public static function prune(string $privateDir, array $pinnedSnapshotIds = [], int $retain = 10): array
+    {
+        if ($retain < 2 || $retain > 50) throw new RuntimeException('Snapshot retention count is outside the safe range');
+        $privateDir = self::privateDirectory($privateDir);
+        $root = $privateDir . DIRECTORY_SEPARATOR . 'engine' . DIRECTORY_SEPARATOR . 'snapshots';
+        if (!is_dir($root) || is_link($root) || realpath($root) !== $root) {
+            return ['removed' => 0, 'remaining' => 0];
+        }
+        $pinned = [];
+        foreach ($pinnedSnapshotIds as $id) {
+            if (is_string($id) && preg_match('/^snapshot-[0-9]{14}-[a-f0-9]{16}$/D', $id)) $pinned[$id] = true;
+        }
+        $items = [];
+        foreach (scandir($root) ?: [] as $name) {
+            if (!preg_match('/^snapshot-[0-9]{14}-[a-f0-9]{16}$/D', $name)) continue;
+            $path = $root . DIRECTORY_SEPARATOR . $name;
+            if (!is_dir($path) || is_link($path) || realpath($path) !== $path) continue;
+            $items[] = ['id' => $name, 'path' => $path, 'mtime' => (int)(filemtime($path) ?: 0)];
+        }
+        usort($items, static fn(array $a, array $b): int => ($b['mtime'] <=> $a['mtime']) ?: strcmp($b['id'], $a['id']));
+        $removed = [];
+        foreach ($items as $index => $item) {
+            if ($index < $retain || isset($pinned[$item['id']])) continue;
+            try {
+                self::verify($item['path']);
+                self::removeTree($item['path']);
+                if (!file_exists($item['path']) && !is_link($item['path'])) $removed[] = $item['id'];
+            } catch (Throwable) {
+                // Corrupt or ambiguous snapshots are retained for manual forensic review.
+            }
+        }
+        return ['removed' => count($removed), 'remaining' => count($items) - count($removed)];
+    }
+
     public static function verify(string $snapshotDirectory): array
     {
         $root = self::canonicalDirectory($snapshotDirectory);
