@@ -26,6 +26,19 @@ async function pickPort(){
 async function start(){
   const setup=spawnSync('php',['stage3/server/bin/setup.php'],{cwd:root,env,encoding:'utf8'});
   assert.equal(setup.status,0,setup.stderr);
+  const receipt=JSON.parse(fs.readFileSync(path.join(privateDir,'installation.json'),'utf8'));
+  const topology={
+    format:'manufact-stage3-hosted-install-topology-v1',
+    serverRoot:fs.realpathSync(path.join(root,'stage3/server')),
+    publicRoot,
+    privateDir,
+    accountWebRoots:[publicRoot],
+    instanceId:receipt.instanceId,
+    installedAt:new Date().toISOString()
+  };
+  const topologyPath=path.join(privateDir,'hosted-install-topology.json');
+  fs.writeFileSync(topologyPath,JSON.stringify(topology,null,4)+'\n',{mode:0o600});
+  fs.chmodSync(topologyPath,0o600);
   const origin='http://127.0.0.1:'+(await pickPort());
   php=spawn('php',['-S',new URL(origin).host,'-t','stage3/server/public',
     'stage3/server/public/index.php'],{cwd:root,env,stdio:['ignore','ignore','pipe']});
@@ -107,12 +120,34 @@ async function execute(){
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin+'/studio');
   await page.locator('#server-login:not([hidden])').waitFor();
+  const anonymousDiagnostics=await page.evaluate(async()=>{
+    return (await fetch('/api/hosting/diagnostics',{cache:'no-store'})).status;
+  });
+  assert.equal(anonymousDiagnostics,401,'hosting diagnostics must require owner authentication');
   assert.equal(await page.locator('#server-engine-open').evaluate(node=>node.hidden),true,
     'CMS engine maintenance is owner-gated before authentication');
   await page.locator('#server-username').fill('testowner');
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
   await page.locator('#server-signin').click();
   await page.locator('#server-login').waitFor({state:'hidden'});
+  const ownerDiagnostics=await page.evaluate(async()=>{
+    const response=await fetch('/api/hosting/diagnostics',{cache:'no-store'});
+    return {status:response.status,body:await response.json()};
+  });
+  assert.equal(ownerDiagnostics.status,200);
+  assert.equal(ownerDiagnostics.body.runtime.sapi,'cli-server');
+  assert.equal(ownerDiagnostics.body.database.driver,'sqlite');
+  assert.equal(ownerDiagnostics.body.database.tableCount,25);
+  assert.equal(ownerDiagnostics.body.database.instanceBound,true);
+  assert.equal(ownerDiagnostics.body.filesystem.documentRootMatches,true);
+  assert.equal(ownerDiagnostics.body.filesystem.accountWebRootIsolationValid,true);
+  assert.equal(ownerDiagnostics.body.filesystem.privateDirectoryPermissions,'0700');
+  assert.equal(ownerDiagnostics.body.security.https,false);
+  assert.equal(ownerDiagnostics.body.ready,false,'local SQLite/HTTP rehearsal must not be marked as staging-ready');
+  const diagnosticsJson=JSON.stringify(ownerDiagnostics.body);
+  for(const secret of [env.STAGE3_DSN,env.STAGE3_DB_PASSWORD,env.STAGE3_OWNER_PASSWORD,env.STAGE3_FORM_SECRET,privateDir]){
+    if(secret)assert.equal(diagnosticsJson.includes(secret),false,'diagnostics must not disclose secrets or private paths');
+  }
   assert.equal(await page.locator('#server-engine-open').evaluate(node=>node.hidden),false,
     'owner receives the separate CMS engine maintenance entrypoint');
 
@@ -132,6 +167,8 @@ async function execute(){
     'owner can reach engine maintenance from the dedicated site-tools surface');
   await page.locator('#server-engine-open').click();
   await page.locator('#server-engine-dialog[open]').waitFor();
+  await page.locator('#server-hosting-diagnostics-status').getByText(/cli-server/).waitFor();
+  await page.locator('#server-hosting-diagnostics-status').getByText(/Среда требует внимания/).waitFor();
   await page.locator('#server-engine-status').getByText(/Текущая версия: legacy-installed/).waitFor();
   const engineSummary=await page.locator('#server-engine-status').innerText();
   assert.match(engineSummary,/Текущая версия: legacy-installed/,
