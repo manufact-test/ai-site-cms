@@ -55,7 +55,7 @@
       "D: Technology adapters + deploy foundations (2/13/12; isolated only)",
       "E: System checks + 135 owner approvals + release (14/15/16/17; owner GO required)"
     ],
-    "next_macroblock": "D8 and Stage3 CLI installer hardening are green on exact SHA 19a74e77. Next: inspect the legacy cms/src/Release/Lab* signed-upgrade experiments and Stage3 package/runtime; implement a separate CMS-engine update/rollback lifecycle for #184-185. Audit #183 because the current initial installer is CLI-only. Do not confuse D3 visitor-site rollback with CMS-engine rollback.",
+    "next_macroblock": "Audit and design completed in v9.11. Implement four vertical packages for #184-185: RSA-3072/SHA-256 signed php-host package + PHP OpenSSL verifier; private immutable engine slots/stable loader/leases/activation/rollback/recovery; full private Stage3 25-table DB snapshot and schema guard (first updates schema-preserving only); owner-only Studio review/apply/rollback. Use existing full CI plus only critical new integration/browser coverage. #183 guided setup remains separate. Do not confuse D3 visitor-site rollback with CMS engine rollback.",
     "execution_policy_document": "docs/ACCELERATED-MACROBLOCK-PROGRAM.md",
     "policy_owner_request_date": "2026-10-27",
     "current_code_checkpoint_at_policy_change": "cf369988ec16904d945413f36ad292fb94d17da2",
@@ -64,11 +64,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Continue lead-integrator work from handoff v9.10 after verifying the live branch tip and exact-head CI. D8 collector sidecar and Stage3 CLI installer hardening are complete in isolated CI. Next inspect existing cms/src/Release/Lab* signed-upgrade work and current Stage3 packaging, then design a substantial CMS-engine update/rollback workflow for mandatory requirements #184-185. Keep #183 open: the current installer is CLI-only and no safe shared-hosting browser setup wizard exists. Distinguish D3 visitor-site release rollback from CMS-engine rollback. Do not repeat D1-D8, SEO Engine integration, pointer-interception repair or abstract Studio redesign.",
+  "next_step": "Implement the v9.11 CMS engine update/rollback design on feature/stage3-ai-site-contract. Keep first releases schema-preserving (schema 1 -> 1); add complete private DB snapshot and block migrations until reversible up/down support is present. Use PHP OpenSSL RSA-3072/SHA-256 because Hostinger web PHP sodium=false is recorded. #183 browser-guided initial setup remains separate.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "9.10-green-d8-collector-installer-hardening-2026-11-01",
+  "checkpoint_version": "9.11-cms-engine-update-rollback-design-2026-11-01",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -2087,5 +2087,42 @@
     "no_merge": true,
     "no_hostinger_or_production": true,
     "no_celikom_production": true
+  },
+  "latest_documentation_sha": "18e4c86365ccb4bbbb93abc8c79e26c2a10071d3",
+  "stage3_v9_11_design_checkpoint": {
+    "date": "2026-11-01",
+    "branch": "feature/stage3-ai-site-contract",
+    "design_commit": "18e4c86365ccb4bbbb93abc8c79e26c2a10071d3",
+    "functional_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
+    "exact_full_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
+    "exact_full_ci_result": {
+      "technology_runtime": "SUCCESS",
+      "contract": "SUCCESS"
+    },
+    "audit_completed": [
+      "Verified live branch tip and main; no merge/deploy.",
+      "Verified full CI job and step conclusions for the exact functional SHA.",
+      "Read v9.10 handoff, installer/collector/Studio acceptance docs, master TZ, roadmap, accelerated program and project status.",
+      "Inspected Stage2 signed-upgrade verifiers, package stager, schema gate, generation switcher, trusted coordinator, operator approval/receipt/settlement gates and existing tests.",
+      "Inspected Stage3 CMS engine packer, installer, RuntimeConfig, front controller, API, SiteRepository and CI workflow."
+    ],
+    "findings": [
+      "Stage3 cms-release.cjs currently creates an unsigned SHA-256 inventory only; no engine update/activation/rollback lifecycle.",
+      "Stage3 installer schema version is 1; 25 required tables; no Stage3 migration journal.",
+      "Old Lab* components are Stage2/CI-only and not a Stage3 updater.",
+      "D3 rollback remains visitor-site-only and is separate from CMS engine rollback.",
+      "Project status records Hostinger web PHP sodium=false; Stage3 design avoids Sodium and uses RSA-3072+ / SHA-256 with PHP OpenSSL."
+    ],
+    "design_document": "docs/CMS-ENGINE-UPDATE-ROLLBACK-DESIGN.md",
+    "implementation_packages": [
+      "Signed php-host release identity and PHP OpenSSL verifier",
+      "Private immutable engine slots, stable loader, request leases, activation, previous-version rollback and explicit crash recovery",
+      "Full private 25-table DB snapshot and schema compatibility/migration guard",
+      "Owner-only Studio update review, apply and rollback workflow"
+    ],
+    "first_release_policy": "Schema-preserving only (schema 1 -> 1, no migrations). Reject schema-changing packages until reversible migrations and verified snapshots are implemented.",
+    "requirements_183": "Separate workstream: safe guided setup audit; current installer remains CLI-only.",
+    "functional_code_changed": false,
+    "production_or_main_changed": false
   }
 }
