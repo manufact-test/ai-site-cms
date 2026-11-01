@@ -160,6 +160,9 @@ try{
   const releaseV1=path.join(tmp,'release-v1'),releaseV2=path.join(tmp,'release-v2');
   run('node',[builder,'pack-signed-php-host',sourceV1,releaseV1,'1.0.0',privateKeyPath,publicKeyPath]);
   run('node',[builder,'pack-signed-php-host',sourceV2,releaseV2,'1.1.0',privateKeyPath,publicKeyPath]);
+  const releaseManifest=JSON.parse(fs.readFileSync(path.join(releaseV1,'cms-release.json'),'utf8'));
+  assert.ok(releaseManifest.files.some(file=>file.path==='stage3/server/public/.htaccess'),
+    'signed PHP-host release retains the stable Apache routing policy');
   run('node',[builder,'verify-signed-php-host',releaseV1,publicKeyPath]);
   run('node',[builder,'verify-signed-php-host',releaseV2,publicKeyPath]);
 

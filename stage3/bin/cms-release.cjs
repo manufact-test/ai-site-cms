@@ -18,6 +18,7 @@ function phpHostIncludes(relative) {
   if(relative.startsWith('stage3/studio/'))return PHP_STUDIO.has(relative.slice('stage3/studio/'.length));
   if(relative.startsWith('stage3/media-motion/'))return PHP_MEDIA.has(relative.slice('stage3/media-motion/'.length));
   if(relative.startsWith('stage3/components/'))return relative.endsWith('.json');
+  if(relative==='stage3/server/public/.htaccess')return true;
   if(relative.startsWith('stage3/server/'))return relative.endsWith('.php');
   return false;
 }
@@ -25,7 +26,7 @@ const SKIP=new Set(['tests','fixtures','docs','node_modules','.git','coverage','
 const EXT=/\.(?:php|cjs|js|jsx|mjs|css|html|json|txt|md)$/i;
 const MAX_FILES=2000,MAX_BYTES=60000000;
 const REQUIRED=[
-  'stage3/server/bootstrap.php','stage3/server/public/index.php',
+  'stage3/server/bootstrap.php','stage3/server/public/index.php','stage3/server/public/.htaccess',
   'stage3/server/EngineReleaseVerifier.php','stage3/server/EngineLifecycle.php',
   'stage3/server/DatabaseSnapshot.php','stage3/server/EngineRuntime.php',
   'stage3/studio/bundle.js','stage3/studio/hosted.js',
@@ -60,7 +61,7 @@ function collect(root,strict=false,profile='full'){
         if(strict)die('untracked file in hosted-PHP runtime: '+relative);
         continue;
       }
-      if(!EXT.test(name)||/^(?:\.env|.*(?:secret|password|credentials?|private).*)/i.test(name))
+      if((!EXT.test(name)&&relative!=='stage3/server/public/.htaccess')||/^(?:\.env|.*(?:secret|password|credentials?|private).*)/i.test(name))
         die('unexpected runtime file: '+relative);
       const buffer=fs.readFileSync(full);
       bytes+=buffer.length;

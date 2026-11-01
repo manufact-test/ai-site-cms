@@ -138,6 +138,10 @@ jobs:
           # Critical, fast real PHP/Chromium journey for one externally compiled site.
           # The original exhaustive hosted-browser.cjs remains available for manual extended regression.
           node stage3/tests/approved-site-browser.cjs
+      - name: Apache 2.4 shared-host routing and Stage3 PHP HTTP smoke (no deployment)
+        run: |
+          node --check stage3/tests/shared-host-apache-smoke.cjs
+          node stage3/tests/shared-host-apache-smoke.cjs
       - name: Package click-to-open offline editor (no secrets or server code)
         run: |
           mkdir -p stage3/studio/out

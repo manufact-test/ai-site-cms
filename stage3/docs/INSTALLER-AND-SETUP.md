@@ -46,29 +46,32 @@ On a later read-only plan, the installer inventories **25 required Stage3 tables
 
 Database-scoped locking prevents concurrent apply operations. An invalid or stale approval token must not initialize the schema or write the receipt/configuration.
 
-## CI evidence and current limits
+## Current validation and deployment boundary
 
-Exact verified source: [`19a74e77c1acdfb43a7b3840f8e05bd10f2b0427`](https://github.com/manufact-test/ai-site-cms/commit/19a74e77c1acdfb43a7b3840f8e05bd10f2b0427). Full isolated workflow: [Actions #41302974827](https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827) — `technology-runtime=SUCCESS`, `contract=SUCCESS`.
+- The CLI installer remains the single initial-install path: read-only --plan, then exact one-time --apply=<token>. It binds one Stage3 instance to one dedicated empty MySQL database, creates 25 required tables and persists private runtime configuration/receipt outside the document root.
+- Requirements #184–185 (signed CMS engine update, private immutable slots, full 25-table snapshots, rollback and explicit recovery) are implemented on this feature branch. See docs/CMS-ENGINE-UPDATE-ROLLBACK-DESIGN.md.
+- The stable public root now includes an Apache 2.4 .htaccess policy using FallbackResource /index.php, hidden-path denial, disabled directory indexes and denial of stray executable/private files. The signed PHP-host package inventory retains this stable routing file.
+- A disposable Apache 2.4 + PHP 8.3 container rehearsal is added to the Stage3 CI. It performs a CLI SQLite install in a temporary copy, then checks /studio, assets, /api/session, owner login, /api/sites, engine status and public-root protections. It is not a real-host deployment.
+- The exact current branch CI result is recorded in the canonical docs/NEXT-CHAT.md. Do not treat the Apache rehearsal as passed until that exact-SHA run is green.
 
-The workflow covers PHP 8.3, disposable SQLite and MySQL 8.4, independent database identities, refusal of non-empty databases, concurrent-install lock handling, schema completeness, private configuration reload in a fresh PHP process, receipt tampering/hard-link refusal, stale approval refusal and database-password-bound plan tokens.
+### Still open / not proven
 
-**Not implemented or not proven:**
-
-- There is no browser-based installation wizard. The current installer requires CLI access and private environment configuration; this does not yet satisfy a simple non-SSH shared-hosting setup on its own.
-- This installer does not update the CMS engine and does not roll back CMS code versions.
-- The D3 release manager rolls back an independently published visitor-site release in its disposable lab. That is not the same as upgrading or rolling back the CMS engine.
-- Older signed-upgrade experiments under `cms/src/Release/Lab*` are isolated Stage2 lab components; they are not an integrated Stage3 CMS updater or permission to reuse them as production code.
-- MySQL was tested in disposable GitHub Actions infrastructure, not on Hostinger or another real shared host.
-- No real database, site, host, customer data or production deployment was touched.
-
-Requirements #183–185 remain open for formal owner acceptance. In particular, do not mark #183 complete merely because the CLI installer exists.
+- Requirement #183 remains open: there is no browser-guided installer. The current safe installation path requires SSH/CLI access and private process environment values.
+- No real Hostinger/LiteSpeed or other shared-host Stage3 installation has been performed. Apache container evidence does not prove target-host FallbackResource, AllowOverride, PHP web-SAPI, open_basedir, filesystem ownership, MySQL privileges or OPcache behavior.
+- No real staging hostname, database, site, SMTP/Telegram destination, customer data or production deployment has been contacted.
+- CMS engine updates are schema-v1/code-only. Schema-changing packages remain blocked until reversible migrations are implemented.
+- Formal owner acceptance remains 0/135. Stage 2 remains NO-GO; Stage 3 remains isolated engineering until owner hands-on acceptance and external gates close.
 
 ## Related implementation
 
-- `stage3/server/bin/install.php` — CLI plan/apply entry point.
-- `stage3/server/bin/Stage3Installer.php` — preflight, approval token, database lock, schema and receipt checks.
-- `stage3/server/RuntimeConfig.php` — private configuration writer/loader and integrity checks.
-- `stage3/tests/install-probe.cjs` and `stage3/tests/mysql-install-probe.cjs` — disposable install probes.
-- [D8 form collector sidecar](../runtime-export/D8-FORM-COLLECTOR-SIDECAR.md) — separate optional visitor form receiver package; not a CMS installer.
+- stage3/server/public/.htaccess — Apache shared-host route and public-root protection.
+- stage3/server/public/index.php — stable public front controller.
+- stage3/server/bin/install.php / Stage3Installer.php — CLI plan/apply and preflight.
+- stage3/server/bin/engine.php / EngineLifecycle.php — owner engine update, rollback and recovery control plane.
+- stage3/server/RuntimeConfig.php — private configuration writer/loader and integrity checks.
+- stage3/tests/install-probe.cjs, mysql-install-probe.cjs, engine-update-smoke.cjs — disposable install/update probes.
+- stage3/tests/shared-host-apache-smoke.cjs — disposable Apache/PHP HTTP rehearsal.
+- STAGING-SHARED-HOSTING.md — staging deployment runbook.
+- D8 form collector sidecar — optional visitor form receiver, not a CMS installer.
 
-**Next development target:** inspect the existing `cms/src/Release/Lab*` signed-upgrade work and the current Stage3 server packaging before designing the CMS engine update/rollback path for requirements #184–185. Keep visitor-site release rollback and CMS-engine rollback as separate lifecycles.
+**Next target:** complete the exact-SHA Apache CI check, then perform a separately authorized Stage3 installation on an isolated real shared-host staging subdomain/database. Do not touch production. If SSH/CLI or a private directory outside the web root is unavailable, stop rather than weakening the installer.

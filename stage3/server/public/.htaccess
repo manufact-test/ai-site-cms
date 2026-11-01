@@ -1,0 +1,26 @@
+# Stage3 shared-hosting public root.
+# DocumentRoot MUST point to this directory only: stage3/server/public.
+# Server code, Studio assets, components, databases, credentials, snapshots and
+# immutable engine slots must remain outside this public document root.
+# Requires Apache 2.4-compatible mod_dir, mod_alias and mod_authz_core plus
+# AllowOverride Options Indexes FileInfo AuthConfig.
+# LiteSpeed/Hostinger compatibility is not claimed until the real target is tested.
+Options -Indexes -MultiViews -FollowSymLinks -SymLinksIfOwnerMatch
+DirectoryIndex index.php
+FallbackResource /index.php
+
+# Match ANY hidden PATH SEGMENT, not only the final filename.
+# Only the literal .well-known directory segment is exempt (ACME/security.txt).
+# A nested .well-known/.git/config remains forbidden.
+RedirectMatch 403 "(^|/)\.(?!well-known(/|$))[^/]+(/|$)"
+
+# Defense in depth for individual hidden files, executables and private data.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+<FilesMatch "^(?!index\.php$).+\.(?:php|phtml|phar|cgi|pl)$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "\.(?:sqlite|sqlite3|db|sql|bak|log|ini|env|pem|key|p12|pfx)$">
+    Require all denied
+</FilesMatch>

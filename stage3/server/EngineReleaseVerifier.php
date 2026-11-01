@@ -269,7 +269,7 @@ final class EngineReleaseVerifier
             return false;
         }
         if (str_starts_with($path, 'stage3/server/')) {
-            return str_ends_with(strtolower($path), '.php');
+            return str_ends_with(strtolower($path), '.php') || $path === 'stage3/server/public/.htaccess';
         }
         if (str_starts_with($path, 'stage3/components/')) {
             return str_ends_with(strtolower($path), '.json');
