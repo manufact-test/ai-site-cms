@@ -1,11 +1,14 @@
 <?php
 declare(strict_types=1);
-require dirname(__DIR__) . '/bootstrap.php';
+require_once dirname(__DIR__) . '/EngineRuntime.php';
 
 use Manufact\Stage3\Api;
 
-// Front controller for an isolated test origin. No deployment or Hostinger coupling.
+// Stable public entrypoint resolves a private immutable CMS engine slot.
+// The configured document root and published visitor-site release do not move.
 try {
+    $stage3EngineRoot = \Manufact\Stage3\EngineRuntime::boot(dirname(__DIR__));
+    require $stage3EngineRoot . '/server/bootstrap.php';
     (new Api(stage3_repository()))->handle();
 } catch (Throwable $e) {
     error_log('Stage3 bootstrap error: ' . get_class($e));

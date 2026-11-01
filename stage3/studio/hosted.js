@@ -260,6 +260,133 @@
     catch(error){operationsDialog.close();throw error;}
   }
   operationsDialog.addEventListener('close',()=>{operationsRevision=null;});
+  // CMS engine lifecycle (#184-185) is owner-only and independent from visitor-site releases.
+  const engineOpen=action('Обновление CMS','server-engine-open',()=>safe(openEngineCenter));
+  engineOpen.hidden=true;
+  row.append(engineOpen);
+  const engineDialog=element('dialog','hosted-backup-dialog');engineDialog.id='server-engine-dialog';
+  const engineStatus=element('div','hosted-backup-summary');engineStatus.id='server-engine-status';
+  const enginePackage=element('select','control');enginePackage.id='server-engine-package';
+  const enginePlanSummary=element('div','hosted-backup-summary');enginePlanSummary.id='server-engine-plan';
+  const engineReviewButton=action('Проверить подписанный пакет','server-engine-review',()=>safe(reviewEnginePackage));
+  const engineApplyButton=action('Подтвердить и установить','server-engine-apply',()=>safe(applyEnginePackage));
+  engineApplyButton.disabled=true;
+  const engineRollbackPlanButton=action('Подготовить откат','server-engine-rollback-plan',()=>safe(planEngineRollback));
+  const engineRollbackButton=action('Подтвердить откат','server-engine-rollback',()=>safe(applyEngineRollback));
+  engineRollbackButton.disabled=true;
+  const engineRecovery=element('div','hosted-backup-summary');engineRecovery.id='server-engine-recovery';engineRecovery.hidden=true;
+  const engineFinalize=action('Завершить переключение','server-engine-finalize',()=>safe(()=>recoverEngine('finalize')));
+  const engineAbort=action('Отменить незавершённое переключение','server-engine-abort',()=>safe(()=>recoverEngine('abort')));
+  engineRecovery.append(element('strong',null,'Обнаружена незавершённая операция. CMS закрывает обычные запросы до явного решения владельца.'),
+    element('p',null,'Сверьте текущую версию и журнал операции. «Завершить» закрепит новый указатель; «Отменить» вернёт предыдущий.'),
+    engineFinalize,engineAbort);
+  const engineTrustGuide=element('details','hosted-backup-summary');
+  engineTrustGuide.append(element('summary',null,'Первичная настройка доверенного ключа издателя'),
+    element('p',null,'Один раз добавьте публичный RSA-ключ издателя в приватную область CMS. Приватный ключ подписи никогда не загружается на сайт.'),
+    element('pre',null,'STAGE3_ALLOW_ENGINE_TRUST_SETUP=YES php /PRIVATE/STAGE3/server/bin/engine.php trust /ABS/PATH/publisher-public.pem'));
+  const enginePackageGuide=element('details','hosted-backup-summary');
+  enginePackageGuide.append(element('summary',null,'Как добавить пакет обновления'),
+    element('p',null,'Распакуйте подписанный пакет в приватную папку engine/incoming/<package-id> через защищённый файловый менеджер или SFTP. Внутри должны находиться cms-release.json, cms-release.sig и папка stage3. Не загружайте пакет в public_html.'));
+  let engineInfo=null,engineReviewPlan=null,engineRollbackPlan=null;
+  async function refreshEngineCenter(){
+    const info=await api('/api/engine');
+    if(!engineDialog.open)return;
+    engineInfo=info;
+    const active=info.current||{};
+    const previous=info.previous||null;
+    engineStatus.replaceChildren(
+      element('strong',null,info.status==='recovery_required'?'Требуется восстановление':'Движок CMS готов к обслуживанию'),
+      element('p',null,'Текущая версия: '+(active.releaseVersion||'не определена')+
+        ' · схема БД: '+(active.schemaVersion??'—')+' · поколение: '+(info.sequence??0)),
+      element('p',null,'Предыдущая версия: '+(previous?.releaseVersion||'нет')+
+        ' · доверенный ключ: '+(info.trustConfigured?'настроен':'не настроен')),
+      element('small',null,'Это обновление кода CMS и Studio. Версии опубликованного сайта D2/D3 не переключаются.'));
+    enginePackage.replaceChildren();
+    for(const id of info.incomingPackages||[]){
+      const option=element('option',null,id);option.value=id;enginePackage.append(option);
+    }
+    engineReviewButton.disabled=!info.trustConfigured||!info.incomingPackages?.length||info.status!=='ready';
+    engineRollbackPlanButton.disabled=!previous||info.status!=='ready';
+    engineRecovery.hidden=info.status!=='recovery_required';
+    engineTrustGuide.hidden=!!info.trustConfigured;
+    enginePackageGuide.hidden=false;
+    if(!info.incomingPackages?.length){
+      enginePlanSummary.replaceChildren(element('p',null,'Пока нет пакетов в приватной incoming-папке.'));
+    }
+  }
+  async function openEngineCenter(){
+    if(!isOwner())throw Error('Обновление движка доступно только владельцу CMS');
+    engineReviewPlan=null;engineRollbackPlan=null;
+    engineApplyButton.disabled=true;engineRollbackButton.disabled=true;
+    engineDialog.showModal();
+    await refreshEngineCenter();
+  }
+  async function reviewEnginePackage(){
+    if(!isOwner()||!enginePackage.value)throw Error('Выберите пакет обновления');
+    enginePlanSummary.replaceChildren(element('p',null,'Проверяется подпись, целостность, совместимость и установленная схема БД…'));
+    const plan=await api('/api/engine/review','POST',{packageId:enginePackage.value});
+    engineReviewPlan=plan;engineRollbackPlan=null;engineRollbackButton.disabled=true;
+    enginePlanSummary.replaceChildren(
+      element('strong',null,'Пакет проверен. Обновление ещё НЕ установлено.'),
+      element('p',null,'Версия '+plan.releaseVersion+' · текущая '+plan.currentVersion),
+      element('p',null,'SHA-256: '+plan.fingerprint),
+      element('p',null,'План подтверждения действует '+plan.expiresInSeconds+' секунд. Перед переключением будет создана и проверена приватная копия всех 25 таблиц.'),
+      element('small',null,'Переключается только движок CMS. Опубликованный сайт и данные не изменяются.'));
+    engineApplyButton.disabled=false;
+  }
+  async function applyEnginePackage(){
+    if(!isOwner()||!engineReviewPlan)throw Error('Сначала проверьте подписанный пакет');
+    if(!window.confirm('Установить CMS '+engineReviewPlan.releaseVersion+'? Переключение будет заблокировано, пока выполняются активные PHP-запросы.'))return;
+    const result=await api('/api/engine/apply','POST',{
+      releaseId:engineReviewPlan.releaseId,planToken:engineReviewPlan.planToken
+    });
+    engineReviewPlan=null;engineApplyButton.disabled=true;engineRollbackButton.disabled=true;
+    enginePlanSummary.replaceChildren(element('strong',null,'CMS обновлена до '+result.currentVersion),
+      element('p',null,'Предыдущая версия: '+result.previousVersion+' · резервная копия БД проверена · поколение '+result.sequence));
+    await refreshEngineCenter();
+    notice('Движок CMS обновлён. Публичная публикация сайта не менялась.');
+  }
+  async function planEngineRollback(){
+    if(!isOwner())throw Error('Откат доступен только владельцу CMS');
+    const plan=await api('/api/engine/rollback-plan','POST',{});
+    engineRollbackPlan=plan;engineReviewPlan=null;engineApplyButton.disabled=true;
+    enginePlanSummary.replaceChildren(element('strong',null,'Подготовлен откат движка'),
+      element('p',null,'Текущая версия: '+plan.currentVersion+' · целевая предыдущая версия: '+plan.targetVersion),
+      element('p',null,'План действует '+plan.expiresInSeconds+' секунд. Перед откатом будет проверена приватная копия базы.'));
+    engineRollbackButton.disabled=false;
+  }
+  async function applyEngineRollback(){
+    if(!isOwner()||!engineRollbackPlan)throw Error('Сначала подготовьте откат');
+    if(!window.confirm('Вернуть движок CMS к версии '+engineRollbackPlan.targetVersion+'?'))return;
+    const result=await api('/api/engine/rollback','POST',{
+      planId:engineRollbackPlan.planId,planToken:engineRollbackPlan.planToken
+    });
+    engineRollbackPlan=null;engineRollbackButton.disabled=true;
+    enginePlanSummary.replaceChildren(element('strong',null,'Движок возвращён к '+result.currentVersion),
+      element('p',null,'Предыдущая версия теперь '+result.previousVersion+' · данные БД сохранены · поколение '+result.sequence));
+    await refreshEngineCenter();
+    notice('Откат движка CMS выполнен. Публикация сайта сохранена.');
+  }
+  async function recoverEngine(direction){
+    if(!isOwner())throw Error('Восстановление доступно только владельцу CMS');
+    const label=direction==='finalize'?'завершить переключение':'отменить переключение';
+    if(!window.confirm('Явно '+label+' незавершённую операцию CMS?'))return;
+    const result=await api('/api/engine/recover','POST',{direction});
+    enginePlanSummary.replaceChildren(element('strong',null,'Операция '+result.state),
+      element('p',null,'Текущая версия движка: '+result.currentVersion));
+    await refreshEngineCenter();
+  }
+  const engineClose=action('Закрыть','server-engine-close',()=>engineDialog.close());
+  engineDialog.append(element('h2',null,'Обновление движка CMS'),
+    element('p',null,'Отдельный контур обслуживания самой CMS и Studio. Не связан с выпуском и откатом публичного сайта. Все действия доступны только владельцу.'),
+    engineStatus,engineTrustGuide,enginePackageGuide,
+    element('label','hosted-label','Подписанный пакет из приватной incoming-папки'),enginePackage,
+    engineReviewButton,enginePlanSummary,engineApplyButton,
+    element('h3',null,'Откат к предыдущей версии'),engineRollbackPlanButton,engineRollbackButton,
+    engineRecovery,engineClose);
+  document.body.append(engineDialog);
+  engineDialog.addEventListener('close',()=>{engineReviewPlan=null;engineRollbackPlan=null;engineApplyButton.disabled=true;engineRollbackButton.disabled=true;});
+
   toolbar.append(label,picker,row,status);
   // The server selector and status are site-wide controls, not page-tree actions.
   // They are placed inside the dedicated tools dialog once it is assembled.
@@ -3187,6 +3314,7 @@
     launchReviewButton.disabled=!available;
     operationsButton.hidden=!isOwner();operationsButton.disabled=!available||!isOwner();
     connectionButton.hidden=!isOwner();connectionButton.disabled=!available||!isOwner();
+    engineOpen.hidden=!isOwner();engineOpen.disabled=!state.authorized||!isOwner();
     techOpen.disabled=!available||!state.authorized;
     const approvedImport=document.getElementById('server-approved-import');
     // Bootstrap can authenticate before its first site has finished loading.

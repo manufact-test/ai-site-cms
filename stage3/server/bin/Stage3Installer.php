@@ -504,7 +504,7 @@ final class Stage3Installer
         return $path === $parent || str_starts_with($path, $parent . DIRECTORY_SEPARATOR);
     }
 
-    private static function requiredSchemaTables(): array
+    public static function requiredSchemaTables(): array
     {
         return [
             'stage3_users','stage3_drafts','stage3_revisions','stage3_publications',

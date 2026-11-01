@@ -83,6 +83,21 @@ jobs:
           php-version: '8.3'
           extensions: pdo_sqlite, pdo_mysql, mbstring
           coverage: none
+      - name: Signed CMS engine update, rollback and database snapshot rehearsal
+        env:
+          STAGE3_INSTALL_MYSQL_HOST: 127.0.0.1
+          STAGE3_INSTALL_MYSQL_PORT: 3306
+          STAGE3_INSTALL_MYSQL_USER: root
+          STAGE3_INSTALL_MYSQL_PASSWORD: stage3-ci-root
+        run: |
+          node --check stage3/bin/cms-release.cjs
+          node --check stage3/tests/engine-update-smoke.cjs
+          php -l stage3/server/EngineReleaseVerifier.php
+          php -l stage3/server/EngineLifecycle.php
+          php -l stage3/server/DatabaseSnapshot.php
+          php -l stage3/server/EngineRuntime.php
+          php -l stage3/server/bin/engine.php
+          node stage3/tests/engine-update-smoke.cjs
       - name: D3 isolated release cutover and rollback on loopback
         run: |
           node --check stage3/runtime-export/bin/release-manager.cjs

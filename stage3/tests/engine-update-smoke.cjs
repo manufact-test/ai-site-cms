@@ -1,0 +1,299 @@
+#!/usr/bin/env node
+'use strict';
+
+// Isolated signed Stage3 CMS-engine lifecycle: trust, review, apply, lease,
+// rollback and complete database snapshot/restore rehearsal.
+const assert=require('node:assert/strict');
+const crypto=require('node:crypto');
+const fs=require('node:fs');
+const os=require('node:os');
+const path=require('node:path');
+const {spawn,spawnSync}=require('node:child_process');
+
+const root=path.resolve(__dirname,'../..');
+const stage3=path.join(root,'stage3');
+const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'stage3-engine-update-'));
+const pair=crypto.generateKeyPairSync('rsa',{
+  modulusLength:3072,
+  publicKeyEncoding:{type:'spki',format:'pem'},
+  privateKeyEncoding:{type:'pkcs8',format:'pem'}
+});
+const privateKeyPath=path.join(tmp,'publisher-private.pem');
+const publicKeyPath=path.join(tmp,'publisher-public.pem');
+fs.writeFileSync(privateKeyPath,pair.privateKey,{mode:0o600});fs.chmodSync(privateKeyPath,0o600);
+fs.writeFileSync(publicKeyPath,pair.publicKey,{mode:0o600});fs.chmodSync(publicKeyPath,0o600);
+
+function run(command,args,env={},expected=0,cwd=root,timeout=180000){
+  const result=spawnSync(command,args,{cwd,env:{...process.env,...env},encoding:'utf8',timeout});
+  if(result.error)throw result.error;
+  if(result.status!==expected)throw new Error(command+' '+args.join(' ')+' exit '+result.status+' expected '+expected+
+    '\nSTDERR:\n'+(result.stderr||'')+'\nSTDOUT:\n'+(result.stdout||''));
+  return result;
+}
+function php(code,args=[],env={},expected=0){return run('php',['-r',code,...args],env,expected);}
+function copyRuntime(destination,marker){
+  fs.mkdirSync(path.join(destination,'stage3'),{recursive:true,mode:0o700});
+  for(const folder of ['components','media-motion','server','studio'])
+    fs.cpSync(path.join(stage3,folder),path.join(destination,'stage3',folder),{recursive:true});
+  fs.writeFileSync(path.join(destination,'stage3/server/EngineBuild.php'),
+    "<?php return '"+marker+"';\n",{mode:0o600});
+}
+function makeReleaseSource(name,marker){
+  const directory=path.join(tmp,name);fs.mkdirSync(directory,{mode:0o700});copyRuntime(directory,marker);return directory;
+}
+function copyIncoming(source,id,privateDir){
+  const incoming=path.join(privateDir,'engine','incoming',id);
+  fs.cpSync(source,incoming,{recursive:true,errorOnExist:true});
+}
+function parseJson(result){return JSON.parse(result.stdout);}
+function engine(script,command,args=[],env={},expected=0){
+  return parseJson(run('php',[script,command,...args],env,expected));
+}
+function installRuntime(serverRoot,env){
+  const code=[
+    "require $argv[1].'/bootstrap.php';",
+    "require $argv[1].'/bin/Stage3Installer.php';",
+    "$db=new PDO(getenv('STAGE3_DSN'),getenv('STAGE3_DB_USER')?:null,getenv('STAGE3_DB_PASSWORD')?:null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);",
+    "$keys=['CI','STAGE3_DSN','STAGE3_DB_USER','STAGE3_DB_PASSWORD','STAGE3_OWNER_USER','STAGE3_OWNER_PASSWORD','STAGE3_FORM_SECRET','STAGE3_FORM_ORIGINS','STAGE3_FORM_ENDPOINT','STAGE3_PRIVATE_DIR','STAGE3_PUBLIC_ROOT','STAGE3_ALLOW_SQLITE_INSTALL'];",
+    "$env=[];foreach($keys as $key)$env[$key]=(string)(getenv($key)?:'');",
+    "$repo=new \\Manufact\\Stage3\\SiteRepository($db,new \\Manufact\\Stage3\\ContractValidator(dirname($argv[1]).'/components'));",
+    "$plan=\\Manufact\\Stage3\\Stage3Installer::plan($db,$env);",
+    "if(($plan['state']??null)!=='install_required')throw new RuntimeException('Disposable engine test install plan blocked');",
+    "$result=\\Manufact\\Stage3\\Stage3Installer::apply($db,$repo,$env,$plan['token']);",
+    "echo json_encode($result,JSON_THROW_ON_ERROR);"
+  ].join('\n');
+  return parseJson(php(code,[serverRoot],env));
+}
+function addDatabaseFixtures(env){
+  const code=[
+    "$db=new PDO(getenv('STAGE3_DSN'));",
+    "$blob=\"\\0\\xff\\x10engine-snapshot-binary\";",
+    "$q=$db->prepare('INSERT INTO stage3_media(site_id,asset_id,mime,sha256,bytes,created_at) VALUES(?,?,?,?,?,?)');",
+    "$q->execute(['engine-test','binary-asset','application/octet-stream',hash('sha256',$blob),$blob,'2026-11-01T00:00:00Z']);",
+    "$q=$db->prepare('INSERT INTO stage3_publications(site_id,version,source_revision,body,published_at) VALUES(?,?,?,?,?)');",
+    "$q->execute(['engine-test',7,9,'{\"title\":\"must remain published\"}','2026-11-01T00:00:00Z']);",
+    "echo 'FIXTURES';"
+  ].join('\n');
+  assert.equal(php(code,[],env).stdout,'FIXTURES');
+}
+function verifyDatabase(env,dsn=''){
+  const code=[
+    "$dsn=$argv[1]?:getenv('STAGE3_DSN');",
+    "$db=new PDO($dsn,getenv('STAGE3_DB_USER')?:null,getenv('STAGE3_DB_PASSWORD')?:null);",
+    "$row=$db->query(\"SELECT hex(bytes) AS bytes_hex,sha256 FROM stage3_media WHERE asset_id='binary-asset'\")->fetch(PDO::FETCH_ASSOC);",
+    "$pub=$db->query(\"SELECT version,body FROM stage3_publications WHERE site_id='engine-test'\")->fetch(PDO::FETCH_ASSOC);",
+    "$count=$db->query(\"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'\")->fetchColumn();",
+    "echo json_encode(['bytesHex'=>$row['bytes_hex'],'sha256'=>$row['sha256'],'publishedVersion'=>(int)$pub['version'],'publishedBody'=>$pub['body'],'tableCount'=>(int)$count]);"
+  ].join('\n');
+  return parseJson(php(code,[dsn],env));
+}
+function phpVerify(serverRoot,release,publicKey,env,expected=0){
+  const code=[
+    "require $argv[1].'/EngineReleaseVerifier.php';",
+    "try{\\Manufact\\Stage3\\EngineReleaseVerifier::verify($argv[2],$argv[3],true);echo 'VERIFIED';}",
+    "catch(Throwable $e){fwrite(STDERR,$e->getMessage());exit(1);}"
+  ].join('\n');
+  return php(code,[serverRoot,release,publicKey],env,expected);
+}
+async function waitForText(child,needle,timeoutMs=12000){
+  return new Promise((resolve,reject)=>{
+    let output='';
+    const timer=setTimeout(()=>{child.kill('SIGKILL');reject(new Error('Timed out waiting for PHP request lease: '+output));},timeoutMs);
+    child.stdout.on('data',chunk=>{output+=chunk.toString();if(output.includes(needle)){clearTimeout(timer);resolve(output);}});
+    child.once('error',error=>{clearTimeout(timer);reject(error);});
+    child.once('exit',code=>{if(!output.includes(needle)){clearTimeout(timer);reject(new Error('PHP lease exited early '+code+': '+output));}});
+  });
+}
+
+try{
+  const builder=path.join(stage3,'bin/cms-release.cjs');
+  const sourceV1=makeReleaseSource('source-v1','release-one');
+  const sourceV2=makeReleaseSource('source-v2','release-two');
+  const releaseV1=path.join(tmp,'release-v1'),releaseV2=path.join(tmp,'release-v2');
+  run('node',[builder,'pack-signed-php-host',sourceV1,releaseV1,'1.0.0',privateKeyPath,publicKeyPath]);
+  run('node',[builder,'pack-signed-php-host',sourceV2,releaseV2,'1.1.0',privateKeyPath,publicKeyPath]);
+  run('node',[builder,'verify-signed-php-host',releaseV1,publicKeyPath]);
+  run('node',[builder,'verify-signed-php-host',releaseV2,publicKeyPath]);
+
+  const installed=path.join(tmp,'installed');copyRuntime(installed,'legacy-0.9.0');
+  const serverRoot=path.join(installed,'stage3/server'),publicRoot=path.join(serverRoot,'public');
+  const privateDir=path.join(tmp,'private');fs.mkdirSync(privateDir,{mode:0o700});fs.chmodSync(privateDir,0o700);
+  const dbFile=path.join(privateDir,'engine.sqlite');
+  php('$db=new PDO(\"sqlite:\".$argv[1]);',[dbFile]);fs.chmodSync(dbFile,0o600);
+  const env={
+    CI:'true',STAGE3_DSN:'sqlite:'+dbFile,STAGE3_DB_USER:'',STAGE3_DB_PASSWORD:'',
+    STAGE3_OWNER_USER:'engineowner',STAGE3_OWNER_PASSWORD:'Engine-update-test-password-2026',
+    STAGE3_FORM_SECRET:'engine-update-form-secret-0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    STAGE3_FORM_ORIGINS:'https://example.test',STAGE3_FORM_ENDPOINT:'https://forms.example.test',
+    STAGE3_PRIVATE_DIR:privateDir,STAGE3_PUBLIC_ROOT:publicRoot,STAGE3_ALLOW_SQLITE_INSTALL:'1'
+  };
+  assert.equal(installRuntime(serverRoot,env).state,'installed');
+  addDatabaseFixtures(env);
+
+  assert.equal(phpVerify(serverRoot,releaseV1,publicKeyPath,env).stdout,'VERIFIED');
+  const wrongPair=crypto.generateKeyPairSync('rsa',{modulusLength:3072,
+    publicKeyEncoding:{type:'spki',format:'pem'},privateKeyEncoding:{type:'pkcs8',format:'pem'}});
+  const wrongPublic=path.join(tmp,'wrong-public.pem');fs.writeFileSync(wrongPublic,wrongPair.publicKey,{mode:0o600});
+  phpVerify(serverRoot,releaseV1,wrongPublic,env,1);
+  const tampered=path.join(tmp,'tampered');fs.cpSync(releaseV1,tampered,{recursive:true});
+  fs.appendFileSync(path.join(tampered,'stage3/server/bootstrap.php'),'\n// tampered');
+  phpVerify(serverRoot,tampered,publicKeyPath,env,1);
+  const extra=path.join(tmp,'extra');fs.cpSync(releaseV1,extra,{recursive:true});
+  fs.writeFileSync(path.join(extra,'untracked.txt'),'not signed');
+  phpVerify(serverRoot,extra,publicKeyPath,env,1);
+
+  const engineScript=path.join(serverRoot,'bin/engine.php');
+  engine(engineScript,'trust',[publicKeyPath],{...env,STAGE3_ALLOW_ENGINE_TRUST_SETUP:'YES'});
+  copyIncoming(releaseV1,'release-one',privateDir);copyIncoming(releaseV2,'release-two',privateDir);
+
+  // Outcome 1: review a publisher-authenticated release and receive a one-time plan.
+  const reviewedV1=engine(engineScript,'review',['release-one'],{...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'});
+  assert.equal(reviewedV1.releaseVersion,'1.0.0');
+  assert.equal(reviewedV1.currentVersion,'legacy-installed');
+  assert.equal(reviewedV1.snapshotRequired,true);
+  assert.match(reviewedV1.planToken,/^[a-f0-9]{64}$/);
+
+  // Outcome 2: activate an immutable engine slot without touching visitor-site data.
+  const appliedV1=engine(engineScript,'apply',[reviewedV1.releaseId,reviewedV1.planToken],
+    {...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'});
+  assert.equal(appliedV1.currentVersion,'1.0.0');
+  assert.equal(appliedV1.previousVersion,'legacy-installed');
+  assert.equal(appliedV1.databasePreserved,true);
+  let status=engine(engineScript,'inspect',[],env);
+  assert.equal(status.current.releaseVersion,'1.0.0');assert.equal(status.sequence,1);
+  const bootCode="require $argv[1].'/EngineRuntime.php';echo \\Manufact\\Stage3\\EngineRuntime::boot($argv[1]);";
+  const activeRoot=php(bootCode,[serverRoot],env).stdout;
+  assert.equal(activeRoot,path.join(privateDir,'engine','slots',reviewedV1.releaseId,'stage3'));
+
+  // Upgrade once more; a live request lease must block an engine switch.
+  const reviewedV2=engine(engineScript,'review',['release-two'],{...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'});
+  const appliedV2=engine(engineScript,'apply',[reviewedV2.releaseId,reviewedV2.planToken],
+    {...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'});
+  assert.equal(appliedV2.currentVersion,'1.1.0');assert.equal(appliedV2.previousVersion,'1.0.0');
+  const rollbackPlan=engine(engineScript,'rollback-plan',[],env);
+  const leaseCode="require $argv[1].'/EngineRuntime.php';\\Manufact\\Stage3\\EngineRuntime::boot($argv[1]);echo '|LEASED';usleep(8000000);";
+  const lease=spawn('php',['-r',leaseCode,serverRoot],{cwd:root,env:{...process.env,...env},stdio:['ignore','pipe','pipe']});
+  await waitForText(lease,'|LEASED');
+  const blocked=run('php',[engineScript,'rollback',rollbackPlan.planId,rollbackPlan.planToken],
+    {...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'},1);
+  assert.match(blocked.stderr,/active PHP request|in use/i);
+  await new Promise((resolve,reject)=>lease.once('exit',code=>code===0?resolve():reject(new Error('PHP lease exited '+code))));
+
+  // Outcome 3: explicit rollback to the previous engine; database and publication remain intact.
+  const rolledBack=engine(engineScript,'rollback',[rollbackPlan.planId,rollbackPlan.planToken],
+    {...env,STAGE3_ALLOW_ENGINE_UPDATE:'YES'});
+  assert.equal(rolledBack.currentVersion,'1.0.0');assert.equal(rolledBack.previousVersion,'1.1.0');
+  assert.equal(rolledBack.databasePreserved,true);
+  status=engine(engineScript,'inspect',[],env);
+  assert.equal(status.current.releaseVersion,'1.0.0');assert.equal(status.previous.releaseVersion,'1.1.0');
+  const persisted=verifyDatabase(env);
+  assert.equal(persisted.publishedVersion,7);
+  assert.equal(persisted.publishedBody,'{"title":"must remain published"}');
+  assert.equal(persisted.bytesHex,Buffer.from('\0\xff\x10engine-snapshot-binary','binary').toString('hex').toUpperCase());
+
+  const verifiedSnapshot=engine(engineScript,'verify-snapshot',[rolledBack.snapshotId],env);
+  assert.equal(verifiedSnapshot.tableCount,25);
+  const restoreFile=path.join(tmp,'restored.sqlite');
+  php('$db=new PDO(\"sqlite:\".$argv[1]);',[restoreFile]);fs.chmodSync(restoreFile,0o600);
+  engine(engineScript,'restore-snapshot',[rolledBack.snapshotId,'sqlite:'+restoreFile],
+    {...env,STAGE3_ALLOW_SNAPSHOT_RESTORE:'YES'});
+  const restored=verifyDatabase(env,'sqlite:'+restoreFile);
+  assert.equal(restored.publishedVersion,7);assert.equal(restored.publishedBody,'{"title":"must remain published"}');
+  assert.equal(restored.bytesHex,persisted.bytesHex);assert.equal(restored.tableCount,25);
+
+  let mysqlSnapshotResult={skipped:true};
+  const mysqlHost=process.env.STAGE3_INSTALL_MYSQL_HOST;
+  if(mysqlHost){
+    const mysqlPort=process.env.STAGE3_INSTALL_MYSQL_PORT||'3306';
+    const mysqlUser=process.env.STAGE3_INSTALL_MYSQL_USER||'root';
+    const mysqlPassword=process.env.STAGE3_INSTALL_MYSQL_PASSWORD||'';
+    const dbName='stage3_engine_snapshot_ci';
+    const restoreName='stage3_engine_snapshot_restore_ci';
+    const adminCode=[
+      "$admin=new PDO('mysql:host='.$argv[1].';port='.$argv[2].';charset=utf8mb4',$argv[3],$argv[4],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);",
+      "$admin->exec('DROP DATABASE IF EXISTS " + dbName + "');",
+      "$admin->exec('DROP DATABASE IF EXISTS " + restoreName + "');",
+      "$admin->exec('CREATE DATABASE " + dbName + " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');",
+      "$admin->exec('CREATE DATABASE " + restoreName + " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');",
+      "echo 'DATABASES_READY';"
+    ].join('\n');
+    try{
+      assert.equal(php(adminCode,[mysqlHost,mysqlPort,mysqlUser,mysqlPassword]).stdout,'DATABASES_READY');
+      const mysqlInstalled=path.join(tmp,'mysql-installed');copyRuntime(mysqlInstalled,'mysql-legacy');
+      const mysqlServer=path.join(mysqlInstalled,'stage3/server');
+      const mysqlPrivate=path.join(tmp,'mysql-private');fs.mkdirSync(mysqlPrivate,{mode:0o700});fs.chmodSync(mysqlPrivate,0o700);
+      const mysqlEnv={
+        CI:'true',
+        STAGE3_DSN:'mysql:host='+mysqlHost+';port='+mysqlPort+';dbname='+dbName+';charset=utf8mb4',
+        STAGE3_DB_USER:mysqlUser,STAGE3_DB_PASSWORD:mysqlPassword,
+        STAGE3_OWNER_USER:'engineowner',STAGE3_OWNER_PASSWORD:'Engine-update-test-password-2026',
+        STAGE3_FORM_SECRET:'engine-update-form-secret-0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+        STAGE3_FORM_ORIGINS:'https://example.test',STAGE3_FORM_ENDPOINT:'https://forms.example.test',
+        STAGE3_PRIVATE_DIR:mysqlPrivate,STAGE3_PUBLIC_ROOT:path.join(mysqlServer,'public')
+      };
+      assert.equal(installRuntime(mysqlServer,mysqlEnv).state,'installed');
+      addDatabaseFixtures(mysqlEnv);
+      const snapshotCode=[
+        "require $argv[1].'/DatabaseSnapshot.php';",
+        "require $argv[1].'/bin/Stage3Installer.php';",
+        "$db=new PDO(getenv('STAGE3_DSN'),getenv('STAGE3_DB_USER'),getenv('STAGE3_DB_PASSWORD'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);",
+        "$receipt=json_decode(file_get_contents(getenv('STAGE3_PRIVATE_DIR').'/installation.json'),true,16,JSON_THROW_ON_ERROR);",
+        "$dsn=getenv('STAGE3_DSN');$safe=preg_replace('/(password|pwd)=([^;]*)/i','$1=[redacted]',$dsn)??$dsn;",
+        "$fingerprint=hash('sha256',$safe.\"\\n\".getenv('STAGE3_DB_USER'));",
+        "$result=\\Manufact\\Stage3\\DatabaseSnapshot::create($db,getenv('STAGE3_PRIVATE_DIR'),$fingerprint,$receipt['instanceId'],1);",
+        "echo json_encode($result,JSON_THROW_ON_ERROR);"
+      ].join('\n');
+      const mysqlSnapshot=parseJson(php(snapshotCode,[mysqlServer],mysqlEnv));
+      assert.equal(mysqlSnapshot.tableCount,25);
+      const mysqlEngineScript=path.join(mysqlServer,'bin/engine.php');
+      engine(mysqlEngineScript,'verify-snapshot',[mysqlSnapshot.snapshotId],mysqlEnv);
+      const targetDsn='mysql:host='+mysqlHost+';port='+mysqlPort+';dbname='+restoreName+';charset=utf8mb4';
+      engine(mysqlEngineScript,'restore-snapshot',[mysqlSnapshot.snapshotId,targetDsn],{
+        ...mysqlEnv,STAGE3_ALLOW_SNAPSHOT_RESTORE:'YES',
+        STAGE3_SNAPSHOT_TARGET_USER:mysqlUser,STAGE3_SNAPSHOT_TARGET_PASSWORD:mysqlPassword
+      });
+      const verifyRestoreCode=[
+        "$db=new PDO($argv[1],$argv[2],$argv[3]);",
+        "$row=$db->query(\"SELECT HEX(bytes) AS bytesHex FROM stage3_media WHERE asset_id='binary-asset'\")->fetch(PDO::FETCH_ASSOC);",
+        "$pub=$db->query(\"SELECT version,body FROM stage3_publications WHERE site_id='engine-test'\")->fetch(PDO::FETCH_ASSOC);",
+        "$count=(int)$db->query(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE'\")->fetchColumn();",
+        "echo json_encode(['bytesHex'=>$row['bytesHex'],'version'=>(int)$pub['version'],'body'=>$pub['body'],'tables'=>$count]);"
+      ].join('\n');
+      const mysqlRestored=parseJson(php(verifyRestoreCode,[targetDsn,mysqlUser,mysqlPassword]));
+      assert.equal(mysqlRestored.tables,25);
+      assert.equal(mysqlRestored.version,7);
+      assert.equal(mysqlRestored.body,'{"title":"must remain published"}');
+      assert.equal(mysqlRestored.bytesHex,persisted.bytesHex);
+      mysqlSnapshotResult={skipped:false,tables:mysqlSnapshot.tableCount,rows:mysqlSnapshot.rowCount,
+        restoredTables:mysqlRestored.tables,binaryMediaPreserved:true};
+    }finally{
+      const cleanup=[
+        "$admin=new PDO('mysql:host='.$argv[1].';port='.$argv[2].';charset=utf8mb4',$argv[3],$argv[4],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);",
+        "$admin->exec('DROP DATABASE IF EXISTS "+dbName+"');",
+        "$admin->exec('DROP DATABASE IF EXISTS "+restoreName+"');"
+      ].join('\n');
+      php(cleanup,[mysqlHost,mysqlPort,mysqlUser,mysqlPassword]);
+    }
+  }
+
+  process.stdout.write(JSON.stringify({
+    ok:true,
+    checks:[
+      'RSA-3072/SHA-256 signed PHP-host package and exact PHP OpenSSL verification',
+      'wrong publisher key, modified runtime file and untracked package file rejected',
+      'one-time owner review plan bound to signed release and installed DB identity',
+      'immutable CMS engine slot activation with legacy rollback candidate',
+      'second engine update and request-shared/exclusive activation lease',
+      'explicit rollback to previous engine with monotonic activation sequence',
+      'published visitor-site version and binary media unchanged',
+      'complete 25-table private snapshot verified and restored into a separate SQLite rehearsal DB'
+    ],
+    versions:{afterFirst:'1.0.0',afterSecond:'1.1.0',afterRollback:'1.0.0'},
+    mysqlSnapshot: mysqlSnapshotResult,
+    deploymentPerformed:false
+  },null,2)+'\n');
+}catch(error){
+  process.stderr.write((error.stack||error.message)+'\n');process.exitCode=1;
+}finally{
+  fs.rmSync(tmp,{recursive:true,force:true});
+}

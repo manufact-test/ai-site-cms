@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/RuntimeConfig.php';
+if (!class_exists(\Manufact\Stage3\RuntimeConfig::class, false)) {
+    require_once __DIR__ . '/RuntimeConfig.php';
+}
 \Manufact\Stage3\RuntimeConfig::load(__DIR__);
 
 require_once __DIR__ . '/VideoGuard.php';

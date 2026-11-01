@@ -442,6 +442,69 @@ final class Api
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/|$)~', $path, $scope)) $siteScope = $scope[1];
             $this->auditContext = [$principal['username'], $method . ' ' . $path, $siteScope];
             $this->authorize($principal, $path, $method);
+            if (str_starts_with($path, '/api/engine')) {
+                if ($principal['role'] !== 'owner') $this->response(403, ['error' => 'Owner only']);
+                $publicRoot = (string)getenv('STAGE3_PUBLIC_ROOT');
+                $stableServerRoot = realpath(dirname($publicRoot));
+                if (!is_string($stableServerRoot) || !is_dir($stableServerRoot)) {
+                    $this->response(503, ['error' => 'CMS engine control plane is unavailable']);
+                }
+                require_once $stableServerRoot . '/EngineReleaseVerifier.php';
+                require_once $stableServerRoot . '/DatabaseSnapshot.php';
+                require_once $stableServerRoot . '/EngineLifecycle.php';
+                try {
+                    if ($method === 'GET' && $path === '/api/engine') {
+                        $this->response(200, EngineLifecycle::status((string)getenv('STAGE3_PRIVATE_DIR'), $stableServerRoot));
+                    }
+                    if ($method !== 'POST') $this->response(404, ['error' => 'Unknown CMS engine endpoint']);
+                    $this->csrf();
+                    $body = $this->request(16000);
+                    if ($path === '/api/engine/review') {
+                        $packageId = $body['packageId'] ?? null;
+                        if (!is_string($packageId)) throw new InvalidArgumentException('Select a signed package from the private incoming area');
+                        $result = EngineLifecycle::review((string)getenv('STAGE3_PRIVATE_DIR'), $stableServerRoot,
+                            $packageId, EngineLifecycle::databaseFromEnvironment());
+                        $this->auditDetail = 'CMS engine release reviewed: ' . $result['releaseVersion'];
+                        $this->response(200, $result);
+                    }
+                    if ($path === '/api/engine/apply') {
+                        $releaseId = $body['releaseId'] ?? null;
+                        $token = $body['planToken'] ?? null;
+                        if (!is_string($releaseId) || !is_string($token)) throw new InvalidArgumentException('Engine release approval is incomplete');
+                        $result = EngineLifecycle::apply((string)getenv('STAGE3_PRIVATE_DIR'), $stableServerRoot,
+                            $releaseId, $token, EngineLifecycle::databaseFromEnvironment());
+                        $this->auditDetail = 'CMS engine updated to ' . $result['currentVersion'];
+                        $this->response(200, $result);
+                    }
+                    if ($path === '/api/engine/rollback-plan') {
+                        $result = EngineLifecycle::rollbackPlan((string)getenv('STAGE3_PRIVATE_DIR'), $stableServerRoot,
+                            EngineLifecycle::databaseFromEnvironment());
+                        $this->auditDetail = 'CMS engine rollback reviewed: ' . $result['targetVersion'];
+                        $this->response(200, $result);
+                    }
+                    if ($path === '/api/engine/rollback') {
+                        $planId = $body['planId'] ?? null;
+                        $token = $body['planToken'] ?? null;
+                        if (!is_string($planId) || !is_string($token)) throw new InvalidArgumentException('Engine rollback approval is incomplete');
+                        $result = EngineLifecycle::rollback((string)getenv('STAGE3_PRIVATE_DIR'), $stableServerRoot,
+                            $planId, $token, EngineLifecycle::databaseFromEnvironment());
+                        $this->auditDetail = 'CMS engine rolled back to ' . $result['currentVersion'];
+                        $this->response(200, $result);
+                    }
+                    if ($path === '/api/engine/recover') {
+                        $direction = $body['direction'] ?? null;
+                        if (!is_string($direction)) throw new InvalidArgumentException('Choose explicit recovery direction');
+                        $result = EngineLifecycle::recover((string)getenv('STAGE3_PRIVATE_DIR'), $stableServerRoot, $direction);
+                        $this->auditDetail = 'CMS engine recovery explicitly ' . $direction;
+                        $this->response(200, $result);
+                    }
+                    $this->response(404, ['error' => 'Unknown CMS engine endpoint']);
+                } catch (Throwable $error) {
+                    error_log('Stage3 CMS engine operation refused: ' . get_class($error));
+                    $this->auditDetail = 'CMS engine operation refused';
+                    $this->response(422, ['error' => 'CMS engine operation was refused. Check package trust, compatibility, active requests and recovery status.']);
+                }
+            }
             if ($method === 'GET' && preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})/media/([a-z][a-z0-9-]{2,79})$~D', $path, $mediaMatch)) {
                 $draft = $this->sites->getDraft($mediaMatch[1]);
                 $ids = [];
