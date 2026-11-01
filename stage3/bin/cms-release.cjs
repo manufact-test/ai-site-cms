@@ -272,5 +272,7 @@ try{
     const x=verify(args[0]);report({action:'verify',profile:x.manifest.profile,fingerprint:x.manifest.fingerprint,
       files:x.manifest.files.length,bytes:x.manifest.bytes,valid:true});
   }else if(cmd==='compare'&&args.length===2)compare(args[0],args[1]);
-  else die('usage: pack|pack-php-host ABS_SOURCE_REPO ABS_NEW_OUTPUT | verify ABS_RELEASE | compare ABS_OLD_RELEASE ABS_NEW_RELEASE');
+  else if(cmd==='pack-signed-php-host'&&args.length===5)signedPhpHost(args[0],args[1],args[2],args[3],args[4]);
+  else if(cmd==='verify-signed-php-host'&&args.length===2)verifySignedPhpHost(args[0],args[1]);
+  else die('usage: pack|pack-php-host ABS_SOURCE_REPO ABS_NEW_OUTPUT | verify ABS_RELEASE | compare ABS_OLD_RELEASE ABS_NEW_RELEASE | pack-signed-php-host ABS_SOURCE ABS_OUTPUT VERSION ABS_PRIVATE_KEY ABS_PUBLIC_KEY | verify-signed-php-host ABS_RELEASE ABS_PUBLIC_KEY');
 }catch(error){console.error(error.message);process.exitCode=1;}
