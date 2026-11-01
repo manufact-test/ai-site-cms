@@ -34,7 +34,7 @@
 
 ## Приоритет 4 — данные, защита, восстановление и лёгкость
 - Изоляция сайтов, auth, multiuser/audit, сохранение ручных изменений при обновлении, публикационная история, backup/restore, защита форм и загрузок, надёжные обновления CMS.
-- **#184–185 CMS engine update/rollback:** implemented on feature/stage3-ai-site-contract with signed PHP-host packages, owner-only review/apply/rollback/recovery, private immutable slots and verified 25-table snapshots; full CI #41313513423 passes. Still requires manual owner UX acceptance and real shared-host verification; no production rollout or main merge.
+- **#184–185 CMS engine update/rollback:** implemented on feature/stage3-ai-site-contract with signed PHP-host packages, owner-only review/apply/rollback/recovery, private immutable slots and verified 25-table snapshots; full CI #41315175195 passes. Still requires manual owner UX acceptance and real shared-host verification; no production rollout or main merge.
 - Без отдельной CRM/платежей/маркетплейса/встроенного AI. MANUFACT лицензии — только минимальная согласованная ручная политика после подтверждения актуальности.
 **Done:** реальный сквозной сценарий не теряет данные и переживает недоступность панели.
 
