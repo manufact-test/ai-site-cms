@@ -249,14 +249,14 @@ function verifySignedPhpHost(directoryArg,publicKeyArg){
   const details=publicKey.asymmetricKeyDetails||{};
   if(publicKey.asymmetricKeyType!=='rsa'||(details.modulusLength||0)<3072)die('trusted publisher key must be RSA-3072 or stronger');
   const manifest=JSON.parse(raw.toString('utf8'));
-  if(canonical(manifest)!==raw.toString('utf8')||manifest.format!=='manufact-cms-engine-release-v2'
+  if(canonicalJson(manifest)!==raw.toString('utf8')||manifest.format!=='manufact-cms-engine-release-v2'
     ||manifest.profile!=='php-host'||manifest.publisherKeySha256!==sha(publicPem)
     ||manifest.signatureAlgorithm!=='rsa-3072-sha256')die('invalid signed PHP-host release manifest');
   const payload=Buffer.concat([Buffer.from('MANUFACT-CMS-ENGINE-RELEASE-V2\0','utf8'),raw]);
   if(!crypto.verify('sha256',payload,publicKey,signature))die('invalid publisher signature');
   const actual=collect(root,true,'php-host');
-  if(canonicalJson(actual.files)!==canonical(manifest.files)||actual.bytes!==manifest.bytes
-    ||sha(Buffer.from(canonical(actual.files)))!==manifest.fingerprint)die('signed release inventory mismatch');
+  if(canonicalJson(actual.files)!==canonicalJson(manifest.files)||actual.bytes!==manifest.bytes
+    ||sha(Buffer.from(canonicalJson(actual.files)))!==manifest.fingerprint)die('signed release inventory mismatch');
   const extra=fs.readdirSync(root).filter(n=>!['stage3','cms-release.json','cms-release.sig'].includes(n));
   if(extra.length)die('untracked signed release root entry');
   report({action:'verify-signed-php-host',releaseVersion:manifest.releaseVersion,
