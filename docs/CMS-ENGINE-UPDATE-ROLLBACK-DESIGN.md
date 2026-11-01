@@ -74,6 +74,7 @@ Requirements #184 and #185 are implemented on this feature branch as a code-only
 - Active state, staging, plans, request locks, activation receipts, recovery journal, publisher trust and snapshots live under the private STAGE3_PRIVATE_DIR.
 - Normal PHP requests hold a shared lease through shutdown. Owner control-plane requests use the stable loader without holding that shared lease, then acquire the exclusive lock non-blockingly for an update/rollback/recovery operation. This avoids self-deadlock and prevents switching while a normal request is active.
 - Interrupted activation or active-slot integrity failure keeps the stable Studio recovery shell reachable: /studio, its exact first-party assets, /api/session, owner login/logout and read-only GET /api/sites are served from the pinned stable root. Site writes and publication remain fail-closed until recovery.
+- If credentials are accepted but loading the selected site's draft returns a recovery-related error, Studio preserves the authenticated owner session, keeps the login gate closed and opens the CMS engine maintenance dialog. A site-load failure must not be misreported as invalid credentials.
 - Recovery requires an explicit owner choice: finalize or abort an interrupted activation, or roll back a damaged active slot.
 - The existing Studio exposes a focused owner-only maintenance dialog: inspect current version, review signed package, confirm apply, prepare/confirm rollback and recover an interrupted switch. The package is placed in the private engine/incoming/ directory via SFTP/private file manager; it is never uploaded into public_html.
 
@@ -197,6 +198,7 @@ The contract job covered:
 - immutable slot activation, shared request lease and exclusive switch refusal while a PHP request is active;
 - monotonic version transitions and explicit recovery after a simulated interruption between pointer write and receipt completion;
 - stable Studio shell, authentication and read-only site listing remain available during both interrupted activation and active-slot file corruption, while site mutations return 503; rollback repairs the active generation;
+- Chromium owner journey covers successful authentication followed by a 503 on the selected site's draft: login remains accepted and the owner is routed to engine maintenance rather than being logged out;
 - 25-table SQLite snapshot/restore and MySQL snapshot/restore, with binary media and published content preserved;
 - snapshot retention and preservation of corrupt evidence;
 - D3 local release cutover/rollback and collector sidecar packaging;
