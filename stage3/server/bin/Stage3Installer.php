@@ -329,6 +329,7 @@ final class Stage3Installer
                 'instanceMode' => 'single-site',
                 'driver' => $driver,
                 'databaseFingerprint' => $databaseFingerprint,
+                'databasePasswordHash' => hash('sha256', self::value($env, 'STAGE3_DB_PASSWORD')),
                 'serverRoot' => $serverRoot,
                 'ownerUsername' => $ownerUser,
                 'ownerPasswordHash' => hash('sha256', $ownerPassword),

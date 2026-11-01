@@ -105,6 +105,9 @@ try{
   assert.equal(firstPlan.applyAllowed,true);
   assert.match(firstPlan.token,/^[a-f0-9]{64}$/);
   assert.equal(firstPlan.instanceMode,'single-site');
+  const changedDatabaseCredentialPlan=plan({...env1,STAGE3_DB_PASSWORD:'different-database-password'},0,codeRoot1);
+  assert.notEqual(changedDatabaseCredentialPlan.token,firstPlan.token,
+    'approval token must bind the exact persisted database password');
   const planText=JSON.stringify(firstPlan);
   assert.equal(planText.includes(env1.STAGE3_OWNER_PASSWORD),false);
   assert.equal(planText.includes(env1.STAGE3_FORM_SECRET),false);
