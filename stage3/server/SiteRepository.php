@@ -49,8 +49,11 @@ final class SiteRepository
      * Deliberately CLI-only and empty-database-only, NOT an auto-install endpoint.
      * Never point at a real host/DB without a separate owner authorization.
      */
-    public function initializeEmptyDatabase(): void
+    public function initializeEmptyDatabase(string $instanceMode='multi-site'): string
     {
+        if (!in_array($instanceMode, ['single-site', 'multi-site'], true)) {
+            throw new RuntimeException('Invalid CMS instance mode');
+        }
         if ($this->driver === 'sqlite') {
             $existing = $this->db->query("SELECT name FROM sqlite_master WHERE type IN ('table','view','trigger') AND name NOT LIKE 'sqlite_%'")->fetchAll(PDO::FETCH_COLUMN);
         } else {
@@ -72,11 +75,16 @@ final class SiteRepository
             "CREATE TABLE stage3_media (site_id $id NOT NULL, asset_id $id NOT NULL, mime VARCHAR(32) NOT NULL, sha256 VARCHAR(64) NOT NULL, bytes " . ($this->driver === 'mysql' ? 'LONGBLOB' : 'BLOB') . ", created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id, asset_id))$tail",
             "CREATE TABLE stage3_submissions (submission_id $id PRIMARY KEY, site_id $id NOT NULL, section_id $id NOT NULL, source_version $number NOT NULL, name VARCHAR(160) NOT NULL, email VARCHAR(254) NOT NULL, message $big NOT NULL, submitted_at VARCHAR(35) NOT NULL, visitor_hash CHAR(64) NOT NULL, status VARCHAR(20) NOT NULL, extras $big NOT NULL)$tail",
             "CREATE TABLE stage3_notifications (site_id $id NOT NULL, submission_id $id NOT NULL, created_at VARCHAR(35) NOT NULL, seen_at VARCHAR(35) NULL, PRIMARY KEY(site_id, submission_id))$tail",
-            "CREATE TABLE stage3_section_templates (site_id $id NOT NULL, template_id $id NOT NULL, title VARCHAR(160) NOT NULL, component VARCHAR(80) NOT NULL, body $big NOT NULL, created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id,template_id))$tail"
+            "CREATE TABLE stage3_section_templates (site_id $id NOT NULL, template_id $id NOT NULL, title VARCHAR(160) NOT NULL, component VARCHAR(80) NOT NULL, body $big NOT NULL, created_at VARCHAR(35) NOT NULL, PRIMARY KEY(site_id,template_id))$tail",
+            "CREATE TABLE stage3_instance (singleton_id SMALLINT PRIMARY KEY, instance_id VARCHAR(64) NOT NULL UNIQUE, mode VARCHAR(16) NOT NULL, site_id $id NULL, installed_at VARCHAR(35) NOT NULL)$tail"
         ];
         foreach (array_merge($schema, $this->accessSchema(), [$this->licenseSchema()], $this->deliverySchema(), $this->videoUploadSchema(), $this->leadWorkflowSchema(), $this->operationsSchema(), $this->approvalSchema(), $this->visualReviewSchema()) as $sql) {
             $this->db->exec($sql);
         }
+        $instanceId = bin2hex(random_bytes(16));
+        $stmt = $this->db->prepare('INSERT INTO stage3_instance (singleton_id, instance_id, mode, site_id, installed_at) VALUES (1, ?, ?, NULL, ?)');
+        $stmt->execute([$instanceId, $instanceMode, $this->now()]);
+        return $instanceId;
     }
 
     public function createOwner(string $username, string $password): void
@@ -158,6 +166,43 @@ final class SiteRepository
         }
     }
 
+    /**
+     * Returns the optional per-installation binding. Legacy databases without this
+     * table retain their historical multi-site behavior until explicitly upgraded.
+     */
+    private function instanceBinding(): ?array
+    {
+        if ($this->driver === 'sqlite') {
+            $exists = $this->db->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='stage3_instance'")->fetchColumn();
+        } else {
+            $exists = in_array('stage3_instance', $this->db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN), true);
+        }
+        if ($exists === false) {
+            return null;
+        }
+        $row = $this->db->query('SELECT instance_id, mode, site_id FROM stage3_instance WHERE singleton_id = 1')->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row) || !in_array($row['mode'] ?? null, ['single-site', 'multi-site'], true)
+            || !is_string($row['instance_id'] ?? null) || strlen($row['instance_id']) !== 32) {
+            throw new RuntimeException('CMS installation identity is missing or invalid');
+        }
+        return $row;
+    }
+
+    private function bindInstanceSite(string $siteId, ?array $instance): void
+    {
+        if ($instance === null || $instance['mode'] !== 'single-site' || $instance['site_id'] !== null) {
+            return;
+        }
+        $stmt = $this->db->prepare('UPDATE stage3_instance SET site_id = ? WHERE singleton_id = 1 AND site_id IS NULL');
+        $stmt->execute([$siteId]);
+        if ($stmt->rowCount() !== 1) {
+            $current = $this->instanceBinding();
+            if ($current === null || $current['site_id'] !== $siteId) {
+                throw new Conflict('This CMS installation was bound to another site; install a separate CMS instance and database for each website');
+            }
+        }
+    }
+
     public function createSite(array $candidate): array
     {
         $site = $this->validator->validate($candidate);
@@ -168,6 +213,11 @@ final class SiteRepository
         $body = self::encode($site);
         $now = $this->now();
         return $this->atomic(function () use ($id, $body, $now, $site): array {
+            $instance = $this->instanceBinding();
+            if ($instance !== null && $instance['mode'] === 'single-site'
+                && $instance['site_id'] !== null && $instance['site_id'] !== $id) {
+                throw new Conflict('This CMS installation is already bound to another site; install a separate CMS instance and database for each website');
+            }
             $stmt = $this->db->prepare('SELECT site_id FROM stage3_drafts WHERE site_id = ?');
             $stmt->execute([$id]);
             if ($stmt->fetchColumn() !== false) {
@@ -176,6 +226,7 @@ final class SiteRepository
             $stmt = $this->db->prepare('INSERT INTO stage3_drafts (site_id, revision, body, updated_at) VALUES (?, 1, ?, ?)');
             $stmt->execute([$id, $body, $now]);
             $this->saveRevision($id, 1, $body, $now);
+            $this->bindInstanceSite($id, $instance);
             return ['site' => $site, 'revision' => 1];
         });
     }

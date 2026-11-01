@@ -4,6 +4,11 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli') {
     exit(1);
 }
+
+if (getenv('CI') !== 'true') {
+    fwrite(STDERR, "Direct schema setup is CI-only; use install.php --plan and then install.php --apply=<plan-token> for a real installation.\n");
+    exit(1);
+}
 require dirname(__DIR__) . '/bootstrap.php';
 $user = getenv('STAGE3_OWNER_USER');
 $password = getenv('STAGE3_OWNER_PASSWORD');
@@ -13,7 +18,7 @@ if (!is_string($user) || !is_string($password)) {
 }
 try {
     $repository = stage3_repository();
-    $repository->initializeEmptyDatabase();
+    $repository->initializeEmptyDatabase('multi-site');
     $repository->createOwner($user, $password);
     echo "Isolated Stage3 schema and owner created. No credentials printed.\n";
 } catch (Throwable $e) {

@@ -13,7 +13,7 @@ const db=path.join(tmp,'cms.sqlite');
 const siteFile=path.join(tmp,'site.json');
 const secret='CI-only-form-hmac-secret-with-minimum-32-characters';
 const env={
-  ...process.env,STAGE3_DSN:'sqlite:'+db,STAGE3_OWNER_USER:'testowner',
+  ...process.env,CI:'true',STAGE3_DSN:'sqlite:'+db,STAGE3_OWNER_USER:'testowner',
   STAGE3_OWNER_PASSWORD:'CI-only-owner-password-123456',
   STAGE3_FORM_SECRET:secret,STAGE3_FORM_ORIGINS:'',
   STAGE3_MAIL_FROM:'',STAGE3_TELEGRAM_BOT_TOKEN:''

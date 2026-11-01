@@ -45,7 +45,7 @@ const dbdir=fs.mkdtempSync(path.join(os.tmpdir(),'ai-site-stage3-'));
 const file=path.join(dbdir,'isolated.sqlite');
 const fixture=JSON.parse(fs.readFileSync(path.join(root,'stage3/fixtures/industrial-site.json'),'utf8'));
 const password='test-only-lab-password-not-a-real-secret';
-const env={...process.env,STAGE3_DSN:'sqlite:'+file,STAGE3_OWNER_USER:'testowner',
+const env={...process.env,CI:'true',STAGE3_DSN:'sqlite:'+file,STAGE3_OWNER_USER:'testowner',
   STAGE3_OWNER_PASSWORD:password,STAGE3_FORM_SECRET:'CI-only-form-hmac-secret-with-at-least-32-chars',
   STAGE3_MAIL_FROM:'',STAGE3_TELEGRAM_BOT_TOKEN:''};
 let server, origin, cookie='', csrf='';

@@ -82,6 +82,7 @@ jobs:
           node --check stage3/runtime-export/bin/package-collector.cjs
           node --check stage3/runtime-export/bin/verify-collector.cjs
           node --check stage3/runtime-export/tests/collector-package.cjs
+          node --check stage3/tests/install-probe.cjs
           node --check stage3/runtime-export/lib/delivery-preflight.cjs
           node --check stage3/runtime-export/bin/audit-delivery.cjs
           node --check stage3/runtime-export/bin/ship.cjs
@@ -91,6 +92,7 @@ jobs:
         run: |
           for file in stage3/server/*.php stage3/server/public/*.php stage3/server/bin/*.php stage3/server/collector-public/*.php; do php -l "$file"; done
           node stage3/runtime-export/tests/collector-package.cjs
+          node stage3/tests/install-probe.cjs
           php stage3/tests/smtp-config-smoke.php
           php stage3/tests/graph-interactions-smoke.php
           php stage3/tests/archive-bundle-smoke.php
