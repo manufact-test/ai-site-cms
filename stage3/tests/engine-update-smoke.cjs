@@ -260,6 +260,23 @@ try{
   assert.equal(restored.publishedVersion,7);assert.equal(restored.publishedBody,'{"title":"must remain published"}');
   assert.equal(restored.bytesHex,persisted.bytesHex);assert.equal(restored.tableCount,25);
 
+  // Retention keeps the current recovery point and newest verified snapshots;
+  // corrupt/ambiguous snapshots remain available for forensic review.
+  const snapshotsRoot=path.join(privateDir,'engine/snapshots');
+  const corruptSnapshot=path.join(snapshotsRoot,'snapshot-20261101131900-aaaaaaaaaaaaaaaa');
+  fs.mkdirSync(corruptSnapshot,{mode:0o700});fs.writeFileSync(path.join(corruptSnapshot,'manifest.json'),'not-canonical',{mode:0o600});
+  const pruneCode=[
+    "require $argv[1].'/DatabaseSnapshot.php';",
+    "$result=\\Manufact\\Stage3\\DatabaseSnapshot::prune($argv[2],[$argv[3]],2);",
+    "echo json_encode($result,JSON_THROW_ON_ERROR);"
+  ].join('\n');
+  const pruned=parseJson(php(pruneCode,[serverRoot,privateDir,rolledBack.snapshotId]));
+  assert.ok(pruned.removed>=1,'old verified snapshots are pruned after a committed transition');
+  assert.ok(pruned.remaining<=3,'retention remains bounded with one pinned recovery point');
+  assert.ok(fs.existsSync(corruptSnapshot),'corrupt snapshots are retained for forensic review');
+  fs.rmSync(corruptSnapshot,{recursive:true,force:true});
+  engine(engineScript,'verify-snapshot',[rolledBack.snapshotId],env);
+
   let mysqlSnapshotResult={skipped:true};
   const mysqlHost=process.env.STAGE3_INSTALL_MYSQL_HOST;
   if(mysqlHost){
