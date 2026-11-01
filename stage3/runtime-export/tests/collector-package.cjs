@@ -53,6 +53,9 @@ async function main(){
   const entries=readArchive(fs.readFileSync(packageFile));
   assert.equal(entries.has('collector/server/public/index.php'),false);
   assert.equal(entries.has('collector/server/Api.php'),false,'collector sidecar must exclude the CMS admin API');
+  for(const name of ['DatabaseSnapshot.php','EngineLifecycle.php','EngineReleaseVerifier.php','EngineRuntime.php']){
+    assert.equal(entries.has('collector/server/'+name),false,'collector sidecar must exclude CMS engine updater code: '+name);
+  }
   assert.equal(entries.has('collector/server/collector-public/index.php'),true);
   assert.equal(entries.has('collector/server/collector-public/.htaccess'),true);
   assert.equal([...entries.keys()].filter(x=>x.startsWith('collector/server/collector-public/')).length,2);
