@@ -43,10 +43,14 @@ const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),net=
 const root=path.resolve(__dirname,'../..');
 const dbdir=fs.mkdtempSync(path.join(os.tmpdir(),'ai-site-stage3-'));
 const file=path.join(dbdir,'isolated.sqlite');
+const privateDir=path.join(dbdir,'private');
+fs.mkdirSync(privateDir,{mode:0o700});fs.chmodSync(privateDir,0o700);
+const publicRoot=fs.realpathSync(path.join(root,'stage3/server/public'));
 const fixture=JSON.parse(fs.readFileSync(path.join(root,'stage3/fixtures/industrial-site.json'),'utf8'));
 const password='test-only-lab-password-not-a-real-secret';
 const env={...process.env,CI:'true',STAGE3_DSN:'sqlite:'+file,STAGE3_OWNER_USER:'testowner',
   STAGE3_OWNER_PASSWORD:password,STAGE3_FORM_SECRET:'CI-only-form-hmac-secret-with-at-least-32-chars',
+  STAGE3_PRIVATE_DIR:privateDir,STAGE3_PUBLIC_ROOT:publicRoot,
   STAGE3_MAIL_FROM:'',STAGE3_TELEGRAM_BOT_TOKEN:''};
 let server, origin, cookie='', csrf='';
 async function port(){
@@ -197,6 +201,9 @@ async function stop(){
     {cwd:root,encoding:'utf8'}).status,0,'hidden excluded directory must be rejected');
 
   await runServer();
+  assert.ok(fs.existsSync(path.join(privateDir,'engine/state.json')),
+    'stable engine loader initializes its private active-generation state on first HTTP request');
+  assert.equal(fs.statSync(privateDir).mode&0o777,0o700,'engine state remains under a private 0700 directory');
   const studioAsset=await fetch(origin+'/bundle.js',{headers:{'accept-encoding':'gzip'}});
   assert.equal(studioAsset.status,200);
   const studioEtag=studioAsset.headers.get('etag');
