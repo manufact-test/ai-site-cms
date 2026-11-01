@@ -14,7 +14,7 @@
   - [Studio screenshots · 13062350507](https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497/artifacts/13062350507).
 - The earlier failing run [#41239753483](https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483) was on `ab04bc0ac87645cc7882a726a2b18c2d5a7c1312`. Its failure is historical and resolved; do not report it as the current CI state.
 - Current `main` remains `12e9c3feb707e5ad46b2caeeed379eb40618466b`. No merge, deployment or production operation was performed.
-- The documentation update is being committed separately on top of this functional checkpoint. Before any code change, fetch the branch and identify the current tip; the functional baseline remains `3a5fe6072600b7d74152673ae3316b5cc1e1483b`.
+- The documentation-only v9.9 handoff is committed on top of this functional checkpoint. Before any code change, fetch the branch and identify the current tip; the functional baseline remains `3a5fe6072600b7d74152673ae3316b5cc1e1483b`.
 
 ## 2. What happened after handoff v9.8
 
