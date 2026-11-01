@@ -1214,6 +1214,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(prior.pages.flatMap(p=>p.sections).find(s=>s.id===selectedSection).designGraph.nodes.length,
       richGraph.nodes.length,'Undo restores the exact prior root count before the next rearrangement');
     await page.locator('#redo').click();
+    await canvas.locator('.cmsdg h2').nth(1).waitFor();
     assert.equal(await canvas.locator('.cmsdg h2').count(),2,'Redo restores nested composition');
     // Site-wide SEO/a11y report must deep-link into the exact graph node,
     // track an actual repair, then re-run the report on the new Undo-able draft.
