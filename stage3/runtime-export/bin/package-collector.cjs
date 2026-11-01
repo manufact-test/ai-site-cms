@@ -109,7 +109,7 @@ function main(){
     ||!serverFiles.includes('SiteRepository.php')||!serverFiles.includes('ContractValidator.php'))
     fail('collector runtime source set is incomplete');
   if(JSON.stringify(serverFiles)!==JSON.stringify(EXPECTED_SERVER_PHP))
-    fail('collector PHP source allowlist changed; review package boundary before updating it');
+    fail('collector PHP source allowlist changed; actual='+JSON.stringify(serverFiles)+' expected='+JSON.stringify(EXPECTED_SERVER_PHP));
   const sourceBootstrap=readRegular(path.join(server,'bootstrap.php')).toString('utf8');
   const apiRequire="require_once __DIR__ . '/Api.php';\n";
   if(!sourceBootstrap.includes(apiRequire))fail('admin API boundary cannot be isolated safely');
