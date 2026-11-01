@@ -3,8 +3,8 @@
 **Date:** 2026-11-01  
 **Status:** implemented on feature/stage3-ai-site-contract; full two-job Stage3 CI passed on 2026-11-01. Still not production-approved, not merged to main, and not owner acceptance.  
 **Branch:** `feature/stage3-ai-site-contract`  
-**Implemented HEAD:** `9a16b26052fd50dd631848d07708e5d77f104ebd`.  
-**Full CI:** [#41313513423](https://github.com/manufact-test/ai-site-cms/actions/runs/41313513423), both contract and technology-runtime jobs SUCCESS.
+**Tested implementation HEAD:** `cec66fab97bc53024bdd7cfd21498e63440f1d9c`.  
+**Full CI:** [#41315175195](https://github.com/manufact-test/ai-site-cms/actions/runs/41315175195), both contract and technology-runtime jobs SUCCESS.
 
 ## 1. Product boundary
 
@@ -73,7 +73,8 @@ Requirements #184 and #185 are implemented on this feature branch as a code-only
 - The stable RuntimeConfig, EngineRuntime, EngineLifecycle, EngineReleaseVerifier and DatabaseSnapshot files remain pinned beside the stable front controller. Ordinary engine packages cannot replace the updater/control plane that is executing them.
 - Active state, staging, plans, request locks, activation receipts, recovery journal, publisher trust and snapshots live under the private STAGE3_PRIVATE_DIR.
 - Normal PHP requests hold a shared lease through shutdown. Owner control-plane requests use the stable loader without holding that shared lease, then acquire the exclusive lock non-blockingly for an update/rollback/recovery operation. This avoids self-deadlock and prevents switching while a normal request is active.
-- Interrupted activation keeps the stable owner control plane reachable. Recovery requires an explicit owner choice: finalize or abort.
+- Interrupted activation or active-slot integrity failure keeps the stable Studio recovery shell reachable: /studio, its exact first-party assets, /api/session, owner login/logout and read-only GET /api/sites are served from the pinned stable root. Site writes and publication remain fail-closed until recovery.
+- Recovery requires an explicit owner choice: finalize or abort an interrupted activation, or roll back a damaged active slot.
 - The existing Studio exposes a focused owner-only maintenance dialog: inspect current version, review signed package, confirm apply, prepare/confirm rollback and recover an interrupted switch. The package is placed in the private engine/incoming/ directory via SFTP/private file manager; it is never uploaded into public_html.
 
 ### Database safety
@@ -185,7 +186,7 @@ The four vertical packages above are implemented on the branch:
 
 Automated evidence demonstrates review → apply → second update → blocked concurrent switch → rollback → interrupted activation → explicit recovery, while the published visitor-site record and binary media remain unchanged. Manual owner usability/acceptance and production-host verification remain open.
 
-## 6. Validation completed — full CI #41313513423
+## 6. Validation completed — full CI #41315175195
 
 The full two-job run [#41313513423](https://github.com/manufact-test/ai-site-cms/actions/runs/41313513423) passed on HEAD 9a16b26052fd50dd631848d07708e5d77f104ebd.
 
@@ -195,6 +196,7 @@ The contract job covered:
 - owner authentication, owner-only API, CSRF rejection and actual HTTP review/apply/rollback/recovery;
 - immutable slot activation, shared request lease and exclusive switch refusal while a PHP request is active;
 - monotonic version transitions and explicit recovery after a simulated interruption between pointer write and receipt completion;
+- stable Studio shell, authentication and read-only site listing remain available during both interrupted activation and active-slot file corruption, while site mutations return 503; rollback repairs the active generation;
 - 25-table SQLite snapshot/restore and MySQL snapshot/restore, with binary media and published content preserved;
 - snapshot retention and preservation of corrupt evidence;
 - D3 local release cutover/rollback and collector sidecar packaging;
