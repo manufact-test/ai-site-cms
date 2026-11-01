@@ -139,6 +139,12 @@ async function execute(){
   assert.equal(ownerDiagnostics.body.database.tableCount,25);
   assert.equal(ownerDiagnostics.body.database.instanceBound,false,'CI setup fixture has no hosted installation receipt');
   assert.equal(ownerDiagnostics.body.filesystem.documentRootMatches,true);
+  assert.equal(ownerDiagnostics.body.filesystem.frontControllerMatches,true);
+  assert.equal(ownerDiagnostics.body.checks.frontController,true);
+  assert.equal(ownerDiagnostics.body.checks.openBasedir,true);
+  assert.equal(ownerDiagnostics.body.security.openBasedir.configured,false);
+  assert.equal(ownerDiagnostics.body.checks.uploadConfiguration,true);
+  assert.equal(ownerDiagnostics.body.limits.fileUploadsEnabled,true);
   assert.equal(ownerDiagnostics.body.filesystem.accountWebRootIsolationValid,true);
   assert.equal(ownerDiagnostics.body.filesystem.privateDirectoryPermissions,'0700');
   assert.equal(ownerDiagnostics.body.security.https,false);

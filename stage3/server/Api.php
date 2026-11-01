@@ -170,6 +170,9 @@ final class Api
         $privateRuntimeOk = ($planChecks['privateRuntimeConfig']['ok'] ?? false) === true;
         $documentRoot = realpath((string)($_SERVER['DOCUMENT_ROOT'] ?? ''));
         $documentRootMatches = is_string($publicRoot) && $documentRoot === $publicRoot;
+        $scriptFilename = realpath((string)($_SERVER['SCRIPT_FILENAME'] ?? ''));
+        $frontControllerMatches = is_string($publicRoot) && is_string($scriptFilename)
+            && $scriptFilename === $publicRoot . DIRECTORY_SEPARATOR . 'index.php';
         $publicEntries = is_string($publicRoot) && is_dir($publicRoot) ? scandir($publicRoot) : false;
         if (is_array($publicEntries)) {
             $publicEntries = array_values(array_diff($publicEntries, ['.','..']));
@@ -242,13 +245,39 @@ final class Api
         $sessionOk = !in_array(false, array_values($sessionFlags), true);
         $uploadTmp = (string)(ini_get('upload_tmp_dir') ?: sys_get_temp_dir());
         $uploadTmpOk = is_dir($uploadTmp) && is_writable($uploadTmp);
+        $openBasedir = (string)ini_get('open_basedir');
+        $openBasedirConfigured = trim($openBasedir) !== '';
+        $openBasedirRuntimeOk = self::hostingOpenBasedirAllows($serverRoot, $openBasedir);
+        $openBasedirPublicOk = is_string($publicRoot)
+            && self::hostingOpenBasedirAllows($publicRoot, $openBasedir);
+        $openBasedirPrivateOk = is_string($privateDir)
+            && self::hostingOpenBasedirAllows($privateDir, $openBasedir);
+        $openBasedirUploadTmpOk = self::hostingOpenBasedirAllows($uploadTmp, $openBasedir);
+        $openBasedirOk = $openBasedirRuntimeOk && $openBasedirPublicOk
+            && $openBasedirPrivateOk && $openBasedirUploadTmpOk;
+
+        $fileUploadsEnabled = filter_var((string)ini_get('file_uploads'), FILTER_VALIDATE_BOOLEAN);
+        $maxFileUploads = (int)ini_get('max_file_uploads');
+        $uploadMaxRaw = trim((string)ini_get('upload_max_filesize'));
+        $postMaxRaw = trim((string)ini_get('post_max_size'));
+        $uploadMaxBytes = self::hostingIniBytes($uploadMaxRaw);
+        $postMaxBytes = self::hostingIniBytes($postMaxRaw);
+        $uploadLimitValid = $uploadMaxRaw === '-1' || ($uploadMaxBytes !== null && $uploadMaxBytes > 0);
+        $postLimitValid = $postMaxRaw === '-1' || ($postMaxBytes !== null && $postMaxBytes > 0);
+        $postFitsUpload = $postMaxRaw === '-1'
+            || ($uploadMaxRaw !== '-1' && $uploadMaxBytes !== null
+                && $postMaxBytes !== null && $postMaxBytes >= $uploadMaxBytes);
+        $uploadConfigurationOk = $fileUploadsEnabled && $maxFileUploads > 0
+            && $uploadTmpOk && $uploadLimitValid && $postLimitValid && $postFitsUpload;
+
         $checks = [
             'phpVersion' => $phpOk, 'phpExtensions' => $extensionsOk, 'mysql8' => $mysqlOk,
             'schemaIntegrity' => $schemaOk, 'privateDirectory' => $privateDirectoryOk,
             'privateRuntimeConfig' => $privateRuntimeOk, 'documentRoot' => $documentRootMatches,
             'publicRootPolicy' => $publicRootPolicyOk && $htaccessOk, 'accountWebRootIsolation' => $topologyOk,
-            'https' => $https, 'sessionSecurity' => $sessionOk, 'uploadTemporaryDirectory' => $uploadTmpOk,
-            'frontController' => true
+            'openBasedir' => $openBasedirOk, 'frontController' => $frontControllerMatches,
+            'https' => $https, 'sessionSecurity' => $sessionOk,
+            'uploadTemporaryDirectory' => $uploadTmpOk, 'uploadConfiguration' => $uploadConfigurationOk
         ];
         $ready = !in_array(false, array_values($checks), true);
         return [
@@ -266,15 +295,29 @@ final class Api
             ],
             'filesystem' => [
                 'documentRootMatches' => $documentRootMatches,
+                'frontControllerMatches' => $frontControllerMatches,
                 'privateDirectoryPermissions' => $privatePermissions === null ? null : sprintf('%04o', $privatePermissions),
                 'privateDirectoryValid' => $privateDirectoryOk, 'privateRuntimeConfigValid' => $privateRuntimeOk,
                 'publicRootPolicyValid' => $publicRootPolicyOk && $htaccessOk,
                 'accountWebRootIsolationValid' => $topologyOk, 'accountWebRootCount' => $webRootCount
             ],
-            'security' => ['https' => $https, 'session' => $sessionFlags, 'frontController' => true],
+            'security' => [
+                'https' => $https,
+                'session' => $sessionFlags,
+                'openBasedir' => [
+                    'configured' => $openBasedirConfigured,
+                    'runtimeAllowed' => $openBasedirRuntimeOk,
+                    'publicRootAllowed' => $openBasedirPublicOk,
+                    'privateStorageAllowed' => $openBasedirPrivateOk,
+                    'uploadTempAllowed' => $openBasedirUploadTmpOk
+                ]
+            ],
             'limits' => [
-                'uploadMaxBytes' => self::hostingIniBytes((string)ini_get('upload_max_filesize')),
-                'postMaxBytes' => self::hostingIniBytes((string)ini_get('post_max_size')),
+                'uploadMaxBytes' => $uploadMaxBytes,
+                'postMaxBytes' => $postMaxBytes,
+                'fileUploadsEnabled' => $fileUploadsEnabled,
+                'maxFileUploads' => $maxFileUploads,
+                'uploadSizeCompatible' => $uploadLimitValid && $postLimitValid && $postFitsUpload,
                 'memoryLimit' => (string)ini_get('memory_limit'),
                 'maxExecutionTimeSeconds' => (int)ini_get('max_execution_time'),
                 'uploadTemporaryDirectoryWritable' => $uploadTmpOk
@@ -286,6 +329,20 @@ final class Api
                 'HTTP, SQLite, несоответствие document root или отсутствие topology record означают, что это не подтверждённая staging-среда.'
             ]
         ];
+    }
+
+    private static function hostingOpenBasedirAllows(string $path, string $configured): bool
+    {
+        $resolved = realpath($path);
+        if (!is_string($resolved)) return false;
+        if (trim($configured) === '') return true;
+        foreach (explode(PATH_SEPARATOR, $configured) as $entry) {
+            $entry = trim($entry);
+            if ($entry === '') continue;
+            $base = realpath($entry);
+            if (is_string($base) && self::hostingPathWithin($resolved, $base)) return true;
+        }
+        return false;
     }
 
     private static function revision(mixed $n): int

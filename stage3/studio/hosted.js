@@ -332,9 +332,14 @@
         ['Конфигурация CMS',checks.privateRuntimeConfig,fsInfo.privateRuntimeConfigValid?'Проверена':'Не подтверждена'],
         ['Document root',checks.documentRoot,fsInfo.documentRootMatches?'Совпадает с server/public':'Не совпадает'],
         ['Изоляция web roots',checks.accountWebRootIsolation,'Проверено каталогов: '+(fsInfo.accountWebRootCount??0)],
+        ['PHP open_basedir',checks.openBasedir,info.security?.openBasedir?.configured
+          ?'Runtime, private и upload-каталоги разрешены':'Не задан · ограничения не включены'],
         ['HTTPS',checks.https,info.security?.https?'Защищённое соединение':'HTTPS не подтверждён'],
         ['Сессии',checks.sessionSecurity,'HttpOnly · Strict · secure-cookie при HTTPS'],
-        ['Публичная маршрутизация',checks.publicRootPolicy&&checks.frontController,'Front controller и .htaccess'],
+        ['Публичная маршрутизация',checks.publicRootPolicy&&checks.frontController,
+          fsInfo.frontControllerMatches?'index.php и .htaccess подтверждены':'Front controller не подтверждён'],
+        ['Приём файлов',checks.uploadConfiguration,info.limits?.fileUploadsEnabled
+          ?'Включён · до '+(info.limits?.maxFileUploads??0)+' файлов за запрос':'Загрузка файлов выключена'],
         ['Временные загрузки',checks.uploadTemporaryDirectory,info.limits?.uploadTemporaryDirectoryWritable?'Каталог доступен':'Каталог недоступен']
       ];
       const list=element('div','hosted-host-checks');

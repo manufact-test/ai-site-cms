@@ -130,6 +130,7 @@ jobs:
           node stage3/tests/install-probe.cjs
           node stage3/tests/mysql-install-probe.cjs
           php stage3/tests/smtp-config-smoke.php
+          php stage3/tests/hosting-diagnostics-smoke.php
           php stage3/tests/graph-interactions-smoke.php
           php stage3/tests/archive-bundle-smoke.php
           node stage3/tests/server-e2e.cjs

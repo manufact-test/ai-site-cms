@@ -235,6 +235,12 @@ async function main() {
   assert.equal(diagnostics.database.tableCount, 25);
   assert.equal(diagnostics.database.instanceBound, true);
   assert.equal(diagnostics.filesystem.documentRootMatches, true);
+  assert.equal(diagnostics.filesystem.frontControllerMatches, true);
+  assert.equal(diagnostics.checks.frontController, true);
+  assert.equal(diagnostics.checks.openBasedir, true);
+  assert.equal(diagnostics.security.openBasedir.configured, false);
+  assert.equal(diagnostics.checks.uploadConfiguration, true);
+  assert.equal(diagnostics.limits.fileUploadsEnabled, true);
   assert.equal(diagnostics.filesystem.privateDirectoryPermissions, '0700');
   assert.equal(diagnostics.filesystem.privateRuntimeConfigValid, true);
   assert.equal(diagnostics.filesystem.accountWebRootIsolationValid, true);
