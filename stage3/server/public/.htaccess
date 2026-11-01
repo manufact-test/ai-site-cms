@@ -2,32 +2,27 @@
 # DocumentRoot MUST point to this directory only: stage3/server/public.
 # The complete Stage3 runtime tree must also remain outside every other
 # web-exposed document root on the hosting account.
-# Requires Apache 2.4 / LiteSpeed-compatible mod_rewrite, mod_alias and
-# mod_authz_core plus AllowOverride Options Indexes FileInfo AuthConfig.
-# LiteSpeed does not support FallbackResource; use the rewrite front controller.
+# Requires Apache 2.4 / LiteSpeed-compatible mod_rewrite plus
+# AllowOverride Options FileInfo Indexes.
+# Do not use FallbackResource, RedirectMatch or FilesMatch here.
 Options +SymLinksIfOwnerMatch -FollowSymLinks -Indexes -MultiViews
 DirectoryIndex index.php
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Deny hidden path segments except the literal .well-known segment.
+    RewriteRule (^|/)\.(?!well-known(?:/|$)) - [F,L]
+
+    # Only the stable front controller may execute from this directory.
+    RewriteRule ^(?!index\.php$).+\.(?:php|phtml|phar|cgi|pl)$ - [F,L,NC]
+
+    # Deny common private/config/backup/database/key files.
+    RewriteRule \.(?:sqlite|sqlite3|db|sql|bak|log|ini|env|pem|key|p12|pfx)$ - [F,L,NC]
+
+    # Preserve actual files/directories; route application paths to index.php.
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
     RewriteRule ^ index.php [QSA,L]
 </IfModule>
-
-# Match ANY hidden PATH SEGMENT, not only the final filename.
-# Only the literal .well-known directory segment is exempt (ACME/security.txt).
-# A nested .well-known/.git/config remains forbidden.
-RedirectMatch 403 "(^|/)\.(?!well-known(/|$))[^/]+(/|$)"
-
-# Defense in depth for individual hidden files, executables and private data.
-<FilesMatch "^\.">
-    Require all denied
-</FilesMatch>
-<FilesMatch "^(?!index\.php$).+\.(?:php|phtml|phar|cgi|pl)$">
-    Require all denied
-</FilesMatch>
-<FilesMatch "\.(?:sqlite|sqlite3|db|sql|bak|log|ini|env|pem|key|p12|pfx)$">
-    Require all denied
-</FilesMatch>

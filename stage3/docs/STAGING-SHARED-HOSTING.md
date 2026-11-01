@@ -19,7 +19,7 @@ The current installer is intentionally CLI-only. If the shared host does not pro
 - PHP: verify the web SAPI, not just CLI, is PHP 8.1+ (target 8.3) with pdo, pdo_mysql, json, openssl and mbstring.
 - TLS: valid HTTPS on the staging hostname before owner login or form tests. Protect staging with host-level password protection or an IP allowlist; noindex alone is not access control.
 
-The Stage3 public .htaccess uses an Apache 2.4 / LiteSpeed-compatible mod_rewrite front controller, mod_alias and FilesMatch rules. LiteSpeed documents FallbackResource as unsupported, so Stage3 does not use it. The host must permit mod_rewrite, mod_alias, mod_dir, mod_authz_core and AllowOverride Options Indexes FileInfo AuthConfig. The disposable CI Apache test proves Apache syntax and PHP request flow only; it does not certify the selected LiteSpeed/Hostinger version.
+The Stage3 public .htaccess uses Apache 2.4 / LiteSpeed-compatible mod_rewrite rules, DirectoryIndex and Options. LiteSpeed documents FallbackResource as unsupported and lists RewriteRule/RewriteCond, DirectoryIndex and Options as supported; Stage3 therefore uses rewrite rules and does not depend on FallbackResource, RedirectMatch or FilesMatch. The host must enable mod_rewrite and the Options, FileInfo and Indexes AllowOverride classes (including SymLinksIfOwnerMatch). The disposable CI Apache test proves Apache syntax and PHP request flow only; it does not certify the selected LiteSpeed/Hostinger version.
 
 ## 3. Before upload
 
