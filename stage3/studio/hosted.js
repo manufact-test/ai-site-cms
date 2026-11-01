@@ -266,6 +266,8 @@
   row.append(engineOpen);
   const engineDialog=element('dialog','hosted-backup-dialog');engineDialog.id='server-engine-dialog';
   const engineStatus=element('div','hosted-backup-summary');engineStatus.id='server-engine-status';
+  const hostingDiagnosticsStatus=element('div','hosted-backup-summary');hostingDiagnosticsStatus.id='server-hosting-diagnostics-status';
+  const hostingDiagnosticsRefresh=action('Проверить среду хостинга','server-hosting-diagnostics-refresh',()=>safe(refreshHostingDiagnostics));
   const enginePackage=element('select','control');enginePackage.id='server-engine-package';
   const enginePlanSummary=element('div','hosted-backup-summary');enginePlanSummary.id='server-engine-plan';
   const engineReviewButton=action('Проверить подписанный пакет','server-engine-review',()=>safe(reviewEnginePackage));
@@ -314,12 +316,50 @@
       enginePlanSummary.replaceChildren(element('p',null,'Пока нет пакетов в приватной incoming-папке.'));
     }
   }
+  async function refreshHostingDiagnostics(){
+    hostingDiagnosticsStatus.replaceChildren(element('p',null,'Проверяем фактическую web-среду, приватное хранилище и базу данных…'));
+    try{
+      const info=await api('/api/hosting/diagnostics');
+      if(!engineDialog.open)return;
+      const db=info.database||{},fsInfo=info.filesystem||{},checks=info.checks||{};
+      const lines=[
+        ['PHP',checks.phpVersion,(info.runtime?.phpVersion||'—')+' · '+(info.runtime?.sapi||'—')],
+        ['Расширения PHP',checks.phpExtensions,(info.runtime?.missingExtensions||[]).length
+          ?'Не хватает: '+info.runtime.missingExtensions.join(', '):'Все обязательные подключены'],
+        ['MySQL 8+',checks.mysql8,(db.driver||'—')+' · '+(db.version||'версия не определена')],
+        ['Схема CMS',checks.schemaIntegrity,(db.tableCount??'—')+'/'+(db.requiredTableCount??25)+' таблиц · отсутствует '+(db.missingTableCount??'—')],
+        ['Приватное хранилище',checks.privateDirectory,'Права '+(fsInfo.privateDirectoryPermissions||'не определены')],
+        ['Конфигурация CMS',checks.privateRuntimeConfig,fsInfo.privateRuntimeConfigValid?'Проверена':'Не подтверждена'],
+        ['Document root',checks.documentRoot,fsInfo.documentRootMatches?'Совпадает с server/public':'Не совпадает'],
+        ['Изоляция web roots',checks.accountWebRootIsolation,'Проверено каталогов: '+(fsInfo.accountWebRootCount??0)],
+        ['HTTPS',checks.https,info.security?.https?'Защищённое соединение':'HTTPS не подтверждён'],
+        ['Сессии',checks.sessionSecurity,'HttpOnly · Strict · secure-cookie при HTTPS'],
+        ['Публичная маршрутизация',checks.publicRootPolicy&&checks.frontController,'Front controller и .htaccess'],
+        ['Временные загрузки',checks.uploadTemporaryDirectory,info.limits?.uploadTemporaryDirectoryWritable?'Каталог доступен':'Каталог недоступен']
+      ];
+      const list=element('div','hosted-host-checks');
+      for(const [label,ok,detail] of lines){
+        const item=element('p','hosted-host-check',(ok?'✓ ':'! ')+label+' · '+detail);
+        item.dataset.ok=ok?'true':'false';list.append(item);
+      }
+      hostingDiagnosticsStatus.replaceChildren(
+        element('strong',null,info.ready?'Среда готова к staging-приёмке':'Среда требует внимания перед staging'),
+        element('p',null,'PHP '+(info.runtime?.phpVersion||'—')+' ('+(info.runtime?.sapi||'—')+') · '+(db.driver||'—')+' · '+(db.version||'БД не подтверждена')),
+        list,
+        element('small',null,'Проверка read-only. Она не видит новые или не внесённые в инвентарь web roots аккаунта и не заменяет проверку DNS/сертификата у провайдера.')
+      );
+    }catch(error){
+      hostingDiagnosticsStatus.replaceChildren(element('strong',null,'Диагностика недоступна'),element('p',null,error.message));
+      throw error;
+    }
+  }
   async function openEngineCenter(){
     if(!isOwner())throw Error('Обновление движка доступно только владельцу CMS');
     engineReviewPlan=null;engineRollbackPlan=null;
     engineApplyButton.disabled=true;engineRollbackButton.disabled=true;
     engineDialog.showModal();
     await refreshEngineCenter();
+    await refreshHostingDiagnostics().catch(()=>{});
   }
   async function reviewEnginePackage(){
     if(!isOwner()||!enginePackage.value)throw Error('Выберите пакет обновления');
@@ -379,6 +419,7 @@
   const engineClose=action('Закрыть','server-engine-close',()=>engineDialog.close());
   engineDialog.append(element('h2',null,'Обновление движка CMS'),
     element('p',null,'Отдельный контур обслуживания самой CMS и Studio. Не связан с выпуском и откатом публичного сайта. Все действия доступны только владельцу.'),
+    element('h3',null,'Состояние хостинга'),hostingDiagnosticsStatus,hostingDiagnosticsRefresh,
     engineStatus,engineTrustGuide,enginePackageGuide,
     element('label','hosted-label','Подписанный пакет из приватной incoming-папки'),enginePackage,
     engineReviewButton,enginePlanSummary,engineApplyButton,

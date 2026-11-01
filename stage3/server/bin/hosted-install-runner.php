@@ -18,6 +18,38 @@ function stage3_runner_within(string $path, string $parent): bool
     $parent = rtrim($parent, DIRECTORY_SEPARATOR);
     return $path === $parent || str_starts_with($path, $parent . DIRECTORY_SEPARATOR);
 }
+function stage3_runner_validate_web_roots(array $roots, string $serverRoot, string $publicRoot, string $privateDir): array
+{
+    if (!array_is_list($roots) || count($roots) < 1 || count($roots) > 50) {
+        throw new RuntimeException('Supply the complete account web-root inventory (1–50 canonical directories)');
+    }
+    $seen = [];
+    foreach ($roots as $root) {
+        if (!is_string($root) || $root === '' || $root[0] !== DIRECTORY_SEPARATOR
+            || realpath($root) !== $root || !is_dir($root) || is_link($root) || isset($seen[$root])) {
+            throw new RuntimeException('Account web-root inventory contains a non-canonical, missing or duplicate directory');
+        }
+        $seen[$root] = true;
+        if (stage3_runner_within($privateDir, $root) || stage3_runner_within($root, $privateDir)) {
+            throw new RuntimeException('Private CMS storage overlaps an account web root');
+        }
+        if ($root !== $publicRoot
+            && (stage3_runner_within($serverRoot, $root) || stage3_runner_within($root, $serverRoot))) {
+            throw new RuntimeException('CMS runtime tree overlaps another account web root');
+        }
+    }
+    if (!isset($seen[$publicRoot])) {
+        throw new RuntimeException('The dedicated Stage3 public document root must appear in the account web-root inventory');
+    }
+    return [
+        'ok' => true,
+        'webRootCount' => count($roots),
+        'publicRootIncluded' => true,
+        'privateOutsideAllWebRoots' => true,
+        'runtimeOutsideOtherWebRoots' => true,
+        'inventorySha256' => hash('sha256', stage3_runner_json(array_values($roots)))
+    ];
+}
 function stage3_runner_json(mixed $value): string
 {
     return json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . PHP_EOL;
@@ -117,22 +149,25 @@ try {
     $reviewPath = $privateDir . DIRECTORY_SEPARATOR . 'hosted-install-plan-review.json';
     $statePath = $privateDir . DIRECTORY_SEPARATOR . 'hosted-install-plan-state.json';
     $applyingPath = $privateDir . DIRECTORY_SEPARATOR . 'hosted-install-runner-applying.json';
+    $topologyPath = $privateDir . DIRECTORY_SEPARATOR . 'hosted-install-topology.json';
 
     if (file_exists($consumedPath) || is_link($consumedPath)) {
         $consumed = stage3_runner_read($consumedPath, $privateDir, 8192);
         if (($consumed['format'] ?? null) !== 'manufact-stage3-hosted-install-consumed-v1') {
             throw new RuntimeException('One-shot consumed marker is invalid; manual review required');
         }
-        throw new RuntimeException('This one-shot installer has already been consumed');
+        // A recurring hPanel cron entry becomes a harmless no-op after success.
+        // The owner should still remove that cron entry from hPanel after the run.
+        exit(0);
     }
     if (file_exists($applyingPath) || is_link($applyingPath)) {
         throw new RuntimeException('A previous apply attempt is unresolved; inspect the database before manual recovery');
     }
 
     $config = stage3_runner_read($configPath, $privateDir, 16384);
-    if (array_keys($config) !== ['format', 'values']
+    if (array_keys($config) !== ['format', 'accountWebRoots', 'values']
         || ($config['format'] ?? null) !== 'manufact-stage3-hosted-install-runner-config-v1'
-        || !is_array($config['values'] ?? null)) {
+        || !is_array($config['values'] ?? null) || !is_array($config['accountWebRoots'] ?? null)) {
         throw new RuntimeException('Private runner config format is invalid');
     }
     $keys = [
@@ -147,6 +182,7 @@ try {
         'STAGE3_PRIVATE_DIR'=>4096,'STAGE3_PUBLIC_ROOT'=>4096
     ];
     $values = $config['values'];
+    $accountWebRoots = $config['accountWebRoots'];
     if (array_keys($values) !== $keys) {
         throw new RuntimeException('Private runner config fields are incomplete or non-canonical');
     }
@@ -171,10 +207,15 @@ try {
         || stage3_runner_within($configPath, $publicRoot) || stage3_runner_within($configPath, $serverRoot)) {
         throw new RuntimeException('Private runner config and CMS document root are not safely isolated');
     }
+    $hostIsolation = stage3_runner_validate_web_roots($accountWebRoots, $serverRoot, $publicRoot, $privateDir);
+    if (file_exists($topologyPath) || is_link($topologyPath)) {
+        throw new RuntimeException('A previous hosted topology record exists; manual recovery is required');
+    }
     if (!str_starts_with($values['STAGE3_DSN'], 'mysql:')
-        || $values['STAGE3_DB_USER'] === '' || $values['STAGE3_OWNER_USER'] === ''
-        || $values['STAGE3_OWNER_PASSWORD'] === '' || strlen($values['STAGE3_FORM_SECRET']) < 32) {
-        throw new RuntimeException('Hosted runner requires dedicated MySQL and complete private credentials');
+        || $values['STAGE3_DB_USER'] === '' || $values['STAGE3_DB_PASSWORD'] === ''
+        || $values['STAGE3_OWNER_USER'] === '' || strlen($values['STAGE3_OWNER_PASSWORD']) < 14
+        || strlen($values['STAGE3_FORM_SECRET']) < 32) {
+        throw new RuntimeException('Hosted runner requires dedicated MySQL, a database password and complete private credentials');
     }
 
     foreach ($values as $key => $value) {
@@ -200,6 +241,7 @@ try {
             }
         }
         $plan = \Manufact\Stage3\Stage3Installer::plan($db, $env);
+        $plan['hostIsolation'] = $hostIsolation;
         $token = $plan['token'] ?? null;
         unset($plan['token']);
         if (($plan['state'] ?? null) !== 'install_required' || ($plan['applyAllowed'] ?? false) !== true) {
@@ -252,6 +294,7 @@ try {
     }
 
     $currentPlan = \Manufact\Stage3\Stage3Installer::plan($db, $env);
+    $currentPlan['hostIsolation'] = $hostIsolation;
     $currentToken = $currentPlan['token'] ?? null;
     unset($currentPlan['token']);
     $currentFingerprint = hash('sha256', stage3_runner_json($currentPlan));
@@ -268,6 +311,19 @@ try {
         'startedAt'=>gmdate('Y-m-d\TH:i:s\Z')
     ]);
     $result = \Manufact\Stage3\Stage3Installer::apply($db, stage3_repository(), $env, $state['token']);
+    $instanceId = $result['instanceId'] ?? null;
+    if (!is_string($instanceId) || preg_match('/^[a-f0-9]{32}$/D', $instanceId) !== 1) {
+        throw new RuntimeException('Installed instance identity is invalid; manual recovery is required');
+    }
+    stage3_runner_write($topologyPath, $privateDir, [
+        'format'=>'manufact-stage3-hosted-install-topology-v1',
+        'serverRoot'=>$serverRoot,
+        'publicRoot'=>$publicRoot,
+        'privateDir'=>$privateDir,
+        'accountWebRoots'=>array_values($accountWebRoots),
+        'instanceId'=>$instanceId,
+        'installedAt'=>gmdate('Y-m-d\\TH:i:s\\Z')
+    ]);
     stage3_runner_write($consumedPath, $privateDir, [
         'format'=>'manufact-stage3-hosted-install-consumed-v1',
         'approvalFingerprint'=>$approval,

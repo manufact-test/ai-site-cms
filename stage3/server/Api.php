@@ -99,6 +99,193 @@ final class Api
         }
     }
 
+
+    private static function hostingPathWithin(string $path, string $parent): bool
+    {
+        $parent = rtrim($parent, DIRECTORY_SEPARATOR);
+        return $path === $parent || str_starts_with($path, $parent . DIRECTORY_SEPARATOR);
+    }
+
+    private static function hostingIniBytes(string $value): ?int
+    {
+        $value = trim($value);
+        if ($value === '' || $value === '-1') return null;
+        if (!preg_match('/^([0-9]+(?:\\.[0-9]+)?)\\s*([KMG]?)$/iD', $value, $match)) return null;
+        $factor = match (strtoupper($match[2])) {
+            'K' => 1024, 'M' => 1048576, 'G' => 1073741824, default => 1
+        };
+        return (int)floor((float)$match[1] * $factor);
+    }
+
+    private function hostingDiagnostics(string $serverRoot): array
+    {
+        $serverRoot = realpath($serverRoot);
+        if (!is_string($serverRoot) || !is_dir($serverRoot) || is_link($serverRoot)) {
+            throw new RuntimeException('Stage3 runtime root is unavailable');
+        }
+        $publicInput = (string)(getenv('STAGE3_PUBLIC_ROOT') ?: '');
+        $privateInput = (string)(getenv('STAGE3_PRIVATE_DIR') ?: '');
+        $publicRoot = $publicInput !== '' ? realpath($publicInput) : false;
+        $privateDir = $privateInput !== '' ? realpath($privateInput) : false;
+        $env = [];
+        foreach (['STAGE3_DSN','STAGE3_DB_USER','STAGE3_DB_PASSWORD','STAGE3_FORM_SECRET',
+            'STAGE3_FORM_ORIGINS','STAGE3_FORM_ENDPOINT','STAGE3_PRIVATE_DIR','STAGE3_PUBLIC_ROOT'] as $key) {
+            $value = getenv($key);
+            $env[$key] = is_string($value) ? $value : '';
+        }
+        $env['STAGE3_OWNER_USER'] = '';
+        $env['STAGE3_OWNER_PASSWORD'] = '';
+        $env['CI'] = is_string(getenv('CI')) ? (string)getenv('CI') : '';
+        $env['STAGE3_ALLOW_SQLITE_INSTALL'] = is_string(getenv('STAGE3_ALLOW_SQLITE_INSTALL'))
+            ? (string)getenv('STAGE3_ALLOW_SQLITE_INSTALL') : '';
+        require_once $serverRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'Stage3Installer.php';
+        if ($env['STAGE3_DSN'] === '') throw new RuntimeException('Stage3 database configuration is unavailable');
+        $db = new \PDO($env['STAGE3_DSN'], $env['STAGE3_DB_USER'] !== '' ? $env['STAGE3_DB_USER'] : null,
+            $env['STAGE3_DB_PASSWORD'] !== '' ? $env['STAGE3_DB_PASSWORD'] : null, [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+                \PDO::ATTR_EMULATE_PREPARES => false
+            ]);
+        $plan = Stage3Installer::plan($db, $env);
+        $planChecks = is_array($plan['checks'] ?? null) ? $plan['checks'] : [];
+        $requiredExtensions = ['pdo','pdo_mysql','json','openssl','mbstring'];
+        $missingExtensions = array_values(array_filter($requiredExtensions,
+            static fn(string $extension): bool => !extension_loaded($extension)));
+        $phpOk = PHP_VERSION_ID >= 80100;
+        $extensionsOk = $missingExtensions === [];
+        $schema = is_array($planChecks['schemaIntegrity'] ?? null) ? $planChecks['schemaIntegrity'] : [];
+        $dbVersion = is_array($planChecks['databaseServerVersion'] ?? null) ? $planChecks['databaseServerVersion'] : [];
+        $tableCheck = is_array($planChecks['databaseEmpty'] ?? null) ? $planChecks['databaseEmpty'] : [];
+        $instanceBound = ($plan['state'] ?? null) === 'already_installed'
+            && is_string($plan['instanceId'] ?? null) && $plan['instanceId'] !== '';
+        $missingTableCount = is_array($schema['missingTables'] ?? null) ? count($schema['missingTables']) : 0;
+        $schemaOk = $instanceBound && ($schema['ok'] ?? false) === true && $missingTableCount === 0;
+        $mysqlOk = ($plan['dbDriver'] ?? null) === 'mysql' && ($dbVersion['ok'] ?? false) === true;
+        $privateMode = is_string($privateDir) && is_dir($privateDir) ? @fileperms($privateDir) : false;
+        $privatePermissions = $privateMode === false ? null : ($privateMode & 0777);
+        $privateDirectoryOk = is_string($privateDir) && $privateDir === $privateInput
+            && is_dir($privateDir) && !is_link($privateInput) && $privatePermissions === 0700 && is_writable($privateDir);
+        $privateRuntimeOk = ($planChecks['privateRuntimeConfig']['ok'] ?? false) === true;
+        $documentRoot = realpath((string)($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $documentRootMatches = is_string($publicRoot) && $documentRoot === $publicRoot;
+        $publicEntries = is_string($publicRoot) && is_dir($publicRoot) ? scandir($publicRoot) : false;
+        if (is_array($publicEntries)) {
+            $publicEntries = array_values(array_diff($publicEntries, ['.','..']));
+            sort($publicEntries, SORT_STRING);
+        }
+        $publicRootPolicyOk = is_array($publicEntries) && $publicEntries === ['.htaccess','index.php']
+            && is_file($publicRoot . DIRECTORY_SEPARATOR . 'index.php') && !is_link($publicRoot . DIRECTORY_SEPARATOR . 'index.php')
+            && is_file($publicRoot . DIRECTORY_SEPARATOR . '.htaccess') && !is_link($publicRoot . DIRECTORY_SEPARATOR . '.htaccess');
+        $htaccessPath = is_string($publicRoot) ? $publicRoot . DIRECTORY_SEPARATOR . '.htaccess' : '';
+        $htaccess = $htaccessPath !== '' && is_file($htaccessPath) && !is_link($htaccessPath)
+            ? @file_get_contents($htaccessPath) : false;
+        $htaccessOk = is_string($htaccess) && str_contains($htaccess, 'RewriteEngine On')
+            && str_contains($htaccess, 'DirectoryIndex index.php')
+            && str_contains($htaccess, 'Options +SymLinksIfOwnerMatch');
+
+        $topologyOk = false; $webRootCount = 0;
+        $topologyPath = is_string($privateDir) ? $privateDir . DIRECTORY_SEPARATOR . 'hosted-install-topology.json' : '';
+        if ($topologyPath !== '' && is_string($serverRoot) && is_string($publicRoot)) {
+            $stat = @lstat($topologyPath);
+            $mode = is_file($topologyPath) ? @fileperms($topologyPath) : false;
+            $owner = is_file($topologyPath) ? @fileowner($topologyPath) : false;
+            $privateOwner = @fileowner($privateDir);
+            if ($stat !== false && is_file($topologyPath) && !is_link($topologyPath)
+                && realpath($topologyPath) === $topologyPath && ($stat['nlink'] ?? 0) === 1
+                && $stat['size'] > 1 && $stat['size'] <= 32768
+                && $mode !== false && ($mode & 0777) === 0600
+                && $owner !== false && $privateOwner !== false && $owner === $privateOwner) {
+                $raw = @file_get_contents($topologyPath);
+                try { $topology = is_string($raw) ? json_decode($raw, true, 24, JSON_THROW_ON_ERROR) : null; }
+                catch (\Throwable) { $topology = null; }
+                $canonical = is_array($topology)
+                    ? json_encode($topology, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . PHP_EOL : '';
+                $expectedKeys = ['format','serverRoot','publicRoot','privateDir','accountWebRoots','instanceId','installedAt'];
+                $rootsOk = is_array($topology) && array_is_list($topology['accountWebRoots'] ?? null)
+                    && count($topology['accountWebRoots']) >= 1 && count($topology['accountWebRoots']) <= 50;
+                $seen = [];
+                if ($rootsOk) {
+                    foreach ($topology['accountWebRoots'] as $root) {
+                        if (!is_string($root) || realpath($root) !== $root || !is_dir($root)
+                            || is_link($root) || isset($seen[$root])) { $rootsOk = false; break; }
+                        $seen[$root] = true;
+                        if (self::hostingPathWithin($privateDir, $root) || self::hostingPathWithin($root, $privateDir)) {
+                            $rootsOk = false; break;
+                        }
+                        if ($root !== $publicRoot
+                            && (self::hostingPathWithin($serverRoot, $root) || self::hostingPathWithin($root, $serverRoot))) {
+                            $rootsOk = false; break;
+                        }
+                    }
+                }
+                $webRootCount = $rootsOk ? count($seen) : 0;
+                $topologyOk = is_array($topology) && array_keys($topology) === $expectedKeys
+                    && hash_equals($canonical, (string)$raw)
+                    && ($topology['format'] ?? null) === 'manufact-stage3-hosted-install-topology-v1'
+                    && ($topology['serverRoot'] ?? null) === $serverRoot
+                    && ($topology['publicRoot'] ?? null) === $publicRoot
+                    && ($topology['privateDir'] ?? null) === $privateDir
+                    && ($topology['instanceId'] ?? null) === ($plan['instanceId'] ?? null)
+                    && is_string($topology['installedAt'] ?? null) && $rootsOk && isset($seen[$publicRoot]);
+            }
+        }
+        $https = !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off';
+        $sessionFlags = [
+            'strictMode' => ini_get('session.use_strict_mode') === '1',
+            'cookieOnly' => ini_get('session.use_only_cookies') === '1',
+            'httpOnly' => ini_get('session.cookie_httponly') === '1',
+            'sameSiteStrict' => strtolower((string)ini_get('session.cookie_samesite')) === 'strict',
+            'secureCookieWhenHttps' => !$https || ini_get('session.cookie_secure') === '1'
+        ];
+        $sessionOk = !in_array(false, array_values($sessionFlags), true);
+        $uploadTmp = (string)(ini_get('upload_tmp_dir') ?: sys_get_temp_dir());
+        $uploadTmpOk = is_dir($uploadTmp) && is_writable($uploadTmp);
+        $checks = [
+            'phpVersion' => $phpOk, 'phpExtensions' => $extensionsOk, 'mysql8' => $mysqlOk,
+            'schemaIntegrity' => $schemaOk, 'privateDirectory' => $privateDirectoryOk,
+            'privateRuntimeConfig' => $privateRuntimeOk, 'documentRoot' => $documentRootMatches,
+            'publicRootPolicy' => $publicRootPolicyOk && $htaccessOk, 'accountWebRootIsolation' => $topologyOk,
+            'https' => $https, 'sessionSecurity' => $sessionOk, 'uploadTemporaryDirectory' => $uploadTmpOk,
+            'frontController' => true
+        ];
+        $ready = !in_array(false, array_values($checks), true);
+        return [
+            'format' => 'manufact-stage3-hosting-diagnostics-v1',
+            'checkedAt' => gmdate('Y-m-d\\TH:i:s\\Z'),
+            'status' => $ready ? 'ready' : 'attention',
+            'ready' => $ready,
+            'runtime' => ['phpVersion' => PHP_VERSION, 'sapi' => PHP_SAPI, 'missingExtensions' => $missingExtensions],
+            'database' => [
+                'driver' => (string)($plan['dbDriver'] ?? 'unknown'),
+                'version' => is_string($dbVersion['version'] ?? null) ? substr($dbVersion['version'], 0, 80) : null,
+                'tableCount' => is_int($tableCheck['tableCount'] ?? null) ? $tableCheck['tableCount'] : null,
+                'requiredTableCount' => is_int($schema['requiredTableCount'] ?? null) ? $schema['requiredTableCount'] : 25,
+                'missingTableCount' => $missingTableCount, 'instanceBound' => $instanceBound
+            ],
+            'filesystem' => [
+                'documentRootMatches' => $documentRootMatches,
+                'privateDirectoryPermissions' => $privatePermissions === null ? null : sprintf('%04o', $privatePermissions),
+                'privateDirectoryValid' => $privateDirectoryOk, 'privateRuntimeConfigValid' => $privateRuntimeOk,
+                'publicRootPolicyValid' => $publicRootPolicyOk && $htaccessOk,
+                'accountWebRootIsolationValid' => $topologyOk, 'accountWebRootCount' => $webRootCount
+            ],
+            'security' => ['https' => $https, 'session' => $sessionFlags, 'frontController' => true],
+            'limits' => [
+                'uploadMaxBytes' => self::hostingIniBytes((string)ini_get('upload_max_filesize')),
+                'postMaxBytes' => self::hostingIniBytes((string)ini_get('post_max_size')),
+                'memoryLimit' => (string)ini_get('memory_limit'),
+                'maxExecutionTimeSeconds' => (int)ini_get('max_execution_time'),
+                'uploadTemporaryDirectoryWritable' => $uploadTmpOk
+            ],
+            'checks' => $checks,
+            'notes' => [
+                'Диагностика только читает текущую web-среду и базу; файлы, схема и публикации не изменяются.',
+                'Проверяются только web roots из списка, подтверждённого при установке. Новые домены/поддомены аккаунта нужно добавить в отдельную проверку.',
+                'HTTP, SQLite, несоответствие document root или отсутствие topology record означают, что это не подтверждённая staging-среда.'
+            ]
+        ];
+    }
+
     private static function revision(mixed $n): int
     {
         if (!is_int($n) || $n < 1 || $n > 1000000000) {
@@ -442,6 +629,22 @@ final class Api
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/|$)~', $path, $scope)) $siteScope = $scope[1];
             $this->auditContext = [$principal['username'], $method . ' ' . $path, $siteScope];
             $this->authorize($principal, $path, $method);
+            if ($path === '/api/hosting/diagnostics') {
+                if ($method !== 'GET') $this->response(405, ['error' => 'GET required']);
+                if ($principal['role'] !== 'owner') $this->response(403, ['error' => 'Owner only']);
+                $publicRoot = (string)getenv('STAGE3_PUBLIC_ROOT');
+                $stableServerRoot = realpath(dirname($publicRoot));
+                if (!is_string($stableServerRoot) || !is_dir($stableServerRoot)) {
+                    $this->response(503, ['error' => 'Hosting diagnostics are unavailable']);
+                }
+                try {
+                    $this->response(200, $this->hostingDiagnostics($stableServerRoot));
+                } catch (Throwable $error) {
+                    error_log('Stage3 hosting diagnostics unavailable: ' . get_class($error));
+                    $this->auditDetail = 'Hosting diagnostics unavailable';
+                    $this->response(503, ['error' => 'Hosting diagnostics are temporarily unavailable; check the private runtime and database configuration.']);
+                }
+            }
             if (str_starts_with($path, '/api/engine')) {
                 if ($principal['role'] !== 'owner') $this->response(403, ['error' => 'Owner only']);
                 $publicRoot = (string)getenv('STAGE3_PUBLIC_ROOT');

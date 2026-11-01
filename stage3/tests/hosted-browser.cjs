@@ -26,6 +26,19 @@ async function pickPort(){
 async function start(){
   const setup=spawnSync('php',['stage3/server/bin/setup.php'],{cwd:root,env,encoding:'utf8'});
   assert.equal(setup.status,0,setup.stderr);
+  const receipt=JSON.parse(fs.readFileSync(path.join(privateDir,'installation.json'),'utf8'));
+  const topology={
+    format:'manufact-stage3-hosted-install-topology-v1',
+    serverRoot:fs.realpathSync(path.join(root,'stage3/server')),
+    publicRoot,
+    privateDir,
+    accountWebRoots:[publicRoot],
+    instanceId:receipt.instanceId,
+    installedAt:new Date().toISOString()
+  };
+  const topologyPath=path.join(privateDir,'hosted-install-topology.json');
+  fs.writeFileSync(topologyPath,JSON.stringify(topology,null,4)+'\n',{mode:0o600});
+  fs.chmodSync(topologyPath,0o600);
   const origin='http://127.0.0.1:'+(await pickPort());
   php=spawn('php',['-S',new URL(origin).host,'-t','stage3/server/public',
     'stage3/server/public/index.php'],{cwd:root,env,stdio:['ignore','ignore','pipe']});
@@ -45,11 +58,38 @@ async function execute(){
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin+'/studio');
   await page.locator('#server-login:not([hidden])').waitFor();
+  const anonymousDiagnostics=await page.evaluate(async()=>{
+    return (await fetch('/api/hosting/diagnostics',{cache:'no-store'})).status;
+  });
+  assert.equal(anonymousDiagnostics,401,'hosting diagnostics must require an authenticated owner');
   assert.equal(await page.locator('.center:visible').count(),0,'No unauthenticated site preview');
   await page.locator('#server-username').fill('testowner');
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
   await page.locator('#server-signin').click();
   await page.locator('#server-login').waitFor({state:'hidden'});
+  const ownerDiagnostics=await page.evaluate(async()=>{
+    const response=await fetch('/api/hosting/diagnostics',{cache:'no-store'});
+    return {status:response.status,body:await response.json()};
+  });
+  assert.equal(ownerDiagnostics.status,200);
+  assert.equal(ownerDiagnostics.body.runtime.sapi,'cli-server');
+  assert.equal(ownerDiagnostics.body.database.driver,'sqlite');
+  assert.equal(ownerDiagnostics.body.database.tableCount,25);
+  assert.equal(ownerDiagnostics.body.database.instanceBound,true);
+  assert.equal(ownerDiagnostics.body.filesystem.documentRootMatches,true);
+  assert.equal(ownerDiagnostics.body.filesystem.accountWebRootIsolationValid,true);
+  assert.equal(ownerDiagnostics.body.filesystem.privateDirectoryPermissions,'0700');
+  assert.equal(ownerDiagnostics.body.security.https,false);
+  assert.equal(ownerDiagnostics.body.ready,false,'local SQLite/HTTP rehearsal must not be reported as staging-ready');
+  const diagnosticJson=JSON.stringify(ownerDiagnostics.body);
+  for(const secret of [env.STAGE3_DSN,env.STAGE3_DB_PASSWORD,env.STAGE3_OWNER_PASSWORD,env.STAGE3_FORM_SECRET,privateDir]){
+    if(secret)assert.equal(diagnosticJson.includes(secret),false,'diagnostics must not disclose credentials or private paths');
+  }
+  await page.locator('#server-engine-open').click();
+  await page.locator('#server-hosting-diagnostics-status').getByText(/cli-server/).waitFor();
+  await page.locator('#server-hosting-diagnostics-refresh').click();
+  await page.locator('#server-hosting-diagnostics-status').getByText(/Среда требует внимания/).waitFor();
+  await page.locator('#server-engine-close').click();
 
   // The owner now starts with a clear page/section tree. Expand secondary
   // disclosures for the existing exhaustive transport/backup regression path.
@@ -707,6 +747,10 @@ async function execute(){
   await staff.locator('#server-password').fill('browser-only-staff-password-123456');
   await staff.locator('#server-signin').click();
   await staff.locator('#server-status').getByText(/Черновик #3/).waitFor();
+  const staffDiagnostics=await staff.evaluate(async()=>{
+    return (await fetch('/api/hosting/diagnostics',{cache:'no-store'})).status;
+  });
+  assert.equal(staffDiagnostics,403,'hosting diagnostics must remain owner-only, not editor-accessible');
   assert.equal(await staff.locator('#server-site-select option').count(),1);
   assert.equal(await staff.locator('#server-site-select').inputValue(),generatedId);
   assert.equal(await staff.locator('#server-publish').isDisabled(),true);

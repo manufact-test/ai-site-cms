@@ -235,6 +235,7 @@ try{
   const runnerConfigPath=path.join(privateRunner,'hosted-install-runner.json');
   const runnerConfig={
     format:'manufact-stage3-hosted-install-runner-config-v1',
+    accountWebRoots:[publicRunner],
     values:{
       STAGE3_DSN:envRunner.STAGE3_DSN,
       STAGE3_DB_USER:envRunner.STAGE3_DB_USER,
@@ -256,11 +257,17 @@ try{
     return run('php',[path.join(codeRootRunner,'server/bin/hosted-install-runner.php'),
       '--config='+runnerConfigPath,action],{},expected,codeRootRunner);
   }
+  const badTopologyConfig={...runnerConfig,accountWebRoots:[path.join(codeRootRunner,'server')]};
+  writeRunnerConfig(badTopologyConfig);
+  runRunner('--plan',1);
+  assert.equal(tableCount(dbRunner),0,'overlapping account web root must block the read-only plan before any DDL');
   writeRunnerConfig(runnerConfig);
   const runnerPlanResponse=runRunner('--plan');
   const runnerPlan=JSON.parse(runnerPlanResponse.stdout);
   assert.equal(runnerPlan.state,'install_required');
   assert.equal(runnerPlan.applyAllowed,true);
+  assert.equal(runnerPlan.hostIsolation.ok,true);
+  assert.equal(runnerPlan.hostIsolation.webRootCount,1);
   assert.equal('token' in runnerPlan,false,'private plan token must never be printed');
   assert.match(runnerPlan.approvalFingerprint,/^[a-f0-9]{64}$/);
   for(const secret of [envRunner.STAGE3_DSN,envRunner.STAGE3_DB_PASSWORD,
@@ -299,6 +306,13 @@ try{
   assert.equal(fs.existsSync(runnerApplyingPath),false);
   assert.equal(fs.existsSync(runnerConsumedPath),true);
   assert.equal(fs.statSync(runnerConsumedPath).mode&0o777,0o600);
+  const topologyPath=path.join(privateRunner,'hosted-install-topology.json');
+  assert.equal(fs.existsSync(topologyPath),true,'successful install retains private account web-root topology');
+  assert.equal(fs.statSync(topologyPath).mode&0o777,0o600);
+  const topology=JSON.parse(fs.readFileSync(topologyPath,'utf8'));
+  assert.equal(topology.format,'manufact-stage3-hosted-install-topology-v1');
+  assert.deepEqual(topology.accountWebRoots,[publicRunner]);
+  assert.equal(topology.instanceId,runnerApplied.instanceId);
   assert.equal(fs.existsSync(runnerReviewPath),true,'redacted review plan is retained privately for audit');
   assert.equal(fs.existsSync(runnerConfigPath),false,'credential-bearing runner config is removed after success');
   assert.equal(tableCount(dbRunner),25,'approved runner installs the complete schema once');
@@ -307,7 +321,8 @@ try{
     envRunner.STAGE3_OWNER_PASSWORD,envRunner.STAGE3_FORM_SECRET]){
     assert.equal(consumedText.includes(secret),false,'consumed marker must not expose credentials');
   }
-  runRunner('--plan',1);
+  const consumedNoop=runRunner('--plan');
+  assert.equal(consumedNoop.stdout,'','consumed cron runner must become a silent successful no-op');
   assert.equal(tableCount(dbRunner),25,'consumed runner must not execute again');
 
   process.stdout.write(JSON.stringify({
@@ -325,8 +340,8 @@ try{
       'lock release permits a fresh approved retry',
       'non-empty MySQL database refused without mutation',
       'private hPanel runner keeps credentials and plan token outside web root and out of plan output',
-      'wrong approval and changed credentials are refused before any database write',
-      'separate fingerprint approval installs once, removes runner credentials and writes a consumed marker'
+      'wrong approval, changed credentials and overlapping account web roots are refused before any database write',
+      'separate fingerprint approval installs once, records private web-root topology, removes credentials and makes repeat cron calls a silent no-op'
     ],
     instanceIds:[installed.instanceId,installedB.instanceId],
     deploymentPerformed:false
