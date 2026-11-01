@@ -69,7 +69,7 @@ async function main(){
   ]));
   const refused=run(process.execPath,['stage3/runtime-export/bin/verify-collector.cjs',malicious]);
   assert.notEqual(refused.status,0,'verifier must reject unexpected public files');
-  assert.match(refused.stderr,/unlisted|public document root/i);
+  assert.match(refused.stderr,/unlisted|public document root|exact collector allowlist/i);
 
   const unpacked=path.join(tmp,'unpacked');
   for(const [name,bytes] of entries){
@@ -95,6 +95,7 @@ async function main(){
   const form={
     id:'section-collector-form',component:'lead-form-flex',
     manifestVersion:manifest.version,
+    designGraph:{version:1,id:'graph-collector-form',nodes:[{id:'form-slot-collector',type:'form-slot'}]},
     elements:manifest.elements.map((slot,index)=>({
       id:'element-collector-form-'+index,slot:slot.slot,
       values:Object.fromEntries(slot.fields.map(field=>[field.path,field.default]))
