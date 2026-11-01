@@ -274,6 +274,8 @@ try{
   // Retention keeps the current recovery point and newest verified snapshots;
   // corrupt/ambiguous snapshots remain available for forensic review.
   const snapshotsRoot=path.join(privateDir,'engine/snapshots');
+  const pinnedSnapshot=path.join(snapshotsRoot,rolledBack.snapshotId);
+  fs.utimesSync(pinnedSnapshot,new Date(Date.now()+2000),new Date(Date.now()+2000));
   const corruptSnapshot=path.join(snapshotsRoot,'snapshot-20261101131900-aaaaaaaaaaaaaaaa');
   fs.mkdirSync(corruptSnapshot,{mode:0o700});fs.writeFileSync(path.join(corruptSnapshot,'manifest.json'),'not-canonical',{mode:0o600});
   fs.utimesSync(corruptSnapshot,new Date(0),new Date(0));
