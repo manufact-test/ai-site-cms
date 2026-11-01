@@ -1,6 +1,6 @@
 # Stage3 shared-hosting staging deployment
 
-**Status:** deployment preparation only. No real host, DNS, staging subdomain, production database or customer data has been contacted by this work. This runbook is not production approval.
+**Status:** deployment preparation only. The private hPanel Cron runner and read-only readiness diagnostics are implemented and CI-tested, but no real host, DNS, staging subdomain, production database or customer data has been contacted. This runbook is not production approval.
 
 ## 1. Deployment boundary
 
@@ -8,7 +8,7 @@ The next real-host exercise is an isolated **staging** installation of Stage3. I
 
 Do not deploy to production, change main, point a live domain at this branch, or import a client site until the owner separately approves that exact action.
 
-The current installer is intentionally CLI-only. If the shared host does not provide a safe CLI/SSH path for installation, stop. Do not expose install.php, engine.php, a shell bridge or a credential form over HTTP as a workaround. Requirement #183 (guided initial setup) remains separate and open.
+Installation remains intentionally CLI-only. Hostinger shared/general SSH is off-limits; a private one-shot CLI runner is now implemented for an owner-controlled hPanel Cron command. It has been exercised against disposable MySQL 8 in CI, but has not been run on Hostinger. If hPanel cannot execute a custom PHP CLI command or the private paths cannot be isolated, stop. Do not expose install.php, engine.php, a shell bridge or a credential form over HTTP. Requirement #183 (browser-guided initial setup) remains separate and open.
 
 ## 2. Required topology
 
@@ -38,32 +38,62 @@ All Stage3 runtime files other than the dedicated server/public document root mu
 - Verify the web PHP version using hPanel PHP Info for the actual staging website/subdomain. The SSH command php -v reports the plan's CLI PHP and may not match a per-subdomain PHP handler: [checking the PHP version](https://www.hostinger.com/support/5920192-how-to-check-the-php-version-in-hostinger/).
 - Hostinger allows selecting PHP 8.3 for a subfolder/subdomain through its handler rule, but that does not configure PHP extensions or options. Verify pdo_mysql, mbstring, openssl and other required extensions separately: [per-subdomain PHP version](https://www.hostinger.com/support/4047803-how-to-change-the-php-version-for-subfolders-or-subdomains-in-hostinger/).
 - Hostinger documents public_html as the usual website root and says the home directory cannot be changed on Web/WordPress/Cloud plans. Use a separately provisioned staging website/root and prove that the non-public runtime tree cannot be reached through the primary domain: [website root directory](https://www.hostinger.com/support/1583494-what-is-the-path-to-your-website-s-root-home-directory-and-how-to-change-it-in-hostinger/).
-- If the selected plan has no SSH/CLI or cannot isolate the runtime tree from other web roots, do not expose the installer over HTTP. Requirement #183 or a hosting-plan change is required first.
+- If the selected plan cannot execute the private hPanel Cron CLI runner or cannot isolate the runtime tree from every account web root, stop. Do not expose the installer over HTTP. Requirement #183 or a hosting-plan change is required first.
 
 If the host cannot satisfy any of these conditions, do not relax the isolation checks. Record the exact blocker and stop.
 
 ## 4. CLI install
 
-Set these values only in a private SSH shell or an approved hosting environment-variable facility. Do not place credentials in URLs, query strings, web forms, repository files, ZIP packages, screenshots or chat messages.
+For a shared-host staging installation, use the private hosted runner. The low-level `install.php` path remains available for an independently approved private CLI environment, but it does not create the hosted account web-root topology receipt required by the staging-readiness gate.
 
-- STAGE3_DSN — mysql:host=...;dbname=...;charset=utf8mb4
-- STAGE3_DB_USER / STAGE3_DB_PASSWORD — dedicated staging database credentials
-- STAGE3_OWNER_USER / STAGE3_OWNER_PASSWORD — initial staging owner; password at least 14 characters
-- STAGE3_FORM_SECRET — random private HMAC secret, 32–1024 characters
-- STAGE3_FORM_ORIGINS — exact HTTPS staging origin(s), comma-separated, no paths
-- STAGE3_FORM_ENDPOINT — exact HTTPS staging collector origin; may remain empty until forms are configured
-- STAGE3_PRIVATE_DIR — canonical private 0700 directory outside the web root
-- STAGE3_PUBLIC_ROOT — exact canonical absolute path to stage3/server/public
+### 4.1 hPanel Cron runner (Hostinger, no shared SSH)
+
+See [HOSTED-INSTALL-RUNNER.md](HOSTED-INSTALL-RUNNER.md) for the exact private config schema, path inventory, security checks and recovery behavior.
+
+The owner prepares:
+- A private directory outside the runtime tree and every account web root, mode `0700`.
+- `hosted-install-runner.json` inside that directory, mode `0600`, canonical JSON with the exact documented key order.
+- A complete inventory of all account web roots, including the dedicated Stage3 public root.
+- A dedicated empty MySQL 8.0+ database and fresh owner/form secrets. Never reuse Stage2 or production credentials.
+
+Run a read-only plan as a custom PHP CLI command in hPanel Cron:
+
+```sh
+php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --plan
+```
+
+Review the complete redacted output. Proceed only when `state=install_required`, `applyAllowed=true`, `hostIsolation.ok=true`, and every database/filesystem check is clear. The output contains an `approvalFingerprint`; it does not print the installer's private approval token or credentials.
+
+Only after a separate owner decision, run the apply command with that exact fingerprint:
+
+```sh
+php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --apply=<approvalFingerprint>
+```
+
+After success, the credential-bearing runner config and pending token state are removed, a private consumed marker and topology receipt are retained, and later recurring Cron invocations become silent no-ops. Remove the Cron entry manually in hPanel. If an `applying` marker remains without a valid consumed marker, stop and inspect the database; never delete the marker or rerun blindly.
+
+### 4.2 Direct private CLI path (other explicitly approved hosts)
+
+For an approved host with a private CLI environment, set the values below only in the process environment. Never put them in URLs, web forms, repository files, ZIP packages, screenshots, logs or chat messages.
+
+- `STAGE3_DSN` — `mysql:host=...;dbname=...;charset=utf8mb4`
+- `STAGE3_DB_USER` / `STAGE3_DB_PASSWORD` — dedicated staging database credentials
+- `STAGE3_OWNER_USER` / `STAGE3_OWNER_PASSWORD` — initial staging owner; password at least 14 characters
+- `STAGE3_FORM_SECRET` — random private HMAC secret, 32–1024 characters
+- `STAGE3_FORM_ORIGINS` — exact HTTPS staging origin(s), comma-separated, no paths
+- `STAGE3_FORM_ENDPOINT` — exact HTTPS staging collector origin; may remain empty until forms are configured
+- `STAGE3_PRIVATE_DIR` — canonical private 0700 directory outside the web root
+- `STAGE3_PUBLIC_ROOT` — exact canonical absolute path to `stage3/server/public`
 
 Run the read-only plan first:
 
-    php stage3/server/bin/install.php --plan
+```sh
+php stage3/server/bin/install.php --plan
+```
 
-Proceed only if the plan explicitly says install_required, applyAllowed: true, the database is the new empty staging database, the private/public paths are separate and all blocking checks are clear. Review the plan locally; never share or log its one-time token.
+Proceed only if the plan explicitly says `install_required`, `applyAllowed: true`, the database is the new empty staging database, the private/public paths are separate and all blocking checks are clear. Apply only with the exact token from that plan, in the same private CLI environment. The token is single-use and bound to the selected installation, including the database password hash.
 
-Then run the exact --apply=<token-from-that-plan> command in the same private CLI environment. The token is single-use and bound to the selected installation, including the database password hash. If the plan is stale, credentials changed or any check fails, rerun --plan; never bypass the refusal.
-
-A successful install creates the single-site schema (25 required tables), owner account, private runtime configuration, private pointer and installation receipt. The credential-bearing configuration is outside the document root with restrictive permissions. The installer does not publish a site or deploy visitor content.
+A successful install creates the single-site schema (25 required tables), owner account, private runtime configuration, private pointer and installation receipt. The installer does not publish a site or deploy visitor content. For the hosted staging path, use the hosted runner so the account topology receipt is also created.
 
 ## 5. Staging acceptance sequence
 
@@ -77,7 +107,7 @@ Use only a disposable test site and test identities:
 6. Inspect the CMS engine version and trust state. Rehearse a signed schema-preserving engine update, verified 25-table snapshot, rollback and explicit recovery using a test release. Do not test schema migrations; they remain blocked.
 7. Submit test forms only to a staging inbox. Verify conditional fields, spam/origin/HMAC rejection, stored lead, email to a test mailbox and Telegram to a test chat. No client notification destination is used.
 8. Verify backup retrieval and a restore rehearsal into a separate empty staging database.
-9. Record PHP/web-SAPI version, MySQL version, extensions, file ownership/permissions, open_basedir, response codes, upload limits and any LiteSpeed/Apache compatibility differences.
+9. Open the owner-only read-only `/api/hosting/diagnostics` panel in Studio. It verifies the actual front controller, PHP/open_basedir access to runtime/private/upload paths, file-upload configuration, MySQL/schema integrity, private topology, HTTPS, sessions and public-root policy. Also record PHP/web-SAPI version, MySQL version, file ownership/permissions, response codes and any LiteSpeed/Apache differences. The diagnostic cannot discover web roots omitted from the owner-supplied account inventory.
 
 Owner hands-on acceptance of the real Studio and the first connected site is still required. A green CI or a successful HTTP health check is not product acceptance.
 
@@ -92,6 +122,6 @@ Owner hands-on acceptance of the real Studio and the first connected site is sti
 
 ## 7. Owner inputs required for the real-host phase
 
-Before the first remote staging operation, confirm the hosting provider, exact staging hostname/document-root path, availability of a dedicated empty MySQL database, and the permitted access method (temporary SSH/SFTP or owner-run CLI commands). Credentials must be entered privately on the host; do not send passwords, private keys or plan tokens in chat.
+Before the first remote staging operation, confirm the hosting provider, exact staging hostname/document-root path, the complete account web-root inventory, availability of a dedicated empty MySQL database, the exact external Git auto-deploy branch, and owner approval for the private hPanel Cron command. Credentials must be entered privately on the host; do not send passwords, private keys or approval fingerprints in chat.
 
 The first target may be Hostinger if that is still the intended shared host, but the current CI Apache container is not evidence of Hostinger/LiteSpeed compatibility.

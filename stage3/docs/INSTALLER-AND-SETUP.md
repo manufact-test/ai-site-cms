@@ -4,7 +4,7 @@
 
 ## Entry point and operating mode
 
-`stage3/server/bin/install.php` is the current Stage3 single-site installer entry point. It is deliberately **CLI-only**; an HTTP request returns 404. The supported sequence is:
+`stage3/server/bin/install.php` is the low-level Stage3 single-site installer entry point. It is deliberately **CLI-only**; an HTTP request returns 404. For shared-host staging, use the wrapper `stage3/server/bin/hosted-install-runner.php`, also CLI-only, which adds the complete account web-root inventory, private plan review, separate approval fingerprint, one-shot consumed marker and hosted topology receipt. The runner is designed for an owner-controlled hPanel Cron custom command when shared/general SSH is prohibited. See [HOSTED-INSTALL-RUNNER.md](HOSTED-INSTALL-RUNNER.md).
 
 ```sh
 php stage3/server/bin/install.php --plan
@@ -48,16 +48,16 @@ Database-scoped locking prevents concurrent apply operations. An invalid or stal
 
 ## Current validation and deployment boundary
 
-- The CLI installer remains the single initial-install path: read-only --plan, then exact one-time --apply=<token>. It binds one Stage3 instance to one dedicated empty MySQL database, creates 25 required tables and persists private runtime configuration/receipt outside the document root.
+- Initial installation remains CLI-only. The direct `install.php` plan/apply path is the low-level installer; shared-host staging uses `hosted-install-runner.php` with a 0700 private directory, 0600 canonical config, complete account web-root inventory, read-only plan, separate approval fingerprint and one-shot apply. On success it creates a private topology receipt and removes credential-bearing runner config/state. The runner has been tested against disposable MySQL 8 in CI, not on Hostinger.
 - Requirements #184–185 (signed CMS engine update, private immutable slots, full 25-table snapshots, rollback and explicit recovery) are implemented on this feature branch. See docs/CMS-ENGINE-UPDATE-ROLLBACK-DESIGN.md.
 - The stable public root now includes an Apache 2.4 / LiteSpeed-compatible .htaccess policy using mod_rewrite, hidden-path denial, disabled directory indexes and denial of stray executable/private files. It avoids FallbackResource, RedirectMatch and FilesMatch for LiteSpeed compatibility. The signed PHP-host package inventory retains this stable routing file.
-- A disposable Apache 2.4 + PHP 8.3 container rehearsal is added to the Stage3 CI. It performs a CLI SQLite install in a temporary copy, then checks /studio, assets, /api/session, owner login, /api/sites, engine status and public-root protections. It is not a real-host deployment.
+- A disposable Apache 2.4 + PHP 8.3 container rehearsal is added to the Stage3 CI. It performs a CLI SQLite install in a temporary copy, then checks /studio, assets, /api/session, owner login, /api/sites, engine status, owner-only hosting diagnostics and public-root protections. The readiness diagnostics now validate the real `SCRIPT_FILENAME`, configured `open_basedir` access to required paths and upload settings. It is not a real-host deployment.
 - The exact current branch CI result is recorded in the canonical docs/NEXT-CHAT.md. Do not treat the Apache rehearsal as passed until that exact-SHA run is green.
 
 ### Still open / not proven
 
 - Requirement #183 remains open: there is no browser-guided installer. The current safe installation path requires SSH/CLI access and private process environment values.
-- No real Hostinger/LiteSpeed or other shared-host Stage3 installation has been performed. Apache container evidence does not prove target-host FallbackResource, AllowOverride, PHP web-SAPI, open_basedir, filesystem ownership, MySQL privileges or OPcache behavior.
+- No real Hostinger/LiteSpeed or other shared-host Stage3 installation has been performed. Apache container evidence does not prove target-host Rewrite/AllowOverride behavior, PHP web-SAPI, actual `open_basedir`, filesystem ownership, MySQL privileges, hPanel Cron behavior or OPcache.
 - No real staging hostname, database, site, SMTP/Telegram destination, customer data or production deployment has been contacted.
 - CMS engine updates are schema-v1/code-only. Schema-changing packages remain blocked until reversible migrations are implemented.
 - Formal owner acceptance remains 0/135. Stage 2 remains NO-GO; Stage 3 remains isolated engineering until owner hands-on acceptance and external gates close.
@@ -66,7 +66,10 @@ Database-scoped locking prevents concurrent apply operations. An invalid or stal
 
 - stage3/server/public/.htaccess — Apache shared-host route and public-root protection.
 - stage3/server/public/index.php — stable public front controller.
-- stage3/server/bin/install.php / Stage3Installer.php — CLI plan/apply and preflight.
+- stage3/server/bin/install.php / Stage3Installer.php — low-level CLI plan/apply and preflight.
+- stage3/server/bin/hosted-install-runner.php — private hPanel Cron plan/apply wrapper and account topology receipt.
+- stage3/server/Api.php `/api/hosting/diagnostics` — owner-only read-only shared-host readiness checks.
+- HOSTED-INSTALL-RUNNER.md — private config, approval and recovery runbook.
 - stage3/server/bin/engine.php / EngineLifecycle.php — owner engine update, rollback and recovery control plane.
 - stage3/server/RuntimeConfig.php — private configuration writer/loader and integrity checks.
 - stage3/tests/install-probe.cjs, mysql-install-probe.cjs, engine-update-smoke.cjs — disposable install/update probes.

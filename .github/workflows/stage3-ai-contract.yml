@@ -4,6 +4,8 @@ on:
     branches: ['feature/stage3-ai-site-contract']
     paths:
       - 'stage3/**'
+      - '!stage3/docs/**'
+      - '!stage3/README.md'
       - '.github/workflows/stage3-ai-contract.yml'
   workflow_dispatch:
 # Only the latest commit in this development branch needs the full browser/HTTP
