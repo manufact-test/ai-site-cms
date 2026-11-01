@@ -85,6 +85,11 @@ jobs:
           php-version: '8.3'
           extensions: pdo_sqlite, pdo_mysql, mbstring
           coverage: none
+      - name: Read-only Hostinger PHP CLI environment probe
+        run: |
+          php -l stage3/server/bin/hosted-install-runner.php
+          node --check stage3/tests/hosted-environment-probe.cjs
+          node stage3/tests/hosted-environment-probe.cjs
       - name: Signed CMS engine update, rollback and database snapshot rehearsal
         env:
           STAGE3_INSTALL_MYSQL_HOST: 127.0.0.1

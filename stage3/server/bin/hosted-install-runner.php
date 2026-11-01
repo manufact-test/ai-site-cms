@@ -120,6 +120,108 @@ function stage3_runner_emit(array $document): void
     echo stage3_runner_json($document);
 }
 
+function stage3_runner_environment_probe(): never
+{
+    $serverRoot = dirname(__DIR__);
+    $stage3Root = dirname($serverRoot);
+    $requiredExtensions = [
+        'pdo' => extension_loaded('pdo'),
+        'pdo_mysql' => extension_loaded('pdo_mysql'),
+        'json' => extension_loaded('json'),
+        'openssl' => extension_loaded('openssl'),
+        'mbstring' => extension_loaded('mbstring')
+    ];
+    $pdoDrivers = class_exists(PDO::class) ? PDO::getAvailableDrivers() : [];
+    $runtimeFiles = [
+        'serverBootstrap' => $serverRoot . '/bootstrap.php',
+        'runtimeConfig' => $serverRoot . '/RuntimeConfig.php',
+        'installerEntry' => __DIR__ . '/install.php',
+        'installerCore' => __DIR__ . '/Stage3Installer.php',
+        'hostedRunner' => __FILE__,
+        'publicFrontController' => $serverRoot . '/public/index.php',
+        'publicRewriteRules' => $serverRoot . '/public/.htaccess'
+    ];
+    $runtimeDirectories = [
+        'components' => $stage3Root . '/components',
+        'mediaMotion' => $stage3Root . '/media-motion',
+        'server' => $serverRoot,
+        'studio' => $stage3Root . '/studio'
+    ];
+    $fileChecks = [];
+    foreach ($runtimeFiles as $name => $file) {
+        $fileChecks[$name] = is_file($file) && !is_link($file) && is_readable($file);
+    }
+    $directoryChecks = [];
+    foreach ($runtimeDirectories as $name => $directory) {
+        $directoryChecks[$name] = is_dir($directory) && !is_link($directory) && is_readable($directory);
+    }
+
+    $blockers = [];
+    if (PHP_VERSION_ID < 80100) {
+        $blockers[] = 'PHP 8.1 or newer is required for the hosted Stage3 runner';
+    }
+    foreach ($requiredExtensions as $name => $loaded) {
+        if (!$loaded) {
+            $blockers[] = 'Required PHP extension is missing: ' . $name;
+        }
+    }
+    if (!in_array('mysql', $pdoDrivers, true)) {
+        $blockers[] = 'PDO MySQL driver is not available';
+    }
+    foreach ($fileChecks as $name => $ok) {
+        if (!$ok) {
+            $blockers[] = 'Required runtime file is missing or unreadable: ' . $name;
+        }
+    }
+    foreach ($directoryChecks as $name => $ok) {
+        if (!$ok) {
+            $blockers[] = 'Required runtime directory is missing or unreadable: ' . $name;
+        }
+    }
+
+    stage3_runner_emit([
+        'format' => 'manufact-stage3-hosted-environment-probe-v1',
+        'action' => 'environment_probe',
+        'status' => $blockers === [] ? 'cli_ready_for_private_plan' : 'blocked',
+        'cliPrerequisitesPassed' => $blockers === [],
+        'php' => [
+            'version' => PHP_VERSION,
+            'versionId' => PHP_VERSION_ID,
+            'sapi' => PHP_SAPI
+        ],
+        'requiredExtensions' => $requiredExtensions,
+        'pdoDrivers' => $pdoDrivers,
+        'informational' => [
+            'sodiumAvailable' => extension_loaded('sodium'),
+            'memoryLimit' => (string)ini_get('memory_limit'),
+            'maxExecutionTime' => (string)ini_get('max_execution_time'),
+            'openBasedirConfigured' => (string)ini_get('open_basedir') !== ''
+        ],
+        'runtimeFiles' => $fileChecks,
+        'runtimeDirectories' => $directoryChecks,
+        'scope' => [
+            'cliOnly' => true,
+            'databaseChecked' => false,
+            'webPhpSapiChecked' => false,
+            'accountWebRootsChecked' => false,
+            'privateDirectoryChecked' => false,
+            'credentialsRead' => false,
+            'filesystemWritesPerformed' => false
+        ],
+        'blockers' => $blockers,
+        'warnings' => [
+            'This read-only probe checks the PHP CLI used for this command only.',
+            'It does not validate the website PHP handler, database, account web-root inventory, TLS, or private directory.',
+            'A clear result permits preparing the private configuration and running the separate --plan; it does not authorize --apply.'
+        ]
+    ]);
+    exit($blockers === [] ? 0 : 1);
+}
+
+if (($argv[1] ?? '') === '--probe' && $argc === 2) {
+    stage3_runner_environment_probe();
+}
+
 $values = [];
 try {
     if ($argc !== 3 || !str_starts_with($argv[1] ?? '', '--config=')) {
