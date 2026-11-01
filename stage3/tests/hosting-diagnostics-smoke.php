@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../server/Api.php';
 
-$method = new ReflectionMethod(\\Manufact\\Stage3\\Api::class, 'hostingOpenBasedirAllows');
+$method = new ReflectionMethod(\Manufact\Stage3\Api::class, 'hostingOpenBasedirAllows');
 $method->setAccessible(true);
 $stage3Root = realpath(dirname(__DIR__));
 $testsRoot = realpath(__DIR__);
