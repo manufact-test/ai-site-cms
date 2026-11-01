@@ -5,6 +5,7 @@ namespace Manufact\Stage3;
 
 use InvalidArgumentException;
 use JsonException;
+use RuntimeException;
 use Throwable;
 
 final class Api
