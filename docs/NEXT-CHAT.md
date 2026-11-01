@@ -10,7 +10,7 @@
 - Functional source SHA: `f4366d1982413ea7a27ba8c807d9c54c78abed14`
 - Full CI for that functional SHA: [#41333071592](https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592) — **SUCCESS**, both `contract` and `technology-runtime`.
 - Documentation/workflow checkpoint: `82a6eea97d255e5c21d60c65a7de63af62cd507d`; full CI [#41333649907](https://github.com/manufact-test/ai-site-cms/actions/runs/41333649907) — **SUCCESS**, both jobs green.
-- Follow-up docs-only command-placeholder correction: `52a4873c217bb25884d5da9e8f2824fb343fd17a`. It changes documentation only; no runtime code changed after the green source SHA.
+- Docs-only follow-ups: command-placeholder correction `52a4873c217bb25884d5da9e8f2824fb343fd17a` and one-time Cron scheduling clarification `fca63e3c15900dd6909eb29fb8dee8d171750556`. They change documentation only; no runtime code changed after the green source SHA.
 - The v9.13 handoff/metadata commit is the current documentation checkpoint. Always verify the live branch tip before writing.
 - Main remains `12e9c3feb707e5ad46b2caeeed379eb40618466b`; no merge or reset was performed.
 

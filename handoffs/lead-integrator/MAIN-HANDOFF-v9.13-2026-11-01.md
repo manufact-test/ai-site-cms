@@ -12,7 +12,7 @@
 - Exact full CI: [#41333071592 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592), both jobs SUCCESS.
 - Documentation/workflow checkpoint SHA: `82a6eea97d255e5c21d60c65a7de63af62cd507d`
 - Exact full CI for documentation/workflow checkpoint: [#41333649907 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/41333649907), both jobs SUCCESS.
-- Subsequent docs-only command placeholder correction: `52a4873c217bb25884d5da9e8f2824fb343fd17a`; no runtime source changed.
+- Subsequent docs-only follow-ups: command placeholder correction `52a4873c217bb25884d5da9e8f2824fb343fd17a` and one-time Cron scheduling clarification `fca63e3c15900dd6909eb29fb8dee8d171750556`; no runtime source changed.
 - Main was checked and remains `12e9c3feb707e5ad46b2caeeed379eb40618466b`. No merge, reset or production deployment.
 
 The handoff SHA supplied at the beginning of this chat (`974909d502099b170beafa6806c6e1bc92378c78`) was stale. The live feature branch was already at `6e5e924307a8f6dc9010cf7e2453581455569835` and contained later functional work. The old run #41318864811 had already been superseded by later fixes and green runs. Do not roll back to the stale SHA.
