@@ -26,14 +26,13 @@ async function pickPort(){
 async function start(){
   const setup=spawnSync('php',['stage3/server/bin/setup.php'],{cwd:root,env,encoding:'utf8'});
   assert.equal(setup.status,0,setup.stderr);
-  const receipt=JSON.parse(fs.readFileSync(path.join(privateDir,'installation.json'),'utf8'));
   const topology={
     format:'manufact-stage3-hosted-install-topology-v1',
     serverRoot:fs.realpathSync(path.join(root,'stage3/server')),
     publicRoot,
     privateDir,
     accountWebRoots:[publicRoot],
-    instanceId:receipt.instanceId,
+    instanceId:null,
     installedAt:new Date().toISOString()
   };
   const topologyPath=path.join(privateDir,'hosted-install-topology.json');
@@ -138,7 +137,7 @@ async function execute(){
   assert.equal(ownerDiagnostics.body.runtime.sapi,'cli-server');
   assert.equal(ownerDiagnostics.body.database.driver,'sqlite');
   assert.equal(ownerDiagnostics.body.database.tableCount,25);
-  assert.equal(ownerDiagnostics.body.database.instanceBound,true);
+  assert.equal(ownerDiagnostics.body.database.instanceBound,false,'CI setup fixture has no hosted installation receipt');
   assert.equal(ownerDiagnostics.body.filesystem.documentRootMatches,true);
   assert.equal(ownerDiagnostics.body.filesystem.accountWebRootIsolationValid,true);
   assert.equal(ownerDiagnostics.body.filesystem.privateDirectoryPermissions,'0700');
