@@ -10,18 +10,18 @@
     "desirable": 42,
     "not_needed": 16
   },
-  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v9.10-2026-11-01.md",
-  "latest_source_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
-  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
-  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
+  "latest_handoff": "handoffs/lead-integrator/MAIN-HANDOFF-v9.13-2026-11-01.md",
+  "latest_source_sha": "f4366d1982413ea7a27ba8c807d9c54c78abed14",
+  "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592",
+  "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592",
   "source_offweb_ci": null,
-  "source_ci_result": "Exact functional SHA 19a74e77c1acdfb43a7b3840f8e05bd10f2b0427 on feature/stage3-ai-site-contract; full GitHub Actions #41302974827 completed SUCCESS on that exact SHA: technology-runtime SUCCESS and contract SUCCESS. The run includes D8 collector package verification and extracted-package PHP/SQLite HTTP E2E, Stage3 CLI installer SQLite/MySQL 8.4 probes, Studio Chromium, D3 visitor-release rollback and full HTTP persistence/publish. Engineering evidence only; no owner acceptance or deployment.",
+  "source_ci_result": "Exact functional source SHA f4366d1982413ea7a27ba8c807d9c54c78abed14 on feature/stage3-ai-site-contract; full GitHub Actions #41333071592 completed SUCCESS with technology-runtime and contract both SUCCESS. Documentation/workflow checkpoint 82a6eea97d255e5c21d60c65a7de63af62cd507d also passed full Actions #41333649907 SUCCESS. Docs-only command-placeholder correction 52a4873c217bb25884d5da9e8f2824fb343fd17a changed no runtime code.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly with cross-subsystem workflows (no duration padding), then correct issues from real use; avoid tiny features and endless tests",
     "one_continue": "ONE MACROBLOCK of 2-4 substantial vertical deliveries across Studio + contract + renderer/API/storage, at least 3 meaningful independent user outcomes; not a small set of dialog tweaks; don't stop after first commit/CI",
     "checks": "Keep existing full CI + only critical added Chromium end-to-end for newly introduced workflow; no redundant test cycling; verify exact final HEAD",
-    "documentation": "Update only on explicit owner request to change chats",
+    "documentation": "Update after each completed macroblock and before a chat handoff. Keep source SHA and exact CI evidence current. Stage3 docs/README-only changes are excluded from full CI; runtime and workflow changes still trigger it.",
     "current_stage": 2,
     "total_stages": 18,
     "stage2_technical_estimate_percent": "85-90",
@@ -38,7 +38,7 @@
     ],
     "stage3_formally_accepted": false,
     "stage3_code_branch": "feature/stage3-ai-site-contract",
-    "stage3_code_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
+    "stage3_code_sha": "f4366d1982413ea7a27ba8c807d9c54c78abed14",
     "stage3_scope": "isolated branch code and disposable CI only; do not deploy/merge or contact real hosting",
     "parallel_work": {
       "enabled": true,
@@ -55,20 +55,20 @@
       "D: Technology adapters + deploy foundations (2/13/12; isolated only)",
       "E: System checks + 135 owner approvals + release (14/15/16/17; owner GO required)"
     ],
-    "next_macroblock": "Audit and design completed in v9.11. Implement four vertical packages for #184-185: RSA-3072/SHA-256 signed php-host package + PHP OpenSSL verifier; private immutable engine slots/stable loader/leases/activation/rollback/recovery; full private Stage3 25-table DB snapshot and schema guard (first updates schema-preserving only); owner-only Studio review/apply/rollback. Use existing full CI plus only critical new integration/browser coverage. #183 guided setup remains separate. Do not confuse D3 visitor-site rollback with CMS engine rollback.",
+    "next_macroblock": "Owner-confirmed real shared-host staging using the private hPanel Cron runner: confirm exact target and external auto-deploy branch, complete account web-root inventory, dedicated MySQL 8.0+ database and private storage; run read-only plan, then separately approved apply; complete real Studio acceptance. No host writes until owner approval.",
     "execution_policy_document": "docs/ACCELERATED-MACROBLOCK-PROGRAM.md",
     "policy_owner_request_date": "2026-10-27",
     "current_code_checkpoint_at_policy_change": "cf369988ec16904d945413f36ad292fb94d17da2",
-    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827"
+    "code_ci_to_verify": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592"
   },
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Implement the v9.11 CMS engine update/rollback design on feature/stage3-ai-site-contract. Keep first releases schema-preserving (schema 1 -> 1); add complete private DB snapshot and block migrations until reversible up/down support is present. Use PHP OpenSSL RSA-3072/SHA-256 because Hostinger web PHP sodium=false is recorded. #183 browser-guided initial setup remains separate.",
+  "next_step": "Owner-confirmed isolated shared-host staging: reconfirm the Hostinger CMS/staging target and independent visitor/test site, verify the external Git auto-deploy branch, confirm hPanel custom PHP CLI capability and complete account web-root inventory, then use a dedicated Stage3 MySQL 8.0+ database and private 0700 storage. Owner runs read-only hosted-install-runner --plan first; --apply requires a separate owner decision. No shared/general SSH, Stage2 secrets or production writes.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "9.11-cms-engine-update-rollback-design-2026-11-01",
+  "checkpoint_version": "9.13-shared-host-staging-runner-diagnostics-2026-11-01",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
@@ -668,7 +668,7 @@
   "roadmap_path": "docs/ROADMAP.md",
   "roadmap_version": "1.52",
   "project_map_path": "docs/PROJECT-MAP.md",
-  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v9.10-2026-11-01.md",
+  "handoff_path": "handoffs/lead-integrator/MAIN-HANDOFF-v9.13-2026-11-01.md",
   "next_stage": {
     "number": 3,
     "name": "Контракт ИИ — сайт — CMS",
@@ -689,7 +689,7 @@
       "scope": "Research, license/host analysis, 135-ID reuse matrix and option A preference accepted through owner-delegated technical choice. No product features accepted."
     }
   ],
-  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/handoffs/lead-integrator/MAIN-HANDOFF-v9.9-2026-11-01.md",
+  "handoff_canonical_url": "https://github.com/manufact-test/ai-site-cms/blob/feature/stage3-ai-site-contract/docs/NEXT-CHAT.md",
   "owner_approved_roadmap_at": "2026-10-17",
   "celikom_pilot_stage": 17,
   "celikom_pilot_rule": "Only after full CMS release; separate test copy of CELIKOM as first independent pilot; no merging of repositories, code, databases, deployments, keys or development paths. Other sites follow only after successful CELIKOM validation.",
@@ -1237,8 +1237,8 @@
     "operator_signer_identity_independently_verified": false,
     "evidence_custody_code_sha": "b3237fc2426ad246178b3fd4b64501c6b22c86ba"
   },
-  "last_docs_handoff_version": "v9.10",
-  "last_docs_handoff_note": "Owner-requested handoff 01.11.2026: D8 optional form collector sidecar and Stage3 single-site CLI installer hardening verified on functional SHA 19a74e77; full Actions #41302974827 both jobs SUCCESS; installer remains CLI-only; CMS engine updater/rollback #184-185 and simple shared-hosting setup #183 remain open.",
+  "last_docs_handoff_version": "v9.13",
+  "last_docs_handoff_note": "Shared-host hPanel Cron runner, topology receipt, owner-only hosting diagnostics hardening and staging documentation completed. Real Hostinger execution remains gated by owner confirmation.",
   "latest_tested_code_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
   "development_policy_v1_50": {
     "priority": "real_usable_CMS_workflows_before_extra_laboratory_testing",
@@ -1405,7 +1405,7 @@
   },
   "main_branch": "main",
   "main_last_verified_sha": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
-  "stage3_source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497",
+  "stage3_source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592",
   "stage3_studio_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497/artifacts/13062460096",
   "stage3_screens_artifact": "https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497/artifacts/13062350507",
   "stage3_parallel": {
@@ -1768,8 +1768,8 @@
     ]
   },
   "latest_known_failed_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483",
-  "latest_confirmed_successful_functional_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
-  "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
+  "latest_confirmed_successful_functional_sha": "f4366d1982413ea7a27ba8c807d9c54c78abed14",
+  "latest_confirmed_successful_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592",
   "stage3_engineering_estimate": "Approximate subjective core-editor progress 70-80%, not a verified acceptance fraction; all 135 required Stage3 items still require formal owner acceptance (0/135).",
   "stage3_v1_72_checkpoint": {
     "date": "2026-10-26",
@@ -1794,21 +1794,26 @@
     "ci_final_status": "SUCCESS"
   },
   "last_completed_macroblock": {
-    "name": "D8 form collector sidecar + Stage3 single-site installer hardening",
+    "name": "Shared-host staging foundation and readiness diagnostics hardening",
     "date": "2026-11-01",
-    "source_sha": "19a74e77c1acdfb43a7b3840f8e05bd10f2b0427",
-    "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
-    "ci_result_at_handoff": "completed SUCCESS / #41302974827; technology-runtime and contract both SUCCESS",
+    "source_sha": "f4366d1982413ea7a27ba8c807d9c54c78abed14",
+    "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592",
+    "ci_result_at_handoff": "completed SUCCESS / #41333071592; technology-runtime and contract both SUCCESS",
+    "docs_workflow_sha": "82a6eea97d255e5c21d60c65a7de63af62cd507d",
+    "docs_workflow_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333649907",
+    "docs_workflow_ci_result": "completed SUCCESS / #41333649907; both jobs SUCCESS",
     "features": [
-      "Optional separately packaged collector ZIP with strict PHP allowlist and SHA-256 inventory",
-      "Collector public document root restricted to index.php and .htaccess; CMS admin API and secrets excluded",
-      "Extracted collector PHP/SQLite loopback HTTP E2E: origin/HMAC/conditional-field rejection and valid lead persistence into same disposable CMS database",
-      "CLI-only single-site install plan/apply with exact configuration-bound approval token",
-      "Private runtime configuration outside public document root and database-scoped install lock",
-      "MySQL 8.0+ gate, 25-table schema integrity inventory and private canonical receipt/hard-link checks",
-      "Approval token bound to database password hash"
+      "Apache 2.4 / LiteSpeed-compatible public front controller and route policy",
+      "Private CLI-only hPanel Cron hosted install runner with canonical 0600 config and 0700 storage",
+      "Complete account web-root inventory and private hosted topology receipt",
+      "Two-step read-only plan / separately approved apply with private token and fingerprint binding",
+      "One-shot consumed marker and safe repeated-Cron no-op",
+      "Owner-only read-only Studio hosting diagnostics",
+      "Real front-controller verification, open_basedir path checks and upload configuration checks",
+      "Chromium, PHP/MySQL, HTTP persistence/publish and Apache shared-host regression coverage",
+      "Updated Hostinger/staging/installer runbooks and CI path filtering for docs-only changes"
     ],
-    "previous_confirmed_green_sha": "3a5fe6072600b7d74152673ae3316b5cc1e1483b"
+    "deployment_or_production_changed": false
   },
   "latest_engineering_macroblocks": [
     {
@@ -1901,6 +1906,20 @@
       "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827",
       "verified": "success",
       "scope": "Single-site CLI install hardening: private config, MySQL 8+, 25-table inventory, canonical receipt and DB-password-bound plan token"
+    },
+    {
+      "stage": "H1",
+      "sha": "6e5e924307a8f6dc9010cf7e2453581455569835",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41331474520",
+      "verified": "success",
+      "scope": "Apache/LiteSpeed shared-host routing, private hPanel Cron install runner, account web-root isolation and topology receipt"
+    },
+    {
+      "stage": "H2",
+      "sha": "f4366d1982413ea7a27ba8c807d9c54c78abed14",
+      "ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592",
+      "verified": "success",
+      "scope": "Hosting readiness diagnostics hardening: actual front controller, open_basedir, upload limits, Studio UI and regression coverage"
     }
   ],
   "stage3_v1_75_checkpoint": {
@@ -2124,5 +2143,30 @@
     "functional_code_changed": false,
     "production_or_main_changed": false
   },
-  "engine_update_design_commit": "18e4c86365ccb4bbbb93abc8c79e26c2a10071d3"
+  "engine_update_design_commit": "18e4c86365ccb4bbbb93abc8c79e26c2a10071d3",
+  "latest_docs_sha": "52a4873c217bb25884d5da9e8f2824fb343fd17a",
+  "latest_branch_head_before_handoff": "52a4873c217bb25884d5da9e8f2824fb343fd17a",
+  "stage3_docs_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333649907",
+  "stage3_docs_checkpoint_sha": "82a6eea97d255e5c21d60c65a7de63af62cd507d",
+  "stage3_v9_13_checkpoint": {
+    "date": "2026-11-01",
+    "branch": "feature/stage3-ai-site-contract",
+    "functional_sha": "f4366d1982413ea7a27ba8c807d9c54c78abed14",
+    "exact_full_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592",
+    "exact_full_ci_result": {
+      "technology_runtime": "SUCCESS",
+      "contract": "SUCCESS"
+    },
+    "docs_workflow_sha": "82a6eea97d255e5c21d60c65a7de63af62cd507d",
+    "docs_workflow_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333649907",
+    "docs_workflow_ci_result": {
+      "technology_runtime": "SUCCESS",
+      "contract": "SUCCESS"
+    },
+    "docs_only_sha": "52a4873c217bb25884d5da9e8f2824fb343fd17a",
+    "main_sha": "12e9c3feb707e5ad46b2caeeed379eb40618466b",
+    "real_host_deployment": false,
+    "owner_acceptance": "0/135",
+    "next": "Owner-confirmed isolated Hostinger staging using private hPanel Cron runner; no shared SSH or production writes."
+  }
 }
