@@ -107,10 +107,27 @@ async function execute(){
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin+'/studio');
   await page.locator('#server-login:not([hidden])').waitFor();
+  assert.equal(await page.locator('#server-engine-open').isVisible(),false,
+    'CMS engine maintenance is not exposed before owner authentication');
   await page.locator('#server-username').fill('testowner');
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
   await page.locator('#server-signin').click();
   await page.locator('#server-login').waitFor({state:'hidden'});
+  assert.equal(await page.locator('#server-engine-open').isVisible(),true,
+    'owner receives the separate CMS engine maintenance entrypoint');
+  await page.locator('#server-engine-open').click();
+  await page.locator('#server-engine-dialog[open]').waitFor();
+  const engineSummary=await page.locator('#server-engine-status').innerText();
+  assert.match(engineSummary,/Текущая версия: legacy-installed/,
+    'maintenance dialog reads the active CMS generation from the real owner API');
+  assert.match(engineSummary,/доверенный ключ: не настроен/,
+    'maintenance dialog clearly reports missing publisher trust');
+  assert.equal(await page.locator('#server-engine-review').isDisabled(),true,
+    'a release cannot be reviewed before the publisher trust anchor is configured');
+  assert.equal(await page.locator('#server-engine-dialog details').count(),2,
+    'the owner gets separate, readable trust and package instructions');
+  await page.locator('#server-engine-close').click();
+  await page.locator('#server-engine-dialog').waitFor({state:'hidden'});
 
   // The owner starts in the page editor. Site-wide tools are outside the
   // navigation tree and appear only after the single explicit launcher.
