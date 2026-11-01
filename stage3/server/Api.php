@@ -165,7 +165,8 @@ final class Api
         $privateMode = is_string($privateDir) && is_dir($privateDir) ? @fileperms($privateDir) : false;
         $privatePermissions = $privateMode === false ? null : ($privateMode & 0777);
         $privateDirectoryOk = is_string($privateDir) && $privateDir === $privateInput
-            && is_dir($privateDir) && !is_link($privateInput) && $privatePermissions === 0700 && is_writable($privateDir);
+            && is_dir($privateDir) && !is_link($privateInput) && $privatePermissions === 0700 && is_writable($privateDir)
+            && !self::hostingPathWithin($privateDir, $serverRoot) && !self::hostingPathWithin($serverRoot, $privateDir);
         $privateRuntimeOk = ($planChecks['privateRuntimeConfig']['ok'] ?? false) === true;
         $documentRoot = realpath((string)($_SERVER['DOCUMENT_ROOT'] ?? ''));
         $documentRootMatches = is_string($publicRoot) && $documentRoot === $publicRoot;
