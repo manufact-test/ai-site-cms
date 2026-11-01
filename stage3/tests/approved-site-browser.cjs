@@ -107,14 +107,29 @@ async function execute(){
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin+'/studio');
   await page.locator('#server-login:not([hidden])').waitFor();
-  assert.equal(await page.locator('#server-engine-open').isVisible(),false,
-    'CMS engine maintenance is not exposed before owner authentication');
+  assert.equal(await page.locator('#server-engine-open').evaluate(node=>node.hidden),true,
+    'CMS engine maintenance is owner-gated before authentication');
   await page.locator('#server-username').fill('testowner');
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
   await page.locator('#server-signin').click();
   await page.locator('#server-login').waitFor({state:'hidden'});
-  assert.equal(await page.locator('#server-engine-open').isVisible(),true,
+  assert.equal(await page.locator('#server-engine-open').evaluate(node=>node.hidden),false,
     'owner receives the separate CMS engine maintenance entrypoint');
+
+  // The owner starts in the page editor. Site-wide tools are outside the
+  // navigation tree and appear only after the single explicit launcher.
+  assert.equal(await page.locator('#server-empty-state:visible').count(),1);
+  assert.equal(await page.locator('#server-site-tools-dialog').count(),1);
+  assert.equal(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#server-site-tools').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#server-site-tools').evaluate(node=>!!node.closest('.sidebar')),false);
+  assert.equal(await page.locator('#server-resources').evaluate(node=>!!node.closest('.sidebar')),false);
+  assert.equal(await page.locator('#server-drawer-import').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#history-details').evaluate(node=>node.open),false);
+  await page.locator('#server-site-tools-open').click();
+  await page.locator('#server-site-tools-dialog[open]').waitFor();
+  assert.equal(await page.locator('#server-engine-open').isVisible(),true,
+    'owner can reach engine maintenance from the dedicated site-tools surface');
   await page.locator('#server-engine-open').click();
   await page.locator('#server-engine-dialog[open]').waitFor();
   await page.locator('#server-engine-status').getByText(/Текущая версия: legacy-installed/).waitFor();
@@ -129,19 +144,6 @@ async function execute(){
     'the owner gets separate, readable trust and package instructions');
   await page.locator('#server-engine-close').click();
   await page.locator('#server-engine-dialog').waitFor({state:'hidden'});
-
-  // The owner starts in the page editor. Site-wide tools are outside the
-  // navigation tree and appear only after the single explicit launcher.
-  assert.equal(await page.locator('#server-empty-state:visible').count(),1);
-  assert.equal(await page.locator('#server-site-tools-dialog').count(),1);
-  assert.equal(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open),false);
-  assert.equal(await page.locator('#server-site-tools').evaluate(node=>node.open),false);
-  assert.equal(await page.locator('#server-site-tools').evaluate(node=>!!node.closest('.sidebar')),false);
-  assert.equal(await page.locator('#server-resources').evaluate(node=>!!node.closest('.sidebar')),false);
-  assert.equal(await page.locator('#server-drawer-import').evaluate(node=>node.open),false);
-  assert.equal(await page.locator('#history-details').evaluate(node=>node.open),false);
-  await page.locator('#server-site-tools-open').click();
-  await page.locator('#server-site-tools-dialog[open]').waitFor();
   assert.equal(await page.locator('#server-edit-page').count(),1);
   assert.equal(await page.locator('#page-add').isVisible(),true);
   assert.equal(await page.locator('#page-rename').isVisible(),false,
