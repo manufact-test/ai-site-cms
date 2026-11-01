@@ -1,3 +1,5 @@
+> **АКТУАЛЬНОЕ СОСТОЯНИЕ НА 01.11.2026 · Stage3 isolated engineering.** Functional source `73deff8626b66308b011a52dd27e1508795920ac`; full CI [#41340074041 SUCCESS](https://github.com/manufact-test/ai-site-cms/actions/runs/41340074041). Prepared a Hostinger sibling-layout package and a read-only PHP CLI `--probe`; no real-host deployment has occurred. Current staging path and owner gates: [NEXT-CHAT v9.14](NEXT-CHAT.md) and [Hostinger addendum](HOSTINGER-STAGING-ADDENDUM.md). Stage2 remains formal NO-GO; Stage3 remains unaccepted; 0/135 owner-approved requirements.
+
 # AI Site CMS — рабочая карта v2.0 · 27.10.2026
 **Операционный план, не новая фабрика шаблонов.** [Главный MASTER](MASTER-TZ.md). Предыдущие 18 исторических этапов 0–17 не являются блокирующей линейкой: история доступна в Git; перенумерация ниже отражает пользовательский результат, а не лабораторные проценты.
 

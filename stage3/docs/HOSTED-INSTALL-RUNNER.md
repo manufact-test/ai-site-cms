@@ -13,6 +13,18 @@
 - It accepts only a dedicated MySQL database. SQLite and MariaDB are rejected.
 - It performs no deployment or publication of visitor-site content.
 
+## Zero-credential PHP CLI preflight
+
+Before creating the private configuration or database credentials, run the read-only capability probe from an owner-controlled hPanel Cron custom command:
+
+    php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --probe
+
+The command requires no config file, database, credentials or approval fingerprint. It returns JSON with status `cli_ready_for_private_plan` or `blocked`, the PHP CLI version/SAPI, required extensions (PDO, PDO MySQL, JSON, OpenSSL and mbstring), available PDO drivers, and readability checks for the core Stage3 runtime files and directories.
+
+The probe performs no filesystem writes, reads no environment secrets, and makes no database or network connection. A non-zero exit means a listed CLI prerequisite is missing; correct that condition before preparing the private config. The Sodium field is informational only and is not a readiness gate for this initial-install probe.
+
+**Scope limitation:** this is evidence about the PHP CLI used by the Cron command only. It does not validate the website's PHP handler, MySQL connectivity/version, account web-root inventory, TLS, private-directory permissions or actual open_basedir access to future paths. Those remain separate checks in the hosted `--plan` and post-install Studio diagnostics. A clear probe result is not installation approval and never authorizes `--apply`.
+
 ## Private configuration
 
 The exact config path must be:
@@ -111,6 +123,6 @@ The diagnostics cannot discover omitted or newly created account web roots; the 
 
 ## CI evidence and deployment status
 
-The disposable MySQL 8 install probe verifies that overlapping web roots, wrong approval fingerprints and changed credentials are refused before database writes; a separate approved plan installs all 25 tables once, creates the topology receipt, removes credential-bearing config and makes subsequent Cron calls a silent no-op. The Chromium and Apache smoke tests verify owner-only diagnostics, front-controller identity, PHP path restrictions and upload configuration.
+The disposable MySQL 8 install probe verifies that overlapping web roots, wrong approval fingerprints and changed credentials are refused before database writes; a separate approved plan installs all 25 tables once, creates the topology receipt, removes credential-bearing config and makes subsequent Cron calls a silent no-op. The zero-credential CLI probe test verifies PHP 8.3 passes, stripped PHP CLI fails closed, secret sentinels are never echoed and no files are written. The Chromium and Apache smoke tests verify owner-only diagnostics, front-controller identity, PHP path restrictions and upload configuration.
 
 These tests run in GitHub Actions only. No Hostinger file, Cron job, database, DNS, production site, customer data or real notification destination has been changed.

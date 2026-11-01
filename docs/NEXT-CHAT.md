@@ -1,4 +1,4 @@
-# MANUFACT AI Site CMS — Next Chat Checkpoint v9.13
+# MANUFACT AI Site CMS — Next Chat Checkpoint v9.14
 
 **Updated:** 2026-11-01  
 **Role:** Lead Integrator. Continue the existing Stage3 CMS; do not restart it or merge it with Design Factory / SEO work.
@@ -7,75 +7,67 @@
 
 - Repository: https://github.com/manufact-test/ai-site-cms
 - Active branch: `feature/stage3-ai-site-contract`
-- Functional source SHA: `f4366d1982413ea7a27ba8c807d9c54c78abed14`
-- Full CI for that functional SHA: [#41333071592](https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592) — **SUCCESS**, both `contract` and `technology-runtime`.
-- Documentation/workflow checkpoint: `82a6eea97d255e5c21d60c65a7de63af62cd507d`; full CI [#41333649907](https://github.com/manufact-test/ai-site-cms/actions/runs/41333649907) — **SUCCESS**, both jobs green.
-- Docs-only follow-ups: command-placeholder correction `52a4873c217bb25884d5da9e8f2824fb343fd17a` and one-time Cron scheduling clarification `fca63e3c15900dd6909eb29fb8dee8d171750556`. They change documentation only; no runtime code changed after the green source SHA.
-- The v9.13 handoff/metadata commit is the current documentation checkpoint. Always verify the live branch tip before writing.
-- Main remains `12e9c3feb707e5ad46b2caeeed379eb40618466b`; no merge or reset was performed.
+- Latest functional source SHA: `73deff8626b66308b011a52dd27e1508795920ac`
+- Full CI: [#41340074041](https://github.com/manufact-test/ai-site-cms/actions/runs/41340074041) — **SUCCESS**, both `contract` and `technology-runtime`.
+- Previous Hostinger package-only milestone: [#41339118010](https://github.com/manufact-test/ai-site-cms/actions/runs/41339118010) — SUCCESS.
+- Main remains `12e9c3feb707e5ad46b2caeeed379eb40618466b`; no merge, reset or main write.
+- Documentation/handoff checkpoint follows the functional source; always verify the live branch tip before writing.
 
-## Recovery from the supplied handoff
+## Completed in the latest block
 
-The user-provided checkpoint `974909d502099b170beafa6806c6e1bc92378c78` was already behind the live branch. At takeover, the real branch HEAD was `6e5e924307a8f6dc9010cf7e2453581455569835`; several additional functional commits were already present.
+1. **Hostinger sibling-layout package builder:** `stage3/bin/cms-release.cjs pack-hostinger-sibling` creates a PHP-host package with `stage3/`, `public_html/` and `cms-release.json` at one account-home level. The public root contains only `index.php` and `.htaccess`, copied byte-for-byte from the runtime template and set read-only.
+2. **Strict package verification:** the release verifier accepts this exact layout only, rejects symlinks, hard links, writable public front-controller files, changed templates and extra public-root files. `stage3/tests/hostinger-package-smoke.cjs` verifies valid packaging and tamper rejection.
+3. **Zero-credential PHP CLI preflight:** `hosted-install-runner.php --probe` checks PHP CLI 8.1+, required extensions, PDO MySQL availability and readability of the core runtime tree. It reads no secrets, does not connect to a database/network and performs no filesystem writes. It explicitly does not certify the website PHP handler or full host topology.
+4. **Fresh deployable artifact:** [Hostinger sibling package, Actions #1293](https://github.com/manufact-test/ai-site-cms/actions/runs/41340074041/artifacts/13097246593), artifact ID `13097246593`, 581,484 bytes. It includes the new `--probe` runner. The artifact is a ZIP of a ZIP when downloaded through the GitHub Actions API; the inner file is `ai-site-stage3-hostinger-sibling.zip`.
+5. **Full exact-SHA CI:** Chromium Studio E2E, PHP 8.3 SQLite/MySQL, installer/runner, engine update/rollback/snapshot, D3 rollback, HTTP persistence/publish, Apache 2.4 shared-host smoke, Hostinger package build and upload all passed.
 
-The supplied Actions run [#41318864811](https://github.com/manufact-test/ai-site-cms/actions/runs/41318864811) did not remain the active blocker. Later branch work corrected the regressions and [#41331474520](https://github.com/manufact-test/ai-site-cms/actions/runs/41331474520) passed on `6e5e924`. Do not reset to the supplied SHA or repeat already completed work.
+## Hostinger evidence from owner screenshots (01.11.2026)
 
-## Completed work carried forward
+- `lightseagreen-woodpecker-264491.hostingersite.com` is connected to GitHub repository `ai-site-cms`; auto-deployment is enabled; watched branch is `stage2-hostinger-cms-preflight`; deployment root is `public_html`. The screenshot showed completed commit `4d528287`.
+- `mediumpurple-fox-175549.hostingersite.com` had no Git provider connected.
+- Treat these as screenshot observations, not a live re-check. Do not switch the connected branch or push Stage3 to it. The Hostinger archive must be extracted at account-home level so `stage3/` and `public_html/` are siblings; extracting/deploying it inside `public_html` would expose the private runtime.
 
-1. **Owner recovery and browser regressions:** owner authentication is retained when the first site load fails; logout closes the owner tools dialog before the next login.
-2. **Shared-host routing:** stable public front controller and Apache 2.4 / LiteSpeed-compatible `.htaccess`; hidden paths, directory listing and stray executable/private files are denied. The signed PHP-host package inventory retains the routing file.
-3. **Private hosted installation runner:** `stage3/server/bin/hosted-install-runner.php` is CLI-only and intended for an owner-controlled hPanel Cron custom command where shared/general SSH is prohibited. It requires a private 0700 directory, canonical 0600 config, complete account web-root inventory and dedicated MySQL 8.0+.
-4. **Two-step install:** read-only `--plan` stores a private review/state and prints a redacted plan plus approval fingerprint. Separate `--apply=<fingerprint>` recomputes the plan and rejects stale credentials/topology before schema writes. Success creates the 25-table schema, owner account, private topology receipt and consumed marker, then removes credential-bearing config/state. A recurring Cron call becomes a silent no-op; owner must remove the Cron entry manually.
-5. **Hosting readiness diagnostics:** owner-only read-only Studio panel calls `GET /api/hosting/diagnostics`. It checks database/schema identity, private runtime config and permissions, document root, actual `SCRIPT_FILENAME`, public-root policy, hosted topology, PHP `open_basedir` access to runtime/public/private/upload paths, HTTPS/session flags and upload configuration.
-6. **Diagnostics hardening in this block:** removed the hard-coded `frontController=true`; checks the real script path. Added `open_basedir` and upload checks (`file_uploads`, `max_file_uploads`, upload/POST size compatibility and temp directory). Added Studio rows, PHP helper tests and Chromium/Apache regression assertions.
-7. **Documentation:** private runner guide, updated shared-host runbook, installer guide, Hostinger addendum and Stage3 README. CI path filters now exclude `stage3/docs/**` and `stage3/README.md` from full runs; runtime paths and workflow changes still trigger CI. Shell command examples use safe replaceable placeholders.
+## Real-host staging sequence
 
-## Exact CI evidence
+No Hostinger file, Git setting, Cron job, database, DNS, production site, customer data, SMTP destination or Telegram chat has been changed.
 
-- [#41331474520](https://github.com/manufact-test/ai-site-cms/actions/runs/41331474520) — SUCCESS on `6e5e924`; shared-host routing and runner foundation.
-- [#41333071592](https://github.com/manufact-test/ai-site-cms/actions/runs/41333071592) — SUCCESS on `f4366d1`; new PHP diagnostics smoke, MySQL 8 runner, full Chromium E2E, CMS engine update/rollback/snapshot, D3 rollback, HTTP persistence/publish E2E, Apache shared-host smoke, offline Studio package and screenshots.
-- [#41333649907](https://github.com/manufact-test/ai-site-cms/actions/runs/41333649907) — SUCCESS on `82a6eea`; documentation/workflow checkpoint, both jobs green.
+Before any real-host action:
 
-The Apache container and MySQL 8 probes are disposable CI evidence only. They are not proof of Hostinger/LiteSpeed behavior or real owner acceptance.
+1. Owner confirms the exact isolated staging website and explicitly authorizes the upload/extraction method. Do not assume the currently connected Git site is safe to repoint.
+2. Confirm hPanel can run a custom PHP CLI command via Cron and that the archive can be extracted at account-home level, not inside `public_html`.
+3. Confirm the complete 1–50 account web-root inventory. The Stage3 runtime and private directory must not overlap any other web root.
+4. Use a dedicated empty Stage3 MySQL 8.0+ database and a new private 0700 directory. Do not reuse Stage2 secrets, DBs or customer data.
+5. Run the no-secret, read-only probe first:
+   
+       php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --probe
 
-## Real shared-host staging — next priority
+   Continue only when the JSON status is `cli_ready_for_private_plan`. This checks CLI only.
+6. Owner creates the exact private 0600 config described in [HOSTED-INSTALL-RUNNER.md](../stage3/docs/HOSTED-INSTALL-RUNNER.md), with the full account web-root inventory.
+7. Run one-time `--plan`; inspect the redacted report and approval fingerprint. Remove the Cron entry after it runs. Do not leave `--plan` recurring.
+8. `--apply=<fingerprint>` requires a separate explicit owner decision. Do not run it merely because CI or `--probe` is green.
+9. After install, verify owner-only Studio hosting diagnostics, actual web PHP SAPI/open_basedir, save/reload, publish, visitor rollback, forms, real test notification delivery, backup/restore and desktop/tablet/mobile.
 
-No Hostinger files, Cron jobs, databases, DNS, production sites, customer data, SMTP destinations or Telegram chats have been touched.
-
-Prior project notes list two Hostinger test websites:
-
-- CMS/staging candidate: `lightseagreen-woodpecker-264491.hostingersite.com`
-- Independent visitor/test site: `mediumpurple-fox-175549.hostingersite.com`
-
-Treat these as historical candidates until the owner reconfirms them. The external Hostinger Git auto-deployment branch is not visible from GitHub; confirm it before any upload/push that could deploy. Shared/general SSH is explicitly prohibited. Stage2 database credentials and `stage2-hostinger-lab` secrets are not authorized for Stage3.
-
-Next sequence after explicit owner approval:
-
-1. Confirm the exact staging website/subdomain, the external auto-deploy branch, hPanel custom PHP CLI capability, dedicated Stage3 MySQL 8.0+ database and the complete account web-root inventory.
-2. Confirm private runtime and storage paths are outside every account web root. The owner enters credentials privately on the host; never request or accept passwords, private keys, DSNs or form secrets in chat.
-3. Upload the reviewed PHP-host package and private runtime tree using the approved owner-controlled method.
-4. Create the private runner config with exact documented schema and permissions.
-5. Run the read-only hPanel Cron `--plan`; inspect every check and the account topology.
-6. Only after a separate owner decision, run `--apply=REPLACE_WITH_64_HEX_APPROVAL_FINGERPRINT`.
-7. Open Studio and verify `/api/hosting/diagnostics`; then test desktop/tablet/mobile, save/reload, publish, visitor rollback, CMS engine rollback, forms, real test notifications, backup/restore and security.
-
-If the selected account cannot execute the private Cron command or cannot isolate the runtime tree, stop. Do not create a public installer, shell bridge or credential form.
+If the selected account cannot execute the private CLI runner or cannot isolate the runtime tree from every web root, stop. Do not create a public installer, shell bridge or credential form.
 
 ## Non-negotiable boundaries
 
 - No production deployment without separate explicit approval.
-- No merge/rebase to main.
-- No shared/general SSH.
+- No Hostinger upload, Git-branch switch, Cron execution or database write until the exact staging scope is confirmed and approved.
+- No merge/rebase to main; no shared/general SSH.
 - No Stage2 secrets, databases or customer data reused for Stage3.
 - No deployment based only on green CI.
-- Formal owner acceptance remains **0/135**. Stage2 remains **NO-GO #5–#9**; Stage3 is isolated engineering pending real-host and hands-on acceptance.
-- Keep work in substantial functional blocks; do not repeat green tests without new evidence.
+- Formal owner acceptance remains **0/135**. Stage2 remains **NO-GO #5–#9**; Stage3 engineering remains isolated and is not formally accepted.
+- Work in meaningful functional blocks; do not repeat green tests without new evidence.
 
 ## Canonical documents
 
 - `docs/NEXT-CHAT.md`
+- `docs/DEVELOPMENT-WORKFLOW.md`
+- `PROJECT-STATUS.json`
+- `docs/MASTER-TZ.md`
+- `docs/ROADMAP.md`
+- `docs/ARCHITECTURE.md`
+- `docs/HOSTINGER-STAGING-ADDENDUM.md`
 - `stage3/docs/HOSTED-INSTALL-RUNNER.md`
 - `stage3/docs/STAGING-SHARED-HOSTING.md`
-- `stage3/docs/INSTALLER-AND-SETUP.md`
-- `docs/HOSTINGER-STAGING-ADDENDUM.md`
-- `docs/CMS-ENGINE-UPDATE-ROLLBACK-DESIGN.md`
+- `docs/ACCELERATED-MACROBLOCK-PROGRAM.md`

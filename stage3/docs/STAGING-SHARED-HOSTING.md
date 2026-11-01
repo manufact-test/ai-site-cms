@@ -12,25 +12,30 @@ Installation remains intentionally CLI-only. Hostinger shared/general SSH is off
 
 ## 2. Required topology
 
-- Web root: the exact canonical path to stage3/server/public and nothing above it.
-- Public files: index.php and .htaccess only. The PHP server code, Studio assets, component registry, media-motion runtime, database, installation receipt, engine slots, signing trust, snapshots and backups remain outside the document root.
-- Private directory: an existing canonical directory with mode 0700, outside and not nested under the public document root. The PHP web process and CLI installer must be able to access it as the same hosting account.
+The Hostinger sibling-layout package is designed to be extracted at the account-home level, so the runtime and public document root are siblings:
+
+- Runtime tree: the canonical account path to `stage3/`, containing `components/`, `media-motion/`, `server/` and `studio/`. It must remain outside every account web root.
+- Public document root: the canonical sibling `public_html/` directory. It must contain exactly `index.php` and `.htaccess`, copied byte-for-byte from `stage3/server/public/` and read-only (0444).
+- Private directory: an existing canonical directory with exact mode 0700, outside and not nested under the runtime tree or any account web root. The PHP web process and CLI installer must be able to access it as the same hosting account.
+- Account web-root inventory: a complete owner-supplied list of 1–50 canonical web roots. It must include the Stage3 `public_html/` and every other active domain/subdomain root in the account. The runtime tree and private directory must not overlap any other web root.
 - Database: one dedicated, empty MySQL 8.0+ database and its own least-privilege user. MariaDB, SQLite and an existing/non-empty database are not supported for a hosted install.
-- PHP: verify the web SAPI, not just CLI, is PHP 8.1+ (target 8.3) with pdo, pdo_mysql, json, openssl and mbstring.
+- PHP: verify the web SAPI separately from CLI. Minimum PHP 8.1 (target 8.3) with PDO, PDO MySQL, JSON, OpenSSL and mbstring.
 - TLS: valid HTTPS on the staging hostname before owner login or form tests. Protect staging with host-level password protection or an IP allowlist; noindex alone is not access control.
+
+The source template directory `stage3/server/public/` is not the document root in this layout; it remains inside the private runtime tree. The installer verifies that the public sibling contains only the two exact front-controller files, with no symlinks, hard links, writable mode bits or extra entries.
 
 The Stage3 public .htaccess uses Apache 2.4 / LiteSpeed-compatible mod_rewrite rules, DirectoryIndex and Options. LiteSpeed documents FallbackResource as unsupported and lists RewriteRule/RewriteCond, DirectoryIndex and Options as supported; Stage3 therefore uses rewrite rules and does not depend on FallbackResource, RedirectMatch or FilesMatch. The host must enable mod_rewrite and the Options, FileInfo and Indexes AllowOverride classes (including SymLinksIfOwnerMatch). The disposable CI Apache test proves Apache syntax and PHP request flow only; it does not certify the selected LiteSpeed/Hostinger version.
 
 ## 3. Before upload
 
-1. Select and protect a staging subdomain that is separate from all live sites.
-2. Create a new, empty MySQL 8.0+ database and user for staging only.
-3. Confirm SSH/CLI access, PHP CLI version, web PHP version, required extensions, database version, open_basedir, file ownership and writable private storage.
-4. Configure the subdomain document root to the canonical stage3/server/public directory. Do not use a symlink to expose the repository root or move the document root to stage3/server.
-5. Upload the Stage3 runtime directories (components, media-motion, server, studio) while preserving their relative paths. The server/public directory is the only public directory.
-6. Create the private directory outside the web root, set it to 0700, and verify the hosting account's PHP process can read/write it. Do not place it under public_html, a public subdomain root or a nested directory of the web root.
+1. Confirm a dedicated staging website/subdomain that is separate from all live sites; verify its current document root and the complete account web-root inventory.
+2. Create a new, empty MySQL 8.0+ database and user for Stage3 only. Never reuse Stage2 or production credentials.
+3. Confirm hPanel can run a custom PHP CLI command through Cron, then check CLI PHP version/extensions and the website's web PHP version/extensions separately.
+4. Upload the CI artifact `ai-site-stage3-hostinger-sibling` and extract it at the account-home level, not inside `public_html/`. The extracted layout must be `stage3/`, `public_html/` and `cms-release.json` as siblings. Do not deploy this package through a Git integration whose repository root is `public_html`; that would put the private runtime under the web root.
+5. Verify `public_html/` contains exactly `index.php` and `.htaccess`, and that the complete `stage3/` runtime is outside every other web root. Do not use symlinks to expose the repository root or move the document root to `stage3/server`.
+6. Create the private directory outside the runtime tree and every web root, set it to exact mode 0700, and verify the hosting account's PHP process can read/write it. Never place it under `public_html/` or another public subdomain root.
 
-All Stage3 runtime files other than the dedicated server/public document root must remain outside every other web-exposed document root on the hosting account. The parent tree must not be reachable through the primary domain or another vhost: the public-root .htaccess cannot protect sibling server files from a different vhost that exposes their parent. If the host cannot isolate the tree in this way, stop rather than relying on this .htaccess.
+All Stage3 runtime files must remain outside every other web-exposed document root on the hosting account. The parent tree must not be reachable through the primary domain or another vhost: the public-root .htaccess cannot protect sibling server files from a different vhost that exposes their parent. If the host cannot isolate this tree in this way, stop rather than relying on this .htaccess.
 
 ### Hostinger-specific preflight (only if Hostinger is selected)
 
@@ -43,6 +48,14 @@ All Stage3 runtime files other than the dedicated server/public document root mu
 If the host cannot satisfy any of these conditions, do not relax the isolation checks. Record the exact blocker and stop.
 
 ## 4. CLI install
+
+### 4.0 Read-only CLI capability probe
+
+Before creating the private runner config, execute this one-shot hPanel Cron custom command:
+
+    php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --probe
+
+It requires no secrets, config or database and performs no writes. Continue only when the JSON status is `cli_ready_for_private_plan` and `cliPrerequisitesPassed` is true. A blocked result lists the missing PHP CLI extensions/files; stop and correct the environment rather than bypassing checks. This probe does not test the website PHP SAPI, database, web-root inventory, TLS or private storage. It does not authorize installation.
 
 For a shared-host staging installation, use the private hosted runner. The low-level `install.php` path remains available for an independently approved private CLI environment, but it does not create the hosted account web-root topology receipt required by the staging-readiness gate.
 
