@@ -92,9 +92,7 @@
 - Для длинной навигации добавлена внутренняя прокрутка боковой панели; телефонная компоновка возвращает sidebar и inspector в нормальный поток документа.
 - Техническая цель — сократить количество одновременно видимых controls и объяснить владельцу, куда идти для обычной задачи, а не косметически изменить весь интерфейс.
 
-**Точный результат проверки:** HEAD ab04bc0ac87645cc7882a726a2b18c2d5a7c1312; [Actions #41239753483](https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483). technology-runtime=SUCCESS, contract=FAILED. Падение — Playwright pointer interception при открытии #server-approved-vault-open (approved-site-browser.cjs:700), где #server-resources или .sidebar перехватывает pointer events. Предшествующие PHP/SQLite HTTP, D3 loopback release/rollback и отдельный Studio browser journey прошли. Артефакт скриншотов: [ai-site-stage3-editor-screens](https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483/artifacts/13056942380).
-
-Следующий разработчик обязан сначала воспроизвести и исправить реальный пользовательский путь, не используя Playwright force: true и не ослабляя проверку. Затем — повторный полный workflow на точном SHA. **Owner UI/UX GO всё ещё отсутствует.**
+**Исторический результат v9.8:** на HEAD ab04bc0ac87645cc7882a726a2b18c2d5a7c1312 в [Actions #41239753483](https://github.com/manufact-test/ai-site-cms/actions/runs/41239753483) job technology-runtime прошёл, а contract упал на pointer interception при открытии #server-approved-vault-open. Это падение впоследствии устранено в существующей Studio. **Актуальная проверка v9.9:** функциональный SHA 3a5fe6072600b7d74152673ae3316b5cc1e1483b, [Actions #41252586497](https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497): technology-runtime=SUCCESS, contract=SUCCESS. Не считать старое падение текущим; подробности исправления и новое решение владельца записаны ниже.
 
 
 ## Временное решение владельца · 01.11.2026 — Studio согласована до практической работы с сайтом
