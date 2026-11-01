@@ -30,7 +30,15 @@ The Stage3 public .htaccess uses Apache 2.4 / LiteSpeed-compatible mod_rewrite r
 5. Upload the Stage3 runtime directories (components, media-motion, server, studio) while preserving their relative paths. The server/public directory is the only public directory.
 6. Create the private directory outside the web root, set it to 0700, and verify the hosting account's PHP process can read/write it. Do not place it under public_html, a public subdomain root or a nested directory of the web root.
 
-The entire Stage3 runtime tree must be outside every web-exposed document root on the hosting account, not merely outside the staging subdomain's root. The public-root .htaccess cannot protect the sibling server directory from another vhost that exposes its parent. If the host cannot place the runtime tree outside all web roots, stop rather than relying on this .htaccess.
+All Stage3 runtime files other than the dedicated server/public document root must remain outside every other web-exposed document root on the hosting account. The parent tree must not be reachable through the primary domain or another vhost: the public-root .htaccess cannot protect sibling server files from a different vhost that exposes their parent. If the host cannot isolate the tree in this way, stop rather than relying on this .htaccess.
+
+### Hostinger-specific preflight (only if Hostinger is selected)
+
+- Hostinger currently documents SSH access for Premium Web and higher plans; Single Web plans do not include SSH. Confirm the exact plan before attempting the CLI installer: [SSH access requirements](https://www.hostinger.com/support/1583645-how-to-enable-ssh-access-in-hostinger/).
+- Verify the web PHP version using hPanel PHP Info for the actual staging website/subdomain. The SSH command php -v reports the plan's CLI PHP and may not match a per-subdomain PHP handler: [checking the PHP version](https://www.hostinger.com/support/5920192-how-to-check-the-php-version-in-hostinger/).
+- Hostinger allows selecting PHP 8.3 for a subfolder/subdomain through its handler rule, but that does not configure PHP extensions or options. Verify pdo_mysql, mbstring, openssl and other required extensions separately: [per-subdomain PHP version](https://www.hostinger.com/support/4047803-how-to-change-the-php-version-for-subfolders-or-subdomains-in-hostinger/).
+- Hostinger documents public_html as the usual website root and says the home directory cannot be changed on Web/WordPress/Cloud plans. Use a separately provisioned staging website/root and prove that the non-public runtime tree cannot be reached through the primary domain: [website root directory](https://www.hostinger.com/support/1583494-what-is-the-path-to-your-website-s-root-home-directory-and-how-to-change-it-in-hostinger/).
+- If the selected plan has no SSH/CLI or cannot isolate the runtime tree from other web roots, do not expose the installer over HTTP. Requirement #183 or a hosting-plan change is required first.
 
 If the host cannot satisfy any of these conditions, do not relax the isolation checks. Record the exact blocker and stop.
 
