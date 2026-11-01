@@ -1819,11 +1819,20 @@ async function execute(){
     {times:1});
   await page.locator('#server-username').fill('testowner');
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
+  const engineStatusResponsePromise=page.waitForResponse(response=>{
+    try{return new URL(response.url()).pathname==='/api/engine'&&response.request().method()==='GET';}
+    catch{return false;}
+  });
   await page.locator('#server-signin').click();
   await page.locator('#server-login').waitFor({state:'hidden'});
   await page.locator('#server-engine-dialog[open]').waitFor();
+  const engineStatusResponse=await engineStatusResponsePromise;
+  const engineStatusBody=await engineStatusResponse.text();
+  assert.equal(engineStatusResponse.status(),200,
+    'The stable owner maintenance endpoint remains available during site recovery: '+engineStatusBody.slice(0,500));
   assert.equal(await page.locator('#server-engine-open').evaluate(node=>node.hidden),false,
     'A successful owner login is preserved when the first site draft is unavailable');
+  await page.locator('#server-engine-status').getByText(/Текущая версия:/).waitFor({timeout:5000});
   assert.match(await page.locator('#server-engine-status').innerText(),/Текущая версия:/,
     'Owner is taken to the CMS maintenance surface instead of a false login error');
   assert.equal(await page.locator('#server-engine-apply').isDisabled(),true,
