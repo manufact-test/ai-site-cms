@@ -91,7 +91,7 @@ function write(directory,manifest){
   const dest=path.join(directory,'cms-release.json');
   fs.writeFileSync(dest,JSON.stringify(manifest,null,2)+'\n',{flag:'wx',mode:0o600});
 }
-function pack(sourceArg,outputArg,profile='full'){
+function pack(sourceArg,outputArg,profile='full',quiet=false){
   const source=canonical(sourceArg);
   if(!path.isAbsolute(outputArg??'')||exists(outputArg)||outputArg.endsWith(path.sep))
     die('output must be a new absolute directory');
@@ -115,7 +115,7 @@ function pack(sourceArg,outputArg,profile='full'){
       files:after.files,bytes:after.bytes,fingerprint:after.fingerprint,
       sourceTrusted:false,ownerApprovalRequired:true,dbMigrated:false,deployed:false};
     write(dest,manifest);
-    report({action:'pack',directory:dest,profile,files:after.files.length,bytes:after.bytes,
+    if(!quiet)report({action:'pack',directory:dest,profile,files:after.files.length,bytes:after.bytes,
       fingerprint:after.fingerprint,deployed:false});
   }catch(e){fs.rmSync(dest,{recursive:true,force:true});throw e;}
 }
@@ -133,13 +133,36 @@ function verify(directory){
   const current=collect(root,true,m.profile);
   if(current.fingerprint!==m.fingerprint||current.bytes!==m.bytes
     ||JSON.stringify(current.files)!==JSON.stringify(m.files))die('release files modified or incomplete');
-  // Reject extras in release root, even if their paths would not be copied.
-  const extra=fs.readdirSync(root).filter(n=>!['stage3','cms-release.json'].includes(n));
+  // A Hostinger package has the fixed public_html sibling, with only two
+  // immutable front-controller files copied byte-for-byte from the runtime.
+  const publicRoot=path.join(root,'public_html');
+  const hasPublicRoot=exists(publicRoot);
+  const extra=fs.readdirSync(root).filter(n=>!['stage3','cms-release.json','public_html'].includes(n));
   if(extra.length)die('untracked files in release root');
+  let hostingerSiblingLayout=false;
+  if(hasPublicRoot){
+    if(m.profile!=='php-host'||fs.lstatSync(publicRoot).isSymbolicLink()
+      ||!fs.statSync(publicRoot).isDirectory()||fs.realpathSync(publicRoot)!==publicRoot)
+      die('invalid Hostinger public_html package directory');
+    const entries=fs.readdirSync(publicRoot).sort();
+    if(JSON.stringify(entries)!==JSON.stringify(['.htaccess','index.php']))
+      die('Hostinger public_html must contain only .htaccess and index.php');
+    for(const name of ['.htaccess','index.php']){
+      const source=path.join(root,'stage3','server','public',name);
+      const target=path.join(publicRoot,name);
+      const sourceStat=fs.lstatSync(source),targetStat=fs.lstatSync(target);
+      if(sourceStat.isSymbolicLink()||!sourceStat.isFile()||sourceStat.nlink!==1
+        ||targetStat.isSymbolicLink()||!targetStat.isFile()||targetStat.nlink!==1
+        ||fs.realpathSync(target)!==target||(targetStat.mode&0o222)!==0
+        ||sha(fs.readFileSync(source))!==sha(fs.readFileSync(target)))
+        die('Hostinger public_html file is unsafe or differs from its private template: '+name);
+    }
+    hostingerSiblingLayout=true;
+  }
   const roots=m.profile==='php-host'?PHP_ROOTS:ROOTS;
   const stage3extra=fs.readdirSync(path.join(root,'stage3')).filter(n=>!roots.includes(n));
   if(stage3extra.length)die('untracked runtime directories');
-  return {root,manifest:m};
+  return {root,manifest:m,hostingerSiblingLayout};
 }
 function compare(oldArg,newArg){
   const old=verify(oldArg).manifest,next=verify(newArg).manifest;
@@ -240,6 +263,30 @@ function signedPhpHost(sourceArg,outputArg,version,privateKeyArg,publicKeyArg){
       signed:true,deployed:false,ownerApprovalRequired:true,directory:dest});
   }catch(e){fs.rmSync(dest,{recursive:true,force:true});throw e;}
 }
+function packHostingerSibling(sourceArg,outputArg){
+  pack(sourceArg,outputArg,'php-host',true);
+  const dest=canonical(outputArg);
+  try{
+    const source=path.join(dest,'stage3','server','public');
+    const publicRoot=path.join(dest,'public_html');
+    fs.mkdirSync(publicRoot,{mode:0o755});
+    for(const name of ['.htaccess','index.php']){
+      const from=path.join(source,name),to=path.join(publicRoot,name);
+      fs.copyFileSync(from,to,fs.constants.COPYFILE_EXCL);
+      fs.chmodSync(to,0o444);
+    }
+    const checked=verify(dest);
+    if(!checked.hostingerSiblingLayout)die('Hostinger sibling-layout package verification did not confirm its public root');
+    report({action:'pack-hostinger-sibling',directory:dest,profile:'php-host',
+      runtimeFiles:checked.manifest.files.length,bytes:checked.manifest.bytes,
+      fingerprint:checked.manifest.fingerprint,publicRootFiles:2,publicRootFileMode:'0444',
+      hostingerSiblingLayout:true,deployed:false,ownerApprovalRequired:true});
+  }catch(error){
+    fs.rmSync(dest,{recursive:true,force:true});
+    throw error;
+  }
+}
+
 function canonicalPath(dir){
   if(!path.isAbsolute(dir??'')||!exists(dir)||fs.lstatSync(dir).isSymbolicLink()
     ||fs.realpathSync(dir)!==path.resolve(dir)||!fs.statSync(dir).isDirectory())
@@ -276,6 +323,7 @@ try{
   const [cmd,...args]=process.argv.slice(2);
   if(cmd==='pack'&&args.length===2)pack(args[0],args[1]);
   else if(cmd==='pack-php-host'&&args.length===2)pack(args[0],args[1],'php-host');
+  else if(cmd==='pack-hostinger-sibling'&&args.length===2)packHostingerSibling(args[0],args[1]);
   else if(cmd==='verify'&&args.length===1){
     const x=verify(args[0]);report({action:'verify',profile:x.manifest.profile,fingerprint:x.manifest.fingerprint,
       files:x.manifest.files.length,bytes:x.manifest.bytes,
@@ -283,5 +331,5 @@ try{
   }else if(cmd==='compare'&&args.length===2)compare(args[0],args[1]);
   else if(cmd==='pack-signed-php-host'&&args.length===5)signedPhpHost(args[0],args[1],args[2],args[3],args[4]);
   else if(cmd==='verify-signed-php-host'&&args.length===2)verifySignedPhpHost(args[0],args[1]);
-  else die('usage: pack|pack-php-host ABS_SOURCE_REPO ABS_NEW_OUTPUT | verify ABS_RELEASE | compare ABS_OLD_RELEASE ABS_NEW_RELEASE | pack-signed-php-host ABS_SOURCE ABS_OUTPUT VERSION ABS_PRIVATE_KEY ABS_PUBLIC_KEY | verify-signed-php-host ABS_RELEASE ABS_PUBLIC_KEY');
+  else die('usage: pack|pack-php-host|pack-hostinger-sibling ABS_SOURCE_REPO ABS_NEW_OUTPUT | verify ABS_RELEASE | compare ABS_OLD_RELEASE ABS_NEW_RELEASE | pack-signed-php-host ABS_SOURCE ABS_OUTPUT VERSION ABS_PRIVATE_KEY ABS_PUBLIC_KEY | verify-signed-php-host ABS_RELEASE ABS_PUBLIC_KEY');
 }catch(error){console.error(error.message);process.exitCode=1;}
