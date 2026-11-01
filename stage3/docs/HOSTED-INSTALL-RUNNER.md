@@ -79,6 +79,8 @@ Proceed only when the output explicitly reports:
 
 The runner removes the installer's private token from the plan output. It stores a redacted review plan and the private token/state in 0600 files in the private directory. The review output contains a SHA-256 `approvalFingerprint` calculated over the redacted plan.
 
+**Schedule the plan as a one-time Cron execution.** Remove that Cron entry immediately after the first successful plan output; do not leave `--plan` recurring, because a second plan is intentionally refused while the private review/state files exist. After the owner reviews the plan, create a separate one-time Cron entry for the separately approved `--apply` command and remove it after execution.
+
 If the plan is blocked, already installed, stale or otherwise not `install_required`, do not attempt apply. Correct the underlying issue and follow the runner's explicit recovery instructions.
 
 ### 2. Separate owner-approved apply
@@ -95,7 +97,7 @@ A successful apply creates the 25-table Stage3 schema and owner account, writes 
 
 ## Repeat execution and recovery
 
-- A recurring Cron invocation after successful apply reads the valid consumed marker and exits successfully with no output. The owner should still remove the Cron entry manually in hPanel.
+- A recurring Cron invocation after successful apply reads the valid consumed marker and exits successfully with no output. The owner should still remove the apply Cron entry manually in hPanel. Prefer one-time Cron entries for both plan and apply; never leave the plan entry recurring.
 - If the runner reports an unresolved prior apply marker, stop. Inspect the database and private state manually; do not delete the marker, re-create the database or rerun apply blindly.
 - If a plan review/state file exists, inspect it and follow the runner's explicit refusal. Do not overwrite or reuse an old approval.
 - If cleanup warnings are returned, keep the staging hostname protected and remove only the specifically named private file after manual inspection.

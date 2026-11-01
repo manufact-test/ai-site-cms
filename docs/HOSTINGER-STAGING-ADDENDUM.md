@@ -53,7 +53,7 @@ php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/abso
 php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --apply=REPLACE_WITH_64_HEX_APPROVAL_FINGERPRINT
 ```
 
-The command contains only the private config path and, for the separately approved apply, a plan fingerprint. Do not put passwords, database DSNs, owner credentials, form secrets or the installer's private token into the command, Cron description, URL, logs, source control or chat.
+The command contains only the private config path and, for the separately approved apply, a plan fingerprint. Use a one-time Cron execution for `--plan`, delete that entry after its first output, then create a separate one-time entry for the approved `--apply`. Do not leave `--plan` recurring; the runner deliberately refuses a second plan while pending state exists. Do not put passwords, database DSNs, owner credentials, form secrets or the installer's private token into the command, Cron description, URL, logs, source control or chat.
 
 The runner is only a candidate route until the owner confirms the exact Hostinger account, custom-command capability, private paths and target. It does not create the Cron job, upload files, configure the domain/document root, DNS, TLS, PHP handler or notifications. If hPanel cannot execute the custom PHP CLI command or the runtime/private paths cannot be isolated, stop; do not create a public installer or shell bridge.
 

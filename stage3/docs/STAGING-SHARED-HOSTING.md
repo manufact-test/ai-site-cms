@@ -62,9 +62,11 @@ Run a read-only plan as a custom PHP CLI command in hPanel Cron:
 php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --plan
 ```
 
+Use a one-time Cron execution for the plan and remove that entry immediately after it runs. Do not leave `--plan` recurring: a second plan is intentionally refused while its private review/state exists.
+
 Review the complete redacted output. Proceed only when `state=install_required`, `applyAllowed=true`, `hostIsolation.ok=true`, and every database/filesystem check is clear. The output contains an `approvalFingerprint`; it does not print the installer's private approval token or credentials.
 
-Only after a separate owner decision, run the apply command with that exact fingerprint:
+Only after a separate owner decision, create a separate one-time Cron entry and run the apply command with that exact fingerprint:
 
 ```sh
 php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --apply=REPLACE_WITH_64_HEX_APPROVAL_FINGERPRINT
