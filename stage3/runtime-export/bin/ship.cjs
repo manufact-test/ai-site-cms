@@ -172,7 +172,7 @@ function main(){
   try{
     fs.writeFileSync(tempZip,rawZip,{flag:'wx',mode:0o600});
     if(tempCollector)fs.writeFileSync(tempCollector,fs.readFileSync(collectorStaged),{flag:'wx',mode:0o600});
-    fs.writeFileSync(tempReport,JSON.stringify({...report,shipment:result,...(httpRehearsal?{httpRehearsal}:{})},null,2)+'\\n',
+    fs.writeFileSync(tempReport,JSON.stringify({...report,shipment:result,...(httpRehearsal?{httpRehearsal}:{})},null,2)+'\n',
       {flag:'wx',mode:0o600});
     if(exists(destination)||exists(reportPath)||(collectorDestination&&exists(collectorDestination)))
       fail('destination changed; refusing to overwrite');
