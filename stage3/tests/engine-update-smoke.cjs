@@ -276,6 +276,7 @@ try{
   const snapshotsRoot=path.join(privateDir,'engine/snapshots');
   const corruptSnapshot=path.join(snapshotsRoot,'snapshot-20261101131900-aaaaaaaaaaaaaaaa');
   fs.mkdirSync(corruptSnapshot,{mode:0o700});fs.writeFileSync(path.join(corruptSnapshot,'manifest.json'),'not-canonical',{mode:0o600});
+  fs.utimesSync(corruptSnapshot,new Date(0),new Date(0));
   const pruneCode=[
     "require $argv[1].'/DatabaseSnapshot.php';",
     "$result=\\Manufact\\Stage3\\DatabaseSnapshot::prune($argv[2],[$argv[3]],2);",

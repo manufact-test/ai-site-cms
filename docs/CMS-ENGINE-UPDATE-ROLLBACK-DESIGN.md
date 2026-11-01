@@ -80,7 +80,7 @@ Requirements #184 and #185 are implemented on this feature branch as a code-only
 
 - A verified snapshot is created before every activation/rollback. It covers all 25 Stage3 tables and preserves binary media.
 - Snapshot verification checks the complete inventory and hashes. Restore is an explicit, separately guarded operation into an empty target database; engine rollback does not silently restore or rewrite site data.
-- Retention keeps the newest verified snapshots plus the current state's pinned recovery point. Corrupt/ambiguous snapshots are retained for forensic review rather than deleted.
+- Retention keeps the ten newest snapshot directories plus the current state's pinned recovery point. Older snapshots are removed only after full verification; corrupt/ambiguous snapshots are retained for forensic review rather than deleted.
 - The current migration contract is deliberately code-only: schema version 1, no migrations. Do not mark DB migration/rollback as supported.
 
 ### Owner API
@@ -204,7 +204,7 @@ The separate technology-runtime job passed the disposable Next Static real build
 
 This is CI evidence for isolated test databases and loopback servers only. It does not prove a live shared-host install, production permissions, PHP-FPM/OPcache behavior on Hostinger, live SMTP/Telegram delivery, or owner acceptance. Do not duplicate the Stage2 lab suite or add broad repeated matrices.
 
-## 6. Separate #183 guided setup feasibility
+## 7. Separate #183 guided setup feasibility
 
 A safe browser-guided setup is technically feasible without making the public site a credential store, but it needs its own threat model and implementation:
 
