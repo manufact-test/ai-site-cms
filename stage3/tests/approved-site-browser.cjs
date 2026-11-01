@@ -572,11 +572,10 @@ async function execute(){
       '#server-tools details,#server-site-tools details,#server-admin-more,#server-site-tools'))
       node.open=false;
   });
-  // Hosted PHP output uses native section[id], while local preview uses
-  // data-cms-section-id wrappers. Keep the full page in the document even when
-  // deviceVisibility intentionally hides a section at the selected breakpoint.
+  // The main canvas may focus the selected block. Full-page composition is
+  // verified in the dedicated page-preview dialog below.
   await page.frameLocator('#preview').locator('[data-cms-section-id],section[id]')
-    .nth(1).waitFor({state:'attached'});
+    .first().waitFor({state:'attached'});
   assert.equal(await page.locator('#canvas-title').innerText(),imported.pages[0].title,
     'Main canvas shows the full selected page, not an isolated block preview');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-desktop.png'),fullPage:true});
@@ -643,6 +642,8 @@ async function execute(){
     const frame=document.querySelector('#cms-page-preview-frame');
     return !!frame?.contentDocument?.querySelector('[data-cms-section-id],section[id]');
   });
+  await page.frameLocator('#cms-page-preview-frame')
+    .locator('[data-cms-section-id],section[id]').filter({visible:true}).nth(1).waitFor();
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-desktop.png'),fullPage:true});
   await page.setViewportSize({width:768,height:900});
   await assertNoHorizontalOverflow('Workbench at 768px');
