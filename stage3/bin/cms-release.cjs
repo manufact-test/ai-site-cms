@@ -185,6 +185,8 @@ function signedPhpHost(sourceArg,outputArg,version,privateKeyArg,publicKeyArg){
     ||privatePath.startsWith(source+path.sep)||publicPath.startsWith(source+path.sep)
     ||privatePath.startsWith(dest+path.sep)||publicPath.startsWith(dest+path.sep))die('signing keys must remain outside source and package');
   const privatePem=readKeyFile(privatePath,true),publicPem=readKeyFile(publicPath,false);
+  if(!publicPem.toString('utf8').includes('-----BEGIN PUBLIC KEY-----')||publicPem.toString('utf8').includes('PRIVATE KEY'))
+    die('publisher public key must be a standalone SubjectPublicKeyInfo PEM, never a private key');
   const privateKey=crypto.createPrivateKey(privatePem),publicKey=crypto.createPublicKey(publicPem);
   const privateDetails=privateKey.asymmetricKeyDetails||{},publicDetails=publicKey.asymmetricKeyDetails||{};
   if(privateKey.asymmetricKeyType!=='rsa'||publicKey.asymmetricKeyType!=='rsa'
