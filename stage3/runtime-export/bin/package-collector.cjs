@@ -37,6 +37,7 @@ const EXPECTED_SERVER_PHP=[
   "MediaOperations.php",
   "PageHistory.php",
   "PublicRenderer.php",
+  "RuntimeConfig.php",
   "SiteArchives.php",
   "SiteOperations.php",
   "SiteRepository.php",

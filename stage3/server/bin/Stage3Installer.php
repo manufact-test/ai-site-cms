@@ -62,10 +62,6 @@ final class Stage3Installer
 
         $ownerValid = preg_match('/^[a-z][a-z0-9_-]{2,39}$/D', $ownerUser) === 1
             && strlen($ownerPassword) >= 14 && strlen($ownerPassword) <= 1024;
-        $checks['ownerCredentials'] = ['ok' => $ownerValid, 'username' => $ownerUser, 'passwordPresent' => $ownerPassword !== ''];
-        if (!$ownerValid) {
-            $errors[] = 'Set a valid STAGE3_OWNER_USER and a private STAGE3_OWNER_PASSWORD of at least 14 characters';
-        }
 
         $secretValid = strlen($formSecret) >= 32 && strlen($formSecret) <= 1024
             && !str_contains($formSecret, "\r") && !str_contains($formSecret, "\n");
@@ -91,18 +87,51 @@ final class Stage3Installer
             $errors[] = 'STAGE3_PRIVATE_DIR must be an existing canonical writable directory with permissions 0700, outside the public document root';
         }
 
+        $serverRoot = realpath(dirname(__DIR__));
+        $expectedPublicRoot = is_string($serverRoot) ? realpath($serverRoot . DIRECTORY_SEPARATOR . 'public') : false;
+        $publicPath = is_string($serverRoot) ? $serverRoot . DIRECTORY_SEPARATOR . 'public' : '';
         $publicRoot = $publicInput !== '' ? realpath($publicInput) : false;
-        $publicOk = is_string($publicRoot) && is_dir($publicRoot) && !is_link($publicInput)
-            && $publicRoot === $publicInput;
+        $publicOk = is_string($serverRoot) && is_dir($serverRoot)
+            && is_string($expectedPublicRoot) && !is_link($publicPath)
+            && is_string($publicRoot) && is_dir($publicRoot) && !is_link($publicInput)
+            && $publicRoot === $publicInput && $publicRoot === $expectedPublicRoot;
         $checks['publicDocumentRoot'] = ['ok' => $publicOk, 'path' => is_string($publicRoot) ? $publicRoot : null];
         if (!$publicOk) {
-            $errors[] = 'STAGE3_PUBLIC_ROOT must resolve to the actual canonical public document-root directory';
+            $errors[] = 'STAGE3_PUBLIC_ROOT must be the canonical server/public directory used as this CMS installation document root';
         }
         if ($privateOk && $publicOk && (self::isWithin($privateDir, $publicRoot) || self::isWithin($publicRoot, $privateDir))) {
             $errors[] = 'The private installation directory and public document root must be separate, non-nested directories';
             $checks['privateDirectory']['ok'] = false;
             $checks['publicDocumentRoot']['ok'] = false;
         }
+
+        $privateConfig = null;
+        $privateConfigOk = is_string($serverRoot) && is_dir($serverRoot);
+        if ($privateConfigOk && $privateOk && $publicOk) {
+            try {
+                $privateConfig = RuntimeConfig::inspect($serverRoot, $privateDir, $publicRoot);
+                if ($privateConfig !== null) {
+                    foreach (['STAGE3_DSN','STAGE3_DB_USER','STAGE3_DB_PASSWORD','STAGE3_FORM_SECRET',
+                        'STAGE3_FORM_ORIGINS','STAGE3_FORM_ENDPOINT','STAGE3_PRIVATE_DIR','STAGE3_PUBLIC_ROOT'] as $key) {
+                        if (($privateConfig['values'][$key] ?? null) !== self::value($env, $key)) {
+                            $privateConfigOk = false;
+                            break;
+                        }
+                    }
+                }
+            } catch (Throwable) {
+                $privateConfigOk = false;
+            }
+        } else {
+            $privateConfigOk = false;
+        }
+        if (!$privateConfigOk) {
+            $errors[] = 'Private runtime configuration is invalid, incomplete or mismatched';
+        }
+        $checks['privateRuntimeConfig'] = [
+            'ok' => $privateConfigOk,
+            'configured' => $privateConfig !== null
+        ];
 
         if ($driver === 'mysql') {
             try {
@@ -223,6 +252,10 @@ final class Stage3Installer
                         || ($receipt['dbDriver'] ?? null) !== $driver
                         || ($receipt['databaseFingerprint'] ?? null) !== $databaseFingerprint) {
                         $errors[] = 'Private installation receipt does not match the selected database instance';
+                    } elseif ($privateConfig === null
+                        || ($receipt['configPath'] ?? null) !== $privateConfig['configPath']
+                        || ($receipt['configSha256'] ?? null) !== $privateConfig['configSha256']) {
+                        $errors[] = 'Private runtime configuration does not match the installation receipt';
                     } else {
                         $state = 'already_installed';
                         $instanceId = (string)$row['instance_id'];
@@ -233,6 +266,19 @@ final class Stage3Installer
             }
         } elseif ($receipt !== null) {
             $errors[] = 'A private installation receipt exists but the selected database is empty; refusing to overwrite either side';
+        }
+        if (count($tables) === 0 && $privateConfig !== null) {
+            $errors[] = 'A private runtime configuration exists but the selected database is empty; refusing to overwrite either side';
+        }
+        $ownerRequired = count($tables) === 0 && $receipt === null && $privateConfig === null;
+        $checks['ownerCredentials'] = [
+            'ok' => !$ownerRequired || $ownerValid,
+            'required' => $ownerRequired,
+            'username' => $ownerUser,
+            'passwordPresent' => $ownerPassword !== ''
+        ];
+        if ($ownerRequired && !$ownerValid) {
+            $errors[] = 'Set a valid STAGE3_OWNER_USER and a private STAGE3_OWNER_PASSWORD of at least 14 characters';
         }
 
         if ($errors !== []) {
@@ -246,6 +292,7 @@ final class Stage3Installer
                 'instanceMode' => 'single-site',
                 'driver' => $driver,
                 'databaseFingerprint' => $databaseFingerprint,
+                'serverRoot' => $serverRoot,
                 'ownerUsername' => $ownerUser,
                 'ownerPasswordHash' => hash('sha256', $ownerPassword),
                 'formSecretHash' => hash('sha256', $formSecret),
@@ -312,6 +359,7 @@ final class Stage3Installer
             $ownerPassword = self::value($env, 'STAGE3_OWNER_PASSWORD');
             $instanceId = $repository->initializeEmptyDatabase('single-site');
             $repository->createOwner($ownerUser, $ownerPassword);
+            $runtimeConfig = RuntimeConfig::write(dirname(__DIR__), $privateDir, (string)$plan['publicDocumentRoot'], $env);
             $databaseFingerprint = (string)$plan['dbFingerprint'];
             $receipt = [
                 'format' => self::RECEIPT_FORMAT,
@@ -320,6 +368,8 @@ final class Stage3Installer
                 'dbDriver' => $plan['dbDriver'],
                 'schemaVersion' => self::SCHEMA_VERSION,
                 'databaseFingerprint' => $databaseFingerprint,
+                'configPath' => $runtimeConfig['configPath'],
+                'configSha256' => $runtimeConfig['configSha256'],
                 'ownerUsername' => $ownerUser,
                 'installedAt' => gmdate('Y-m-d\TH:i:s\Z')
             ];
@@ -334,6 +384,7 @@ final class Stage3Installer
                 'instanceMode' => 'single-site',
                 'dbDriver' => $plan['dbDriver'],
                 'receiptPath' => $privateDir . DIRECTORY_SEPARATOR . 'installation.json',
+                'runtimeConfigReady' => true,
                 'deploymentPerformed' => false
             ];
         } finally {

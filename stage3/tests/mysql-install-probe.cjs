@@ -10,7 +10,7 @@ const path=require('node:path');
 const {spawnSync}=require('node:child_process');
 
 const root=path.resolve(__dirname,'../..');
-const installer=path.join(root,'stage3/server/bin/install.php');
+const stage3Root=path.join(root,'stage3');
 const fixture=path.join(root,'stage3/fixtures/industrial-site.json');
 const host=process.env.STAGE3_INSTALL_MYSQL_HOST||'127.0.0.1';
 const port=process.env.STAGE3_INSTALL_MYSQL_PORT||'3306';
@@ -22,16 +22,16 @@ const suffix=crypto.randomBytes(5).toString('hex');
 const names=['a','b','locked','nonempty'].map(x=>'stage3_install_'+suffix+'_'+x);
 const created=[];
 
-function run(command,args,env={},expected=0){
-  const result=spawnSync(command,args,{cwd:root,env:{...process.env,...env},encoding:'utf8',timeout:90000,maxBuffer:2_000_000});
+function run(command,args,env={},expected=0,cwd=root){
+  const result=spawnSync(command,args,{cwd,env:{...process.env,...env},encoding:'utf8',timeout:90000,maxBuffer:2_000_000});
   if(result.error)throw result.error;
   if(result.status!==expected){
     throw new Error(command+' [arguments redacted] exit '+result.status+' expected '+expected+'\n'+(result.stderr||'')+'\n'+(result.stdout||''));
   }
   return result;
 }
-function php(code,args=[],env={},expected=0){
-  return run('php',['-r',code,...args],env,expected);
+function php(code,args=[],env={},expected=0,cwd=root){
+  return run('php',['-r',code,...args],env,expected,cwd);
 }
 function createDatabase(name){
   php("$pdo=new PDO($argv[1],$argv[2],$argv[3],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$pdo->exec('CREATE DATABASE '.$argv[4].' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');",
@@ -41,6 +41,13 @@ function createDatabase(name){
 function dropDatabase(name){
   php("$pdo=new PDO($argv[1],$argv[2],$argv[3],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$pdo->exec('DROP DATABASE IF EXISTS '.$argv[4]);",
     [adminDsn,user,password,name]);
+}
+function createCodeRoot(name){
+  const dir=path.join(tmp,name);fs.mkdirSync(dir,{recursive:true,mode:0o700});
+  for(const folder of ['server','components','studio']){
+    fs.cpSync(path.join(stage3Root,folder),path.join(dir,folder),{recursive:true});
+  }
+  return fs.realpathSync(dir);
 }
 function privateDir(name){
   const dir=path.join(tmp,name);fs.mkdirSync(dir,{mode:0o700});fs.chmodSync(dir,0o700);return fs.realpathSync(dir);
@@ -60,12 +67,12 @@ function envFor(name,priv,pub,suffix='one'){
     STAGE3_PRIVATE_DIR:priv,STAGE3_PUBLIC_ROOT:pub
   };
 }
-function plan(env,expected=0){
-  const r=run('php',[installer,'--plan'],env,expected);
+function plan(env,expected=0,codeRoot=root){
+  const r=run('php',[path.join(codeRoot,'server/bin/install.php'),'--plan'],env,expected,codeRoot);
   return JSON.parse(r.stdout);
 }
-function apply(env,token,expected=0){
-  const r=run('php',[installer,'--apply='+token],env,expected);
+function apply(env,token,expected=0,codeRoot=root){
+  const r=run('php',[path.join(codeRoot,'server/bin/install.php'),'--apply='+token],env,expected,codeRoot);
   return expected===0?JSON.parse(r.stdout):r;
 }
 function query(name,sql){
@@ -80,17 +87,17 @@ function serverHostname(){
   return php("$pdo=new PDO($argv[1],$argv[2],$argv[3]);echo $pdo->query('SELECT @@hostname')->fetchColumn();",
     [adminDsn,user,password]).stdout.trim();
 }
-function createFirstAndRejectSecond(env){
-  const code="require 'stage3/server/bootstrap.php';$repo=stage3_repository();"+
+function createFirstAndRejectSecond(env,codeRoot){
+  const code="require 'server/bootstrap.php';$repo=stage3_repository();"+
     "$site=json_decode(file_get_contents($argv[1]),true);$site['siteId']=$argv[2];$repo->createSite($site);"+
     "$second=$site;$second['siteId']=$argv[3];try{$repo->createSite($second);fwrite(STDERR,'second site unexpectedly accepted');exit(3);}"+
     "catch(Throwable $e){if(!str_contains($e->getMessage(),'already bound to another site')){fwrite(STDERR,$e->getMessage());exit(4);}echo 'SINGLE_SITE_BOUND';}";
-  assert.equal(run('php',['-r',code,fixture,'site-mysql-first','site-mysql-second'],env).stdout,'SINGLE_SITE_BOUND');
+  assert.equal(run('php',['-r',code,fixture,'site-mysql-first','site-mysql-second'],env,0,codeRoot).stdout,'SINGLE_SITE_BOUND');
 }
-function createSite(env,siteId){
-  const code="require 'stage3/server/bootstrap.php';$repo=stage3_repository();"+
+function createSite(env,siteId,codeRoot){
+  const code="require 'server/bootstrap.php';$repo=stage3_repository();"+
     "$site=json_decode(file_get_contents($argv[1]),true);$site['siteId']=$argv[2];$repo->createSite($site);echo 'SITE_CREATED';";
-  assert.equal(run('php',['-r',code,fixture,siteId],env).stdout,'SITE_CREATED');
+  assert.equal(run('php',['-r',code,fixture,siteId],env,0,codeRoot).stdout,'SITE_CREATED');
 }
 
 try{
@@ -100,8 +107,9 @@ try{
   const [dbA,dbB,dbLocked,dbNonempty]=names;
   for(const name of names)createDatabase(name);
 
-  const envA=envFor(dbA,privateDir('private-a'),publicRoot('public-a'),'a');
-  const before=plan(envA);
+  const codeRootA=createCodeRoot('cms-a');
+  const envA=envFor(dbA,privateDir('private-a'),fs.realpathSync(path.join(codeRootA,'server/public')),'a');
+  const before=plan(envA,0,codeRootA);
   assert.equal(before.state,'install_required');
   assert.equal(before.applyAllowed,true);
   assert.match(before.token,/^[a-f0-9]{64}$/);
@@ -112,7 +120,7 @@ try{
   assert.equal(planJson.includes(envA.STAGE3_DSN),false);
   assert.equal(tableCount(dbA),0);
 
-  const installed=apply(envA,before.token);
+  const installed=apply(envA,before.token,0,codeRootA);
   assert.equal(installed.state,'installed');
   assert.equal(installed.instanceMode,'single-site');
   assert.equal(installed.deploymentPerformed,false);
@@ -123,23 +131,55 @@ try{
   assert.equal(receipt.dbDriver,'mysql');
   assert.equal(receipt.databaseFingerprint,before.dbFingerprint);
   assert.equal(fs.statSync(receiptPath).mode&0o777,0o600);
+  const configPath=path.join(envA.STAGE3_PRIVATE_DIR,'config.json');
+  const pointerPath=path.join(codeRootA,'server','private-config-path.json');
+  assert.equal(fs.existsSync(configPath),true);
+  assert.equal(fs.existsSync(pointerPath),true);
+  assert.equal(fs.statSync(configPath).mode&0o777,0o600);
+  assert.equal(fs.statSync(pointerPath).mode&0o777,0o600);
+  const privateConfig=JSON.parse(fs.readFileSync(configPath,'utf8'));
+  assert.equal(privateConfig.values.STAGE3_DSN,envA.STAGE3_DSN);
+  assert.equal(privateConfig.values.STAGE3_DB_PASSWORD,password);
+  assert.equal(receipt.configPath,configPath);
+  assert.equal(receipt.configSha256,crypto.createHash('sha256').update(fs.readFileSync(configPath)).digest('hex'));
+  const emptyRuntimeEnv={
+    STAGE3_DSN:'',STAGE3_DB_USER:'',STAGE3_DB_PASSWORD:'',
+    STAGE3_FORM_SECRET:'',STAGE3_FORM_ORIGINS:'',STAGE3_FORM_ENDPOINT:'',
+    STAGE3_PRIVATE_DIR:'',STAGE3_PUBLIC_ROOT:''
+  };
+  const runtimeCode="require 'server/bootstrap.php';stage3_repository();echo json_encode(["+
+    "'dsnHash'=>hash('sha256',(string)getenv('STAGE3_DSN')),"+
+    "'passwordHash'=>hash('sha256',(string)getenv('STAGE3_DB_PASSWORD')),"+
+    "'formHash'=>hash('sha256',(string)getenv('STAGE3_FORM_SECRET')),"+
+    "'privateDir'=>getenv('STAGE3_PRIVATE_DIR'),"+
+    "'publicRoot'=>getenv('STAGE3_PUBLIC_ROOT')]);";
+  const runtime=JSON.parse(run('php',['-r',runtimeCode],emptyRuntimeEnv,0,codeRootA).stdout);
+  assert.equal(runtime.dsnHash,crypto.createHash('sha256').update(envA.STAGE3_DSN).digest('hex'));
+  assert.equal(runtime.passwordHash,crypto.createHash('sha256').update(password).digest('hex'));
+  assert.equal(runtime.formHash,crypto.createHash('sha256').update(envA.STAGE3_FORM_SECRET).digest('hex'));
+  assert.equal(runtime.privateDir,envA.STAGE3_PRIVATE_DIR);
+  assert.equal(runtime.publicRoot,envA.STAGE3_PUBLIC_ROOT);
+  const persistedPlan=JSON.parse(run('php',[path.join(codeRootA,'server/bin/install.php'),'--plan'],emptyRuntimeEnv,0,codeRootA).stdout);
+  assert.equal(persistedPlan.state,'already_installed');
   const identity=query(dbA,'SELECT instance_id, mode, site_id FROM stage3_instance WHERE singleton_id=1');
   assert.equal(identity[0].instance_id,installed.instanceId);
   assert.equal(identity[0].mode,'single-site');
-  assert.equal(plan(envA).state,'already_installed');
-  apply(envA,before.token,1);
-  createFirstAndRejectSecond(envA);
+  assert.equal(plan(envA,0,codeRootA).state,'already_installed');
+  apply(envA,before.token,1,codeRootA);
+  createFirstAndRejectSecond(envA,codeRootA);
 
-  const envB=envFor(dbB,privateDir('private-b'),publicRoot('public-b'),'b');
-  const planB=plan(envB);
-  const installedB=apply(envB,planB.token);
+  const codeRootB=createCodeRoot('cms-b');
+  const envB=envFor(dbB,privateDir('private-b'),fs.realpathSync(path.join(codeRootB,'server/public')),'b');
+  const planB=plan(envB,0,codeRootB);
+  const installedB=apply(envB,planB.token,0,codeRootB);
   assert.notEqual(installedB.instanceId,installed.instanceId);
-  createSite(envB,'site-mysql-first');
+  createSite(envB,'site-mysql-first',codeRootB);
   assert.equal(Number(query(dbA,'SELECT COUNT(*) AS n FROM stage3_drafts')[0].n),1);
   assert.equal(Number(query(dbB,'SELECT COUNT(*) AS n FROM stage3_drafts')[0].n),1);
 
-  const envLocked=envFor(dbLocked,privateDir('private-locked'),publicRoot('public-locked'),'locked');
-  const lockedPlan=plan(envLocked);
+  const codeRootLocked=createCodeRoot('cms-locked');
+  const envLocked=envFor(dbLocked,privateDir('private-locked'),fs.realpathSync(path.join(codeRootLocked,'server/public')),'locked');
+  const lockedPlan=plan(envLocked,0,codeRootLocked);
   const lockName='stage3-install-'+crypto.createHash('sha256')
     .update(serverHostname()+'\n'+dbLocked).digest('hex').slice(0,48);
   const holderCode=[
@@ -155,20 +195,21 @@ try{
     "echo json_encode(['status'=>$status,'stdout'=>$out,'stderr'=>$err]);"
   ].join(' ');
   const held=php(holderCode,[],{
-    ...envLocked,STAGE3_LOCK_NAME:lockName,STAGE3_INSTALLER_PATH:installer,STAGE3_INSTALL_TOKEN:lockedPlan.token
-  });
+    ...envLocked,STAGE3_LOCK_NAME:lockName,STAGE3_INSTALLER_PATH:path.join(codeRootLocked,'server/bin/install.php'),STAGE3_INSTALL_TOKEN:lockedPlan.token
+  },0,codeRootLocked);
   const heldResult=JSON.parse(held.stdout);
   assert.notEqual(heldResult.status,0);
   assert.match(heldResult.stderr,/Another installer is already operating on this MySQL database/);
   assert.equal(tableCount(dbLocked),0);
   assert.equal(fs.existsSync(path.join(envLocked.STAGE3_PRIVATE_DIR,'installation.json')),false);
-  const retryPlan=plan(envLocked);
-  assert.equal(apply(envLocked,retryPlan.token).state,'installed');
+  const retryPlan=plan(envLocked,0,codeRootLocked);
+  assert.equal(apply(envLocked,retryPlan.token,0,codeRootLocked).state,'installed');
 
-  const envNonempty=envFor(dbNonempty,privateDir('private-nonempty'),publicRoot('public-nonempty'),'nonempty');
+  const codeRootNonempty=createCodeRoot('cms-nonempty');
+  const envNonempty=envFor(dbNonempty,privateDir('private-nonempty'),fs.realpathSync(path.join(codeRootNonempty,'server/public')),'nonempty');
   php("$pdo=new PDO($argv[1],$argv[2],$argv[3]);$pdo->exec('CREATE TABLE foreign_data(id INT PRIMARY KEY)');",
     ['mysql:host='+host+';port='+port+';dbname='+dbNonempty+';charset=utf8mb4',user,password]);
-  const blocked=plan(envNonempty,1);
+  const blocked=plan(envNonempty,1,codeRootNonempty);
   assert.equal(blocked.state,'blocked');
   assert.equal(blocked.applyAllowed,false);
   assert.ok(blocked.errors.some(x=>x.includes('not empty')));
@@ -180,6 +221,7 @@ try{
       'real MySQL 8 dedicated database install',
       'read-only plan and no credentials/DSN in plan or receipt',
       'private owner receipt and matching database identity',
+      'private runtime configuration persisted outside docroot and reloaded without environment secrets',
       'single-site binding rejects a second site',
       'independent MySQL database accepts the same site ID',
       'database-scoped GET_LOCK rejects a concurrent installer',
