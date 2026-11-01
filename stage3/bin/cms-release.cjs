@@ -154,7 +154,7 @@ function compare(oldArg,newArg){
     deploymentPerformed:false,ownerApprovalRequired:true});
 }
 
-function canonical(value){
+function canonicalJson(value){
   const normalize=item=>{
     if(Array.isArray(item))return item.map(normalize);
     if(item&&typeof item==='object'){
@@ -216,13 +216,13 @@ function signedPhpHost(sourceArg,outputArg,version,privateKeyArg,publicKeyArg){
       loaderAbi:1,
       files,
       bytes:after.bytes,
-      fingerprint:sha(Buffer.from(canonical(files))),
+      fingerprint:sha(Buffer.from(canonicalJson(files))),
       publisherKeySha256:sha(publicPem),
       signatureAlgorithm:'rsa-3072-sha256',
       ownerApprovalRequired:true,
       deployed:false
     };
-    const raw=Buffer.from(canonical(manifest),'utf8');
+    const raw=Buffer.from(canonicalJson(manifest),'utf8');
     const payload=Buffer.concat([Buffer.from('MANUFACT-CMS-ENGINE-RELEASE-V2\0','utf8'),raw]);
     const signature=crypto.sign('sha256',payload,privateKey);
     if(!crypto.verify('sha256',payload,publicKey,signature))die('local release signature self-check failed');
@@ -255,7 +255,7 @@ function verifySignedPhpHost(directoryArg,publicKeyArg){
   const payload=Buffer.concat([Buffer.from('MANUFACT-CMS-ENGINE-RELEASE-V2\0','utf8'),raw]);
   if(!crypto.verify('sha256',payload,publicKey,signature))die('invalid publisher signature');
   const actual=collect(root,true,'php-host');
-  if(canonical(actual.files)!==canonical(manifest.files)||actual.bytes!==manifest.bytes
+  if(canonicalJson(actual.files)!==canonical(manifest.files)||actual.bytes!==manifest.bytes
     ||sha(Buffer.from(canonical(actual.files)))!==manifest.fingerprint)die('signed release inventory mismatch');
   const extra=fs.readdirSync(root).filter(n=>!['stage3','cms-release.json','cms-release.sig'].includes(n));
   if(extra.length)die('untracked signed release root entry');
