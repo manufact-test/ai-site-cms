@@ -1,4 +1,4 @@
-# CMS Engine Update & Rollback — design checkpoint
+# CMS Engine Update & Rollback — implementation checkpoint
 
 **Date:** 2026-11-01  
 **Status:** implemented on feature/stage3-ai-site-contract; full two-job Stage3 CI passed on 2026-11-01. Still not production-approved, not merged to main, and not owner acceptance.  
