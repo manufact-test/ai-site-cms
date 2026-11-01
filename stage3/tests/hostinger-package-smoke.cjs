@@ -23,7 +23,7 @@ function run(args,expected=0){
 function sha(file){return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');}
 try{
   const built=run(['pack-hostinger-sibling',root,release]);
-  const buildReport=JSON.parse(built.stdout.trim().split('\n').at(-1));
+  const buildReport=JSON.parse(built.stdout.trim());
   assert.equal(buildReport.action,'pack-hostinger-sibling');
   assert.equal(buildReport.hostingerSiblingLayout,true);
   assert.equal(buildReport.deployed,false);
