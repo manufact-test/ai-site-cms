@@ -26,6 +26,8 @@ const EXT=/\.(?:php|cjs|js|jsx|mjs|css|html|json|txt|md)$/i;
 const MAX_FILES=2000,MAX_BYTES=60000000;
 const REQUIRED=[
   'stage3/server/bootstrap.php','stage3/server/public/index.php',
+  'stage3/server/EngineReleaseVerifier.php','stage3/server/EngineLifecycle.php',
+  'stage3/server/DatabaseSnapshot.php','stage3/server/EngineRuntime.php',
   'stage3/studio/bundle.js','stage3/studio/hosted.js',
   'stage3/sdk/contract.cjs','stage3/components/custom-section.json',
   'stage3/runtime-export/bin/build.cjs'
@@ -151,6 +153,116 @@ function compare(oldArg,newArg){
     safeRollback:'old verified package remains immutable; DB rollback is NOT implied',
     deploymentPerformed:false,ownerApprovalRequired:true});
 }
+
+function canonical(value){
+  const normalize=item=>{
+    if(Array.isArray(item))return item.map(normalize);
+    if(item&&typeof item==='object'){
+      const out={};
+      for(const key of Object.keys(item).sort())out[key]=normalize(item[key]);
+      return out;
+    }
+    return item;
+  };
+  return JSON.stringify(normalize(value));
+}
+function readKeyFile(file,privateKey=false){
+  const absolute=path.resolve(file??'');
+  const stat=fs.lstatSync(absolute);
+  if(!path.isAbsolute(file??'')||stat.isSymbolicLink()||!stat.isFile()||stat.nlink!==1
+    ||fs.realpathSync(absolute)!==absolute||stat.size<1||stat.size>32768
+    ||(privateKey&&(stat.mode&0o077)!==0))die('unsafe signing key file');
+  return fs.readFileSync(absolute);
+}
+function signedPhpHost(sourceArg,outputArg,version,privateKeyArg,publicKeyArg){
+  const source=canonicalPath(sourceArg);
+  if(!/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$/.test(version??''))die('release version must be semantic x.y.z');
+  if(!path.isAbsolute(outputArg??'')||exists(outputArg)||outputArg.endsWith(path.sep))die('output must be a new absolute directory');
+  const dest=path.resolve(outputArg),parent=canonical(path.dirname(dest));
+  if(path.dirname(dest)!==parent||dest===source||dest.startsWith(source+path.sep))die('output must be outside source tree');
+  const privatePath=path.resolve(privateKeyArg??''),publicPath=path.resolve(publicKeyArg??'');
+  if(!path.isAbsolute(privateKeyArg??'')||!path.isAbsolute(publicKeyArg??'')
+    ||privatePath.startsWith(source+path.sep)||publicPath.startsWith(source+path.sep)
+    ||privatePath.startsWith(dest+path.sep)||publicPath.startsWith(dest+path.sep))die('signing keys must remain outside source and package');
+  const privatePem=readKeyFile(privatePath,true),publicPem=readKeyFile(publicPath,false);
+  const privateKey=crypto.createPrivateKey(privatePem),publicKey=crypto.createPublicKey(publicPem);
+  const privateDetails=privateKey.asymmetricKeyDetails||{},publicDetails=publicKey.asymmetricKeyDetails||{};
+  if(privateKey.asymmetricKeyType!=='rsa'||publicKey.asymmetricKeyType!=='rsa'
+    ||(privateDetails.modulusLength||0)<3072||(publicDetails.modulusLength||0)<3072
+    ||!crypto.createPublicKey(privateKey).export({type:'spki',format:'der'})
+      .equals(publicKey.export({type:'spki',format:'der'})))die('publisher keys must be a matching RSA-3072-or-stronger pair');
+  const before=collect(source,false,'php-host');
+  fs.mkdirSync(dest,{mode:0o700});
+  try{
+    for(const file of before.files){
+      const from=path.join(source,file.path),to=path.join(dest,file.path);
+      fs.mkdirSync(path.dirname(to),{recursive:true,mode:0o700});
+      fs.copyFileSync(from,to,fs.constants.COPYFILE_EXCL);
+      fs.chmodSync(to,0o600);
+    }
+    const after=collect(dest,true,'php-host');
+    if(after.fingerprint!==before.fingerprint)die('source changed during signed packaging');
+    const files=after.files;
+    const manifest={
+      format:'manufact-cms-engine-release-v2',
+      engine:'manufact-ai-site-cms',
+      releaseVersion:version,
+      channel:'stable',
+      profile:'php-host',
+      minimumPhpVersion:'8.1.0',
+      requiredExtensions:['json','mbstring','openssl','pdo','pdo_mysql'],
+      schema:{minimum:1,maximum:1,target:1},
+      migrations:[],
+      loaderAbi:1,
+      files,
+      bytes:after.bytes,
+      fingerprint:sha(Buffer.from(canonical(files))),
+      publisherKeySha256:sha(publicPem),
+      signatureAlgorithm:'rsa-3072-sha256',
+      ownerApprovalRequired:true,
+      deployed:false
+    };
+    const raw=Buffer.from(canonical(manifest),'utf8');
+    const payload=Buffer.concat([Buffer.from('MANUFACT-CMS-ENGINE-RELEASE-V2\0','utf8'),raw]);
+    const signature=crypto.sign('sha256',payload,privateKey);
+    if(!crypto.verify('sha256',payload,publicKey,signature))die('local release signature self-check failed');
+    fs.writeFileSync(path.join(dest,'cms-release.json'),raw,{flag:'wx',mode:0o600});
+    fs.writeFileSync(path.join(dest,'cms-release.sig'),signature,{flag:'wx',mode:0o600});
+    report({action:'pack-signed-php-host',releaseVersion:version,profile:'php-host',
+      files:files.length,bytes:after.bytes,fingerprint:manifest.fingerprint,
+      publisherKeySha256:manifest.publisherKeySha256,signatureAlgorithm:manifest.signatureAlgorithm,
+      signed:true,deployed:false,ownerApprovalRequired:true,directory:dest});
+  }catch(e){fs.rmSync(dest,{recursive:true,force:true});throw e;}
+}
+function canonicalPath(dir){
+  if(!path.isAbsolute(dir??'')||!exists(dir)||fs.lstatSync(dir).isSymbolicLink()
+    ||fs.realpathSync(dir)!==path.resolve(dir)||!fs.statSync(dir).isDirectory())
+    die('expected existing canonical absolute source directory');
+  return path.resolve(dir);
+}
+function verifySignedPhpHost(directoryArg,publicKeyArg){
+  const root=canonicalPath(directoryArg);
+  const raw=fs.readFileSync(path.join(root,'cms-release.json'));
+  const signature=fs.readFileSync(path.join(root,'cms-release.sig'));
+  const publicPem=readKeyFile(path.resolve(publicKeyArg??''),false);
+  const publicKey=crypto.createPublicKey(publicPem);
+  const details=publicKey.asymmetricKeyDetails||{};
+  if(publicKey.asymmetricKeyType!=='rsa'||(details.modulusLength||0)<3072)die('trusted publisher key must be RSA-3072 or stronger');
+  const manifest=JSON.parse(raw.toString('utf8'));
+  if(canonical(manifest)!==raw.toString('utf8')||manifest.format!=='manufact-cms-engine-release-v2'
+    ||manifest.profile!=='php-host'||manifest.publisherKeySha256!==sha(publicPem)
+    ||manifest.signatureAlgorithm!=='rsa-3072-sha256')die('invalid signed PHP-host release manifest');
+  const payload=Buffer.concat([Buffer.from('MANUFACT-CMS-ENGINE-RELEASE-V2\0','utf8'),raw]);
+  if(!crypto.verify('sha256',payload,publicKey,signature))die('invalid publisher signature');
+  const actual=collect(root,true,'php-host');
+  if(canonical(actual.files)!==canonical(manifest.files)||actual.bytes!==manifest.bytes
+    ||sha(Buffer.from(canonical(actual.files)))!==manifest.fingerprint)die('signed release inventory mismatch');
+  const extra=fs.readdirSync(root).filter(n=>!['stage3','cms-release.json','cms-release.sig'].includes(n));
+  if(extra.length)die('untracked signed release root entry');
+  report({action:'verify-signed-php-host',releaseVersion:manifest.releaseVersion,
+    fingerprint:manifest.fingerprint,files:manifest.files.length,valid:true});
+}
+
 function report(x){process.stdout.write(JSON.stringify(x,null,2)+'\n');}
 try{
   const [cmd,...args]=process.argv.slice(2);
