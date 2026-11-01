@@ -102,7 +102,8 @@ function inspect(file){
   return {sha256:zip.hash(raw),format:meta.format,technology:meta.technology,
     siteId:meta.siteId,publishedVersion:meta.publishedVersion,
     readiness:meta.readiness,files:entries.size,bytes:raw.length,
-    formCount:meta.forms,redirects:Object.keys(meta.redirects).length};
+    formCount:meta.forms,formCollector:meta.formCollector??null,
+    redirects:Object.keys(meta.redirects).length};
 }
 if(require.main===module)try{
   if(process.argv.length!==3)die('Usage: verify-delivery.cjs ABSOLUTE-delivery.zip');

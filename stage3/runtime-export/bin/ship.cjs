@@ -17,7 +17,7 @@ const supported=new Set(['html','php','next-static','next-ssr']);
 const opts={};let flagSet=new Set();
 for(const f of flags){
   const [name,...pieces]=f.split('=');
-  if(!['--expect-origin','--allow-npm-install','--report','--allow-blocked','--http-rehearsal','--enforce-performance-budget','--compare-to','--enforce-no-regression'].includes(name)||flagSet.has(name))
+  if(!['--expect-origin','--allow-npm-install','--report','--allow-blocked','--http-rehearsal','--enforce-performance-budget','--compare-to','--enforce-no-regression','--collector-zip'].includes(name)||flagSet.has(name))
     fail('unsupported/duplicate flag '+name);
   flagSet.add(name);
   if(['--allow-npm-install','--allow-blocked','--http-rehearsal','--enforce-performance-budget','--enforce-no-regression'].includes(name)){
@@ -50,7 +50,7 @@ const checkTarget=file=>{
 function main(){
   if(process.argv.length<5||!path.isAbsolute(source??'')||!supported.has(technology)
     ||!path.isAbsolute(destination??'')||!destination.endsWith('.zip'))
-    fail('Usage: ship.cjs ABSOLUTE-D2.json html|php|next-static|next-ssr ABSOLUTE-NEW.zip [--expect-origin=https://site] [--allow-npm-install] [--report=ABSOLUTE-NEW.json] [--allow-blocked] [--http-rehearsal] [--enforce-performance-budget] [--compare-to=/ABS/OLD.zip] [--enforce-no-regression]');
+    fail('Usage: ship.cjs ABSOLUTE-D2.json html|php|next-static|next-ssr ABSOLUTE-NEW.zip [--expect-origin=https://site] [--allow-npm-install] [--report=ABSOLUTE-NEW.json] [--allow-blocked] [--http-rehearsal] [--enforce-performance-budget] [--compare-to=/ABS/OLD.zip] [--enforce-no-regression] [--collector-zip=/ABS/NEW-collector.zip]');
   if(opts['--enforce-no-regression']&&!opts['--compare-to'])
     fail('--enforce-no-regression requires a verified older --compare-to ZIP');
   if(opts['--compare-to']&&(!path.isAbsolute(opts['--compare-to'])
@@ -67,8 +67,15 @@ function main(){
     fail('D2 input must be an ordinary canonical JSON file <= 41 MB');
   checkTarget(destination);
   const reportPath=checkTarget(opts['--report']??destination+'.preflight.json');
-  if(reportPath===destination||source===destination||source===reportPath)
-    fail('input, ZIP and report paths must be distinct');
+  const collectorDestination=opts['--collector-zip']??null;
+  if(collectorDestination){
+    checkTarget(collectorDestination);
+    if(!collectorDestination.endsWith('.zip'))fail('collector sidecar destination must end in .zip');
+  }
+  if(reportPath===destination||source===destination||source===reportPath
+    ||collectorDestination&&(collectorDestination===source||collectorDestination===destination
+      ||collectorDestination===reportPath||collectorDestination===opts['--compare-to']))
+    fail('input, site ZIP, collector ZIP, comparison and report paths must be distinct');
   if(opts['--expect-origin']&&!/^https:\/\/[a-z0-9.-]+(?::\d{2,5})?$/i.test(opts['--expect-origin']))
     fail('expected origin must be a full HTTPS origin without path');
   tmp=fs.mkdtempSync(path.join(os.tmpdir(),'stage3-D5-ship-'));
@@ -88,6 +95,20 @@ function main(){
   const verified=inspect(stagedZip);
   if(verified.sha256!==builtResult.sha256||verified.siteId!==builtResult.siteId
     ||verified.publishedVersion!==builtResult.version)fail('output checksum/identity differs');
+  let collectorPackage=null,collectorStaged=null;
+  if(collectorDestination){
+    if(!verified.formCount||!verified.formCollector)
+      fail('--collector-zip requires a published site ZIP with at least one form and an explicit collector origin');
+    collectorStaged=path.join(tmp,'collector-sidecar.zip');
+    const packaged=JSON.parse(exec(process.execPath,[path.join(__dirname,'package-collector.cjs'),collectorStaged]));
+    const collectorVerified=JSON.parse(exec(process.execPath,[path.join(__dirname,'verify-collector.cjs'),collectorStaged]));
+    if(packaged.sha256!==collectorVerified.sha256
+      ||collectorVerified.documentRoot!=='collector/server/collector-public')
+      fail('collector sidecar checksum/identity differs');
+    collectorPackage={zip:collectorDestination,sha256:collectorVerified.sha256,
+      files:collectorVerified.files,bytes:collectorVerified.bytes,
+      documentRoot:collectorVerified.documentRoot,collectorOrigin:verified.formCollector,deployed:false};
+  }
   const report=audit(stagedZip,opts['--expect-origin']??null);
   const unexpected=report.findings.filter(f=>f.severity==='blocker'
     &&!(technology==='next-ssr'&&f.code==='SSR_BUILD_REQUIRED'));
@@ -138,24 +159,36 @@ function main(){
     approvalGranted:false,productionDeployed:false,
     npmNetworkOptIn:Boolean(opts['--allow-npm-install']),
     localHttpRehearsed:Boolean(httpRehearsal),
+    collectorPackage,
     blockedPackageAllowed:Boolean(unexpected.length&&opts['--allow-blocked'])
   };
-  // Build both outputs in the target directory first and publish only after
-  // all audits pass. Never overwrite an existing file or a symlink.
+  // Publish the site ZIP, optional collector sidecar and report as one
+  // no-overwrite group. If any later link fails, remove only files linked here.
   const dir=path.dirname(destination),unique=crypto.randomBytes(10).toString('hex');
   const tempZip=path.join(dir,'.stage3-D5-'+unique+'.zip');
   const tempReport=path.join(path.dirname(reportPath),'.stage3-D5-'+unique+'.json');
+  const tempCollector=collectorDestination?path.join(path.dirname(collectorDestination),'.stage3-D5-'+unique+'.collector.zip'):null;
+  let siteLinked=false,collectorLinked=false;
   try{
     fs.writeFileSync(tempZip,rawZip,{flag:'wx',mode:0o600});
-    fs.writeFileSync(tempReport,JSON.stringify({...report,shipment:result,...(httpRehearsal?{httpRehearsal}:{})},null,2)+'\n',
+    if(tempCollector)fs.writeFileSync(tempCollector,fs.readFileSync(collectorStaged),{flag:'wx',mode:0o600});
+    fs.writeFileSync(tempReport,JSON.stringify({...report,shipment:result,...(httpRehearsal?{httpRehearsal}:{})},null,2)+'\\n',
       {flag:'wx',mode:0o600});
-    if(exists(destination)||exists(reportPath))fail('destination changed; refusing to overwrite');
-    fs.linkSync(tempZip,destination); // atomic no-overwrite publication on same filesystem
-    try{fs.linkSync(tempReport,reportPath);}
-    catch(error){fs.rmSync(destination,{force:true});throw error;}
+    if(exists(destination)||exists(reportPath)||(collectorDestination&&exists(collectorDestination)))
+      fail('destination changed; refusing to overwrite');
+    fs.linkSync(tempZip,destination);siteLinked=true;
+    try{
+      if(tempCollector){fs.linkSync(tempCollector,collectorDestination);collectorLinked=true;}
+      fs.linkSync(tempReport,reportPath);
+    }catch(error){
+      if(siteLinked&&exists(destination))fs.rmSync(destination,{force:true});
+      if(collectorLinked&&exists(collectorDestination))fs.rmSync(collectorDestination,{force:true});
+      throw error;
+    }
   }finally{
     if(exists(tempZip))fs.rmSync(tempZip,{force:true});
     if(exists(tempReport))fs.rmSync(tempReport,{force:true});
+    if(tempCollector&&exists(tempCollector))fs.rmSync(tempCollector,{force:true});
   }
   process.stdout.write(JSON.stringify(result,null,2)+'\n');
 }

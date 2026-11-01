@@ -79,6 +79,9 @@ jobs:
           node --check stage3/runtime-export/bin/prepare-delivery.cjs
           node --check stage3/runtime-export/bin/package-handoff.cjs
           node --check stage3/runtime-export/bin/verify-delivery.cjs
+          node --check stage3/runtime-export/bin/package-collector.cjs
+          node --check stage3/runtime-export/bin/verify-collector.cjs
+          node --check stage3/runtime-export/tests/collector-package.cjs
           node --check stage3/runtime-export/lib/delivery-preflight.cjs
           node --check stage3/runtime-export/bin/audit-delivery.cjs
           node --check stage3/runtime-export/bin/ship.cjs
@@ -86,7 +89,8 @@ jobs:
           node stage3/runtime-export/tests/delivery-probe.cjs
       - name: Server syntax and one full HTTP persistence/publish E2E
         run: |
-          for file in stage3/server/*.php stage3/server/public/*.php stage3/server/bin/*.php; do php -l "$file"; done
+          for file in stage3/server/*.php stage3/server/public/*.php stage3/server/bin/*.php stage3/server/collector-public/*.php; do php -l "$file"; done
+          node stage3/runtime-export/tests/collector-package.cjs
           php stage3/tests/smtp-config-smoke.php
           php stage3/tests/graph-interactions-smoke.php
           php stage3/tests/archive-bundle-smoke.php

@@ -57,3 +57,36 @@ Independent PHP visitor HTML and CSS now honor gzip Accept-Encoding when availab
     node stage3/runtime-export/bin/ship.cjs /ABS/published-v2-handoff.json php /ABS/new.zip --compare-to=/ABS/old.zip --enforce-no-regression
 
 D5 report now contains `performance` (per-route HTML, gzip estimate, CSS, referenced media, image loading) and optionally `performanceComparison`. Defaults do not fail a release for weight advisories; strict gates are explicit. Both ZIPs must be valid immutable releases of the **same** site and the newer one must have greater publication version. Only local verified bytes are inspected; no external host/LCP/browser rendering is measured. See [D5](./D5-SHIPMENT-PREFLIGHT.md).
+
+
+## D8 — isolated form collector sidecar
+
+A published static site may use a separate HTTPS form collector. The collector code existed as a separate document root, but the operator did not yet have a self-contained, verifiable handoff package. D8 adds that missing delivery unit.
+
+### Build and verify
+
+    node stage3/runtime-export/bin/package-collector.cjs /ABS/NEW-collector.zip
+    node stage3/runtime-export/bin/verify-collector.cjs /ABS/collector.zip
+
+Or produce the site ZIP, collector ZIP and independent preflight report in one no-overwrite shipment:
+
+    node stage3/runtime-export/bin/ship.cjs /ABS/published-vN-handoff.json html /ABS/site.zip --expect-origin=https://site.example --collector-zip=/ABS/collector.zip --http-rehearsal
+
+The optional `--collector-zip` is valid only when the published site contains at least one form and its immutable release names an explicit collector origin. It creates a **separate sidecar ZIP**, not a collector copy inside the visitor document root. The site ZIP, collector ZIP and report are staged and published as one no-overwrite output group. If a later link fails, only files created by that invocation are removed. Existing collector installations can continue to be reused; the sidecar is optional.
+
+### Package boundary
+
+- Public document root: `collector/server/collector-public`, containing only `index.php` and `.htaccess`.
+- Private runtime and component manifests stay outside the public document root.
+- Collector bootstrap is derived from the Stage3 bootstrap with the CMS admin API include removed; `Api.php`, Studio, login, drafts and public CMS routes are not packaged.
+- The package contains no database, credentials, form secret, mail provider tokens, customer content or deployment automation.
+- The collector connects to the **same dedicated Stage3 database used by the CMS inbox**, so accepted leads appear in the owner's existing inbox. Configure exact allowed site origins and the same private 32+ character HMAC secret used by the publisher.
+- Apache rewrite rules and an Nginx/PHP-FPM example are included in the operator README.
+
+### Evidence and limits
+
+The verifier checks the archive inventory, every file's byte count and SHA-256, bootstrap dependencies, component-manifest identities, public-root contents and the absence of the admin API/private runtime paths. The manifest is an integrity inventory, not a digital signature.
+
+The D8 disposable PHP/SQLite HTTP test unpacks the actual ZIP, lints its PHP files, publishes a multi-step conditional form into a disposable CMS database, renders the immutable form action, starts the packaged collector on loopback, rejects a foreign origin, bad HMAC and inactive conditional field, then confirms the valid lead and its extra fields in the same CMS database.
+
+No DNS, real hosting, external collector, email, Telegram, production database or customer data is contacted. Packaging does not deploy. The operator must still configure private environment variables, HTTPS, the actual document root and staging acceptance. See [D8-FORM-COLLECTOR-SIDECAR.md](./D8-FORM-COLLECTOR-SIDECAR.md).

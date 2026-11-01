@@ -29,15 +29,22 @@ const refuses=(name,...args)=>{
 };
 function release(){
   const dir=path.join(tmp,'published');fs.mkdirSync(dir);
-  const page=route=>'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Published '+route
-    +'</title><link rel="canonical" href="https://example.test'+route
-    +'"></head><body><h1>'+route+'</h1></body></html>';
+  const page=route=>{
+    const form=route==='/'?'<form method="post" action="https://forms.example/forms/site-d4-shipping/section-contact">'
+      +'<input type="hidden" name="_release" value="3"><input type="hidden" name="_token" value="'
+      +'a'.repeat(64)+'"><input type="hidden" name="_return" value="https://example.test/">'
+      +'<input name="name"><input name="email"><textarea name="message"></textarea>'
+      +'<input type="checkbox" name="consent" value="yes"><button type="submit">Send</button></form>':'';
+    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Published '+route
+      +'</title><link rel="canonical" href="https://example.test'+route
+      +'"></head><body><h1>'+route+'</h1>'+form+'</body></html>';
+  };
   const home=make(dir,'index.html',page('/'));
   const about=make(dir,'about/index.html',page('/about/'));
   const old=make(dir,'old/index.html','<!doctype html><html><head><meta name="robots" content="noindex"></head><body>Old link</body></html>');
   const png=make(dir,'assets/image-abc.png',Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y6Pe3UAAAAASUVORK5CYII=','base64'));
   const manifest={format:'manufact-ai-static-site-v1',siteId:'site-d4-shipping',
-    publishedVersion:3,sourceRevision:7,publicOrigin:'https://example.test',formCollector:null,
+    publishedVersion:3,sourceRevision:7,publicOrigin:'https://example.test',formCollector:'https://forms.example',
     pages:[{path:'/',...home},{path:'/about/',...about}],
     redirects:[{from:'/old/',to:'/about/',...old}],
     assets:[{id:'image-abc',parentId:'image-abc',mime:'image/png',...png}]};
@@ -95,9 +102,15 @@ try{
   fs.writeFileSync(archivePath,JSON.stringify(capsule(html)));
   // D5: one-command HTML and PHP shipment, in-file offline preflight,
   // independent operator report, atomically published output and no overwrite.
+  const collectorZip=path.join(tmp,'shipped-collector.zip');
   const shippedHtml=success('ship.cjs',archivePath,'html',path.join(tmp,'shipped-html.zip'),
-    '--expect-origin=https://example.test','--http-rehearsal');
+    '--expect-origin=https://example.test','--http-rehearsal','--collector-zip='+collectorZip);
   const reportHtml=JSON.parse(fs.readFileSync(shippedHtml.report,'utf8'));
+  assert.equal(shippedHtml.collectorPackage.zip,collectorZip);
+  assert.equal(shippedHtml.collectorPackage.collectorOrigin,'https://forms.example');
+  const verifiedCollector=success('verify-collector.cjs',collectorZip);
+  assert.equal(verifiedCollector.sha256,shippedHtml.collectorPackage.sha256);
+  assert.equal(reportHtml.shipment.collectorPackage.sha256,verifiedCollector.sha256);
   assert.equal(shippedHtml.technology,'html');
   assert.equal(shippedHtml.approvalGranted,false);
   assert.equal(shippedHtml.productionDeployed,false);
