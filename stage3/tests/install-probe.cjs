@@ -173,6 +173,23 @@ try{
   assert.equal(installedPlan.state,'already_installed');
   assert.equal(installedPlan.applyAllowed,false);
   assert.equal(installedPlan.instanceId,applied.instanceId);
+  assert.equal(installedPlan.checks.schemaIntegrity.ok,true);
+  assert.equal(installedPlan.checks.schemaIntegrity.requiredTableCount,25);
+  assert.deepEqual(installedPlan.checks.schemaIntegrity.missingTables,[]);
+  assert.equal(installedPlan.checks.databaseServerVersion.applicable,false);
+
+  const receiptBytes=fs.readFileSync(receiptPath);
+  const receiptLink=receiptPath+'.hardlink';
+  fs.linkSync(receiptPath,receiptLink);
+  const linkedReceiptPlan=plan(env1,1,codeRoot1);
+  assert.equal(linkedReceiptPlan.state,'blocked','receipt hard links must be rejected');
+  fs.unlinkSync(receiptLink);
+  fs.writeFileSync(receiptPath,Buffer.concat([receiptBytes,Buffer.from(' ')]));
+  const nonCanonicalReceiptPlan=plan(env1,1,codeRoot1);
+  assert.equal(nonCanonicalReceiptPlan.state,'blocked','non-canonical receipt JSON must be rejected');
+  fs.writeFileSync(receiptPath,receiptBytes);
+  assert.equal(plan(env1,0,codeRoot1).state,'already_installed');
+
   command(env1,'--apply='+firstPlan.token,1,codeRoot1);
   createFirstAndRejectSecond(env1,codeRoot1);
   assert.equal(siteCount(db1),1);
@@ -192,6 +209,11 @@ try{
   assert.equal(secondSite.stdout,'SECOND_INSTANCE_ACCEPTED');
   assert.equal(siteCount(db1),1);
   assert.equal(siteCount(db2),1);
+  run('php',['-r','$db=new PDO("sqlite:".$argv[1]);$db->exec("DROP TABLE stage3_visual_findings");',db1],{CI:'true'});
+  const incomplete=plan(env1,1,codeRoot1);
+  assert.equal(incomplete.state,'blocked');
+  assert.equal(incomplete.checks.schemaIntegrity.ok,false);
+  assert.ok(incomplete.checks.schemaIntegrity.missingTables.includes('stage3_visual_findings'));
 
   const db3=createDb('non-empty');
   run('php',['-r','$db=new PDO("sqlite:".$argv[1]);$db->exec("CREATE TABLE foreign_data(id INTEGER PRIMARY KEY)");',db3],{CI:'true'});
@@ -220,6 +242,8 @@ try{
       'read-only installation plan and exact approval token',
       'no credentials or DSN in plan/receipt',
       'private runtime configuration persisted outside docroot and loaded by a fresh PHP process',
+      'MySQL version gate and full installed schema inventory',
+      'canonical private receipt and hard-link tamper rejection',
       'single-site database binding',
       'independent second installation and database',
       'non-empty database refused without mutation',

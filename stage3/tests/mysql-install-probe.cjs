@@ -161,6 +161,11 @@ try{
   assert.equal(runtime.publicRoot,envA.STAGE3_PUBLIC_ROOT);
   const persistedPlan=JSON.parse(run('php',[path.join(codeRootA,'server/bin/install.php'),'--plan'],emptyRuntimeEnv,0,codeRootA).stdout);
   assert.equal(persistedPlan.state,'already_installed');
+  assert.equal(persistedPlan.checks.databaseServerVersion.ok,true);
+  assert.match(persistedPlan.checks.databaseServerVersion.version,/^8\./);
+  assert.equal(persistedPlan.checks.schemaIntegrity.ok,true);
+  assert.equal(persistedPlan.checks.schemaIntegrity.requiredTableCount,25);
+  assert.deepEqual(persistedPlan.checks.schemaIntegrity.missingTables,[]);
   const identity=query(dbA,'SELECT instance_id, mode, site_id FROM stage3_instance WHERE singleton_id=1');
   assert.equal(identity[0].instance_id,installed.instanceId);
   assert.equal(identity[0].mode,'single-site');
@@ -214,6 +219,12 @@ try{
   assert.equal(blocked.applyAllowed,false);
   assert.ok(blocked.errors.some(x=>x.includes('not empty')));
   assert.equal(fs.existsSync(path.join(envNonempty.STAGE3_PRIVATE_DIR,'installation.json')),false);
+  php("$pdo=new PDO($argv[1],$argv[2],$argv[3]);$pdo->exec('DROP TABLE stage3_visual_findings');",
+    ['mysql:host='+host+';port='+port+';dbname='+dbA+';charset=utf8mb4',user,password]);
+  const incomplete=plan(envA,1,codeRootA);
+  assert.equal(incomplete.state,'blocked');
+  assert.equal(incomplete.checks.schemaIntegrity.ok,false);
+  assert.ok(incomplete.checks.schemaIntegrity.missingTables.includes('stage3_visual_findings'));
 
   process.stdout.write(JSON.stringify({
     ok:true,
@@ -222,6 +233,8 @@ try{
       'read-only plan and no credentials/DSN in plan or receipt',
       'private owner receipt and matching database identity',
       'private runtime configuration persisted outside docroot and reloaded without environment secrets',
+      'MySQL 8.0+ server version and full installed schema inventory',
+      'incomplete installed schema is reported as blocked, never healthy',
       'single-site binding rejects a second site',
       'independent MySQL database accepts the same site ID',
       'database-scoped GET_LOCK rejects a concurrent installer',

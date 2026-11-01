@@ -50,6 +50,28 @@ final class Stage3Installer
         if (!in_array($driver, ['mysql', 'sqlite'], true)) {
             $errors[] = 'Only MySQL and SQLite database drivers are supported';
         }
+
+        if ($driver === 'mysql') {
+            try {
+                $serverVersion = (string)$db->query('SELECT VERSION()')->fetchColumn();
+                $versionMatch = preg_match('/^(\\d+)\\.(\\d+)\\.(\\d+)/', $serverVersion, $versionParts) === 1;
+                $mysqlVersionOk = $versionMatch && stripos($serverVersion, 'mariadb') === false
+                    && version_compare($versionParts[1] . '.' . $versionParts[2] . '.' . $versionParts[3], '8.0.0', '>=');
+                $checks['databaseServerVersion'] = [
+                    'ok' => $mysqlVersionOk,
+                    'version' => substr($serverVersion, 0, 80),
+                    'minimum' => '8.0.0'
+                ];
+                if (!$mysqlVersionOk) {
+                    $errors[] = 'MySQL 8.0 or newer is required; MariaDB and older MySQL servers are not supported';
+                }
+            } catch (Throwable) {
+                $checks['databaseServerVersion'] = ['ok' => false, 'version' => null, 'minimum' => '8.0.0'];
+                $errors[] = 'Unable to verify the MySQL server version';
+            }
+        } else {
+            $checks['databaseServerVersion'] = ['ok' => true, 'applicable' => false, 'version' => null];
+        }
         if ($driver === 'sqlite' && ($env['CI'] ?? '') !== 'true' && ($env['STAGE3_ALLOW_SQLITE_INSTALL'] ?? '') !== '1') {
             $errors[] = 'SQLite installation is lab-only; use a dedicated MySQL database for a hosted CMS instance';
         }
@@ -229,6 +251,18 @@ final class Stage3Installer
         }
 
         $checks['databaseEmpty'] = ['ok' => count($tables) === 0, 'tableCount' => count($tables)];
+        $missingSchemaTables = count($tables) === 0
+            ? []
+            : array_values(array_diff(self::requiredSchemaTables(), $tables));
+        $checks['schemaIntegrity'] = [
+            'ok' => count($tables) === 0 || $missingSchemaTables === [],
+            'applicable' => count($tables) > 0,
+            'requiredTableCount' => count(self::requiredSchemaTables()),
+            'missingTables' => $missingSchemaTables
+        ];
+        if ($missingSchemaTables !== []) {
+            $errors[] = 'The selected database has an incomplete Stage3 schema; missing required tables: ' . implode(', ', $missingSchemaTables);
+        }
         $state = 'install_required';
         $instanceId = null;
         $receipt = null;
@@ -242,6 +276,9 @@ final class Stage3Installer
         if (count($tables) > 0) {
             if ($receipt === null) {
                 $errors[] = 'The selected database is not empty and has no matching private installation receipt; refusing to reuse it';
+            } elseif ($missingSchemaTables !== []) {
+                // Keep the existing receipt and database untouched. A missing
+                // table needs a separately reviewed migration, never reinstall.
             } else {
                 try {
                     $row = $db->query('SELECT instance_id, mode, site_id FROM stage3_instance WHERE singleton_id = 1')->fetch(PDO::FETCH_ASSOC);
@@ -466,21 +503,62 @@ final class Stage3Installer
         return $path === $parent || str_starts_with($path, $parent . DIRECTORY_SEPARATOR);
     }
 
+    private static function requiredSchemaTables(): array
+    {
+        return [
+            'stage3_users','stage3_drafts','stage3_revisions','stage3_publications',
+            'stage3_publication_history','stage3_media','stage3_submissions',
+            'stage3_notifications','stage3_section_templates','stage3_instance',
+            'stage3_access_users','stage3_site_grants','stage3_audit','stage3_site_licenses',
+            'stage3_video_uploads','stage3_video_chunks','stage3_delivery_settings',
+            'stage3_delivery_outbox','stage3_delivery_routes','stage3_lead_workflow',
+            'stage3_lead_events','stage3_site_operations','stage3_site_incidents',
+            'stage3_approval_evidence','stage3_visual_findings'
+        ];
+    }
+
     private static function readReceipt(string $path): ?array
     {
-        if (is_link($path) || !is_file($path) || realpath($path) !== $path) {
+        $stat = @lstat($path);
+        $permissions = is_file($path) ? @fileperms($path) : false;
+        if ($stat === false || !is_file($path) || is_link($path)
+            || realpath($path) !== $path || ($stat['nlink'] ?? 0) !== 1
+            || $stat['size'] < 1 || $stat['size'] > 8192
+            || $permissions === false || (($permissions & 0077) !== 0)) {
             return null;
         }
-        $permissions = fileperms($path);
-        if ($permissions === false || (($permissions & 0077) !== 0)) {
+        $raw = @file_get_contents($path);
+        if (!is_string($raw) || strlen($raw) !== $stat['size']) {
             return null;
         }
-        $value = json_decode((string)file_get_contents($path), true);
-        if (!is_array($value) || ($value['format'] ?? null) !== self::RECEIPT_FORMAT
-            || !is_string($value['instanceId'] ?? null) || strlen($value['instanceId']) !== 32) {
+        try {
+            $value = json_decode($raw, true, 16, JSON_THROW_ON_ERROR);
+        } catch (Throwable) {
             return null;
         }
-        return $value;
+        $expected = [
+            'format','instanceId','instanceMode','dbDriver','schemaVersion',
+            'databaseFingerprint','configPath','configSha256','ownerUsername','installedAt'
+        ];
+        if (!is_array($value) || array_keys($value) !== $expected
+            || ($value['format'] ?? null) !== self::RECEIPT_FORMAT
+            || !is_string($value['instanceId']) || !preg_match('/^[a-f0-9]{32}$/D', $value['instanceId'])
+            || ($value['instanceMode'] ?? null) !== 'single-site'
+            || !in_array($value['dbDriver'] ?? null, ['mysql','sqlite'], true)
+            || ($value['schemaVersion'] ?? null) !== self::SCHEMA_VERSION
+            || !is_string($value['databaseFingerprint']) || !preg_match('/^[a-f0-9]{64}$/D', $value['databaseFingerprint'])
+            || !is_string($value['configPath']) || $value['configPath'] === ''
+            || !is_string($value['configSha256']) || !preg_match('/^[a-f0-9]{64}$/D', $value['configSha256'])
+            || !is_string($value['ownerUsername']) || !preg_match('/^[a-z][a-z0-9_-]{2,39}$/D', $value['ownerUsername'])
+            || !is_string($value['installedAt']) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/D', $value['installedAt'])) {
+            return null;
+        }
+        try {
+            $canonical = json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL;
+        } catch (Throwable) {
+            return null;
+        }
+        return hash_equals($canonical, $raw) ? $value : null;
     }
 
     private static function writeReceipt(string $path, array $receipt): void
