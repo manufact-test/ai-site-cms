@@ -34,7 +34,7 @@ function mkdirPublic(name){
 }
 function createDb(name){
   const file=path.join(tmp,name+'.sqlite');
-  run('php',['-r','$db=new PDO("sqlite:".$argv[1]);',$file],{CI:'true'});
+  run('php',['-r','$db=new PDO("sqlite:".$argv[1]);',file],{CI:'true'});
   return file;
 }
 function envFor(db,privateDir,publicRoot,suffix='one'){
