@@ -228,7 +228,6 @@ try{
 
   // Private two-step runner intended for a manually reviewed hPanel Cron Job.
   const dbRunner=names[4];
-  createDatabase(dbRunner);
   const codeRootRunner=createCodeRoot('cms-runner');
   const privateRunner=privateDir('private-runner');
   const publicRunner=fs.realpathSync(path.join(codeRootRunner,'server/public'));
