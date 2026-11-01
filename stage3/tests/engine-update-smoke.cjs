@@ -67,7 +67,7 @@ function installRuntime(serverRoot,env){
 }
 function addDatabaseFixtures(env){
   const code=[
-    "$db=new PDO(getenv('STAGE3_DSN'));",
+    "$db=new PDO(getenv('STAGE3_DSN'),getenv('STAGE3_DB_USER')?:null,getenv('STAGE3_DB_PASSWORD')?:null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);",
     "$blob=\"\\0\\xff\\x10engine-snapshot-binary\";",
     "$q=$db->prepare('INSERT INTO stage3_media(site_id,asset_id,mime,sha256,bytes,created_at) VALUES(?,?,?,?,?,?)');",
     "$q->execute(['engine-test','binary-asset','application/octet-stream',hash('sha256',$blob),$blob,'2026-11-01T00:00:00Z']);",
@@ -95,6 +95,17 @@ function phpVerify(serverRoot,release,publicKey,env,expected=0){
     "catch(Throwable $e){fwrite(STDERR,$e->getMessage());exit(1);}"
   ].join('\n');
   return php(code,[serverRoot,release,publicKey],env,expected);
+}
+function removeTreeWritable(target){
+  if(!fs.existsSync(target)&&!fs.isSymbolicLink(target))return;
+  const stat=fs.lstatSync(target);
+  if(stat.isSymbolicLink()||!stat.isDirectory()){
+    if(!stat.isSymbolicLink())fs.chmodSync(target,0o600);
+    fs.rmSync(target,{force:true});return;
+  }
+  fs.chmodSync(target,0o700);
+  for(const name of fs.readdirSync(target))removeTreeWritable(path.join(target,name));
+  fs.rmdirSync(target);
 }
 async function freePort(){
   return new Promise((resolve,reject)=>{
@@ -371,9 +382,15 @@ try{
 }catch(error){
   process.stderr.write((error.stack||error.message)+'\n');process.exitCode=1;
 }finally{
-  if(activeLease&&activeLease.exitCode===null)activeLease.kill('SIGKILL');
-  if(phpServer&&phpServer.exitCode===null)phpServer.kill('SIGTERM');
-  fs.rmSync(tmp,{recursive:true,force:true});
+  if(activeLease&&activeLease.exitCode===null){
+    activeLease.kill('SIGKILL');
+    await new Promise(resolve=>activeLease.once('exit',resolve));
+  }
+  if(phpServer&&phpServer.exitCode===null){
+    phpServer.kill('SIGTERM');
+    await new Promise(resolve=>phpServer.once('exit',resolve));
+  }
+  removeTreeWritable(tmp);
 }
 }
 main().catch(error=>{process.stderr.write((error.stack||error.message)+'\n');process.exitCode=1;});
