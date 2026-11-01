@@ -215,6 +215,7 @@ try {
         throw new RuntimeException('Private runner config and CMS document root are not safely isolated');
     }
     $hostIsolation = stage3_runner_validate_web_roots($accountWebRoots, $runtimeRoot, $publicRoot, $privateDir);
+    $hostIsolation['publicRootLayout'] = $publicLayout['mode'];
     if (file_exists($topologyPath) || is_link($topologyPath)) {
         throw new RuntimeException('A previous hosted topology record exists; manual recovery is required');
     }
