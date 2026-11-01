@@ -1,13 +1,20 @@
 # Stage3 shared-hosting public root.
 # DocumentRoot MUST point to this directory only: stage3/server/public.
-# Server code, Studio assets, components, databases, credentials, snapshots and
-# immutable engine slots must remain outside this public document root.
-# Requires Apache 2.4-compatible mod_dir, mod_alias and mod_authz_core plus
-# AllowOverride Options Indexes FileInfo AuthConfig.
-# LiteSpeed/Hostinger compatibility is not claimed until the real target is tested.
-Options -Indexes -MultiViews -FollowSymLinks -SymLinksIfOwnerMatch
+# The complete Stage3 runtime tree must also remain outside every other
+# web-exposed document root on the hosting account.
+# Requires Apache 2.4 / LiteSpeed-compatible mod_rewrite, mod_alias and
+# mod_authz_core plus AllowOverride Options Indexes FileInfo AuthConfig.
+# LiteSpeed does not support FallbackResource; use the rewrite front controller.
+Options +SymLinksIfOwnerMatch -FollowSymLinks -Indexes -MultiViews
 DirectoryIndex index.php
-FallbackResource /index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
 
 # Match ANY hidden PATH SEGMENT, not only the final filename.
 # Only the literal .well-known directory segment is exempt (ACME/security.txt).

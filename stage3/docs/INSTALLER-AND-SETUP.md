@@ -50,7 +50,7 @@ Database-scoped locking prevents concurrent apply operations. An invalid or stal
 
 - The CLI installer remains the single initial-install path: read-only --plan, then exact one-time --apply=<token>. It binds one Stage3 instance to one dedicated empty MySQL database, creates 25 required tables and persists private runtime configuration/receipt outside the document root.
 - Requirements #184–185 (signed CMS engine update, private immutable slots, full 25-table snapshots, rollback and explicit recovery) are implemented on this feature branch. See docs/CMS-ENGINE-UPDATE-ROLLBACK-DESIGN.md.
-- The stable public root now includes an Apache 2.4 .htaccess policy using FallbackResource /index.php, hidden-path denial, disabled directory indexes and denial of stray executable/private files. The signed PHP-host package inventory retains this stable routing file.
+- The stable public root now includes an Apache 2.4 / LiteSpeed-compatible .htaccess policy using mod_rewrite, hidden-path denial, disabled directory indexes and denial of stray executable/private files. The signed PHP-host package inventory retains this stable routing file.
 - A disposable Apache 2.4 + PHP 8.3 container rehearsal is added to the Stage3 CI. It performs a CLI SQLite install in a temporary copy, then checks /studio, assets, /api/session, owner login, /api/sites, engine status and public-root protections. It is not a real-host deployment.
 - The exact current branch CI result is recorded in the canonical docs/NEXT-CHAT.md. Do not treat the Apache rehearsal as passed until that exact-SHA run is green.
 

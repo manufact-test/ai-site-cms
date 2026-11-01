@@ -138,7 +138,7 @@ async function main() {
     await pause(250);
   }
   assert.ok(studioResponse && studioResponse.status === 200,
-    'Apache FallbackResource must route /studio to the Stage3 front controller; received ' +
+    'Apache/LiteSpeed-compatible mod_rewrite must route /studio to the Stage3 front controller; received ' +
     (studioResponse ? studioResponse.status + ' ' + studioBody.slice(0, 300) : 'no response'));
   assert.ok(studioBody.includes('data-stage3-mode="server"'), 'server-backed Studio HTML is served');
 

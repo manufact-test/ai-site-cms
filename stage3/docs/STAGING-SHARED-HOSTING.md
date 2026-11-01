@@ -19,7 +19,7 @@ The current installer is intentionally CLI-only. If the shared host does not pro
 - PHP: verify the web SAPI, not just CLI, is PHP 8.1+ (target 8.3) with pdo, pdo_mysql, json, openssl and mbstring.
 - TLS: valid HTTPS on the staging hostname before owner login or form tests. Protect staging with host-level password protection or an IP allowlist; noindex alone is not access control.
 
-The Stage3 public .htaccess uses Apache 2.4-compatible FallbackResource, mod_dir, mod_alias and FilesMatch rules; it does not rely on mod_rewrite. The host must permit AllowOverride Options Indexes FileInfo AuthConfig. The disposable CI Apache test proves the Apache configuration and PHP request flow only. It does not certify LiteSpeed/Hostinger compatibility; that must be tested on the selected target.
+The Stage3 public .htaccess uses an Apache 2.4 / LiteSpeed-compatible mod_rewrite front controller, mod_alias and FilesMatch rules. LiteSpeed documents FallbackResource as unsupported, so Stage3 does not use it. The host must permit mod_rewrite, mod_alias, mod_dir, mod_authz_core and AllowOverride Options Indexes FileInfo AuthConfig. The disposable CI Apache test proves Apache syntax and PHP request flow only; it does not certify the selected LiteSpeed/Hostinger version.
 
 ## 3. Before upload
 
@@ -29,6 +29,8 @@ The Stage3 public .htaccess uses Apache 2.4-compatible FallbackResource, mod_dir
 4. Configure the subdomain document root to the canonical stage3/server/public directory. Do not use a symlink to expose the repository root or move the document root to stage3/server.
 5. Upload the Stage3 runtime directories (components, media-motion, server, studio) while preserving their relative paths. The server/public directory is the only public directory.
 6. Create the private directory outside the web root, set it to 0700, and verify the hosting account's PHP process can read/write it. Do not place it under public_html, a public subdomain root or a nested directory of the web root.
+
+The entire Stage3 runtime tree must be outside every web-exposed document root on the hosting account, not merely outside the staging subdomain's root. The public-root .htaccess cannot protect the sibling server directory from another vhost that exposes its parent. If the host cannot place the runtime tree outside all web roots, stop rather than relying on this .htaccess.
 
 If the host cannot satisfy any of these conditions, do not relax the isolation checks. Record the exact blocker and stop.
 
