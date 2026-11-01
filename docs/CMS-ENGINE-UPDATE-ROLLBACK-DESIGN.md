@@ -1,10 +1,10 @@
 # CMS Engine Update & Rollback — design checkpoint
 
 **Date:** 2026-11-01  
-**Status:** architecture decision for the next isolated engineering macroblock; not implemented, not production-approved, and not owner acceptance.  
+**Status:** implemented on feature/stage3-ai-site-contract; full two-job Stage3 CI passed on 2026-11-01. Still not production-approved, not merged to main, and not owner acceptance.  
 **Branch:** `feature/stage3-ai-site-contract`  
-**Audited source:** functional `19a74e77c1acdfb43a7b3840f8e05bd10f2b0427`; documentation HEAD at audit time `84181c1506c47e965685c9af3717990a933b9b11`.  
-**Exact existing full CI:** [#41302974827](https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827), both jobs SUCCESS on the functional SHA.
+**Implemented HEAD:** `9a16b26052fd50dd631848d07708e5d77f104ebd`.  
+**Full CI:** [#41313513423](https://github.com/manufact-test/ai-site-cms/actions/runs/41313513423), both contract and technology-runtime jobs SUCCESS.
 
 ## 1. Product boundary
 
@@ -16,7 +16,9 @@ This work is requirements **#184 (independent CMS engine update)** and **#185 (C
 
 The updater must not modify the published visitor-site release, site content, customer data or delivery settings merely to change CMS code.
 
-## 2. Verified current state
+## 2. Pre-implementation baseline (historical audit)
+
+The following records the initial audit before this implementation macroblock. Statements that the updater did not yet exist describe that earlier checkpoint, not the current branch.
 
 ### Stage3 packaging
 
@@ -53,7 +55,44 @@ The old `cms/src/Release/Lab*` work is substantial research, but explicitly Stag
 
 The existing lab tests already cover many useful *algorithmic* cases: bad inventory, tampered bytes, symlink/hard-link injection, canonical metadata, interrupted staging, explicit recovery direction, CAS/ABA, stale locks, rollback to the immediate previous generation, pointer/receipt corruption, and SQLite/MySQL cooperative migration fences. Do not rebuild those same temp-lab tests under new names. Stage3 tests must prove the new Stage3 package, private runtime layout, DB snapshot and real PHP request-loader integration.
 
-## 3. Target architecture
+## 3. Implemented Stage3 checkpoint — 2026-11-01
+
+Requirements #184 and #185 are implemented on this feature branch as a code-only CMS engine updater. This is not a production deployment or formal owner acceptance.
+
+### Release trust and package boundary
+
+- stage3/bin/cms-release.cjs builds a signed php-host release. The canonical manifest binds engine identity, version/channel, PHP/extensions, schema contract, loader ABI, exact file inventory and fingerprint.
+- Offline signing uses RSA-3072+ / PKCS#1 v1.5 / SHA-256. The private key is supplied to the offline builder only; it is not committed or copied into the package.
+- PHP verifies the detached signature with OpenSSL, requires strict openssl_verify(...) === 1, validates the RSA key size and verifies every package file before staging.
+- The publisher public key is a private installation trust anchor. Key trust setup is an explicit CLI operation; an incoming package cannot replace its own trust anchor.
+- Only the php-host profile and schema version 1 with an empty migration list are accepted. Schema-changing packages fail closed until a separate reversible migration contract exists.
+
+### Runtime lifecycle and control plane
+
+- The stable public front controller remains in place. CMS code is selected from immutable private engine slots outside the document root; published visitor-site releases and customer content are not switched.
+- The stable RuntimeConfig, EngineRuntime, EngineLifecycle, EngineReleaseVerifier and DatabaseSnapshot files remain pinned beside the stable front controller. Ordinary engine packages cannot replace the updater/control plane that is executing them.
+- Active state, staging, plans, request locks, activation receipts, recovery journal, publisher trust and snapshots live under the private STAGE3_PRIVATE_DIR.
+- Normal PHP requests hold a shared lease through shutdown. Owner control-plane requests use the stable loader without holding that shared lease, then acquire the exclusive lock non-blockingly for an update/rollback/recovery operation. This avoids self-deadlock and prevents switching while a normal request is active.
+- Interrupted activation keeps the stable owner control plane reachable. Recovery requires an explicit owner choice: finalize or abort.
+- The existing Studio exposes a focused owner-only maintenance dialog: inspect current version, review signed package, confirm apply, prepare/confirm rollback and recover an interrupted switch. The package is placed in the private engine/incoming/ directory via SFTP/private file manager; it is never uploaded into public_html.
+
+### Database safety
+
+- A verified snapshot is created before every activation/rollback. It covers all 25 Stage3 tables and preserves binary media.
+- Snapshot verification checks the complete inventory and hashes. Restore is an explicit, separately guarded operation into an empty target database; engine rollback does not silently restore or rewrite site data.
+- Retention keeps the newest verified snapshots plus the current state's pinned recovery point. Corrupt/ambiguous snapshots are retained for forensic review rather than deleted.
+- The current migration contract is deliberately code-only: schema version 1, no migrations. Do not mark DB migration/rollback as supported.
+
+### Owner API
+
+- GET /api/engine — status, trust, current/previous version and incoming package list.
+- POST /api/engine/review — verifies an incoming package and creates a short-lived one-time plan bound to the current engine state and DB identity.
+- POST /api/engine/apply — applies the reviewed package after rechecking plan, DB identity and request leases.
+- POST /api/engine/rollback-plan and POST /api/engine/rollback — prepare and confirm the immediate previous engine rollback.
+- POST /api/engine/recover — explicit finalize/abort of a pending activation journal.
+- All operations are owner-only and mutation routes require CSRF protection. No editor/publisher role can update CMS code.
+
+## 4. Target architecture and invariants
 
 ### A. Signed engine release contract
 
@@ -135,31 +174,35 @@ After the signed verifier, slot manager and snapshot guard work independently, e
 
 No editor/publisher role can update engine code. Do not add a second editor or redesign the Studio; add a focused maintenance task to the existing admin only after the backend contracts are stable.
 
-## 4. Macroblock execution plan
+## 5. Implementation record
 
-Implement as four connected vertical packages, stopping only after the full Stage3 CI and the new critical user journey pass:
+The four vertical packages above are implemented on the branch:
 
-1. **Release identity and trust:** versioned canonical manifest, offline Ed25519 signing, PHP signature/inventory verifier, pinned trust anchor and negative package tests.
-2. **Private engine lifecycle:** stable loader, immutable slots, staging, request/exclusive leases, CAS activation pointer, receipt/journal, immediate-previous rollback and explicit crash recovery.
-3. **Database safety:** full private Stage3 DB snapshot/export/verify (and restore rehearsal into a separate disposable DB), schema compatibility preflight, and hard rejection of any schema-changing release until reversible migrations exist.
-4. **Owner workflow:** owner-only API and a compact existing-Studio maintenance surface for current version, signed package review, explicit apply and rollback/recovery.
+1. **Release identity and trust — complete:** signed RSA-3072 php-host package, PHP OpenSSL verification, private trust anchor, tamper/wrong-key/untracked-file rejection.
+2. **Private engine lifecycle — complete:** stable loader, immutable slots, private staging, shared/exclusive leases, monotonic activation state, activation receipt/journal, immediate-previous rollback and explicit crash recovery.
+3. **Database safety — complete for code-only updates:** verified 25-table SQLite/MySQL snapshots, binary media preservation, separate-database restore rehearsal, bounded retention and strict schema-v1/no-migrations gate.
+4. **Owner workflow — complete in code:** owner-only HTTP API and existing Studio maintenance dialog for status, review, apply, rollback and recovery.
 
-At least three owner-visible outcomes must be demonstrable: review a verified engine update, apply it without changing the visitor-site release or site data, and roll back to the immediately previous engine with the same DB/schema intact.
+Automated evidence demonstrates review → apply → second update → blocked concurrent switch → rollback → interrupted activation → explicit recovery, while the published visitor-site record and binary media remain unchanged. Manual owner usability/acceptance and production-host verification remain open.
 
-## 5. Required validation — new Stage3 paths only
+## 6. Validation completed — full CI #41313513423
 
-Keep the existing full CI. Add focused coverage for:
+The full two-job run [#41313513423](https://github.com/manufact-test/ai-site-cms/actions/runs/41313513423) passed on HEAD 9a16b26052fd50dd631848d07708e5d77f104ebd.
 
-- signed `php-host` package build → PHP verify → tampered signature/manifest/file, wrong key, unsupported profile/PHP/schema and unsafe path rejection;
-- private staging and immutable slot inventory; no public-root/secret/database/customer-data inclusion;
-- normal PHP request holding a shared lease while update activation is refused; then successful activation after release;
-- crash points before/after pointer and receipt, fresh-process inspection and explicit recovery;
-- code rollback to the previous slot with monotonic activation sequence and unchanged visitor-site publication version;
-- complete 25-table MySQL snapshot including binary media, hash/count verification, and restore rehearsal into a separate disposable database;
-- a migration-bearing package without a valid reversible migration/snapshot is rejected before activation;
-- one real Chromium owner journey: review → apply → verify current version → rollback → verify previous version, while the published visitor site remains unchanged.
+The contract job covered:
 
-Do not duplicate the Stage2 lab suite's existing isolated tamper/CAS tests unless a new Stage3 integration seam requires them. Do not weaken existing CI gates or add broad repeated test matrices.
+- signed package build and exact PHP OpenSSL verification; wrong publisher key, tampered runtime file and untracked package file rejected;
+- owner authentication, owner-only API, CSRF rejection and actual HTTP review/apply/rollback/recovery;
+- immutable slot activation, shared request lease and exclusive switch refusal while a PHP request is active;
+- monotonic version transitions and explicit recovery after a simulated interruption between pointer write and receipt completion;
+- 25-table SQLite snapshot/restore and MySQL snapshot/restore, with binary media and published content preserved;
+- snapshot retention and preservation of corrupt evidence;
+- D3 local release cutover/rollback and collector sidecar packaging;
+- existing Studio Chromium E2E, full server persistence/publish HTTP E2E, approved-site browser journey and existing SEO/contract suites.
+
+The separate technology-runtime job passed the disposable Next Static real build and Next SSR loopback proof.
+
+This is CI evidence for isolated test databases and loopback servers only. It does not prove a live shared-host install, production permissions, PHP-FPM/OPcache behavior on Hostinger, live SMTP/Telegram delivery, or owner acceptance. Do not duplicate the Stage2 lab suite or add broad repeated matrices.
 
 ## 6. Separate #183 guided setup feasibility
 
@@ -175,9 +218,10 @@ A safe browser-guided setup is technically feasible without making the public si
 
 A file-manager-assisted one-time token/bootstrap may be required on hosts without SSH. If the host cannot provide a private directory or secure token bootstrap, retain the documented manual path rather than weakening isolation. This is a separate #183 decision, not a prerequisite to designing #184–185.
 
-## 7. Non-negotiable status
+## 8. Non-negotiable status
 
 - Stage 2 remains NO-GO; gates #5–#9 remain open.
+- Requirements #184–185 are implemented on feature/stage3-ai-site-contract and pass the full CI above; they are not production-approved or owner-accepted.
 - Stage 3 remains isolated engineering and not formally accepted.
 - 135 MUST = 124 engineering candidates + 5 partial + 6 external gates; owner acceptance remains 0/135.
 - SEO Engine and D1–D8 are already integrated; do not repeat them.
