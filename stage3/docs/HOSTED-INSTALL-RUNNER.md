@@ -86,7 +86,7 @@ If the plan is blocked, already installed, stale or otherwise not `install_requi
 Only after reviewing the full plan and separately deciding to proceed:
 
 ```sh
-php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --apply=<approvalFingerprint>
+php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --apply=REPLACE_WITH_64_HEX_APPROVAL_FINGERPRINT
 ```
 
 The runner reloads the private review/state files, checks their permissions and integrity, recomputes the current installer plan, and requires both the stored private token and the supplied fingerprint to match. Changed credentials, database identity, topology or plan state invalidate the approval before schema creation.

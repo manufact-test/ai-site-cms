@@ -67,7 +67,7 @@ Review the complete redacted output. Proceed only when `state=install_required`,
 Only after a separate owner decision, run the apply command with that exact fingerprint:
 
 ```sh
-php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --apply=<approvalFingerprint>
+php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --apply=REPLACE_WITH_64_HEX_APPROVAL_FINGERPRINT
 ```
 
 After success, the credential-bearing runner config and pending token state are removed, a private consumed marker and topology receipt are retained, and later recurring Cron invocations become silent no-ops. Remove the Cron entry manually in hPanel. If an `applying` marker remains without a valid consumed marker, stop and inspect the database; never delete the marker or rerun blindly.

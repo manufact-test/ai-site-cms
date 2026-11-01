@@ -8,7 +8,7 @@
 
 ```sh
 php stage3/server/bin/install.php --plan
-php stage3/server/bin/install.php --apply=<64-character-token-from-the-current-plan>
+php stage3/server/bin/install.php --apply=REPLACE_WITH_64_HEX_TOKEN_FROM_CURRENT_PLAN
 ```
 
 `--plan` is read-only. It validates the environment and selected database and returns a one-time approval token only when the plan is eligible. `--apply` must receive the exact token from that plan. The token is bound to the selected installation configuration, including the database password hash; changing the database password invalidates the old token. Do not copy the token into tickets, chat, source control or persistent logs.

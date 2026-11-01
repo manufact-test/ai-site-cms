@@ -41,7 +41,7 @@ The runner:
 3. Requires a complete owner-supplied inventory of 1–50 canonical account web roots, including the Stage3 public root.
 4. Rejects overlap between private storage and any web root, and between the runtime tree and any other web root.
 5. Runs a read-only `--plan`, stores the private approval token/state outside the web root, and prints only a redacted plan plus `approvalFingerprint`.
-6. Requires a separate manually approved `--apply=<approvalFingerprint>`; it recomputes the plan and refuses stale credentials/topology before any schema write.
+6. Requires a separate manually approved `--apply=REPLACE_WITH_64_HEX_APPROVAL_FINGERPRINT`; it recomputes the plan and refuses stale credentials/topology before any schema write.
 7. On success, creates the 25-table schema and private topology receipt, removes credential-bearing runner config/state, and writes a private consumed marker. Later recurring invocations become silent no-ops; the owner must still remove the Cron entry manually.
 
 Exact configuration and recovery instructions: [HOSTED-INSTALL-RUNNER.md](../stage3/docs/HOSTED-INSTALL-RUNNER.md).
@@ -50,7 +50,7 @@ Example command shape only:
 
 ```sh
 php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --plan
-php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --apply=<approvalFingerprint>
+php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/absolute/private/path/hosted-install-runner.json --apply=REPLACE_WITH_64_HEX_APPROVAL_FINGERPRINT
 ```
 
 The command contains only the private config path and, for the separately approved apply, a plan fingerprint. Do not put passwords, database DSNs, owner credentials, form secrets or the installer's private token into the command, Cron description, URL, logs, source control or chat.
