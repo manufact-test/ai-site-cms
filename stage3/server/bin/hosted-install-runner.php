@@ -18,7 +18,7 @@ function stage3_runner_within(string $path, string $parent): bool
     $parent = rtrim($parent, DIRECTORY_SEPARATOR);
     return $path === $parent || str_starts_with($path, $parent . DIRECTORY_SEPARATOR);
 }
-function stage3_runner_validate_web_roots(array $roots, string $serverRoot, string $publicRoot, string $privateDir): array
+function stage3_runner_validate_web_roots(array $roots, string $runtimeRoot, string $publicRoot, string $privateDir): array
 {
     if (!array_is_list($roots) || count($roots) < 1 || count($roots) > 50) {
         throw new RuntimeException('Supply the complete account web-root inventory (1–50 canonical directories)');
@@ -34,7 +34,7 @@ function stage3_runner_validate_web_roots(array $roots, string $serverRoot, stri
             throw new RuntimeException('Private CMS storage overlaps an account web root');
         }
         if ($root !== $publicRoot
-            && (stage3_runner_within($serverRoot, $root) || stage3_runner_within($root, $serverRoot))) {
+            && (stage3_runner_within($runtimeRoot, $root) || stage3_runner_within($root, $runtimeRoot))) {
             throw new RuntimeException('CMS runtime tree overlaps another account web root');
         }
     }
@@ -197,17 +197,23 @@ try {
     $configuredPrivate = realpath($values['STAGE3_PRIVATE_DIR']);
     $publicRoot = realpath($values['STAGE3_PUBLIC_ROOT']);
     $serverRoot = realpath(dirname(__DIR__));
-    $expectedPublicRoot = is_string($serverRoot) ? realpath($serverRoot . DIRECTORY_SEPARATOR . 'public') : false;
+    $runtimeRoot = is_string($serverRoot) ? realpath(dirname($serverRoot)) : false;
+    $publicLayout = is_string($serverRoot) && is_string($publicRoot)
+        ? \Manufact\Stage3\Stage3Installer::inspectPublicRootLayout($serverRoot, $publicRoot)
+        : ['ok' => false, 'mode' => null, 'clean' => false, 'permissionsOk' => false, 'entries' => []];
     if (!is_string($configuredPrivate) || $configuredPrivate !== $privateDir
         || !is_string($publicRoot) || $publicRoot !== $values['STAGE3_PUBLIC_ROOT']
-        || !is_string($serverRoot) || !is_string($expectedPublicRoot) || $publicRoot !== $expectedPublicRoot
+        || !is_string($serverRoot) || !is_string($runtimeRoot)
+        || ($publicLayout['ok'] ?? false) !== true
+        || ($publicLayout['clean'] ?? false) !== true
+        || ($publicLayout['permissionsOk'] ?? false) !== true
         || !is_dir($publicRoot) || is_link($values['STAGE3_PUBLIC_ROOT'])
         || stage3_runner_within($privateDir, $publicRoot) || stage3_runner_within($publicRoot, $privateDir)
-        || stage3_runner_within($privateDir, $serverRoot) || stage3_runner_within($serverRoot, $privateDir)
-        || stage3_runner_within($configPath, $publicRoot) || stage3_runner_within($configPath, $serverRoot)) {
+        || stage3_runner_within($privateDir, $runtimeRoot) || stage3_runner_within($runtimeRoot, $privateDir)
+        || stage3_runner_within($configPath, $publicRoot) || stage3_runner_within($configPath, $runtimeRoot)) {
         throw new RuntimeException('Private runner config and CMS document root are not safely isolated');
     }
-    $hostIsolation = stage3_runner_validate_web_roots($accountWebRoots, $serverRoot, $publicRoot, $privateDir);
+    $hostIsolation = stage3_runner_validate_web_roots($accountWebRoots, $runtimeRoot, $publicRoot, $privateDir);
     if (file_exists($topologyPath) || is_link($topologyPath)) {
         throw new RuntimeException('A previous hosted topology record exists; manual recovery is required');
     }

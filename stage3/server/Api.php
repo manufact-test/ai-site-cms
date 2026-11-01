@@ -164,9 +164,10 @@ final class Api
         $mysqlOk = ($plan['dbDriver'] ?? null) === 'mysql' && ($dbVersion['ok'] ?? false) === true;
         $privateMode = is_string($privateDir) && is_dir($privateDir) ? @fileperms($privateDir) : false;
         $privatePermissions = $privateMode === false ? null : ($privateMode & 0777);
+        $runtimeRoot = dirname($serverRoot);
         $privateDirectoryOk = is_string($privateDir) && $privateDir === $privateInput
             && is_dir($privateDir) && !is_link($privateInput) && $privatePermissions === 0700 && is_writable($privateDir)
-            && !self::hostingPathWithin($privateDir, $serverRoot) && !self::hostingPathWithin($serverRoot, $privateDir);
+            && !self::hostingPathWithin($privateDir, $runtimeRoot) && !self::hostingPathWithin($runtimeRoot, $privateDir);
         $privateRuntimeOk = ($planChecks['privateRuntimeConfig']['ok'] ?? false) === true;
         $documentRoot = realpath((string)($_SERVER['DOCUMENT_ROOT'] ?? ''));
         $documentRootMatches = is_string($publicRoot) && $documentRoot === $publicRoot;
@@ -178,7 +179,13 @@ final class Api
             $publicEntries = array_values(array_diff($publicEntries, ['.','..']));
             sort($publicEntries, SORT_STRING);
         }
-        $publicRootPolicyOk = is_array($publicEntries) && $publicEntries === ['.htaccess','index.php']
+        $publicLayout = is_string($publicRoot)
+            ? Stage3Installer::inspectPublicRootLayout($serverRoot, $publicRoot)
+            : ['ok' => false, 'mode' => null, 'clean' => false, 'permissionsOk' => false, 'entries' => []];
+        $publicRootPolicyOk = ($publicLayout['ok'] ?? false) === true
+            && ($publicLayout['clean'] ?? false) === true
+            && ($publicLayout['permissionsOk'] ?? false) === true
+            && is_array($publicEntries) && $publicEntries === ['.htaccess','index.php']
             && is_file($publicRoot . DIRECTORY_SEPARATOR . 'index.php') && !is_link($publicRoot . DIRECTORY_SEPARATOR . 'index.php')
             && is_file($publicRoot . DIRECTORY_SEPARATOR . '.htaccess') && !is_link($publicRoot . DIRECTORY_SEPARATOR . '.htaccess');
         $htaccessPath = is_string($publicRoot) ? $publicRoot . DIRECTORY_SEPARATOR . '.htaccess' : '';
@@ -218,7 +225,7 @@ final class Api
                             $rootsOk = false; break;
                         }
                         if ($root !== $publicRoot
-                            && (self::hostingPathWithin($serverRoot, $root) || self::hostingPathWithin($root, $serverRoot))) {
+                            && (self::hostingPathWithin($runtimeRoot, $root) || self::hostingPathWithin($root, $runtimeRoot))) {
                             $rootsOk = false; break;
                         }
                     }
@@ -247,7 +254,7 @@ final class Api
         $uploadTmpOk = is_dir($uploadTmp) && is_writable($uploadTmp);
         $openBasedir = (string)ini_get('open_basedir');
         $openBasedirConfigured = trim($openBasedir) !== '';
-        $openBasedirRuntimeOk = self::hostingOpenBasedirAllows($serverRoot, $openBasedir);
+        $openBasedirRuntimeOk = self::hostingOpenBasedirAllows($runtimeRoot, $openBasedir);
         $openBasedirPublicOk = is_string($publicRoot)
             && self::hostingOpenBasedirAllows($publicRoot, $openBasedir);
         $openBasedirPrivateOk = is_string($privateDir)
@@ -298,6 +305,7 @@ final class Api
                 'frontControllerMatches' => $frontControllerMatches,
                 'privateDirectoryPermissions' => $privatePermissions === null ? null : sprintf('%04o', $privatePermissions),
                 'privateDirectoryValid' => $privateDirectoryOk, 'privateRuntimeConfigValid' => $privateRuntimeOk,
+                'publicRootLayout' => $publicLayout['mode'] ?? null,
                 'publicRootPolicyValid' => $publicRootPolicyOk && $htaccessOk,
                 'accountWebRootIsolationValid' => $topologyOk, 'accountWebRootCount' => $webRootCount
             ],
@@ -691,8 +699,8 @@ final class Api
             if ($path === '/api/hosting/diagnostics') {
                 if ($method !== 'GET') $this->response(405, ['error' => 'GET required']);
                 if ($principal['role'] !== 'owner') $this->response(403, ['error' => 'Owner only']);
-                $publicRoot = (string)getenv('STAGE3_PUBLIC_ROOT');
-                $stableServerRoot = realpath(dirname($publicRoot));
+                $stableServerRoot = defined('STAGE3_STABLE_SERVER_ROOT')
+                    ? realpath((string)constant('STAGE3_STABLE_SERVER_ROOT')) : false;
                 if (!is_string($stableServerRoot) || !is_dir($stableServerRoot)) {
                     $this->response(503, ['error' => 'Hosting diagnostics are unavailable']);
                 }
@@ -706,8 +714,8 @@ final class Api
             }
             if (str_starts_with($path, '/api/engine')) {
                 if ($principal['role'] !== 'owner') $this->response(403, ['error' => 'Owner only']);
-                $publicRoot = (string)getenv('STAGE3_PUBLIC_ROOT');
-                $stableServerRoot = realpath(dirname($publicRoot));
+                $stableServerRoot = defined('STAGE3_STABLE_SERVER_ROOT')
+                    ? realpath((string)constant('STAGE3_STABLE_SERVER_ROOT')) : false;
                 if (!is_string($stableServerRoot) || !is_dir($stableServerRoot)) {
                     $this->response(503, ['error' => 'CMS engine control plane is unavailable']);
                 }

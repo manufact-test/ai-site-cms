@@ -110,16 +110,29 @@ final class Stage3Installer
         }
 
         $serverRoot = realpath(dirname(__DIR__));
-        $expectedPublicRoot = is_string($serverRoot) ? realpath($serverRoot . DIRECTORY_SEPARATOR . 'public') : false;
-        $publicPath = is_string($serverRoot) ? $serverRoot . DIRECTORY_SEPARATOR . 'public' : '';
+        $runtimeRoot = is_string($serverRoot) ? realpath(dirname($serverRoot)) : false;
         $publicRoot = $publicInput !== '' ? realpath($publicInput) : false;
-        $publicOk = is_string($serverRoot) && is_dir($serverRoot)
-            && is_string($expectedPublicRoot) && !is_link($publicPath)
+        $publicLayout = is_string($serverRoot) && is_string($publicRoot)
+            ? self::inspectPublicRootLayout($serverRoot, $publicRoot)
+            : ['ok' => false, 'mode' => null, 'clean' => false, 'permissionsOk' => false, 'entries' => []];
+        $publicOk = is_string($serverRoot) && is_dir($serverRoot) && !is_link(dirname(__DIR__))
+            && is_string($runtimeRoot) && is_dir($runtimeRoot) && !is_link(dirname($serverRoot))
             && is_string($publicRoot) && is_dir($publicRoot) && !is_link($publicInput)
-            && $publicRoot === $publicInput && $publicRoot === $expectedPublicRoot;
-        $checks['publicDocumentRoot'] = ['ok' => $publicOk, 'path' => is_string($publicRoot) ? $publicRoot : null];
+            && $publicRoot === $publicInput && ($publicLayout['ok'] ?? false) === true;
+        $checks['publicDocumentRoot'] = [
+            'ok' => $publicOk,
+            'path' => is_string($publicRoot) ? $publicRoot : null,
+            'layout' => $publicLayout['mode'] ?? null,
+            'clean' => $publicLayout['clean'] ?? false,
+            'permissionsOk' => $publicLayout['permissionsOk'] ?? false
+        ];
         if (!$publicOk) {
-            $errors[] = 'STAGE3_PUBLIC_ROOT must be the canonical server/public directory used as this CMS installation document root';
+            $errors[] = 'STAGE3_PUBLIC_ROOT must be the canonical server/public directory or the isolated Hostinger public_html sibling root with matching front-controller files';
+        }
+        if ($privateOk && (!is_string($runtimeRoot)
+            || self::isWithin($privateDir, $runtimeRoot) || self::isWithin($runtimeRoot, $privateDir))) {
+            $errors[] = 'The private installation directory and complete Stage3 runtime tree must be separate, non-nested directories';
+            $checks['privateDirectory']['ok'] = false;
         }
         if ($privateOk && $publicOk && (self::isWithin($privateDir, $publicRoot) || self::isWithin($publicRoot, $privateDir))) {
             $errors[] = 'The private installation directory and public document root must be separate, non-nested directories';
@@ -496,6 +509,77 @@ final class Stage3Installer
     {
         $value = $env[$key] ?? '';
         return is_string($value) ? trim($value) : '';
+    }
+
+    /**
+     * Accept the original server/public document root or Hostinger's fixed
+     * public_html root with the complete runtime in its sibling /stage3 tree.
+     * In the sibling layout, public files must be byte-identical and read-only.
+     *
+     * @return array{ok:bool,mode:?string,clean:bool,permissionsOk:bool,entries:array<int,string>}
+     */
+    public static function inspectPublicRootLayout(string $serverRoot, string $publicRoot): array
+    {
+        $server = realpath($serverRoot);
+        $public = realpath($publicRoot);
+        if (!is_string($server) || $server !== $serverRoot || !is_dir($server) || is_link($serverRoot)
+            || !is_string($public) || $public !== $publicRoot || !is_dir($public) || is_link($publicRoot)) {
+            return ['ok' => false, 'mode' => null, 'clean' => false, 'permissionsOk' => false, 'entries' => []];
+        }
+
+        $templateRoot = $server . DIRECTORY_SEPARATOR . 'public';
+        $templateReal = realpath($templateRoot);
+        if (!is_string($templateReal) || $templateReal !== $templateRoot
+            || !is_dir($templateRoot) || is_link($templateRoot)) {
+            return ['ok' => false, 'mode' => null, 'clean' => false, 'permissionsOk' => false, 'entries' => []];
+        }
+
+        $embedded = $public === $templateRoot;
+        $domainRootPath = dirname(dirname($server));
+        $domainRoot = realpath($domainRootPath);
+        $sibling = is_string($domainRoot) && $domainRoot === $domainRootPath
+            && $server === $domainRoot . DIRECTORY_SEPARATOR . 'stage3' . DIRECTORY_SEPARATOR . 'server'
+            && $public === $domainRoot . DIRECTORY_SEPARATOR . 'public_html'
+            && !self::isWithin($server, $public) && !self::isWithin($public, $server);
+        if (!$embedded && !$sibling) {
+            return ['ok' => false, 'mode' => null, 'clean' => false, 'permissionsOk' => false, 'entries' => []];
+        }
+
+        $permissionsOk = true;
+        foreach (['index.php', '.htaccess'] as $name) {
+            $source = $templateRoot . DIRECTORY_SEPARATOR . $name;
+            $target = $public . DIRECTORY_SEPARATOR . $name;
+            $sourceStat = @lstat($source);
+            $targetStat = @lstat($target);
+            if ($sourceStat === false || $targetStat === false
+                || !is_file($source) || !is_file($target) || is_link($source) || is_link($target)
+                || realpath($source) !== $source || realpath($target) !== $target
+                || ($sourceStat['nlink'] ?? 0) !== 1 || ($targetStat['nlink'] ?? 0) !== 1) {
+                return ['ok' => false, 'mode' => null, 'clean' => false, 'permissionsOk' => false, 'entries' => []];
+            }
+            if ($sibling && (($targetStat['mode'] & 0222) !== 0)) {
+                $permissionsOk = false;
+            }
+            $sourceHash = @hash_file('sha256', $source);
+            $targetHash = @hash_file('sha256', $target);
+            if (!is_string($sourceHash) || !is_string($targetHash) || !hash_equals($sourceHash, $targetHash)) {
+                return ['ok' => false, 'mode' => null, 'clean' => false, 'permissionsOk' => false, 'entries' => []];
+            }
+        }
+
+        $entries = @scandir($public);
+        if (!is_array($entries)) {
+            return ['ok' => false, 'mode' => null, 'clean' => false, 'permissionsOk' => false, 'entries' => []];
+        }
+        $entries = array_values(array_diff($entries, ['.', '..']));
+        sort($entries, SORT_STRING);
+        return [
+            'ok' => true,
+            'mode' => $embedded ? 'embedded' : 'hostinger-sibling',
+            'clean' => $entries === ['.htaccess', 'index.php'],
+            'permissionsOk' => $permissionsOk,
+            'entries' => $entries
+        ];
     }
 
     private static function isWithin(string $path, string $parent): bool

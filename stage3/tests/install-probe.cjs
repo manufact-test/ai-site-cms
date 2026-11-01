@@ -239,6 +239,17 @@ try{
   assert.equal(nested.state,'blocked');
   assert.ok(nested.errors.some(x=>x.includes('non-nested')));
 
+  const db5=createDb('runtime-overlap');
+  const codeRoot5=createCodeRoot('cms-five');
+  const privateInsideRuntime=path.join(codeRoot5,'components','private-install');
+  fs.mkdirSync(privateInsideRuntime,{recursive:true,mode:0o700});
+  fs.chmodSync(privateInsideRuntime,0o700);
+  const public5=fs.realpathSync(path.join(codeRoot5,'server/public'));
+  const runtimeOverlap=plan(envFor(db5,privateInsideRuntime,public5,'five'),1,codeRoot5);
+  assert.equal(runtimeOverlap.state,'blocked');
+  assert.ok(runtimeOverlap.errors.some(x=>x.includes('complete Stage3 runtime tree')));
+  assert.equal(fs.existsSync(path.join(privateInsideRuntime,'installation.json')),false);
+
   process.stdout.write(JSON.stringify({
     ok:true,
     checks:[
@@ -251,6 +262,7 @@ try{
       'independent second installation and database',
       'non-empty database refused without mutation',
       'private directory must be outside public document root',
+      'private storage nested anywhere in the Stage3 runtime tree is refused',
       'repeat installation and stale token refused'
     ],
     instanceIds:[applied.instanceId,secondApplied.instanceId],

@@ -228,14 +228,26 @@ try{
 
   // Private two-step runner intended for a manually reviewed hPanel Cron Job.
   const dbRunner=names[4];
-  const codeRootRunner=createCodeRoot('cms-runner');
+  const domainRunner=path.join(tmp,'domain-runner');
+  const codeRootRunner=path.join(domainRunner,'stage3');
+  fs.mkdirSync(codeRootRunner,{recursive:true,mode:0o700});
+  for(const folder of ['server','components','studio']){
+    fs.cpSync(path.join(stage3Root,folder),path.join(codeRootRunner,folder),{recursive:true});
+  }
+  const publicRunner=path.join(domainRunner,'public_html');
+  fs.mkdirSync(publicRunner,{mode:0o755});
+  for(const file of ['.htaccess','index.php']){
+    fs.copyFileSync(path.join(codeRootRunner,'server/public',file),path.join(publicRunner,file));
+    fs.chmodSync(path.join(publicRunner,file),0o444);
+  }
   const privateRunner=privateDir('private-runner');
-  const publicRunner=fs.realpathSync(path.join(codeRootRunner,'server/public'));
-  const envRunner=envFor(dbRunner,privateRunner,publicRunner,'runner');
+  const codeRootRunnerReal=fs.realpathSync(codeRootRunner);
+  const publicRunnerReal=fs.realpathSync(publicRunner);
+  const envRunner=envFor(dbRunner,privateRunner,publicRunnerReal,'runner');
   const runnerConfigPath=path.join(privateRunner,'hosted-install-runner.json');
   const runnerConfig={
     format:'manufact-stage3-hosted-install-runner-config-v1',
-    accountWebRoots:[publicRunner],
+    accountWebRoots:[publicRunnerReal],
     values:{
       STAGE3_DSN:envRunner.STAGE3_DSN,
       STAGE3_DB_USER:envRunner.STAGE3_DB_USER,
@@ -254,13 +266,17 @@ try{
     fs.chmodSync(runnerConfigPath,0o600);
   }
   function runRunner(action,expected=0){
-    return run('php',[path.join(codeRootRunner,'server/bin/hosted-install-runner.php'),
-      '--config='+runnerConfigPath,action],{},expected,codeRootRunner);
+    return run('php',[path.join(codeRootRunnerReal,'server/bin/hosted-install-runner.php'),
+      '--config='+runnerConfigPath,action],{},expected,codeRootRunnerReal);
   }
-  const badTopologyConfig={...runnerConfig,accountWebRoots:[path.join(codeRootRunner,'server')]};
+  const badTopologyConfig={...runnerConfig,accountWebRoots:[publicRunnerReal,path.join(codeRootRunnerReal,'server')]};
   writeRunnerConfig(badTopologyConfig);
   runRunner('--plan',1);
-  assert.equal(tableCount(dbRunner),0,'overlapping account web root must block the read-only plan before any DDL');
+  assert.equal(tableCount(dbRunner),0,'overlapping server web root must block the read-only plan before any DDL');
+  const badComponentTopologyConfig={...runnerConfig,accountWebRoots:[publicRunnerReal,path.join(codeRootRunnerReal,'components')]};
+  writeRunnerConfig(badComponentTopologyConfig);
+  runRunner('--plan',1);
+  assert.equal(tableCount(dbRunner),0,'overlapping sibling component web root must block the read-only plan before any DDL');
   writeRunnerConfig(runnerConfig);
   const runnerPlanResponse=runRunner('--plan');
   const runnerPlan=JSON.parse(runnerPlanResponse.stdout);
@@ -268,6 +284,8 @@ try{
   assert.equal(runnerPlan.applyAllowed,true);
   assert.equal(runnerPlan.hostIsolation.ok,true);
   assert.equal(runnerPlan.hostIsolation.webRootCount,1);
+  assert.equal(runnerPlan.hostIsolation.publicRootLayout,'hostinger-sibling');
+  assert.equal(runnerPlan.checks.publicDocumentRoot.layout,'hostinger-sibling');
   assert.equal('token' in runnerPlan,false,'private plan token must never be printed');
   assert.match(runnerPlan.approvalFingerprint,/^[a-f0-9]{64}$/);
   for(const secret of [envRunner.STAGE3_DSN,envRunner.STAGE3_DB_PASSWORD,
@@ -311,7 +329,9 @@ try{
   assert.equal(fs.statSync(topologyPath).mode&0o777,0o600);
   const topology=JSON.parse(fs.readFileSync(topologyPath,'utf8'));
   assert.equal(topology.format,'manufact-stage3-hosted-install-topology-v1');
-  assert.deepEqual(topology.accountWebRoots,[publicRunner]);
+  assert.deepEqual(topology.accountWebRoots,[publicRunnerReal]);
+  assert.equal(topology.serverRoot,path.join(codeRootRunnerReal,'server'));
+  assert.equal(topology.publicRoot,publicRunnerReal);
   assert.equal(topology.instanceId,runnerApplied.instanceId);
   assert.equal(fs.existsSync(runnerReviewPath),true,'redacted review plan is retained privately for audit');
   assert.equal(fs.existsSync(runnerConfigPath),false,'credential-bearing runner config is removed after success');

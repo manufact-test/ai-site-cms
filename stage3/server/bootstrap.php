@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+if (!defined('STAGE3_STABLE_SERVER_ROOT')) {
+    define('STAGE3_STABLE_SERVER_ROOT', __DIR__);
+}
+
 if (!class_exists(\Manufact\Stage3\RuntimeConfig::class, false)) {
     require_once __DIR__ . '/RuntimeConfig.php';
 }

@@ -1,7 +1,7 @@
 # Stage3 shared-hosting public root.
-# DocumentRoot MUST point to this directory only: stage3/server/public.
-# The complete Stage3 runtime tree must also remain outside every other
-# web-exposed document root on the hosting account.
+# Use this directory directly, or copy these two files byte-for-byte to the
+# Hostinger public_html sibling of the private /stage3 runtime directory.
+# The complete Stage3 runtime tree must remain outside every other web root.
 # Requires Apache 2.4 / LiteSpeed-compatible mod_rewrite plus
 # AllowOverride Options FileInfo Indexes.
 # Do not use FallbackResource, RedirectMatch or FilesMatch here.

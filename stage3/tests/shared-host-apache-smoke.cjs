@@ -13,7 +13,8 @@ const { spawnSync } = require('node:child_process');
 const repoRoot = path.resolve(__dirname, '../..');
 const sourceStage3 = path.join(repoRoot, 'stage3');
 const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'stage3-apache-smoke-'));
-const stage3Copy = path.join(temporaryRoot, 'stage3');
+const domainCopy = path.join(temporaryRoot, 'domain');
+const stage3Copy = path.join(domainCopy, 'stage3');
 const containerName = 'stage3-apache-smoke-' + process.pid;
 const imageName = 'stage3-apache-smoke:' + process.pid;
 const ownerPassword = 'Stage3-apache-smoke-owner-password-2026!';
@@ -57,13 +58,19 @@ function pause(ms) {
 
 async function main() {
   fs.chmodSync(temporaryRoot, 0o755);
+  fs.mkdirSync(domainCopy, { mode: 0o755 });
   fs.mkdirSync(stage3Copy, { mode: 0o755 });
   for (const folder of ['components', 'media-motion', 'server', 'studio']) {
     fs.cpSync(path.join(sourceStage3, folder), path.join(stage3Copy, folder), { recursive: true });
   }
   fs.chmodSync(stage3Copy, 0o755);
 
-  const publicRoot = path.join(stage3Copy, 'server', 'public');
+  const publicRoot = path.join(domainCopy, 'public_html');
+  fs.mkdirSync(publicRoot, { mode: 0o755 });
+  for (const file of ['.htaccess', 'index.php']) {
+    fs.copyFileSync(path.join(stage3Copy, 'server', 'public', file), path.join(publicRoot, file));
+    fs.chmodSync(path.join(publicRoot, file), 0o444);
+  }
   const publicEntries = fs.readdirSync(publicRoot).sort();
   assert.deepEqual(publicEntries, ['.htaccess', 'index.php'],
     'the committed Stage3 document root contains only the front controller and routing policy');
@@ -87,7 +94,7 @@ async function main() {
     'STAGE3_FORM_ORIGINS=https://staging.example.invalid',
     'STAGE3_FORM_ENDPOINT=',
     'STAGE3_PRIVATE_DIR=/var/private/stage3',
-    'STAGE3_PUBLIC_ROOT=/var/www/stage3/server/public',
+    'STAGE3_PUBLIC_ROOT=/var/www/domain/public_html',
     'STAGE3_ALLOW_SQLITE_INSTALL=1',
     'CI=true'
   ];
@@ -95,12 +102,12 @@ async function main() {
   const runArgs = [
     'run', '--detach', '--rm', '--name', containerName,
     '--publish', '127.0.0.1:' + port + ':80',
-    '--volume', stage3Copy + ':/source/stage3:ro'
+    '--volume', domainCopy + ':/source/domain:ro'
   ];
   for (const value of env) runArgs.push('--env', value);
   runArgs.push(imageName, 'sh', '-c',
-    'mkdir -p /var/www && cp -a /source/stage3 /var/www/stage3' +
-    ' && chown -R www-data:www-data /var/www/stage3' +
+    'mkdir -p /var/www && cp -a /source/domain /var/www/domain' +
+    ' && chown -R www-data:www-data /var/www/domain' +
     ' && mkdir -p /var/private/stage3' +
     ' && chown www-data:www-data /var/private/stage3' +
     ' && chmod 0700 /var/private/stage3' +
@@ -119,7 +126,7 @@ async function main() {
     'PHP session storage must be writable by the Apache account: ' + JSON.stringify(sessionStorage));
 
   const planRaw = docker(['exec', '--user', 'www-data', containerName, 'php',
-    '/var/www/stage3/server/bin/install.php', '--plan']);
+    '/var/www/domain/stage3/server/bin/install.php', '--plan']);
   const plan = JSON.parse(planRaw);
   assert.equal(plan.state, 'install_required');
   assert.equal(plan.applyAllowed, true);
@@ -127,16 +134,16 @@ async function main() {
   assert.match(plan.token, /^[a-f0-9]{64}$/);
 
   const applyRaw = docker(['exec', '--user', 'www-data', containerName, 'php',
-    '/var/www/stage3/server/bin/install.php', '--apply=' + plan.token]);
+    '/var/www/domain/stage3/server/bin/install.php', '--apply=' + plan.token]);
   const applied = JSON.parse(applyRaw);
   assert.equal(applied.state, 'installed');
   assert.equal(applied.deploymentPerformed, false);
   const topology={
     format:'manufact-stage3-hosted-install-topology-v1',
-    serverRoot:'/var/www/stage3/server',
-    publicRoot:'/var/www/stage3/server/public',
+    serverRoot:'/var/www/domain/stage3/server',
+    publicRoot:'/var/www/domain/public_html',
     privateDir:'/var/private/stage3',
-    accountWebRoots:['/var/www/stage3/server/public'],
+    accountWebRoots:['/var/www/domain/public_html'],
     instanceId:applied.instanceId,
     installedAt:new Date().toISOString()
   };
