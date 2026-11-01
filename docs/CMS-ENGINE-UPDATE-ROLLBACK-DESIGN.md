@@ -1,10 +1,10 @@
 # CMS Engine Update & Rollback — implementation checkpoint
 
 **Date:** 2026-11-01  
-**Status:** implemented on feature/stage3-ai-site-contract; full two-job Stage3 CI passed on 2026-11-01. Still not production-approved, not merged to main, and not owner acceptance.  
-**Branch:** `feature/stage3-ai-site-contract`  
-**Tested implementation HEAD:** `cec66fab97bc53024bdd7cfd21498e63440f1d9c`.  
-**Full CI:** [#41315175195](https://github.com/manufact-test/ai-site-cms/actions/runs/41315175195), both contract and technology-runtime jobs SUCCESS.
+**Status:** CMS Engine update/rollback and shared-host routing preparation are implemented on the Stage3 feature branch. Full two-job CI is green on the latest functional HEAD. This is not production approval or owner acceptance.  
+**Branch:** feature/stage3-ai-site-contract  
+**Latest fully tested functional HEAD:** 0047aef57537f7dd2c405eadcc44f4f54ab6aa8d  
+**Full CI:** [#41322050889](https://github.com/manufact-test/ai-site-cms/actions/runs/41322050889) — contract and technology-runtime SUCCESS.
 
 ## 1. Product boundary
 
@@ -187,31 +187,46 @@ The four vertical packages above are implemented on the branch:
 
 Automated evidence demonstrates review → apply → second update → blocked concurrent switch → rollback → interrupted activation → explicit recovery, while the published visitor-site record and binary media remain unchanged. Manual owner usability/acceptance and production-host verification remain open.
 
-## 6. Validation completed — baseline CI #41315175195; latest recovery-login regression pending
+## 6. Validation completed — exact functional HEAD 0047aef; CI #41322050889
 
-The prior full two-job run [#41315175195](https://github.com/manufact-test/ai-site-cms/actions/runs/41315175195) passed before the owner-login recovery edge-case patch.
+The earlier handoff run [#41318864811](https://github.com/manufact-test/ai-site-cms/actions/runs/41318864811) failed in the approved-site Chromium journey: the site-tools dialog remained open after logout and intercepted the next login click. Logout now closes that dialog, and the browser test asserts it is closed. Follow-up full run [#41319549488](https://github.com/manufact-test/ai-site-cms/actions/runs/41319549488) passed.
 
-The latest code regression commit `a1bc3032231b88dbe53847872efd3be8b682a2d5` is under full CI [#41318864811](https://github.com/manufact-test/ai-site-cms/actions/runs/41318864811). At the documentation checkpoint, the technology-runtime job has passed and the contract job has passed the offline editor, PHP runtime, engine update/rollback/snapshot, and D3 release checks; the final server persistence/publish HTTP + Chromium step is still running. Do not call the new regression fully green until this run completes successfully.
+The owner recovery test covers successful authentication followed by a 503 on the first selected site's draft. It now waits for the stable GET /api/engine HTTP 200 and for the version label to render before asserting the maintenance surface. This fixes an asynchronous test race without weakening the recovery requirement.
 
-The full two-job run [#41313513423](https://github.com/manufact-test/ai-site-cms/actions/runs/41313513423) passed on HEAD 9a16b26052fd50dd631848d07708e5d77f104ebd.
+The final exact-SHA full run [#41322050889](https://github.com/manufact-test/ai-site-cms/actions/runs/41322050889) passed on functional HEAD 0047aef57537f7dd2c405eadcc44f4f54ab6aa8d:
 
-The contract job covered:
+- technology-runtime: SUCCESS, including the disposable Next Static real build and Next SSR loopback proof;
+- signed CMS Engine package verification, update, rollback and 25-table database snapshot/restore rehearsal: SUCCESS;
+- D3 isolated release cutover/rollback: SUCCESS;
+- server syntax and full HTTP persistence/publish E2E: SUCCESS;
+- Apache 2.4 + PHP 8.3 shared-host smoke: SUCCESS;
+- offline editor packaging, ZIP publication and no-brief scenario: SUCCESS.
+
+The Apache smoke is a disposable container rehearsal, not a real Hostinger/LiteSpeed installation. It performs a CLI SQLite install in a temporary copy and checks /studio, assets, PHP session storage, owner login, authenticated site listing, engine status, hidden paths, stray PHP, directory listing and unknown routes. The Node smoke harness now mirrors browser cookie-jar rotation semantics for PHP session cookies.
+
+The contract job also covers:
 
 - signed package build and exact PHP OpenSSL verification; wrong publisher key, tampered runtime file and untracked package file rejected;
-- owner authentication, owner-only API, CSRF rejection and actual HTTP review/apply/rollback/recovery;
-- immutable slot activation, shared request lease and exclusive switch refusal while a PHP request is active;
-- monotonic version transitions and explicit recovery after a simulated interruption between pointer write and receipt completion;
-- stable Studio shell, authentication and read-only site listing remain available during both interrupted activation and active-slot file corruption, while site mutations return 503; rollback repairs the active generation;
-- Chromium owner journey covers successful authentication followed by a 503 on the selected site's draft: login remains accepted and the owner is routed to engine maintenance rather than being logged out;
-- 25-table SQLite snapshot/restore and MySQL snapshot/restore, with binary media and published content preserved;
+- owner-only API, CSRF rejection, review/apply/rollback/recovery;
+- immutable slot activation, request leases and exclusive switch refusal while a PHP request is active;
+- monotonic version transitions and explicit recovery after interrupted activation;
+- stable Studio shell and read-only owner access during interrupted activation and active-slot corruption;
+- 25-table SQLite/MySQL snapshot and restore with binary media and published content preserved;
 - snapshot retention and preservation of corrupt evidence;
-- D3 local release cutover/rollback and collector sidecar packaging;
-- existing Studio Chromium E2E, full server persistence/publish HTTP E2E, approved-site browser journey and existing SEO/contract suites.
+- existing Studio Chromium, server HTTP, approved-site browser and SEO/contract suites.
 
-The separate technology-runtime job passed the disposable Next Static real build and Next SSR loopback proof.
+This is CI evidence for isolated test databases and loopback servers only. It does not prove a live shared-host install, Hostinger web-SAPI configuration, LiteSpeed rules, real MySQL privileges, live SMTP/Telegram delivery or owner acceptance.
 
-This is CI evidence for isolated test databases and loopback servers only. It does not prove a live shared-host install, production permissions, PHP-FPM/OPcache behavior on Hostinger, live SMTP/Telegram delivery, or owner acceptance. Do not duplicate the Stage2 lab suite or add broad repeated matrices.
+## 6.1 Shared-host staging preparation — 2026-11-01
 
+The public Stage3 root now has a stable .htaccess front controller based on mod_rewrite, DirectoryIndex and Options. It deliberately avoids FallbackResource, RedirectMatch and FilesMatch so the rules stay within the documented LiteSpeed-compatible directive set. It blocks hidden path segments, direct PHP execution except index.php, private/config/database extensions and directory listing, then routes application paths to index.php.
+
+The .htaccess file is included in the required signed PHP-host package inventory and verifier allowlist. The live public-root .htaccess is a stable host deployment file: engine slot activation/rollback does not replace the live web-server configuration, so it must be provisioned and verified separately on the real staging host.
+
+A disposable Apache 2.4 + PHP 8.3 smoke test was added to CI. It does not deploy to any host. The canonical deployment instructions are in stage3/docs/STAGING-SHARED-HOSTING.md; the prior Hostinger restrictions and possible no-shared-SSH CLI path are recorded in docs/HOSTINGER-STAGING-ADDENDUM.md.
+
+No Stage3 host upload, MySQL connection, installation, Hostinger write or production deployment has been performed. The next real-host action requires owner confirmation of the exact test target and permitted execution method. Shared/general SSH remains prohibited; do not reuse Stage2 secrets or database credentials for Stage3.
+ 
 ## 7. Separate #183 guided setup feasibility
 
 A safe browser-guided setup is technically feasible without making the public site a credential store, but it needs its own threat model and implementation:
@@ -235,4 +250,4 @@ A file-manager-assisted one-time token/bootstrap may be required on hosts withou
 - SEO Engine and D1–D8 are already integrated; do not repeat them.
 - Studio remains temporarily agreed until the first real owner site is connected; no abstract redesign.
 - First pilot is the owner's existing landing page; materials are not yet supplied.
-- Work only on `feature/stage3-ai-site-contract`. No `main`, Design Factory, Hostinger, production, real databases, customer data, live email/Telegram or CELIKOM changes.
+- Continue only on feature/stage3-ai-site-contract; do not merge/rebase to main. No Stage3 Hostinger writes or real-host installation until the owner confirms the exact test site and method. Shared/general SSH and Stage2 secrets are off-limits. No production, customer data, live email/Telegram or CELIKOM changes.

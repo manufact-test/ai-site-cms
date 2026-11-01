@@ -1,60 +1,71 @@
-# MANUFACT AI Site CMS — каноническая точка состояния (01.11.2026, v9.11 design)
+# MANUFACT AI Site CMS — Next Chat Checkpoint v9.12
 
-**Актуальный handoff:** [MAIN-HANDOFF-v9.10](../handoffs/lead-integrator/MAIN-HANDOFF-v9.10-2026-11-01.md).  
-**Готовое первое сообщение:** [FIRST-MESSAGE-v9.10](../handoffs/lead-integrator/FIRST-MESSAGE-v9.10-2026-11-01.md).
+**Updated:** 2026-11-01  
+**Role:** Lead Integrator — continue the existing Stage3 implementation. Do not restart the CMS or split this work into Design Factory / SEO work.
 
-## Точная контрольная точка
+## Git state
 
-- Repository: `manufact-test/ai-site-cms`.
-- Lead branch: `feature/stage3-ai-site-contract`.
-- Last verified functional SHA: `19a74e77c1acdfb43a7b3840f8e05bd10f2b0427`.
-- Exact-SHA full Actions: [#41302974827](https://github.com/manufact-test/ai-site-cms/actions/runs/41302974827) — `technology-runtime=SUCCESS`, `contract=SUCCESS`.
-- Current `main` observed: `12e9c3feb707e5ad46b2caeeed379eb40618466b`; no merge/deploy.
-- Documentation-only commits v9.10/v9.11 and subsequent roadmap/status synchronization commits are on top of the functional SHA. The design itself is recorded in `18e4c86365ccb4bbbb93abc8c79e26c2a10071d3`; verify the live branch tip before coding. The functional SHA and its exact green CI remain unchanged.
+- Repository: https://github.com/manufact-test/ai-site-cms
+- Active branch: feature/stage3-ai-site-contract
+- Last fully CI-tested functional HEAD: 0047aef57537f7dd2c405eadcc44f4f54ab6aa8d
+- Full CI: [run #41322050889](https://github.com/manufact-test/ai-site-cms/actions/runs/41322050889) — both jobs SUCCESS.
+- This checkpoint is a documentation-only follow-up to the tested functional HEAD above. No runtime code changed after that SHA.
+- User-provided handoff SHA 974909d502099b170beafa6806c6e1bc92378c78 was already 10 commits behind the live feature branch when this work began. The live branch was continued; no reset or rollback was performed.
+- Main was not changed or merged. Observed main SHA before this documentation update: 12e9c3feb707e5ad46b2caeeed379eb40618466b.
 
-## Completed in v9.10
+## Completed in this integration block
 
-- D8 optional standalone form-collector ZIP, package verifier, explicit public/private boundary and extracted-package HTTP/SQLite end-to-end. See [D8 technical note](../stage3/runtime-export/D8-FORM-COLLECTOR-SIDECAR.md).
-- Stage3 single-site CLI installer hardening: read-only plan + exact apply token, private runtime config outside document root, independent DB identity, database-scoped lock, MySQL 8.0+ gate, 25-table integrity inventory, canonical private receipt checks and DB-password-bound approval token. See [installer guide](../stage3/docs/INSTALLER-AND-SETUP.md).
-- Full Chromium Studio journey, PHP/SQLite/MySQL 8.4 runtime, D3 visitor-release rollback rehearsal, HTTP persistence/publish E2E and standalone Studio artifacts all passed in Actions #41302974827.
+1. **Owner logout / re-login regression:** run #41318864811 failed because the site-tools dialog remained open after logout and intercepted the next login click. Logout now closes that dialog, and the Chromium regression asserts the dialog is closed. Follow-up baseline run #41319549488 passed.
+2. **Owner recovery after first-site HTTP 503:** successful owner authentication remains accepted when the first site load fails. Chromium now waits for the stable GET /api/engine response and for the version label to render before asserting the maintenance surface. This removes an asynchronous test race without weakening the check.
+3. **Shared-host front controller:** stage3/server/public/.htaccess now uses mod_rewrite, DirectoryIndex and Options. It does not rely on FallbackResource, RedirectMatch or FilesMatch; hidden path segments, direct PHP execution except index.php, private file extensions and directory listing are blocked. Application routes go through index.php.
+4. **Signed PHP-host package:** .htaccess is part of the required PHP-host package inventory and verifier allowlist; engine-update smoke verifies that the package retains it.
+5. **Disposable Apache smoke:** a PHP 8.3 Apache container installs Stage3 into a temporary copy with CLI SQLite, then checks /studio, assets, session, owner login, owner site listing, engine status, hidden paths, stray PHP files, directory listing and unknown routes. The test checks writable PHP session storage and uses browser-like cookie rotation semantics.
+6. **Staging runbook:** stage3/docs/STAGING-SHARED-HOSTING.md documents the public/private directory boundary, PHP/MySQL requirements, CLI plan/apply sequence, acceptance order, rollback and stop conditions. LiteSpeed/Hostinger-specific constraints are documented separately in docs/HOSTINGER-STAGING-ADDENDUM.md.
 
-## v9.11 audit and design checkpoint
+## Exact CI evidence
 
-- Audited the current branch tip, exact-SHA CI jobs, requested handoff and all required Stage3 installer/collector/Studio/roadmap/status documents.
-- Inspected `OfflineReleaseVerifier`, `TrustedChainVerifier`, `LabPackageStager`, `LabSchemaVersionGate`, `LabPhpGenerationSwitcher`, `LabTrustedUpgradeCoordinator`, `LabPreauthorizedUpgradeGate`, `LabAttestedActivationGate` and `LabSettledUpgradeGate`, plus their existing tests.
-- Inspected Stage3 `cms-release.cjs`, installer, RuntimeConfig, front controller, API, SiteRepository and current CI workflow.
-- Durable design: [CMS Engine Update & Rollback](CMS-ENGINE-UPDATE-ROLLBACK-DESIGN.md). Four vertical packages: signed release identity/verifier; private immutable engine slots/loader/activation/rollback; full private DB snapshot/schema guard; owner-only review/apply/rollback workflow.
-- Important target-host constraint: project status records Hostinger web PHP `sodium=false`; Stage3 design therefore uses RSA-3072+ / SHA-256 through the already-required OpenSSL extension, not Ed25519/Sodium or an unapproved polyfill.
-- Stage3 currently has schema version 1, 25 required tables and no Stage3 migration journal. First engine updates must be schema-preserving; schema-changing packages stay blocked until reversible migrations and verified snapshots exist.
-- No functional source changed in v9.11; only design/documentation. Requirements #184–185 remain open, and #183 remains a separate guided-setup workstream.
+Run [#41322050889](https://github.com/manufact-test/ai-site-cms/actions/runs/41322050889) is green on functional HEAD 0047aef57537f7dd2c405eadcc44f4f54ab6aa8d.
 
-## Explicit limitations
+- technology-runtime: SUCCESS.
+- contract: SUCCESS.
+- CMS Engine signed update, rollback and database snapshot rehearsal: SUCCESS.
+- D3 isolated release cutover/rollback: SUCCESS.
+- Server syntax and full HTTP persistence/publish E2E: SUCCESS.
+- Apache 2.4 + PHP 8.3 shared-host smoke: SUCCESS.
+- Offline editor packaging, ZIP publication and no-brief scenario: SUCCESS.
 
-- Installer is CLI-only; no browser installation wizard. Requirement #183 is not formally complete.
-- No integrated Stage3 CMS-engine updater/rollback entrypoint yet. Requirements #184–185 remain open.
-- D3 rollback is for the published visitor site, not the CMS engine.
-- Old `cms/src/Release/Lab*` signed-upgrade work is an isolated Stage2 lab, not a finished Stage3 updater.
-- No real Hostinger/production deployment or live MySQL installation was performed.
+Run #41320605647 exposed an asynchronous assertion race in the browser test: it read the engine version label immediately after the dialog opened. The test now waits for the API 200 response and the rendered version. This was a test synchronization issue, not a reason to remove the owner-recovery requirement.
 
-## Owner decisions and product state
+The Apache smoke test is a disposable container test. It is not proof of compatibility with the selected real shared host, LiteSpeed version, Hostinger account, real MySQL privileges, web-SAPI configuration or owner acceptance.
 
-- Studio is temporarily agreed as the working baseline until the owner edits the first real site hands-on; no abstract redesign before then.
-- First pilot uses the owner's existing landing page; its source/materials have not yet been supplied.
-- Stage 2 remains NO-GO; gates #5–#9 remain open.
-- Stage 3 remains isolated and not formally accepted.
-- Requirement ledger: 135 MUST = 124 engineering candidates + 5 partial + 6 external gates; owner acceptance **0/135**.
-- SEO Engine is already integrated. D1–D8 runtime work is already in the branch. Design Factory remains separate and unapproved.
+## Real shared-host staging — next priority
 
-## Read before work
+No Stage3 installation, database connection, file upload, Hostinger write, production deployment or customer-data operation was performed in this block.
 
-1. [MASTER ТЗ](MASTER-TZ.md)
-2. [ROADMAP](ROADMAP.md)
-3. [MAIN HANDOFF v9.10](../handoffs/lead-integrator/MAIN-HANDOFF-v9.10-2026-11-01.md)
-4. [Installer guide](../stage3/docs/INSTALLER-AND-SETUP.md)
-5. [D8 collector sidecar](../stage3/runtime-export/D8-FORM-COLLECTOR-SIDECAR.md)
-6. [Studio UX acceptance](../stage3/docs/OWNER-STUDIO-UX-ACCEPTANCE.md)
-7. [Accelerated macroblock program](ACCELERATED-MACROBLOCK-PROGRAM.md)
-8. [PROJECT-STATUS.json](../PROJECT-STATUS.json)
-9. [CMS Engine Update & Rollback design](CMS-ENGINE-UPDATE-ROLLBACK-DESIGN.md)
+Before any real-host write:
 
-**Next action:** implement the designed #184–185 macroblock on `feature/stage3-ai-site-contract`: signed `php-host` release contract and PHP verifier; private immutable engine slots with stable loader, leases, activation, rollback and explicit recovery; complete private 25-table DB snapshot and schema compatibility guard; then a focused owner-only Studio workflow. Use RSA-3072+ / SHA-256 via PHP OpenSSL (Hostinger web PHP Sodium was previously observed unavailable). Do not enable schema-changing releases until reversible migrations are implemented. Keep #183 guided setup separate. Do not repeat D1–D8, SEO integration, pointer-interception repair or speculative Studio redesign.
+1. Confirm the exact staging provider and hostname.
+2. Confirm which branch the external Hostinger Git auto-deployment watches. That setting is outside the GitHub repository and is not visible through the GitHub connection. Do not assume the feature branch is safe until checked.
+3. If Hostinger is the target, follow docs/HOSTINGER-STAGING-ADDENDUM.md. Prior setup explicitly prohibits use of shared/general SSH. Do not reuse Stage2 secrets or databases for Stage3 without separate approval.
+4. Evaluate hPanel Cron Jobs as a possible owner-controlled CLI path without shared SSH. A private, one-shot, self-disabling runner must be implemented and reviewed before use; do not expose install.php or a shell bridge over HTTP.
+5. Use a dedicated Stage3 empty MySQL 8.0+ database, a private directory, exact document-root isolation and HTTPS. Verify the actual web PHP SAPI through hPanel PHP Info, not only CLI php -v.
+6. Only after the owner confirms the exact target and method, perform a read-only install plan, review it, then separately approved apply on the isolated test site.
+7. Complete desktop/tablet/mobile acceptance, save/reload, publish/rollback, forms and real test notifications, backup/restore, security and owner hands-on review.
+
+## Non-negotiable boundaries
+
+- No production deployment without a separate explicit approval.
+- No merge/rebase to main during this work.
+- No shared/general SSH.
+- No use of Stage2 database credentials or secrets for Stage3 without explicit approval.
+- No public HTTP installer, generic shell bridge or credential form.
+- Do not call the product ready because CI is green. Real-host and owner acceptance remain open.
+- Work in large functional blocks. Run targeted checks when there is evidence; do not create endless repeated matrices.
+- Formal owner acceptance remains 0/135. Engineering completion and product acceptance are separate.
+
+## Canonical handoff files
+
+- docs/CMS-ENGINE-UPDATE-ROLLBACK-DESIGN.md
+- docs/HOSTINGER-STAGING-ADDENDUM.md
+- handoffs/lead-integrator/MAIN-HANDOFF-v9.12-2026-11-01.md
+- handoffs/lead-integrator/FIRST-MESSAGE-v9.12-2026-11-01.md
