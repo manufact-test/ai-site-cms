@@ -7,11 +7,15 @@ const {spawn,spawnSync}=require('node:child_process');
 const assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'../..');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'ai-site-studio-http-'));
+const privateDir=path.join(temp,'private');
+fs.mkdirSync(privateDir,{mode:0o700});fs.chmodSync(privateDir,0o700);
+const publicRoot=fs.realpathSync(path.join(root,'stage3/server/public'));
 const chrome=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium','/usr/bin/chromium-browser'].find(fs.existsSync);
 if(!chrome)throw Error('Chromium required for hosted Studio scenario');
 const env={...process.env,STAGE3_DSN:'sqlite:'+path.join(temp,'site.sqlite'),
   STAGE3_OWNER_USER:'testowner',STAGE3_OWNER_PASSWORD:'CI-only-password-123456',
   STAGE3_FORM_SECRET:'CI-only-form-secret-with-minimum-32-characters',
+  STAGE3_PRIVATE_DIR:privateDir,STAGE3_PUBLIC_ROOT:publicRoot,
   STAGE3_MAIL_FROM:'',STAGE3_TELEGRAM_BOT_TOKEN:''};
 let php=null,browser=null;
 async function pickPort(){
