@@ -29,7 +29,7 @@ const REQUIRED=[
   'stage3/server/bootstrap.php','stage3/server/public/index.php','stage3/server/public/.htaccess',
   'stage3/server/Api.php','stage3/server/RuntimeConfig.php',
   'stage3/server/EngineReleaseVerifier.php','stage3/server/EngineLifecycle.php',
-  'stage3/server/DatabaseSnapshot.php','stage3/server/EngineRuntime.php',
+  'stage3/server/DatabaseSnapshot.php','stage3/server/DatabaseServerCompatibility.php','stage3/server/EngineRuntime.php',
   'stage3/server/bin/Stage3Installer.php','stage3/server/bin/install.php',
   'stage3/server/bin/hosted-install-runner.php',
   'stage3/studio/bundle.js','stage3/studio/hosted.js','stage3/studio/hosted.css',
