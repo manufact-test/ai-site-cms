@@ -1,6 +1,6 @@
 # Stage3 private hosted installation runner
 
-**Status:** implemented and exercised in disposable MySQL 8 CI; **not yet executed on Hostinger or any real shared host**. This document is an operational specification, not deployment approval.
+**Status:** implemented and exercised in disposable MySQL 8 and MariaDB 10.11/11.8 CI. The zero-credential `--probe` and manual sibling-layout filesystem preflight have been run on the owner-selected Hostinger staging account; the private credential config, `--plan` and `--apply` have not been run there. This document is an operational specification, not deployment approval.
 
 ## Purpose and boundary
 
@@ -10,7 +10,7 @@
 - It requires a private 0700 directory outside the Stage3 runtime tree and every account web root.
 - The credential-bearing config is a canonical JSON file with mode 0600, stored directly inside that private directory.
 - It requires a complete owner-supplied inventory of the hosting account's web roots (1–50 canonical directories). It cannot discover omitted or newly created vhosts.
-- It accepts only a dedicated MySQL database. SQLite and MariaDB are rejected.
+- It accepts only a dedicated empty database via PDO MySQL: MySQL 8.0+ or MariaDB 10.11+. SQLite and older/unsupported server versions are rejected.
 - It performs no deployment or publication of visitor-site content.
 
 ## Zero-credential PHP CLI preflight
@@ -52,11 +52,11 @@ Illustrative shape only; replace every placeholder privately on the host and pre
 {
     "format": "manufact-stage3-hosted-install-runner-config-v1",
     "accountWebRoots": [
-        "/home/ACCOUNT/stage3/server/public",
+        "/home/ACCOUNT/domains/staging.example.com/public_html",
         "/home/ACCOUNT/domains/other-site.example.com/public_html"
     ],
     "values": {
-        "STAGE3_DSN": "mysql:host=localhost;dbname=DEDICATED_STAGE3_DB;charset=utf8mb4",
+        "STAGE3_DSN": "mysql:host=DB_HOST;dbname=DEDICATED_STAGE3_DB;charset=utf8mb4",
         "STAGE3_DB_USER": "DEDICATED_STAGE3_USER",
         "STAGE3_DB_PASSWORD": "ENTER_PRIVATELY",
         "STAGE3_OWNER_USER": "stage3-owner",
@@ -64,7 +64,7 @@ Illustrative shape only; replace every placeholder privately on the host and pre
         "STAGE3_FORM_SECRET": "ENTER_RANDOM_SECRET_OF_AT_LEAST_32_CHARACTERS",
         "STAGE3_FORM_ORIGINS": "https://staging.example.com",
         "STAGE3_FORM_ENDPOINT": "",
-        "STAGE3_PRIVATE_DIR": "/home/ACCOUNT/private/stage3",
+        "STAGE3_PRIVATE_DIR": "/home/ACCOUNT/domains/staging.example.com/.stage3-private",
         "STAGE3_PUBLIC_ROOT": "/home/ACCOUNT/stage3/server/public"
     }
 }
@@ -87,7 +87,7 @@ Proceed only when the output explicitly reports:
 - `state: install_required`
 - `applyAllowed: true`
 - `hostIsolation.ok: true`
-- a dedicated empty MySQL database and all required filesystem/private-runtime checks clear.
+- a dedicated empty MySQL 8.0+ or MariaDB 10.11+ database and all required filesystem/private-runtime checks clear.
 
 The runner removes the installer's private token from the plan output. It stores a redacted review plan and the private token/state in 0600 files in the private directory. The review output contains a SHA-256 `approvalFingerprint` calculated over the redacted plan.
 
@@ -123,6 +123,6 @@ The diagnostics cannot discover omitted or newly created account web roots; the 
 
 ## CI evidence and deployment status
 
-The disposable MySQL 8 install probe verifies that overlapping web roots, wrong approval fingerprints and changed credentials are refused before database writes; a separate approved plan installs all 25 tables once, creates the topology receipt, removes credential-bearing config and makes subsequent Cron calls a silent no-op. The zero-credential CLI probe test verifies PHP 8.3 passes, stripped PHP CLI fails closed, secret sentinels are never echoed and no files are written. The Chromium and Apache smoke tests verify owner-only diagnostics, front-controller identity, PHP path restrictions and upload configuration.
+The disposable MySQL 8 and MariaDB 10.11/11.8 install probes verify that overlapping web roots, wrong approval fingerprints and changed credentials are refused before database writes; a separate approved plan installs all 25 tables once, creates the topology receipt, removes credential-bearing config and makes subsequent Cron calls a silent no-op. The zero-credential CLI probe test verifies PHP 8.3 passes, stripped PHP CLI fails closed, secret sentinels are never echoed and no files are written. The Chromium and Apache smoke tests verify owner-only diagnostics, front-controller identity, PHP path restrictions and upload configuration.
 
-These tests run in GitHub Actions only. No Hostinger file, Cron job, database, DNS, production site, customer data or real notification destination has been changed.
+The CI tests run in GitHub Actions only. Separately, the owner-operated Hostinger CLI `--probe` and filesystem preflight were run. No database, credentials, DNS, production site, customer data or real notification destination has been touched, and neither `--plan` nor `--apply` has run.
