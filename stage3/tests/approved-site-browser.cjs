@@ -527,7 +527,22 @@ async function execute(){
   // is an explicit, separate navigation destination.
   await page.locator('#server-nav-import').click();
   await page.locator('#server-view-import:visible').waitFor();
-  await page.locator('#server-approved-import:not([disabled])').waitFor();
+  try{
+    await page.locator('#server-approved-import:not([disabled])').waitFor({timeout:8000});
+  }catch(error){
+    console.error('Import action not visible after reload',await page.evaluate(()=>{
+      const button=document.querySelector('#server-approved-import');
+      const drawer=document.querySelector('#server-drawer-import');
+      return {
+        open:drawer?.open,drawerHidden:drawer?.hidden,
+        drawerDisplay:drawer&&getComputedStyle(drawer).display,
+        buttonHidden:button?.hidden,buttonDisabled:button?.disabled,
+        buttonDisplay:button&&getComputedStyle(button).display,
+        ancestors:button&&[...function*(){let n=button;while(n){yield [n.tagName,n.id,n.className,n.hidden,n instanceof HTMLDetailsElement?n.open:null,getComputedStyle(n).display];n=n.parentElement;}}()]
+      };
+    }));
+    throw error;
+  }
   await page.evaluate(entries=>{
     const selected=entries.map(entry=>{
       const bytes=Uint8Array.from(atob(entry.base64),char=>char.charCodeAt(0));

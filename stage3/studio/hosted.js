@@ -2883,6 +2883,12 @@
       siteRequired.includes(requested)&&!state.siteId?'home':requested;
     cmsCurrentView=view;
     const editing=view==='editor'&&Boolean(state.siteId)&&authorized;
+    // Import's entry screen is an explicit owner task, not a persisted
+    // accordion preference; always show the original folder controls there.
+    if(view==='import'&&isOwner()){
+      importDrawer.open=true;
+      importDrawer.hidden=false;
+    }
     cmsWorkspace.classList.toggle('cms-hub-mode',!editing);
     for(const part of ['.sidebar','.center','.inspector'])
       cmsWorkspace.querySelector(part).hidden=!editing;
