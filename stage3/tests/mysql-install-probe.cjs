@@ -161,8 +161,22 @@ try{
   assert.equal(runtime.publicRoot,envA.STAGE3_PUBLIC_ROOT);
   const persistedPlan=JSON.parse(run('php',[path.join(codeRootA,'server/bin/install.php'),'--plan'],emptyRuntimeEnv,0,codeRootA).stdout);
   assert.equal(persistedPlan.state,'already_installed');
-  assert.equal(persistedPlan.checks.databaseServerVersion.ok,true);
-  assert.match(persistedPlan.checks.databaseServerVersion.version,/^8\./);
+  const serverVersionInfo=persistedPlan.checks.databaseServerVersion;
+  assert.equal(serverVersionInfo.ok,true);
+  const isMariaDb=/mariadb/i.test(serverVersionInfo.version);
+  const serverVersionMatch=isMariaDb
+    ? /(\\d+\\.\\d+\\.\\d+)-MariaDB/i.exec(serverVersionInfo.version)
+    : /^(\\d+\\.\\d+\\.\\d+)/.exec(serverVersionInfo.version);
+  assert.ok(serverVersionMatch,'database server version must be identifiable');
+  const serverVersionParts=serverVersionMatch[1].split('.').map(Number);
+  const minimumVersion=isMariaDb?[10,11,0]:[8,0,0];
+  const versionAtLeastMinimum=serverVersionParts[0]>minimumVersion[0]
+    || (serverVersionParts[0]===minimumVersion[0] && serverVersionParts[1]>minimumVersion[1])
+    || (serverVersionParts[0]===minimumVersion[0] && serverVersionParts[1]===minimumVersion[1]
+      && serverVersionParts[2]>=minimumVersion[2]);
+  assert.equal(versionAtLeastMinimum,true,'database server must meet the supported MySQL/MariaDB minimum');
+  assert.equal(serverVersionInfo.engine,isMariaDb?'MariaDB':'MySQL');
+  assert.equal(serverVersionInfo.minimum,isMariaDb?'10.11.0':'8.0.0');
   assert.equal(persistedPlan.checks.schemaIntegrity.ok,true);
   assert.equal(persistedPlan.checks.schemaIntegrity.requiredTableCount,25);
   assert.deepEqual(persistedPlan.checks.schemaIntegrity.missingTables,[]);
@@ -352,7 +366,7 @@ try{
       'read-only plan and no credentials/DSN in plan or receipt',
       'private owner receipt and matching database identity',
       'private runtime configuration persisted outside docroot and reloaded without environment secrets',
-      'MySQL 8.0+ server version and full installed schema inventory',
+      'supported MySQL 8.0+/MariaDB 10.11+ server version and full installed schema inventory',
       'incomplete installed schema is reported as blocked, never healthy',
       'single-site binding rejects a second site',
       'independent MySQL database accepts the same site ID',
