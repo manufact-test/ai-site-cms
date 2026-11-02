@@ -85,7 +85,7 @@ The command contains only the private config path and, for the separately approv
 
 The latest verified CI artifact `ai-site-stage3-hostinger-sibling` is produced by workflow [#41414660469](https://github.com/manufact-test/ai-site-cms/actions/runs/41414660469) (artifact `13127730026`). It contains the `stage3/` runtime, the fixed two-file `public_html/` sibling, and `cms-release.json`; its build and verification are CI-only and do not deploy. Extract it at the account-home level, never into `public_html/`.
 
-The runner is only a candidate route until the owner confirms the exact Hostinger account, custom-command capability, private paths and target. It does not create the Cron job, upload files, configure the domain/document root, DNS, TLS, PHP handler or notifications. If hPanel cannot execute the custom PHP CLI command or the runtime/private paths cannot be isolated, stop; do not create a public installer or shell bridge.
+The owner has selected the exact isolated test site, confirmed the hPanel custom-command capability and prepared the initial sibling/private layout. The read-only install plan remains pending. The runner does not create the Cron job, upload files, configure the domain/document root, DNS, TLS, PHP handler or notifications. If the next private inventory/config checks cannot prove isolation, stop; do not create a public installer or shell bridge.
 
 ## Web PHP and document-root checks
 
