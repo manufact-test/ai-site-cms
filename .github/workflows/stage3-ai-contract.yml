@@ -210,10 +210,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mariadb-version: ['10.11', '11.8']
+        version: ['10.11', '11.8']
     services:
       mariadb:
-        image: mariadb:${{ matrix.mariadb-version }}
+        image: mariadb:${{ matrix.version }}
         env:
           MARIADB_ROOT_PASSWORD: stage3-ci-root
           MARIADB_ROOT_HOST: '%'
