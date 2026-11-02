@@ -1,7 +1,7 @@
 # Hostinger Stage3 staging addendum
 
-**Updated:** 2026-11-01  
-**Scope:** deployment planning only. This addendum preserves the previously established Hostinger constraints; it is not permission to touch a host or deploy to production.
+**Updated:** 2026-11-02  
+**Scope:** owner-operated isolated staging preparation only. This addendum records the Hostinger constraints and the actions completed on the separate test site; it is not production deployment approval.
 
 ## Previously prepared test environment
 
@@ -20,6 +20,18 @@ The screenshots supplied by the owner show two different states:
 - `mediumpurple-fox-175549.hostingersite.com`: no Git provider connected.
 
 This is a screenshot observation, not a live re-check. Do not switch the connected site's branch, change its root, push Stage3 commits to the watched branch, or use this Git integration for the sibling-layout archive without a separate owner-approved scope. The Stage3 archive must be extracted above `public_html` so `stage3/` and `public_html/` remain siblings; deploying the repository directly into `public_html` would expose the private runtime.
+
+
+
+## Owner-operated Hostinger staging preparation (02.11.2026)
+
+- Target confirmed: `mediumpurple-fox-175549.hostingersite.com`, the separate test site with no Git provider connected. The connected Stage2 site remains unchanged.
+- The prior sibling-layout package was extracted at account-home level. `stage3/` and `public_html/` are siblings; `public_html/` contains exactly `index.php` and `.htaccess`, both mode `0444`. The previous `default.php` was preserved outside the public root.
+- hPanel shows Web PHP 8.3 and the required extensions enabled. The owner-controlled Cron probe reports CLI PHP 8.2.35, SAPI `cli`, PDO MySQL and all required extensions; status `cli_ready_for_private_plan`.
+- A private `.stage3-private/` directory exists with mode `0700`. A filesystem preflight found 31 candidate account web roots and saved an inventory file; the repeated preflight refused to overwrite that existing inventory. The new setup helper re-discovers the standard Hostinger roots and compares them before preparing the runner config.
+- All temporary Cron entries have been removed. No existing database was opened or changed, no new database has yet been created, no secrets were read, and no `--plan` or `--apply` was run.
+- Hostinger Web/Cloud uses MariaDB. Stage3 now explicitly supports MySQL 8.0+ and MariaDB 10.11+ through PDO MySQL; CI validates both MariaDB 10.11 and 11.8, plus the existing MySQL 8.4 path. Full CI #41414660469 is SUCCESS, all four jobs green.
+- The latest update archive is built from artifact `13127730026`; it intentionally excludes `public_html/` so the currently verified public files remain untouched. The old runtime will be retained as a rollback backup.
 
 ## Access restrictions
 
@@ -42,7 +54,7 @@ Hostinger documents hPanel Cron Jobs that can execute a PHP file or run a custom
 - [How to set up a Cron Job with special characters](https://www.hostinger.com/support/5646919-how-to-set-up-a-cron-job-with-special-characters-at-hostinger/)
 - [How to check Cron Job output](https://www.hostinger.com/support/5647075-how-to-check-the-output-of-a-cron-job-at-hostinger/)
 
-A private CLI-only runner is implemented at `stage3/server/bin/hosted-install-runner.php`. Its two-step install behavior passed the disposable MySQL 8 CI probe, and its new zero-credential `--probe` passed the PHP 8.3 CI contract. **The runner has not been uploaded or executed on Hostinger**.
+A private CLI-only runner is implemented at `stage3/server/bin/hosted-install-runner.php`. Its two-step install behavior is covered by disposable MySQL 8 and MariaDB 10.11/11.8 CI. The zero-credential `--probe` has been executed on the owner-selected Hostinger test site and returned `cli_ready_for_private_plan`; the private config, `--plan` and `--apply` have not been executed there.
 
 The runner:
 1. Runs only under PHP CLI; HTTP execution returns 404.
@@ -71,7 +83,7 @@ php /absolute/path/to/stage3/server/bin/hosted-install-runner.php --config=/abso
 
 The command contains only the private config path and, for the separately approved apply, a plan fingerprint. Use a one-time Cron execution for `--plan`, delete that entry after its first output, then create a separate one-time entry for the approved `--apply`. Do not leave `--plan` recurring; the runner deliberately refuses a second plan while pending state exists. Do not put passwords, database DSNs, owner credentials, form secrets or the installer's private token into the command, Cron description, URL, logs, source control or chat.
 
-The verified CI artifact `ai-site-stage3-hostinger-sibling` is produced by workflow #41340074041 (artifact 13097246593). It contains the `stage3/` runtime, the fixed two-file `public_html/` sibling, and `cms-release.json`; its build and verification are CI-only and do not deploy. Extract it at the account-home level, never into `public_html/`.
+The latest verified CI artifact `ai-site-stage3-hostinger-sibling` is produced by workflow [#41414660469](https://github.com/manufact-test/ai-site-cms/actions/runs/41414660469) (artifact `13127730026`). It contains the `stage3/` runtime, the fixed two-file `public_html/` sibling, and `cms-release.json`; its build and verification are CI-only and do not deploy. Extract it at the account-home level, never into `public_html/`.
 
 The runner is only a candidate route until the owner confirms the exact Hostinger account, custom-command capability, private paths and target. It does not create the Cron job, upload files, configure the domain/document root, DNS, TLS, PHP handler or notifications. If hPanel cannot execute the custom PHP CLI command or the runtime/private paths cannot be isolated, stop; do not create a public installer or shell bridge.
 
@@ -91,6 +103,6 @@ Useful Hostinger references:
 - [Per-subdomain PHP version](https://www.hostinger.com/support/4047803-how-to-change-the-php-version-for-subfolders-or-subdomains-in-hostinger/)
 - [Website root directory](https://www.hostinger.com/support/1583494-what-is-the-path-to-your-website-s-root-home-directory-and-how-to-change-it-in-hostinger/)
 
-## Required owner confirmation before Stage3 host writes
+## Next staging actions
 
-Confirm which of the two test websites is the intended Stage3 target, reconfirm that the connected site's screenshot-observed branch is still `stage2-hostinger-cms-preflight`, and whether the owner approves the dedicated one-shot hPanel CLI route and account-home-level archive extraction. Until then, continue GitHub-only development and disposable CI; do not upload files, run a Cron job, connect to MySQL or change Hostinger settings.
+The owner selected `mediumpurple-fox-175549.hostingersite.com` as the isolated Stage3 target and approved using the owner-operated browser/File Manager and hPanel Cron route. The connected `lightseagreen-woodpecker-264491.hostingersite.com` remains untouched on its Stage2 branch. Next: replace the old runtime with the verified MariaDB-compatible package while preserving `public_html/`, create one new dedicated empty Stage3 database, prepare the private runner config from the saved account-root inventory, and execute read-only `--plan`. `--apply` remains a separate explicit owner decision.
