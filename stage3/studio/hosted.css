@@ -1128,3 +1128,89 @@ html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-tool-category[
 .hosted-host-check{margin:0;font-size:11px;line-height:1.45;overflow-wrap:anywhere}
 .hosted-host-check[data-ok="false"]{color:#ffb39f}
 .hosted-host-check[data-ok="true"]{color:#9de4c7}
+
+/* Server Studio information architecture. The offline editor is untouched. */
+html[data-stage3-mode="server"] .topbar{gap:18px;flex-wrap:wrap}
+.cms-global-nav{display:flex;align-items:center;gap:3px;flex:1 1 auto;min-width:0;flex-wrap:wrap}
+.cms-nav-link{font-family:inherit;font-weight:650;font-size:12px;line-height:1.3;
+  color:#5a6e86;background:transparent;border:0;
+  border-radius:9px;padding:10px 11px;cursor:pointer;white-space:nowrap}
+.cms-nav-link:hover{background:#f0f5fb;color:#1b466f}
+.cms-nav-link[aria-current="page"]{background:#e9f2ff;color:#185ba8;font-weight:800}
+.cms-nav-link:focus-visible{outline:3px solid #519de6;outline-offset:2px}
+html[data-stage3-mode="server"] .topbar #server-status{flex:0 1 330px;color:#55718d;
+  font-size:11px;line-height:1.4;text-align:right;overflow-wrap:anywhere}
+html[data-stage3-mode="server"] .workspace.cms-hub-mode{display:block;min-height:calc(100dvh - 76px)}
+.cms-hub{box-sizing:border-box;background:#f3f6fa;min-height:calc(100dvh - 76px);padding:clamp(22px,4vw,52px)}
+.cms-hub[hidden],.cms-hub-view[hidden],.cms-hub-mode>.sidebar,
+.cms-hub-mode>.center,.cms-hub-mode>.inspector{display:none!important}
+.cms-hub-view{max-width:1120px;margin:0 auto;color:#20344d}
+.cms-hub-heading{display:grid;gap:8px;margin:0 0 28px}
+.cms-hub-kicker{font-size:11px;letter-spacing:.13em;font-weight:800;color:#3178b9}
+.cms-hub-heading h1{font-size:clamp(27px,3.1vw,37px);line-height:1.1;letter-spacing:-.045em;margin:0;color:#15283e}
+.cms-hub-heading p{font-size:14px;line-height:1.55;color:#687d92;margin:0;max-width:700px}
+.cms-hub h2{color:#253d58;letter-spacing:-.02em;font-size:18px;margin:0 0 12px}
+.cms-sites-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:16px;margin-bottom:18px}
+.cms-site-card,.cms-hub-card{background:#fff;border:1px solid #dce5ee;border-radius:16px;
+  box-shadow:0 6px 24px #1b36520b;padding:clamp(18px,2.5vw,26px)}
+.cms-site-card{display:grid;align-content:start;gap:11px}
+.cms-site-card small{color:#26846c;font-size:11px;font-weight:750}
+.cms-site-card h2{font-size:21px;margin:0}
+.cms-site-card p,.cms-site-facts{color:#6b8094;font-size:13px;line-height:1.5;margin:0 0 12px}
+.cms-site-card .btn{justify-self:start}
+.cms-hub-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+.cms-hub-card.cms-hub-actions{align-content:start;align-items:center}
+.cms-hub-actions .btn{min-height:40px;font-size:12px}
+.cms-section-title{margin:25px 0 12px!important}
+.cms-project-pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:10px}
+.cms-page-link{display:grid;gap:7px;text-align:left;padding:16px 18px;border-radius:12px;
+  border:1px solid #d9e4ed;background:#fff;color:#294769;cursor:pointer;font-size:14px;font-weight:700}
+.cms-page-link:hover{border-color:#86b9e5;background:#f5faff}
+.cms-page-link small{color:#7a8da1;font-size:12px;font-weight:400}
+.cms-hub #server-toolbar{padding:0;margin-top:20px;border:0;border-top:1px solid #e1e7ef;
+  padding-top:18px;display:grid;gap:10px;max-width:480px}
+.cms-hub #server-toolbar .hosted-label{color:#637b95}
+.cms-hub #server-toolbar .hosted-status{color:#58728b}
+.cms-hub #server-toolbar .hosted-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.cms-hub #server-toolbar #server-public-link{color:#206db5}
+.cms-hub .hosted-site-tools{display:grid;gap:10px;border:0;background:transparent;padding:0}
+.cms-hub .hosted-site-tools>.hosted-site-tools-summary{display:none}
+.cms-hub .hosted-tool-category,.cms-hub .hosted-drawer{
+  display:block;border:1px solid #dce5ee;background:#fff;border-radius:13px;overflow:hidden;min-width:0}
+.cms-hub .hosted-tool-category-summary,.cms-hub .hosted-drawer-summary{
+  padding:17px 20px;display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 15px;cursor:pointer;color:#284460}
+.cms-hub .hosted-tool-category-summary span,.cms-hub .hosted-drawer-name{font-size:15px;font-weight:750}
+.cms-hub .hosted-tool-category-summary small,.cms-hub .hosted-drawer-summary small{color:#75899d;font-size:12px}
+.cms-hub .hosted-tool-category[open]>.hosted-tool-category-summary,
+.cms-hub .hosted-drawer[open]>.hosted-drawer-summary{border-bottom:1px solid #e2e9f1;background:#f9fbfe}
+.cms-hub .hosted-site-tool-actions{display:flex;flex-wrap:wrap;gap:9px;padding:16px}
+.cms-hub .hosted-site-tool-link{min-height:40px;text-align:left}
+.cms-hub .hosted-resources-group{border:0;background:transparent;padding:0}
+.cms-hub .hosted-resources-summary{display:none}
+.cms-hub .hosted-drawers{display:grid;grid-template-columns:1fr;gap:10px}
+.cms-hub .hosted-drawer[open]{grid-column:auto}
+.cms-hub .hosted-drawer>:not(summary){max-width:100%;box-sizing:border-box}
+.cms-maintenance{margin-top:20px}
+.cms-maintenance .hosted-admin-more{margin:0}
+.cms-import-guide{margin-bottom:20px}
+.cms-import-guide p{max-width:850px;font-size:14px;line-height:1.6;color:#536a80}
+.cms-import-warning{border-left:3px solid #e5a742;padding-left:14px}
+.cms-hub #server-drawer-import{display:block}
+.cms-hub #server-drawer-import .site-actions{padding:20px;gap:12px}
+.cms-hub #server-empty-state{margin:0;width:100%;max-width:750px}
+.cms-hub #server-empty-state .hosted-empty-eyebrow{font-size:11px}
+.cms-hub #server-empty-state .hosted-empty-actions{margin-top:15px}
+#server-site-tools-dialog{display:none!important}
+@media(max-width:950px){
+  html[data-stage3-mode="server"] .topbar{align-items:flex-start}
+  .cms-global-nav{order:3;flex-basis:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}
+  .cms-nav-link{flex:none}
+}
+@media(max-width:640px){
+  .cms-hub{padding:18px 12px 34px}
+  .cms-hub-heading{margin-bottom:18px}
+  .cms-site-card,.cms-hub-card{padding:18px}
+  .cms-hub-actions{align-items:stretch}
+  .cms-hub-actions>.btn{flex:1 1 160px}
+  .cms-hub .hosted-tool-category-summary,.cms-hub .hosted-drawer-summary{padding:14px}
+}

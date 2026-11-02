@@ -156,20 +156,36 @@ async function execute(){
   assert.equal(await page.locator('#server-engine-open').evaluate(node=>node.hidden),false,
     'owner receives the separate CMS engine maintenance entrypoint');
 
-  // The owner starts in the page editor. Site-wide tools are outside the
-  // navigation tree and appear only after the single explicit launcher.
+  // Real empty workspace: the compiled offline fixture must not masquerade
+  // as server-persisted content or leak a page tree before a site is opened.
   assert.equal(await page.locator('#server-empty-state:visible').count(),1);
+  assert.equal(await page.locator('#server-view-home:visible').count(),1);
+  assert.equal(await page.locator('#server-site-list .cms-site-card').count(),0);
+  assert.equal(await page.locator('#pages .nav-entry:visible').count(),0,
+    'The offline factory fixture is not a server site');
+  assert.equal(await page.locator('#site-name:visible').count(),0,
+    'The factory title cannot appear as a real active site');
+  assert.equal(await page.locator('#save:visible').count(),0,
+    'Save and Publish belong only to an opened editor');
   assert.equal(await page.locator('#server-site-tools-dialog').count(),1);
   assert.equal(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open),false);
-  assert.equal(await page.locator('#server-site-tools').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#server-site-tools').evaluate(node=>node.open),true);
   assert.equal(await page.locator('#server-site-tools').evaluate(node=>!!node.closest('.sidebar')),false);
   assert.equal(await page.locator('#server-resources').evaluate(node=>!!node.closest('.sidebar')),false);
-  assert.equal(await page.locator('#server-drawer-import').evaluate(node=>node.open),false);
+  assert.equal(await page.locator('#server-drawer-import').evaluate(node=>node.open),true);
   assert.equal(await page.locator('#history-details').evaluate(node=>node.open),false);
-  await page.locator('#server-site-tools-open').click();
-  await page.locator('#server-site-tools-dialog[open]').waitFor();
+  const studioScreenDir=path.join(root,'stage3/studio/out');
+  fs.mkdirSync(studioScreenDir,{recursive:true});
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-empty-home.png'),fullPage:true});
+  await page.locator('#server-nav-account').click();
+  assert.equal(await page.locator('#server-password-open:visible').count(),1);
+  assert.equal(await page.locator('#server-users-open:visible').count(),0);
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-empty-account.png'),fullPage:true});
+  await page.locator('#server-nav-platform').click();
+  assert.equal(await page.locator('#server-password-open:visible').count(),0);
   assert.equal(await page.locator('#server-engine-open').isVisible(),true,
-    'owner can reach engine maintenance from the dedicated site-tools surface');
+    'owner can reach engine maintenance from the separate platform area');
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-empty-platform.png'),fullPage:true});
   await page.locator('#server-engine-open').click();
   await page.locator('#server-engine-dialog[open]').waitFor();
   await page.locator('#server-hosting-diagnostics-status').getByText(/cli-server/).first().waitFor();
@@ -187,11 +203,11 @@ async function execute(){
   await page.locator('#server-engine-close').click();
   await page.locator('#server-engine-dialog').waitFor({state:'hidden'});
   assert.equal(await page.locator('#server-edit-page').count(),1);
-  assert.equal(await page.locator('#page-add').isVisible(),true);
+  assert.equal(await page.locator('#page-add').isVisible(),false);
   assert.equal(await page.locator('#page-rename').isVisible(),false,
     'Rare page actions stay collapsed until requested');
-  assert.equal(await page.locator('#section-catalog').isVisible(),true,
-    'Adding a block uses the human-readable component catalog');
+  assert.equal(await page.locator('#section-catalog').isVisible(),false,
+    'Adding a block requires an active real page');
   assert.equal(await page.locator('#section-add').isVisible(),false,
     'The raw internal component-ID prompt is not exposed');
   await page.evaluate(()=>{
@@ -202,6 +218,9 @@ async function execute(){
       node.open=true;node.dispatchEvent(new Event('toggle'));
     }
   });
+  await page.locator('#server-nav-import').click();
+  assert.equal(await page.locator('#server-view-import:visible').count(),1);
+  assert.match(await page.locator('.cms-import-guide').innerText(),/approved-v2/);
 
   // Owner can import a sealed external design into the empty CMS. No generated
   // template or generic website is necessary to initialize the owner workspace.
@@ -492,10 +511,10 @@ async function execute(){
     'Both original sealed documents must survive before any media upload');
   await page.evaluate(()=>sessionStorage.clear());
   await page.reload();
-  // A fresh tab starts with secondary tools collapsed again; reveal import.
-  await page.locator('#server-site-tools-open').click();
-  await page.locator('#server-site-tools-dialog[open]').waitFor();
-  await page.locator('#server-drawer-import').evaluate(node=>{node.open=true;});
+  // A fresh session shows an existing draft in the project dashboard. Import
+  // is an explicit, separate navigation destination.
+  await page.locator('#server-nav-import').click();
+  await page.locator('#server-view-import:visible').waitFor();
   await page.locator('#server-approved-import:not([disabled])').waitFor();
   await page.evaluate(entries=>{
     const selected=entries.map(entry=>{
@@ -546,9 +565,9 @@ async function execute(){
   assert.equal(imported.siteId,'site-approved-browser');
   assert.equal(await page.locator('#server-empty-state:visible').count(),0);
   assert.equal(imported.assets.length,4);
-  // The import workspace is modal; leave it before editing pages and blocks.
-  await page.locator('#server-site-tools-close').click();
-  await page.waitForFunction(()=>!document.querySelector('#server-site-tools-dialog')?.open);
+  await page.locator('#server-nav-editor').click();
+  await page.locator('#page-add:visible').waitFor();
+  assert.equal(await page.locator('#server-project-editor').count(),1);
 
   // Actual Chromium renders of the OWNER Studio (synthetic CI content only).
   // These go into the existing screenshot artifact, not a new UI/test system;
@@ -622,8 +641,6 @@ async function execute(){
   assert.ok(contrastSamples.every(sample=>sample.ratio>=4.5),
     'Small owner UI text must meet WCAG AA contrast: '+JSON.stringify(contrastSamples));
 
-  const studioScreenDir=path.join(root,'stage3/studio/out');
-  fs.mkdirSync(studioScreenDir,{recursive:true});
   const assertNoHorizontalOverflow=async label=>{
     const metrics=await page.evaluate(()=>({
       viewport:document.documentElement.clientWidth,
@@ -681,15 +698,10 @@ async function execute(){
   await page.locator('#sections .nav-entry').first().click();
   assert.equal(await page.locator('#save').getAttribute('aria-keyshortcuts'),'Control+S Meta+S');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-mobile.png'),fullPage:true});
-  // Native dialogs must be named from their visible heading and return focus
-  // to the launcher after Escape, without replacing the browser focus trap.
+  // Site settings have their own screen; native edit dialogs still return
+  // focus to the invoking control after Escape.
   await page.locator('#server-site-tools-open').click();
-  await page.locator('#server-site-tools-dialog[open]').waitFor();
-  if(!(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open))){
-    await page.locator('#server-site-tools-open').click();
-    await page.locator('#server-site-tools-dialog[open]').waitFor();
-  }
-  await page.locator('#server-site-tools').evaluate(node=>{node.open=true;});
+  await page.locator('#server-view-site-settings:visible').waitFor();
   await page.locator('#server-tool-navigation').evaluate(node=>{node.open=true;});
   await page.locator('#cms-menu-open').click();
   await page.locator('#cms-menu-editor[open]').waitFor();
@@ -700,7 +712,7 @@ async function execute(){
   await page.waitForFunction(()=>!document.querySelector('#cms-menu-editor')?.open);
   assert.equal(await page.evaluate(()=>document.activeElement?.id),'cms-menu-open',
     'Closing the menu dialog with Escape must return focus to its launcher');
-  await page.locator('#server-site-tools-close').click();
+  await page.locator('#server-nav-editor').click();
 
   await page.locator('#server-edit-page').click();
   await page.locator('#cms-page-preview[open]').waitFor();
@@ -726,8 +738,8 @@ async function execute(){
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-mobile.png'),fullPage:true});
   await page.setViewportSize({width:1400,height:1000});
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
-  await page.locator('#server-site-tools-open').click();
-  await page.locator('#server-site-tools-dialog[open]').waitFor();
+  await page.locator('#server-nav-site-settings').click();
+  await page.locator('#server-view-site-settings:visible').waitFor();
   await page.evaluate(()=>{
     const siteTools=document.querySelector('#server-site-tools');
     if(siteTools)siteTools.open=true;
@@ -793,25 +805,26 @@ async function execute(){
     'Cross-site copy tools belong inside one transfer drawer');
   assert.equal(await page.locator('.sidebar').evaluate(node=>getComputedStyle(node).overflowY),'auto',
     'The desktop navigation rail must scroll independently');
-  // Capture the real pointer target after Playwright's normal scroll-into-view step.
-  // This is diagnostic evidence for the owner path, not a synthetic/programmatic click.
+  // Approval evidence belongs to the explicit import area, outside page editing.
+  await page.locator('#server-nav-import').click();
   const approvalVaultButton=page.locator('#server-approved-vault-open');
   await approvalVaultButton.scrollIntoViewIfNeeded();
   const approvalPointerGeometry=await approvalVaultButton.evaluate(button=>{
     const rect=button.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
-    const dialog=document.querySelector('#server-site-tools-dialog');
-    const hit=document.elementFromPoint(x,y),dialogRect=dialog.getBoundingClientRect();
-    return {dialogOpen:dialog.open,dialogOverflow:getComputedStyle(dialog).overflowY,
+    const area=document.querySelector('#server-view-import');
+    const hit=document.elementFromPoint(x,y),areaRect=area.getBoundingClientRect();
+    return {areaVisible:!area.hidden,
       target:{x:Math.round(rect.x*100)/100,y:Math.round(rect.y*100)/100,
         width:Math.round(rect.width*100)/100,height:Math.round(rect.height*100)/100},
-      insideDialog:x>=dialogRect.left&&x<=dialogRect.right&&y>=dialogRect.top&&y<=dialogRect.bottom,
+      insideArea:x>=areaRect.left&&x<=areaRect.right&&
+        y>=areaRect.top&&y<=areaRect.bottom,
       hitIsTarget:hit===button||button.contains(hit)};
   });
   console.log('[approved-vault-pointer-geometry] '+JSON.stringify(approvalPointerGeometry));
-  assert.equal(approvalPointerGeometry.dialogOpen,true,
-    'The owner resource panel must be opened from the dedicated tools dialog');
-  assert.equal(approvalPointerGeometry.insideDialog,true,
-    'The archive action must remain inside the visible dialog');
+  assert.equal(approvalPointerGeometry.areaVisible,true,
+    'The owner sees approval evidence in its own import screen');
+  assert.equal(approvalPointerGeometry.insideArea,true,
+    'The archive action must remain inside the visible import screen');
   assert.equal(approvalPointerGeometry.hitIsTarget,true,
     'A real pointer at the archive action center must hit the action: '+JSON.stringify(approvalPointerGeometry));
   await approvalVaultButton.click();
@@ -920,7 +933,7 @@ async function execute(){
   // Real owner edit, not just JSON validation: change a multirow table, add
   // a gallery photo and edit quote attribution inside the existing Studio.
   // The final saved+published PHP output must reflect those exact operations.
-  await page.locator('#server-site-tools-close').click();
+  await page.locator('#server-nav-editor').click();
   await page.locator('#sections .nav-entry').nth(3).click();
   // The advanced block action is intentionally collapsed in the owner UI.
   // Exercise its real disclosure before using the secondary action.
@@ -1118,33 +1131,31 @@ async function execute(){
     'FAQ delete must target the specified question, not the currently selected index');
   assert.equal(await page.locator('#elements .cms-repeat-row').count(),2);
   assert.equal(await page.locator('#cms-repeat-add').innerText(),'+ Добавить вопрос');
-  // Site-wide SEO lives in its modal toolbox, so reopen it on purpose.
+  // SEO is a site-level area, separate from the currently selected FAQ block.
   await page.locator('#server-site-tools-open').click();
-  await page.locator('#server-site-tools-dialog[open]').waitFor();
-  await page.locator('#server-site-tools').evaluate(node=>{node.open=true;});
+  await page.locator('#server-view-site-settings:visible').waitFor();
   await page.locator('#server-tool-seo').evaluate(node=>{node.open=true;});
   const seoToolButton=page.locator('#cms-open-seo');
   await seoToolButton.scrollIntoViewIfNeeded();
   const seoToolPointerGeometry=await seoToolButton.evaluate(button=>{
     const rect=button.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
-    const dialog=document.querySelector('#server-site-tools-dialog');
-    const dialogRect=dialog.getBoundingClientRect(),hit=document.elementFromPoint(x,y);
-    return {dialogOpen:dialog.open,insideDialog:x>=dialogRect.left&&x<=dialogRect.right&&
-      y>=dialogRect.top&&y<=dialogRect.bottom,hitIsTarget:hit===button||button.contains(hit)};
+    const area=document.querySelector('#server-view-site-settings');
+    const areaRect=area.getBoundingClientRect(),hit=document.elementFromPoint(x,y);
+    return {areaVisible:!area.hidden,insideArea:x>=areaRect.left&&x<=areaRect.right&&
+      y>=areaRect.top&&y<=areaRect.bottom,hitIsTarget:hit===button||button.contains(hit)};
   });
   console.log('[site-tools-pointer-geometry] '+JSON.stringify(seoToolPointerGeometry));
-  assert.equal(seoToolPointerGeometry.dialogOpen,true,
-    'The SEO action must be accessed through the tools dialog');
-  assert.equal(seoToolPointerGeometry.insideDialog,true,
-    'The SEO action must remain inside the visible dialog');
+  assert.equal(seoToolPointerGeometry.areaVisible,true,
+    'The SEO action must be accessed through site settings');
+  assert.equal(seoToolPointerGeometry.insideArea,true,
+    'The SEO action must remain inside the site-settings screen');
   assert.equal(seoToolPointerGeometry.hitIsTarget,true,
     'A real pointer at the SEO action center must hit the action: '+JSON.stringify(seoToolPointerGeometry));
   await seoToolButton.click();
   await page.locator('#cms-setting-seo-title').fill('FAQ и готовый сайт — SEO');
   await page.locator('#cms-setting-seo-description').fill('Новые вопросы и SEO опубликованы после ручного сохранения');
   await page.locator('#cms-settings-apply').click();
-  if(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open))
-    await page.locator('#server-site-tools-close').click();
+  await page.locator('#server-nav-editor').click();
   await page.locator('#save').click();
   await page.locator('#server-launch-review').click();
   await page.locator('#server-launch-dialog').waitFor();
@@ -1627,10 +1638,9 @@ async function execute(){
   const preRestoreRevision=(await (await page.request.get(
     origin+'/api/sites/site-approved-browser')).json()).revision;
   await page.locator('#save').click();
-  // Hosted page recovery is in the site's archive tools, not local-only history.
-  await page.locator('#server-site-tools-open').click();
-  await page.locator('#server-site-tools-dialog[open]').waitFor();
-  await page.locator('#server-site-tools').evaluate(node=>{node.open=true;});
+  // Page recovery stays in site resources, outside the editor toolbar.
+  await page.locator('#server-nav-resources').click();
+  await page.locator('#server-view-resources:visible').waitFor();
   await page.locator('#server-drawer-backup').evaluate(node=>{node.open=true;});
   await page.locator('#server-history-open').click();
   await page.locator('#server-history-dialog[open]').waitFor();
@@ -1659,11 +1669,8 @@ async function execute(){
 
   // Edit the global footer through Studio, save a private revision, and verify
   // that the already-published visitor remains unchanged without Publish.
-  if(!(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open))){
-    await page.locator('#server-site-tools-open').click();
-    await page.locator('#server-site-tools-dialog[open]').waitFor();
-  }
-  await page.locator('#server-site-tools').evaluate(node=>{node.open=true;});
+  await page.locator('#server-nav-site-settings').click();
+  await page.locator('#server-view-site-settings:visible').waitFor();
   await page.locator('#server-tool-navigation').evaluate(node=>{node.open=true;});
   await page.locator('#cms-open-footer').click();
   await page.locator('#cms-footer-editor').waitFor({state:'visible'});
@@ -1672,8 +1679,7 @@ async function execute(){
   await page.locator('#cms-footer-editor-apply').click();
   await page.locator('#cms-footer-editor').waitFor({state:'hidden'});
   // Return to the canvas before saving the footer or managing page media.
-  if(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open))
-    await page.locator('#server-site-tools-close').click();
+  await page.locator('#server-nav-editor').click();
   const beforeFooterSave=(await (await page.request.get(origin+
     '/api/sites/site-approved-browser')).json()).revision;
   await page.locator('#save').click();
@@ -1692,6 +1698,8 @@ async function execute(){
   // without creating a second editor or silently publishing these new bytes.
   const batchStart=footerDraft.revision;
   const assetCount=footerDraft.site.assets.length;
+  await page.locator('#server-nav-resources').click();
+  await page.locator('#server-drawer-media').evaluate(node=>{node.open=true;});
   await page.locator('#server-media-file').setInputFiles([
     {name:'desktop_banner.png',mimeType:'image/png',buffer:examplePng},
     {name:'discard.png',mimeType:'image/png',buffer:examplePng},
@@ -1775,6 +1783,7 @@ async function execute(){
   // Upload is private. One plain alt-text field updates the new library
   // asset and the selected image element together, without an extra checkbox.
   const inlineBefore=partialBatch.site.assets.length;
+  await page.locator('#server-nav-editor').click();
   await page.locator('#server-edit-page').click();
   await page.locator('#cms-page-preview[open]').waitFor();
   await page.locator('#cms-page-preview-path').selectOption('/');
@@ -1839,18 +1848,16 @@ async function execute(){
     .designGraph.nodes[0].children.find(n=>n.id==='approved-custom-photo')
     .responsiveMedia.mobileAssetId,mediaState.asset.id);
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
-  if(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open))
-    await page.locator('#server-site-tools-close').click();
+  await page.locator('#server-nav-editor').click();
   assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
     'Changing draft mobile imagery does not publish the new asset');
 
-  // Sign-out is intentionally inside site-wide tools, not the page editor rail.
-  await page.locator('#server-site-tools-open').click();
-  await page.locator('#server-site-tools-dialog[open]').waitFor();
+  // Sign-out belongs to the account area, not the page or site settings.
+  await page.locator('#server-nav-account').click();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
   assert.equal(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open),false,
-    'Signing out closes the site tools modal before returning to login');
+    'Signing out never leaves a site tools dialog open');
 
   // Reproduce the post-authentication recovery edge case: credentials are
   // accepted, the site list is readable, but opening the selected site's
@@ -1881,8 +1888,7 @@ async function execute(){
     'A recovery redirect never starts an engine update automatically');
   await page.unroute('**/api/sites/site-approved-browser');
   await page.locator('#server-engine-close').click();
-  await page.locator('#server-site-tools-open').click();
-  await page.locator('#server-site-tools-dialog[open]').waitFor();
+  await page.locator('#server-nav-account').click();
   await page.locator('#server-logout').click();
   await page.locator('#server-login:not([hidden])').waitFor();
   assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,

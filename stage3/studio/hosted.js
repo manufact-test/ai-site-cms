@@ -2737,12 +2737,12 @@
   dialogTitle.append(dialogHeading,dialogDescription);
   const dialogClose=action('Закрыть','server-site-tools-close',()=>siteToolsDialog.close());
   dialogHead.append(dialogTitle,dialogClose);
-  const dialogContent=element('div','hosted-site-tools-dialog-content');
-  dialogContent.append(toolbar,siteTools,resources);
-  siteToolsDialog.append(dialogHead,dialogContent);
+  // The old dialog stays as an inert compatibility node for integrations that
+  // look it up. Its controls now live in dedicated, navigable CMS areas.
+  siteToolsDialog.append(dialogHead);
   document.body.append(siteToolsDialog);
   const siteToolsTrigger=action('Инструменты сайта','server-site-tools-open',()=>{
-    if(!siteToolsDialog.open)siteToolsDialog.showModal();
+    setCmsView('site-settings');
   });
   siteToolsTrigger.classList.add('hosted-site-tools-trigger');
   document.querySelector('.panel-top').append(siteToolsTrigger);
@@ -2768,10 +2768,7 @@
     if(!$('server-open').disabled)$('server-open').click();
   });
   const emptyImport=action('Подключить готовый сайт','server-empty-import',()=>{
-    const btn=$('server-approved-import');
-    if(!btn||btn.disabled)return;
-    $('server-site-tools-dialog').showModal();
-    $('server-drawer-import').open=true;btn.click();
+    setCmsView('import');
   });
   emptyImport.classList.add('primary');
   const emptyNote=element('p','hosted-empty-note',
@@ -2779,7 +2776,134 @@
     'Сохранение черновика и публикация всегда выполняются отдельно.');
   emptyActions.append(emptyOpen,emptyImport);
   emptyState.append(emptyEyebrow,emptyTitle,emptyDescription,emptyActions,emptyNote);
-  document.querySelector('.workspace').append(emptyState);
+
+  // One CMS, distinct working contexts. All existing editor controllers and
+  // server-backed buttons are MOVED, never recreated with parallel handlers.
+  const cmsWorkspace=document.querySelector('.workspace');
+  const cmsHub=element('main','cms-hub');cmsHub.id='server-hub';
+  const cmsNav=element('nav','cms-global-nav');cmsNav.setAttribute('aria-label','Разделы CMS');
+  document.querySelector('.topbar').insertBefore(cmsNav,document.querySelector('.top-actions'));
+  cmsNav.after(status);
+  const cmsViews=new Map(),cmsNavButtons=new Map();
+  let cmsCurrentView='home';
+  const makeCmsView=(id,kicker,title,description)=>{
+    const area=element('section','cms-hub-view');area.id='server-view-'+id;
+    const heading=element('div','cms-hub-heading');
+    heading.append(element('small','cms-hub-kicker',kicker),element('h1',null,title),
+      element('p',null,description));
+    area.append(heading);cmsHub.append(area);cmsViews.set(id,area);return area;
+  };
+  const homeView=makeCmsView('home','РАБОЧЕЕ ПРОСТРАНСТВО','Мои сайты',
+    'Здесь находятся только сайты, действительно сохранённые в CMS.');
+  const siteList=element('div','cms-sites-grid');siteList.id='server-site-list';
+  homeView.append(siteList,emptyState);
+  const siteView=makeCmsView('site','ПРОЕКТ','Обзор сайта',
+    'Выберите рабочую задачу. Содержимое страниц редактируется в отдельном редакторе.');
+  const siteHeadline=element('h2',null,'');siteHeadline.id='server-project-title';
+  const siteFacts=element('p','cms-site-facts');siteFacts.id='server-project-facts';
+  const siteButtons=element('div','cms-hub-actions');
+  siteButtons.append(action('Открыть редактор','server-project-editor',()=>setCmsView('editor')),
+    action('Настройки сайта','server-project-settings',()=>setCmsView('site-settings')),
+    action('Медиа и заявки','server-project-resources',()=>setCmsView('resources')));
+  const projectCard=element('section','cms-hub-card');
+  projectCard.append(siteHeadline,siteFacts,siteButtons,toolbar);
+  const projectPages=element('div','cms-project-pages');projectPages.id='server-project-pages';
+  siteView.append(projectCard,element('h2','cms-section-title','Страницы сайта'),projectPages);
+  const settingsView=makeCmsView('site-settings','УРОВЕНЬ САЙТА','Настройки сайта',
+    'Дизайн-система, навигация, SEO и общие параметры. Эти настройки относятся к выбранному сайту.');
+  siteTools.open=true;settingsView.append(siteTools);
+  const resourcesView=makeCmsView('resources','УРОВЕНЬ САЙТА','Ресурсы и обслуживание',
+    'Медиафайлы, заявки, сохранённые блоки, архивы и проверка доступности.');
+  const siteMaintenance=element('section','cms-hub-card cms-maintenance');
+  siteMaintenance.append(element('h2',null,'Техническое состояние сайта'),adminMore);
+  resourcesView.append(resources,siteMaintenance);
+  const accountView=makeCmsView('account','ЛИЧНЫЕ НАСТРОЙКИ','Аккаунт',
+    'Профиль, пароль и выход. Эти действия не относятся к подключению сайта.');
+  const accountActions=element('div','cms-hub-card cms-hub-actions');accountActions.id='server-account-actions';
+  accountActions.append($('server-logout'));accountView.append(accountActions);
+  const platformView=makeCmsView('platform','ТОЛЬКО ВЛАДЕЛЕЦ','Управление CMS',
+    'Пользователи, лицензии, журнал действий, подписанные обновления и восстановление системы.');
+  const platformActions=element('div','cms-hub-card cms-hub-actions');platformActions.id='server-platform-actions';
+  platformActions.append(engineOpen);platformView.append(platformActions);
+  const importView=makeCmsView('import','ПОДКЛЮЧЕНИЕ','Подключить утверждённый сайт',
+    'Сначала подготовьте материалы, затем явно выберите папку. Ничего не публикуется автоматически.');
+  const importGuide=element('section','cms-hub-card cms-import-guide');
+  importGuide.append(element('h2',null,'Что необходимо для подключения'),
+    element('p',null,'Подготовленная и проверенная папка approved-v2: исходный site.json, передача разработчика, три утверждённых макета (ПК, планшет, телефон), описание и спецификация, локальные медиа и контрольная подпись. CMS проверит пакет перед созданием черновика.'),
+    element('p','cms-import-warning','Не выбирайте произвольный сайт, скриншоты или исходники HTML. Сначала согласуйте дизайн; отсутствие подготовленного пакета — нормальное пустое состояние.'));
+  const importBack=action('← Мои сайты','server-import-back',()=>setCmsView('home'));
+  importView.append(importBack,importGuide,$('server-drawer-import'));
+  $('server-drawer-import').open=true;
+  cmsWorkspace.append(cmsHub);
+
+  for(const [id,labelText] of [
+    ['home','Мои сайты'],['site','Обзор'],['editor','Редактор'],
+    ['site-settings','Настройки сайта'],['resources','Ресурсы'],['import','Подключить'],
+    ['account','Аккаунт'],['platform','Управление CMS']]){
+    const button=action(labelText,'server-nav-'+id,()=>setCmsView(id));
+    button.className='cms-nav-link';cmsNav.append(button);cmsNavButtons.set(id,button);
+  }
+  const renderSiteList=()=>{
+    siteList.replaceChildren();
+    for(const item of state.sites){
+      const card=element('article','cms-site-card');
+      card.append(element('small',null,item.published_version?'Опубликован · v'+item.published_version:'Черновик'),
+        element('h2',null,item.title||item.site_id),
+        element('p',null,'Редакция #'+item.revision+' · '+(item.license?.paused?'CMS приостановлена':'Доступен для работы')),
+        action('Открыть сайт','',()=>safe(()=>openSite(item.site_id))));
+      siteList.append(card);
+    }
+  };
+  const renderProject=()=>{
+    if(!state.siteId){siteHeadline.textContent='';siteFacts.textContent='';projectPages.replaceChildren();return;}
+    const meta=state.sites.find(item=>item.site_id===state.siteId);
+    siteHeadline.textContent=meta?.title||'Сайт';
+    siteFacts.textContent='Черновик #'+state.revision+' · '+
+      (meta?.published_version?'Публикация v'+meta.published_version:'Ещё не опубликован');
+    projectPages.replaceChildren();
+    const pages=editor.getSite().pages;
+    pages.forEach((page,index)=>{
+      const entry=action(page.title,'',()=>{
+        setCmsView('editor');$('pages').querySelectorAll('.nav-entry')[index]?.click();
+      });
+      entry.className='cms-page-link';
+      entry.append(element('small',null,page.path));projectPages.append(entry);
+    });
+  };
+  function setCmsView(requested){
+    const siteRequired=['site','editor','site-settings','resources'];
+    const authorized=state.authorized;
+    const view=!authorized?'home':requested==='platform'&&!isOwner()?'account':
+      requested==='import'&&!isOwner()?'home':
+      siteRequired.includes(requested)&&!state.siteId?'home':requested;
+    cmsCurrentView=view;
+    const editing=view==='editor'&&Boolean(state.siteId)&&authorized;
+    cmsWorkspace.classList.toggle('cms-hub-mode',!editing);
+    for(const part of ['.sidebar','.center','.inspector'])
+      cmsWorkspace.querySelector(part).hidden=!editing;
+    document.querySelector('.top-actions').hidden=!editing;
+    cmsHub.hidden=editing;
+    for(const [id,area] of cmsViews)area.hidden=id!==view;
+    for(const [id,button] of cmsNavButtons){
+      button.hidden=(id==='platform'||id==='import')&&!isOwner()||
+        ['site','editor','site-settings','resources'].includes(id)&&!state.siteId;
+      if(id===view)button.setAttribute('aria-current','page');
+      else button.removeAttribute('aria-current');
+    }
+    if(view==='site')renderProject();
+  }
+  const mountAccessNavigation=()=>{
+    const identity=$('server-identity');
+    if(!identity)return;
+    accountActions.prepend(identity);
+    for(const id of ['server-password-open']){const button=$(id);if(button)accountActions.append(button);}
+    for(const id of ['server-users-open','server-audit-open','server-licenses-open']){
+      const button=$(id);if(button)platformActions.append(button);
+    }
+    setCmsView(cmsCurrentView);
+  };
+  window.addEventListener('stage3-access-ready',mountAccessNavigation);
+  setCmsView('home');
 
   // Tab-scoped UI preference only. Never persist user/site data or write a draft.
   const disclosureKey='manufact-studio-disclosures-v2';
@@ -3342,6 +3466,7 @@
   function drawStatus(){
     const exists=state.authorized&&state.siteId!==null&&state.revision!==null;
     const available=exists&&!state.busy;
+    status.hidden=!exists;
     pageSearch.field.disabled=!available;
     blockSearch.field.disabled=!available;
     emptyState.hidden=!state.authorized||exists;
@@ -3470,6 +3595,8 @@
       opt.value=row.site_id;picker.append(opt);
     }
     if(state.siteId&&state.sites.some(s=>s.site_id===state.siteId))picker.value=state.siteId;
+    renderSiteList();
+    if(state.siteId)renderProject();
     drawStatus();
   }
   async function loadHistory(){
@@ -3478,8 +3605,7 @@
     drawVersions();await loadReleases();
   }
   function editorVisible(visible){
-    document.querySelector('.center').hidden=!visible;
-    document.querySelector('.inspector').hidden=!visible;
+    setCmsView(visible?'editor':'home');
   }
   // PHP decodes JSON objects to associative arrays. An empty typed map, such
   // as a newly inserted graph node's styles:{}, round-trips as [] in a PHP
@@ -3525,6 +3651,7 @@
     selectSite(data);
     picker.value=id;
     await loadHistory();await loadSubmissions();await loadTemplates();await loadDeliverySettings();
+    setCmsView('site');
     notice('Сайт открыт из серверного хранилища. Публикация не выполнялась.');
   }
   async function previewPage(site,path){
@@ -5879,7 +6006,7 @@
     state.authorized=false;state.principal=null;state.csrf=null;state.siteId=null;state.revision=null;
     state.revisions=[];state.sites=[];picker.replaceChildren();
     mediaList.replaceChildren();templatesList.replaceChildren();deliveryReport.replaceChildren();deliveryRecent.replaceChildren();currentDelivery=null;
-    editorVisible(false);setGate(true);
+    renderSiteList();editorVisible(false);setGate(true);
     notice('Вы вышли из серверной CMS.');
   }
   function drawVersions(){

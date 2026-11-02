@@ -183,4 +183,7 @@
     if(!p||p.role!=='owner'){usersDialog.close();auditDialog.close();licencesDialog.close();}
   }
   window.addEventListener('stage3-session',draw);draw();
+  // Hosted Studio places account security and owner operations on separate
+  // navigation screens after this module has created the original controls.
+  window.dispatchEvent(new Event('stage3-access-ready'));
 })();
