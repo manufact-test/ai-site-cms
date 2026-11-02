@@ -441,6 +441,10 @@
   const publish=action('Опубликовать','server-publish',()=>safe(publishSite));
   publish.classList.add('primary');
   document.querySelector('.top-actions').append(publish);
+  // Review is part of the editor's Save → Review → Publish workflow,
+  // not a project-connection control hidden inside the site dashboard.
+  launchReviewButton.textContent='Проверка перед публикацией';
+  document.querySelector('.top-actions').insertBefore(launchReviewButton,publish);
   const publicLink=element('a','hosted-public-link','Открыть опубликованный сайт ↗');
   publicLink.id='server-public-link';publicLink.target='_blank';publicLink.rel='noopener noreferrer';
   publicLink.hidden=true;
