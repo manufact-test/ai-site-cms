@@ -20,7 +20,8 @@ const requiredEnvironment=[
 ];
 // CMS-engine updater/control-plane code must never enter the independent form collector.
 const EXCLUDED_ENGINE_CONTROL_PHP=new Set([
-  'DatabaseSnapshot.php','EngineLifecycle.php','EngineReleaseVerifier.php','EngineRuntime.php'
+  'DatabaseServerCompatibility.php','DatabaseSnapshot.php','EngineLifecycle.php',
+  'EngineReleaseVerifier.php','EngineRuntime.php'
 ]);
 const EXPECTED_SERVER_PHP=[
   "AccessControl.php",
