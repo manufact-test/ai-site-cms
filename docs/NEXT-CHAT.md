@@ -22,7 +22,7 @@
 5. **Full CI:** the original contract, browser E2E, D3 release cutover/rollback, HTTP persistence/publish, Apache shared-host smoke, Hostinger sibling package and technology runtime all passed.
 6. **Fresh Hostinger artifact:** workflow #41414660469, artifact `13127730026`, `ai-site-stage3-hostinger-sibling`. A staging update archive was assembled from this verified artifact:
    - File: `stage3-hostinger-mariadb-ready-update.zip`
-   - SHA-256: `fdf292c748dcc885df096c7cc7800815218d1f8dbc7a5de76cedd4866ba60225`
+   - SHA-256: `fdca03d63561baa645ba708ccd6c3a7a95d4deae67d8b602d519c606e26cfa6e`
    - Contains the updated `stage3/` runtime, updated `cms-release.json`, a one-shot private setup helper and an editable private input template.
    - Intentionally excludes `public_html/` so the already verified public front controller remains untouched.
    - The helper self-deletes before invoking the read-only `--plan`; it also removes the old temporary preflight helper from the active runtime if present.
