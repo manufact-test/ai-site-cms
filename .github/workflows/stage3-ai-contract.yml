@@ -203,3 +203,50 @@ jobs:
           node-version: '22'
       - name: Disposable Next Static real build and Next SSR loopback HTTP proof
         run: node stage3/runtime-export/tests/next-probe.cjs
+
+  mariadb-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        mariadb-version: ['10.11', '11.8']
+    services:
+      mariadb:
+        image: mariadb:${{ matrix.mariadb-version }}
+        env:
+          MARIADB_ROOT_PASSWORD: stage3-ci-root
+          MARIADB_ROOT_HOST: '%'
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --su-mysql --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install PHP 8.3 with PDO MySQL
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring
+          coverage: none
+      - name: Verify MariaDB installer, private hosted runner and engine snapshot contracts
+        env:
+          STAGE3_INSTALL_MYSQL_HOST: 127.0.0.1
+          STAGE3_INSTALL_MYSQL_PORT: 3306
+          STAGE3_INSTALL_MYSQL_USER: root
+          STAGE3_INSTALL_MYSQL_PASSWORD: stage3-ci-root
+        run: |
+          php -l stage3/server/DatabaseServerCompatibility.php
+          php -l stage3/server/bin/Stage3Installer.php
+          php -l stage3/server/DatabaseSnapshot.php
+          node --check stage3/tests/mysql-install-probe.cjs
+          node stage3/tests/mysql-install-probe.cjs
+          node stage3/tests/engine-update-smoke.cjs
