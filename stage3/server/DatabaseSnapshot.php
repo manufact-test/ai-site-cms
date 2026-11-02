@@ -7,6 +7,8 @@ use PDO;
 use RuntimeException;
 use Throwable;
 
+require_once __DIR__ . '/DatabaseServerCompatibility.php';
+
 /** Private byte-preserving snapshot for schema-preserving CMS engine updates. */
 final class DatabaseSnapshot
 {
@@ -23,11 +25,7 @@ final class DatabaseSnapshot
         $driver = (string)$db->getAttribute(PDO::ATTR_DRIVER_NAME);
         if (!in_array($driver, ['mysql','sqlite'], true)) throw new RuntimeException('Unsupported Stage3 snapshot driver');
         if ($driver === 'mysql') {
-            $version = (string)$db->query('SELECT VERSION()')->fetchColumn();
-            if (stripos($version, 'mariadb') !== false || !preg_match('/^(\d+)\.(\d+)\.(\d+)/', $version, $m)
-                || version_compare($m[1].'.'.$m[2].'.'.$m[3], '8.0.0', '<')) {
-                throw new RuntimeException('Stage3 snapshots require MySQL 8.0 or newer');
-            }
+            DatabaseServerCompatibility::assertSupported($db);
         }
         $tables = self::tableInventory($db, $driver);
         $required = self::requiredTables();
