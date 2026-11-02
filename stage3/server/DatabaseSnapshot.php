@@ -249,6 +249,9 @@ final class DatabaseSnapshot
         $verified = self::verify($snapshotDirectory);
         $manifest = $verified['manifest'];
         $driver = (string)$target->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'mysql') {
+            DatabaseServerCompatibility::assertSupported($target);
+        }
         if ($driver !== $manifest['driver'] || self::tableInventory($target,$driver) !== []) {
             throw new RuntimeException('Snapshot rehearsal requires an empty target with the same database driver');
         }
