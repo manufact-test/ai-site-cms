@@ -3461,6 +3461,7 @@
     document.querySelector('.shell').classList.toggle('server-locked',locked);
     if(locked){$('server-password').value='';}
     drawStatus();
+    setCmsView(locked?'home':cmsCurrentView);
   }
   function isDirty(){return editor.isDirty();}
   function drawStatus(){
