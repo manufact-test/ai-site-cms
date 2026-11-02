@@ -165,8 +165,8 @@ try{
   assert.equal(serverVersionInfo.ok,true);
   const isMariaDb=/mariadb/i.test(serverVersionInfo.version);
   const serverVersionMatch=isMariaDb
-    ? /(\\d+\\.\\d+\\.\\d+)-MariaDB/i.exec(serverVersionInfo.version)
-    : /^(\\d+\\.\\d+\\.\\d+)/.exec(serverVersionInfo.version);
+    ? /(\d+\.\d+\.\d+)-MariaDB/i.exec(serverVersionInfo.version)
+    : /^(\d+\.\d+\.\d+)/.exec(serverVersionInfo.version);
   assert.ok(serverVersionMatch,'database server version must be identifiable');
   const serverVersionParts=serverVersionMatch[1].split('.').map(Number);
   const minimumVersion=isMariaDb?[10,11,0]:[8,0,0];
