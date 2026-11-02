@@ -1,3 +1,15 @@
+# CURRENT PRIORITY UPDATE — 2026-11-03 (read first)
+
+**This update SUPERSEDES the older v9.15 Hostinger “not yet installed / create DB / run plan/apply” instructions below.** Stage3 has now been successfully installed and the owner has authenticated on the isolated FOX staging host. Do NOT recreate database, rerun plan/apply, or ask for credentials. The existing site is https://mediumpurple-fox-175549.hostingersite.com/studio . No finished real website has been approved/imported. Existing “Завод оборудования” pages/sections are not approved pilot content and may be synthetic or a placeholder; first verify where they come from and preserve persisted data.
+
+**Next task: urgently overhaul the current Stage3 Studio admin UX before asking the owner for first landing page material.** Owner inspected the actual FOX Studio and strongly rejected indiscriminate placement of controls: account password/change/logout, system updates/licenses/audit in the same “site tools / connect” dialog, fake page/block trees on an empty workspace, and a folder picker that opens without contextual onboarding. Research Elementor current official editor + contemporary Webflow/WordPress design patterns, audit actual code/navigation, implement a cohesive, context-sensitive information architecture in EXISTING Studio/Workbench, and show verified real browser screenshots. Do not bolt on a new CMS/editor. Separate: CMS home without a site; selected site dashboard; page editor canvas/layers/contextual properties; site settings/resources; account settings; owner-only platform operations. Publish/Save visible only when valid site/page active. No client data deletion or unilateral production updates.
+
+**Authoritative, detailed, owner-approved project handoff:** [HOSTINGER-LIVE-AND-ADMIN-UX-RESET-2026-11-03.md](../handoffs/lead-integrator/HOSTINGER-LIVE-AND-ADMIN-UX-RESET-2026-11-03.md). Read it alongside [OWNER-STUDIO-UX-ACCEPTANCE.md](../stage3/docs/OWNER-STUDIO-UX-ACCEPTANCE.md), MASTER-TZ and ROADMAP. This is a GitHub documentation checkpoint, not implemented UI and not owner UI/UX GO.
+
+GitHub branch `feature/stage3-ai-site-contract`; functional code reference `4a7182dc859e5b4affbc0a560c5f793ff4f1041e`, last full code CI [#41414660469](https://github.com/manufact-test/ai-site-cms/actions/runs/41414660469), SUCCESS four jobs. Handoff commit `b5a28005fc8a6fbcc14922f54c31ca0a9e61dc9f`; documentation commits may follow. Stage2 Woodpecker and production untouched. Formal owner feature acceptance and first-site pilot still pending. No new installs, Cron, secrets or approvals required to begin GitHub UX work.
+
+---
+
 # MANUFACT AI Site CMS — Next Chat Checkpoint v9.15
 
 **Updated:** 2026-11-02  
