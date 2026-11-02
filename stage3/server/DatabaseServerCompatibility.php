@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Manufact\\Stage3;
+namespace Manufact\Stage3;
 
 use PDO;
 use RuntimeException;
@@ -33,8 +33,8 @@ final class DatabaseServerCompatibility
 
         // MariaDB may expose a compatibility prefix such as 5.5.5-10.11.8-MariaDB.
         $matched = $isMariaDb
-            ? preg_match('/(\\d+)\\.(\\d+)\\.(\\d+)-MariaDB/i', $version, $parts) === 1
-            : preg_match('/^(\\d+)\\.(\\d+)\\.(\\d+)/', $version, $parts) === 1;
+            ? preg_match('/(\d+)\.(\d+)\.(\d+)-MariaDB/i', $version, $parts) === 1
+            : preg_match('/^(\d+)\.(\d+)\.(\d+)/', $version, $parts) === 1;
 
         $numericVersion = $matched ? $parts[1] . '.' . $parts[2] . '.' . $parts[3] : '';
         $supported = $matched && version_compare($numericVersion, $minimum, '>=');
