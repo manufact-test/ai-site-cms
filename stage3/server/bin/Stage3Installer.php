@@ -7,6 +7,8 @@ use PDO;
 use RuntimeException;
 use Throwable;
 
+require_once __DIR__ . '/../DatabaseServerCompatibility.php';
+
 final class Stage3Installer
 {
     private const RECEIPT_FORMAT = 'manufact-stage3-install-receipt-v1';
@@ -53,21 +55,24 @@ final class Stage3Installer
 
         if ($driver === 'mysql') {
             try {
-                $serverVersion = (string)$db->query('SELECT VERSION()')->fetchColumn();
-                $versionMatch = preg_match('/^(\\d+)\\.(\\d+)\\.(\\d+)/', $serverVersion, $versionParts) === 1;
-                $mysqlVersionOk = $versionMatch && stripos($serverVersion, 'mariadb') === false
-                    && version_compare($versionParts[1] . '.' . $versionParts[2] . '.' . $versionParts[3], '8.0.0', '>=');
+                $serverCompatibility = DatabaseServerCompatibility::inspect($db);
                 $checks['databaseServerVersion'] = [
-                    'ok' => $mysqlVersionOk,
-                    'version' => substr($serverVersion, 0, 80),
-                    'minimum' => '8.0.0'
+                    'ok' => $serverCompatibility['ok'],
+                    'engine' => $serverCompatibility['engine'],
+                    'version' => $serverCompatibility['version'],
+                    'minimum' => $serverCompatibility['minimum']
                 ];
-                if (!$mysqlVersionOk) {
-                    $errors[] = 'MySQL 8.0 or newer is required; MariaDB and older MySQL servers are not supported';
+                if (!$serverCompatibility['ok']) {
+                    $errors[] = (string)$serverCompatibility['reason'];
                 }
             } catch (Throwable) {
-                $checks['databaseServerVersion'] = ['ok' => false, 'version' => null, 'minimum' => '8.0.0'];
-                $errors[] = 'Unable to verify the MySQL server version';
+                $checks['databaseServerVersion'] = [
+                    'ok' => false,
+                    'engine' => 'unknown',
+                    'version' => null,
+                    'minimum' => null
+                ];
+                $errors[] = 'Unable to verify the MySQL/MariaDB server version';
             }
         } else {
             $checks['databaseServerVersion'] = ['ok' => true, 'applicable' => false, 'version' => null];
