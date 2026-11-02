@@ -23,7 +23,7 @@ The command requires no config file, database, credentials or approval fingerpri
 
 The probe performs no filesystem writes, reads no environment secrets, and makes no database or network connection. A non-zero exit means a listed CLI prerequisite is missing; correct that condition before preparing the private config. The Sodium field is informational only and is not a readiness gate for this initial-install probe.
 
-**Scope limitation:** this is evidence about the PHP CLI used by the Cron command only. It does not validate the website's PHP handler, MySQL connectivity/version, account web-root inventory, TLS, private-directory permissions or actual open_basedir access to future paths. Those remain separate checks in the hosted `--plan` and post-install Studio diagnostics. A clear probe result is not installation approval and never authorizes `--apply`.
+**Scope limitation:** this is evidence about the PHP CLI used by the Cron command only. It does not validate the website's PHP handler, MySQL/MariaDB connectivity/version, account web-root inventory, TLS, private-directory permissions or actual open_basedir access to future paths. Those remain separate checks in the hosted `--plan` and post-install Studio diagnostics. A clear probe result is not installation approval and never authorizes `--apply`.
 
 ## Private configuration
 
@@ -65,7 +65,7 @@ Illustrative shape only; replace every placeholder privately on the host and pre
         "STAGE3_FORM_ORIGINS": "https://staging.example.com",
         "STAGE3_FORM_ENDPOINT": "",
         "STAGE3_PRIVATE_DIR": "/home/ACCOUNT/domains/staging.example.com/.stage3-private",
-        "STAGE3_PUBLIC_ROOT": "/home/ACCOUNT/stage3/server/public"
+        "STAGE3_PUBLIC_ROOT": "/home/ACCOUNT/domains/staging.example.com/public_html"
     }
 }
 ```
