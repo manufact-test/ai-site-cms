@@ -8,7 +8,6 @@
 - Repository: https://github.com/manufact-test/ai-site-cms
 - Active branch: `feature/stage3-ai-site-contract`
 - Latest functional code SHA: `4a7182dc859e5b4affbc0a560c5f793ff4f1041e`
-- Latest documentation-only HEAD: `02b6020dfb4babee366e2b52093ac2f4e153a77b`
 - Full CI: [#41414660469](https://github.com/manufact-test/ai-site-cms/actions/runs/41414660469) — **SUCCESS, 4/4 jobs**: `contract`, `technology-runtime`, MariaDB 10.11 and MariaDB 11.8.
 - The previous run #41413760836 exposed a collector PHP allowlist mismatch after adding the database compatibility helper. The helper was excluded from the isolated form collector; D3 and the complete rerun then passed.
 - Main remains `12e9c3feb707e5ad46b2caeeed379eb40618466`; no merge, reset or main write.
