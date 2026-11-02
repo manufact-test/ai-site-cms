@@ -118,7 +118,19 @@ async function execute(){
   };
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin+'/studio');
-  await page.locator('#server-login:not([hidden])').waitFor();
+  try{
+    await page.locator('#server-login:not([hidden])').waitFor({timeout:8000});
+  }catch(error){
+    console.error('Studio startup failed',JSON.stringify({
+      pageErrors:errors,
+      gates:await page.locator('#server-login').count(),
+      bodyClasses:await page.locator('body').getAttribute('class'),
+      studioMode:await page.locator('html').getAttribute('data-stage3-mode'),
+      hubCount:await page.locator('#server-hub').count(),
+      visibleBody:(await page.locator('body').innerText()).slice(0,1200)
+    }));
+    throw error;
+  }
   const anonymousDiagnostics=await page.evaluate(async()=>{
     return (await fetch('/api/hosting/diagnostics',{cache:'no-store'})).status;
   });
@@ -565,7 +577,11 @@ async function execute(){
   assert.equal(imported.siteId,'site-approved-browser');
   assert.equal(await page.locator('#server-empty-state:visible').count(),0);
   assert.equal(imported.assets.length,4);
-  await page.locator('#server-nav-editor').click();
+  await page.locator('#server-nav-site').click();
+  assert.match(await page.locator('#server-project-title').innerText(),/Внешний готовый сайт/);
+  assert.equal(await page.locator('#server-project-pages .cms-page-link').count(),2);
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-site-dashboard.png'),fullPage:true});
+  await page.locator('#server-project-pages .cms-page-link').first().click();
   await page.locator('#page-add:visible').waitFor();
   assert.equal(await page.locator('#server-project-editor').count(),1);
 
@@ -740,6 +756,7 @@ async function execute(){
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
   await page.locator('#server-nav-site-settings').click();
   await page.locator('#server-view-site-settings:visible').waitFor();
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-site-settings.png'),fullPage:true});
   await page.evaluate(()=>{
     const siteTools=document.querySelector('#server-site-tools');
     if(siteTools)siteTools.open=true;
@@ -1641,6 +1658,7 @@ async function execute(){
   // Page recovery stays in site resources, outside the editor toolbar.
   await page.locator('#server-nav-resources').click();
   await page.locator('#server-view-resources:visible').waitFor();
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-site-resources.png'),fullPage:true});
   await page.locator('#server-drawer-backup').evaluate(node=>{node.open=true;});
   await page.locator('#server-history-open').click();
   await page.locator('#server-history-dialog[open]').waitFor();

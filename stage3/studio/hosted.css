@@ -1131,7 +1131,8 @@ html[data-stage3-mode="server"] .hosted-site-tools-dialog .hosted-tool-category[
 
 /* Server Studio information architecture. The offline editor is untouched. */
 html[data-stage3-mode="server"] .topbar{gap:18px;flex-wrap:wrap}
-.cms-global-nav{display:flex;align-items:center;gap:3px;flex:1 1 auto;min-width:0;flex-wrap:wrap}
+.cms-global-nav{display:flex;align-items:center;gap:3px;flex:1 1 auto;min-width:0;
+  flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain}
 .cms-nav-link{font-family:inherit;font-weight:650;font-size:12px;line-height:1.3;
   color:#5a6e86;background:transparent;border:0;
   border-radius:9px;padding:10px 11px;cursor:pointer;white-space:nowrap}
@@ -1205,6 +1206,9 @@ html[data-stage3-mode="server"] .workspace.cms-hub-mode{display:block;min-height
   html[data-stage3-mode="server"] .topbar{align-items:flex-start}
   .cms-global-nav{order:3;flex-basis:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}
   .cms-nav-link{flex:none}
+  html[data-stage3-mode="server"] .workspace:not(.cms-hub-mode)>.sidebar,
+  html[data-stage3-mode="server"] .workspace:not(.cms-hub-mode)>.inspector{
+    position:static;height:auto;overflow:visible}
 }
 @media(max-width:640px){
   .cms-hub{padding:18px 12px 34px}

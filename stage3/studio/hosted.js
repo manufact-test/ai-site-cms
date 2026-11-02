@@ -2788,6 +2788,7 @@
   let cmsCurrentView='home';
   const makeCmsView=(id,kicker,title,description)=>{
     const area=element('section','cms-hub-view');area.id='server-view-'+id;
+    area.tabIndex=-1;
     const heading=element('div','cms-hub-heading');
     heading.append(element('small','cms-hub-kicker',kicker),element('h1',null,title),
       element('p',null,description));
@@ -2883,6 +2884,7 @@
       cmsWorkspace.querySelector(part).hidden=!editing;
     document.querySelector('.top-actions').hidden=!editing;
     cmsHub.hidden=editing;
+    document.querySelector('.skip-link').href=editing?'#main-content':'#server-view-'+view;
     for(const [id,area] of cmsViews)area.hidden=id!==view;
     for(const [id,button] of cmsNavButtons){
       button.hidden=(id==='platform'||id==='import')&&!isOwner()||
@@ -2908,7 +2910,7 @@
   // Tab-scoped UI preference only. Never persist user/site data or write a draft.
   const disclosureKey='manufact-studio-disclosures-v2';
   const disclosures=[
-    adminMore,siteTools,...siteTools.querySelectorAll('details.hosted-tool-category'),
+    adminMore,...siteTools.querySelectorAll('details.hosted-tool-category'),
     ...drawerRail.querySelectorAll('details.hosted-drawer')
   ];
   try{
@@ -2916,6 +2918,9 @@
     if(Array.isArray(selected))for(const disclosure of disclosures)
       disclosure.open=selected.includes(disclosure.id);
   }catch(_){}
+  // This wrapper is a permanent site-settings region in the routed Studio,
+  // no longer a user-collapsible disclosure with a hidden summary.
+  siteTools.open=true;
   for(const disclosure of disclosures)disclosure.addEventListener('toggle',()=>{
     try{sessionStorage.setItem(disclosureKey,
       JSON.stringify(disclosures.filter(d=>d.open).map(d=>d.id)));}catch(_){}
