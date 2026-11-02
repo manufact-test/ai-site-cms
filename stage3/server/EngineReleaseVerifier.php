@@ -130,7 +130,7 @@ final class EngineReleaseVerifier
         }
         $requiredFiles = ['stage3/server/bootstrap.php','stage3/server/public/index.php',
             'stage3/server/EngineReleaseVerifier.php','stage3/server/EngineLifecycle.php',
-            'stage3/server/DatabaseSnapshot.php','stage3/server/EngineRuntime.php',
+            'stage3/server/DatabaseSnapshot.php','stage3/server/DatabaseServerCompatibility.php','stage3/server/EngineRuntime.php',
             'stage3/studio/bundle.js','stage3/studio/hosted.js','stage3/components/custom-section.json'];
         foreach ($requiredFiles as $required) {
             if (!isset($seen[strtolower($required)])) throw new RuntimeException('CMS engine release is missing a required runtime file: ' . $required);
