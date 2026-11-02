@@ -2833,8 +2833,12 @@
     element('p',null,'Подготовленная и проверенная папка approved-v2: исходный site.json, передача разработчика, три утверждённых макета (ПК, планшет, телефон), описание и спецификация, локальные медиа и контрольная подпись. CMS проверит пакет перед созданием черновика.'),
     element('p','cms-import-warning','Не выбирайте произвольный сайт, скриншоты или исходники HTML. Сначала согласуйте дизайн; отсутствие подготовленного пакета — нормальное пустое состояние.'));
   const importBack=action('← Мои сайты','server-import-back',()=>setCmsView('home'));
-  importView.append(importBack,importGuide,$('server-drawer-import'));
-  $('server-drawer-import').open=true;
+  // The drawer is still inside the detached hub at this point. Resolve it
+  // from its known parent instead of document.getElementById (which returns
+  // null for detached nodes and aborts hosted login initialization).
+  const importDrawer=drawerRail.querySelector('#server-drawer-import');
+  importView.append(importBack,importGuide,importDrawer);
+  importDrawer.open=true;
   cmsWorkspace.append(cmsHub);
 
   for(const [id,labelText] of [
