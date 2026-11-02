@@ -2888,6 +2888,8 @@
       siteRequired.includes(requested)&&!state.siteId?'home':requested;
     cmsCurrentView=view;
     const editing=view==='editor'&&Boolean(state.siteId)&&authorized;
+    // Settings are a dedicated screen, not a collapsible container.
+    if(view==='site-settings')siteTools.open=true;
     // Import's entry screen is an explicit owner task, not a persisted
     // accordion preference; always show the original folder controls there.
     if(view==='import'&&isOwner()){
