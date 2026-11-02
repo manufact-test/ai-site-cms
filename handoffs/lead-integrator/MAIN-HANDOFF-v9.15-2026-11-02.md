@@ -8,7 +8,7 @@
 ## 1. Git and CI checkpoint
 
 - Tested functional code SHA: `4a7182dc859e5b4affbc0a560c5f793ff4f1041e`
-- Current branch HEAD after documentation updates: `5ba3bdfa4bac2fb5156a695a65b15f54d2724527`
+- Documentation-only handoff commits follow the tested code; verify the live branch tip before writing.
 - Full CI: [#41414660469](https://github.com/manufact-test/ai-site-cms/actions/runs/41414660469) — **SUCCESS, 4/4 jobs**.
   - `contract`: SUCCESS
   - `technology-runtime`: SUCCESS
