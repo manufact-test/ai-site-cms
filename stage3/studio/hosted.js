@@ -2821,7 +2821,12 @@
   const accountView=makeCmsView('account','ЛИЧНЫЕ НАСТРОЙКИ','Аккаунт',
     'Профиль, пароль и выход. Эти действия не относятся к подключению сайта.');
   const accountActions=element('div','cms-hub-card cms-hub-actions');accountActions.id='server-account-actions';
-  accountActions.append($('server-logout'));accountView.append(accountActions);
+  const accountProfile=element('div','cms-account-profile');
+  accountProfile.append(element('h2',null,'Ваш профиль'));
+  // The toolbar is also detached until the hub is mounted. Keep the original
+  // authenticated Logout button and its handler; document.getElementById
+  // would return null here and append the literal text "null".
+  accountActions.append(accountProfile,row.querySelector('#server-logout'));accountView.append(accountActions);
   const platformView=makeCmsView('platform','ТОЛЬКО ВЛАДЕЛЕЦ','Управление CMS',
     'Пользователи, лицензии, журнал действий, подписанные обновления и восстановление системы.');
   const platformActions=element('div','cms-hub-card cms-hub-actions');platformActions.id='server-platform-actions';
@@ -2907,7 +2912,7 @@
   const mountAccessNavigation=()=>{
     const identity=$('server-identity');
     if(!identity)return;
-    accountActions.prepend(identity);
+    accountProfile.append(identity);
     for(const id of ['server-password-open']){const button=$(id);if(button)accountActions.append(button);}
     for(const id of ['server-users-open','server-audit-open','server-licenses-open']){
       const button=$(id);if(button)platformActions.append(button);
@@ -6056,9 +6061,12 @@
       const data=await api('/api/login','POST',{username:user.value,password:pass.value});
       state.csrf=data.csrfToken;state.principal=data.principal;state.authorized=true;pass.value='';
       setGate(false);
+      editorVisible(false);
       await refreshSites();
-      if(state.sites.length)await openSite(state.sites[0].site_id);
-      else{editorVisible(false);notice('Вход выполнен. Подключите готовый сайт.');}
+      // A session opens the CMS workspace, never an arbitrary first site.
+      // Site selection remains an explicit owner action from the real list.
+      notice(state.sites.length?'Вход выполнен. Выберите сайт из списка.':
+        'Вход выполнен. Подключите готовый сайт.');
     }catch(err){
       info.textContent=err.message;
       // Authentication is independent from the active engine/site editor.
@@ -6258,9 +6266,10 @@
       const stateResponse=await api('/api/session');
       if(stateResponse.authenticated){
         state.csrf=stateResponse.csrfToken;state.principal=stateResponse.principal;state.authorized=true;setGate(false);
+        editorVisible(false);
         await refreshSites();
-        if(state.sites.length)await safe(()=>openSite(state.sites[0].site_id));
-        else notice('Вход действителен. Создайте первый сайт.');
+        notice(state.sites.length?'Вход действителен. Выберите сайт из списка.':
+          'Вход действителен. Подключите подготовленный сайт.');
       } else user.focus();
     }catch(err){info.textContent='Сервер недоступен: '+err.message;}
     finally{state.loading=false;drawStatus();}

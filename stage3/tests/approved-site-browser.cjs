@@ -191,6 +191,9 @@ async function execute(){
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-empty-home.png'),fullPage:true});
   await page.locator('#server-nav-account').click();
   assert.equal(await page.locator('#server-password-open:visible').count(),1);
+  assert.equal(await page.locator('#server-logout:visible').count(),1,
+    'Logout is a real retained action in Account, not a detached-node placeholder');
+  assert.equal(await page.locator('#server-account-actions').innerText().then(s=>s.includes('null')),false);
   assert.equal(await page.locator('#server-users-open:visible').count(),0);
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-empty-account.png'),fullPage:true});
   await page.locator('#server-nav-platform').click();
@@ -523,8 +526,10 @@ async function execute(){
     'Both original sealed documents must survive before any media upload');
   await page.evaluate(()=>sessionStorage.clear());
   await page.reload();
-  // A fresh session shows an existing draft in the project dashboard. Import
-  // is an explicit, separate navigation destination.
+  // A fresh session shows actual saved drafts in the CMS home, never silently
+  // opens a random first site. Import is a separate explicit destination.
+  await page.locator('#server-site-list .cms-site-card').first().waitFor();
+  assert.equal(await page.locator('#server-view-home:visible').count(),1);
   await page.locator('#server-nav-import').click();
   await page.locator('#server-view-import:visible').waitFor();
   try{

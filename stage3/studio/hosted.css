@@ -1162,6 +1162,9 @@ html[data-stage3-mode="server"] .workspace.cms-hub-mode{display:block;min-height
 .cms-hub-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
 .cms-hub-card.cms-hub-actions{align-content:start;align-items:center}
 .cms-hub-actions .btn{min-height:40px;font-size:12px}
+.cms-account-profile{flex:1 1 100%;padding-bottom:12px;border-bottom:1px solid #e4eaf2;margin-bottom:8px}
+.cms-account-profile h2{margin-bottom:8px}
+.cms-account-profile #server-identity{color:#486782;font-size:14px;font-weight:600}
 .cms-section-title{margin:25px 0 12px!important}
 .cms-project-pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:10px}
 .cms-page-link{display:grid;gap:7px;text-align:left;padding:16px 18px;border-radius:12px;
