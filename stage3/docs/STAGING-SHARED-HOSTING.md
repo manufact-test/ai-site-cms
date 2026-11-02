@@ -1,14 +1,25 @@
 # Stage3 shared-hosting staging deployment
 
-**Status:** deployment preparation only. The private hPanel Cron runner and read-only readiness diagnostics are implemented and CI-tested, but no real host, DNS, staging subdomain, production database or customer data has been contacted. This runbook is not production approval.
+**Status:** isolated Hostinger staging preparation is underway. The owner-selected unconnected test site has the sibling layout and PHP CLI probe/preflight completed; no database, private runner config, `--plan` or `--apply` has been used. This runbook is not production approval.
+
+
+
+## Current Hostinger staging checkpoint (2026-11-02)
+
+- Selected target: `mediumpurple-fox-175549.hostingersite.com`, the separate test website that is not connected to Git. The other site, `lightseagreen-woodpecker-264491.hostingersite.com`, remains connected to the Stage2 branch and has not been changed.
+- The owner extracted the prior sibling-layout package at account-home level. Active layout observed: sibling `stage3/` and `public_html/`; the public root contains only `index.php` and `.htaccess`, both mode `0444`. The original `default.php` was preserved outside the public root.
+- Private directory `.stage3-private/` exists with exact mode `0700`. The account web-root scan found 31 candidate roots and wrote a private inventory file; the next setup helper will re-discover and compare the inventory before allowing `--plan`.
+- Web PHP is set to 8.3. The owner-controlled Cron probe reports PHP CLI 8.2.35 with PDO, PDO MySQL, JSON, OpenSSL and mbstring available. The CLI/web version difference is acceptable for the current minimums.
+- Temporary Cron jobs have been removed. No existing database was opened, no database was created or changed, no credentials were read, and no private runner config, `--plan` or `--apply` has been executed.
+- The old runtime contains a temporary filesystem-preflight helper; it will be left in the retained backup when the updated runtime is installed. Do not run engine-integrity checks against that old runtime.
 
 ## 1. Deployment boundary
 
-The next real-host exercise is an isolated **staging** installation of Stage3. It must use a dedicated staging subdomain, a dedicated empty MySQL database and a private directory that cannot be reached from the web. It must not share production credentials, data, document root, form endpoint or notification destination.
+The next real-host exercise is an isolated **staging** installation of Stage3. It must use a dedicated staging subdomain, a dedicated empty MySQL 8.0+ or MariaDB 10.11+ database and a private directory that cannot be reached from the web. It must not share production credentials, data, document root, form endpoint or notification destination.
 
 Do not deploy to production, change main, point a live domain at this branch, or import a client site until the owner separately approves that exact action.
 
-Installation remains intentionally CLI-only. Hostinger shared/general SSH is off-limits; a private one-shot CLI runner is now implemented for an owner-controlled hPanel Cron command. It has been exercised against disposable MySQL 8 in CI, but has not been run on Hostinger. If hPanel cannot execute a custom PHP CLI command or the private paths cannot be isolated, stop. Do not expose install.php, engine.php, a shell bridge or a credential form over HTTP. Requirement #183 (browser-guided initial setup) remains separate and open.
+Installation remains intentionally CLI-only. Hostinger shared/general SSH is off-limits; a private one-shot CLI runner is now implemented for an owner-controlled hPanel Cron command. It has been exercised against disposable MySQL 8 and MariaDB 10.11/11.8 in CI; the zero-credential `--probe` has also run on Hostinger. If hPanel cannot execute a custom PHP CLI command or the private paths cannot be isolated, stop. Do not expose install.php, engine.php, a shell bridge or a credential form over HTTP. Requirement #183 (browser-guided initial setup) remains separate and open.
 
 ## 2. Required topology
 
@@ -18,7 +29,7 @@ The Hostinger sibling-layout package is designed to be extracted at the account-
 - Public document root: the canonical sibling `public_html/` directory. It must contain exactly `index.php` and `.htaccess`, copied byte-for-byte from `stage3/server/public/` and read-only (0444).
 - Private directory: an existing canonical directory with exact mode 0700, outside and not nested under the runtime tree or any account web root. The PHP web process and CLI installer must be able to access it as the same hosting account.
 - Account web-root inventory: a complete owner-supplied list of 1–50 canonical web roots. It must include the Stage3 `public_html/` and every other active domain/subdomain root in the account. The runtime tree and private directory must not overlap any other web root.
-- Database: one dedicated, empty MySQL 8.0+ database and its own least-privilege user. MariaDB, SQLite and an existing/non-empty database are not supported for a hosted install.
+- Database: one dedicated, empty MySQL 8.0+ or MariaDB 10.11+ database and its own least-privilege user. SQLite, older/unsupported versions and existing/non-empty databases are not supported for a hosted install.
 - PHP: verify the web SAPI separately from CLI. Minimum PHP 8.1 (target 8.3) with PDO, PDO MySQL, JSON, OpenSSL and mbstring.
 - TLS: valid HTTPS on the staging hostname before owner login or form tests. Protect staging with host-level password protection or an IP allowlist; noindex alone is not access control.
 
@@ -29,7 +40,7 @@ The Stage3 public .htaccess uses Apache 2.4 / LiteSpeed-compatible mod_rewrite r
 ## 3. Before upload
 
 1. Confirm a dedicated staging website/subdomain that is separate from all live sites; verify its current document root and the complete account web-root inventory.
-2. Create a new, empty MySQL 8.0+ database and user for Stage3 only. Never reuse Stage2 or production credentials.
+2. Create a new, empty MySQL 8.0+ or MariaDB 10.11+ database and user for Stage3 only. Never reuse Stage2 or production credentials.
 3. Confirm hPanel can run a custom PHP CLI command through Cron, then check CLI PHP version/extensions and the website's web PHP version/extensions separately.
 4. Upload the CI artifact `ai-site-stage3-hostinger-sibling` and extract it at the account-home level, not inside `public_html/`. The extracted layout must be `stage3/`, `public_html/` and `cms-release.json` as siblings. Do not deploy this package through a Git integration whose repository root is `public_html`; that would put the private runtime under the web root.
 5. Verify `public_html/` contains exactly `index.php` and `.htaccess`, and that the complete `stage3/` runtime is outside every other web root. Do not use symlinks to expose the repository root or move the document root to `stage3/server`.
@@ -67,7 +78,7 @@ The owner prepares:
 - A private directory outside the runtime tree and every account web root, mode `0700`.
 - `hosted-install-runner.json` inside that directory, mode `0600`, canonical JSON with the exact documented key order.
 - A complete inventory of all account web roots, including the dedicated Stage3 public root.
-- A dedicated empty MySQL 8.0+ database and fresh owner/form secrets. Never reuse Stage2 or production credentials.
+- A dedicated empty MySQL 8.0+ or MariaDB 10.11+ database and fresh owner/form secrets. Never reuse Stage2 or production credentials.
 
 Run a read-only plan as a custom PHP CLI command in hPanel Cron:
 
@@ -122,7 +133,7 @@ Use only a disposable test site and test identities:
 6. Inspect the CMS engine version and trust state. Rehearse a signed schema-preserving engine update, verified 25-table snapshot, rollback and explicit recovery using a test release. Do not test schema migrations; they remain blocked.
 7. Submit test forms only to a staging inbox. Verify conditional fields, spam/origin/HMAC rejection, stored lead, email to a test mailbox and Telegram to a test chat. No client notification destination is used.
 8. Verify backup retrieval and a restore rehearsal into a separate empty staging database.
-9. Open the owner-only read-only `/api/hosting/diagnostics` panel in Studio. It verifies the actual front controller, PHP/open_basedir access to runtime/private/upload paths, file-upload configuration, MySQL/schema integrity, private topology, HTTPS, sessions and public-root policy. Also record PHP/web-SAPI version, MySQL version, file ownership/permissions, response codes and any LiteSpeed/Apache differences. The diagnostic cannot discover web roots omitted from the owner-supplied account inventory.
+9. Open the owner-only read-only `/api/hosting/diagnostics` panel in Studio. It verifies the actual front controller, PHP/open_basedir access to runtime/private/upload paths, file-upload configuration, MySQL/MariaDB schema integrity, private topology, HTTPS, sessions and public-root policy. Also record PHP/web-SAPI version, MySQL/MariaDB server version, file ownership/permissions, response codes and any LiteSpeed/Apache differences. The diagnostic cannot discover web roots omitted from the owner-supplied account inventory.
 
 Owner hands-on acceptance of the real Studio and the first connected site is still required. A green CI or a successful HTTP health check is not product acceptance.
 
@@ -132,11 +143,11 @@ Owner hands-on acceptance of the real Studio and the first connected site is sti
 - CMS engine rollback selects the previous verified immutable code slot. It does not silently restore the database.
 - Visitor-site D3 release rollback is separate from CMS engine rollback.
 - Full database snapshot restore is a separately guarded operation into an empty target database; never point it at production or assume a code rollback rewinds data.
-- If routing, TLS, PHP web SAPI, MySQL, private-directory isolation, permissions, session cookies, owner login or backup verification fails, put the staging hostname behind access protection and stop. Preserve logs with secrets redacted.
+- If routing, TLS, PHP web SAPI, MySQL/MariaDB, private-directory isolation, permissions, session cookies, owner login or backup verification fails, put the staging hostname behind access protection and stop. Preserve logs with secrets redacted.
 - Do not delete a failed staging database or private snapshot automatically; obtain owner approval before destructive cleanup.
 
 ## 7. Owner inputs required for the real-host phase
 
-Before the first remote staging operation, confirm the hosting provider, exact staging hostname/document-root path, the complete account web-root inventory, availability of a dedicated empty MySQL database, the exact external Git auto-deploy branch, and owner approval for the private hPanel Cron command. Credentials must be entered privately on the host; do not send passwords, private keys or approval fingerprints in chat.
+Before the first remote staging operation, confirm the hosting provider, exact staging hostname/document-root path, the complete account web-root inventory, availability of a dedicated empty MySQL 8.0+ or MariaDB 10.11+ database, the exact external Git auto-deploy branch, and owner approval for the private hPanel Cron command. Credentials must be entered privately on the host; do not send passwords, private keys or approval fingerprints in chat.
 
 The first target may be Hostinger if that is still the intended shared host, but the current CI Apache container is not evidence of Hostinger/LiteSpeed compatibility.
