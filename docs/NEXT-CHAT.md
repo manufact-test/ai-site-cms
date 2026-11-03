@@ -1,3 +1,19 @@
+# CURRENT CHECKPOINT — direct canvas selection and scroll continuity, 2026-11-03 (read first)
+
+**Branch:** `feature/stage3-ai-site-contract`. **Latest functional SHA:** `2d3db6e25fd61dcab3a4a24d4ca5f54f7e2c504c`. **Full CI:** [#41661403198](https://github.com/manufact-test/ai-site-cms/actions/runs/41661403198) — **SUCCESS 4/4**. Previous fully green functional fallback: `be2a0169a686cd2b118b8e721547f8050a827cc8` ([CI #41660481727](https://github.com/manufact-test/ai-site-cms/actions/runs/41660481727) SUCCESS 4/4).
+
+**Everyday owner workflow:** the main Studio preview is now directly selectable. Clicking a real page block opens block settings; clicking reliably matched manifest text, an image or a repeated gallery/card item opens that element in the existing Inspector. Focusing a section in the preview and pressing Enter/Space selects its block. The selected section/field receives transient visual highlighting. The preview scroll is restored after rerenders and desktop/tablet/mobile switches on the same site/page. These are **selection-only** actions, never content changes, saves, publication or navigation.
+
+The main iframe remains scriptless and sandboxed, with only `allow-same-origin` granted so the parent controller can bind **validated** section/element IDs (same mechanism as the existing full-page Workbench). No scripts, form submission, link navigation, popup permissions or server writes are enabled by canvas click. Design Graph internals remain selected in their existing full-page Workbench; if a visible item cannot be matched to a manifest field, clicking its section still opens block scope instead of guessing.
+
+**Browser regression:** offline Chromium selects heading, background block, keyboard section and gallery repeater, verifies no draft mutation and scroll position after switching width. Hosted PHP preview Chromium selects a real block without changing draft. Screenshots include `stage3-canvas-click-selection.png` in the existing GitHub Actions screenshot artifact. Existing saved/reviewed/published/rollback flows and 4 CI jobs remain the gate.
+
+**Final CI:** [#41661403198](https://github.com/manufact-test/ai-site-cms/actions/runs/41661403198) **SUCCESS 4/4**. [Real Chromium screenshot artifact #13243096641](https://github.com/manufact-test/ai-site-cms/actions/runs/41661403198/artifacts/13243096641). **Next:** inspect any additional visual evidence as needed and collect the owner's visual/hands-on approval before a separately authorized, reversible FOX staging update. **FOX still runs older code**. Do not touch Stage2, `main`, Production, private Hostinger settings/DB/Cron or begin the first client site. No new first-site design until the owner supplies the original landing and approves desktop/tablet/mobile static mockups.
+
+**Detailed handoff:** [ADMIN-UX-CANVAS-SELECTION-2026-11-03.md](../handoffs/lead-integrator/ADMIN-UX-CANVAS-SELECTION-2026-11-03.md).
+
+---
+
 # CURRENT CHECKPOINT — task-focused Inspector and keyboard navigation, 2026-11-03 (read first)
 
 **Branch:** `feature/stage3-ai-site-contract`. **Last verified functional SHA:** `f861ea7055dac3bff5ecdb4c68597c68d0cf73d2`. **Full CI:** [#41647681104](https://github.com/manufact-test/ai-site-cms/actions/runs/41647681104) — **SUCCESS 4/4** (offline and approved-site Chromium, Next runtime, MariaDB 10.11/11.8). [Genuine browser screenshots](https://github.com/manufact-test/ai-site-cms/actions/runs/41647681104/artifacts/13235149333). **Docs HEAD** is the latest documentation-only commit following this functional SHA.
