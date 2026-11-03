@@ -136,6 +136,32 @@ async function execute(){
       throw error;
     }
   };
+  const waitCompactInspectorHeading=async context=>{
+    try{
+      await page.waitForFunction(()=>{
+        const heading=document.getElementById('inspector-title');
+        const rect=heading?.getBoundingClientRect();
+        return heading&&document.activeElement===heading&&
+          rect.top>=0&&rect.top<innerHeight;
+      },null,{timeout:10000});
+    }catch(error){
+      const focus=await page.evaluate(()=>{
+        const heading=document.getElementById('inspector-title'),rect=heading?.getBoundingClientRect();
+        return {
+          activeTag:document.activeElement?.tagName,
+          activeId:document.activeElement?.id,
+          activeText:document.activeElement?.textContent?.slice(0,120),
+          headingTop:rect?.top,headingBottom:rect?.bottom,
+          height:innerHeight,scrollY:scrollY,
+          inspectorScroll:document.querySelector('.inspector')?.scrollTop,
+          page:document.querySelector('#pages .nav-entry.active')?.textContent,
+          section:document.querySelector('#sections .nav-entry.active')?.textContent
+        };
+      });
+      console.error('[hosted-compact-heading-focus]',context,JSON.stringify(focus));
+      throw error;
+    }
+  };
   const openGraphActions=async()=>{
     const group=page.locator('#cms-design-structure-actions');
     if(!(await group.evaluate(node=>node.open)))await group.locator(':scope > summary').click();
@@ -1343,14 +1369,10 @@ async function execute(){
     await page.setViewportSize({width,height});
   await openSectionTree();
     await page.locator('#sections .nav-entry').first().click();
-    await page.waitForFunction(()=>{
-      const h=document.getElementById('inspector-title'),r=h?.getBoundingClientRect();
-      return h&&document.activeElement===h&&r.top>=0&&r.top<innerHeight;
-    },null,{timeout:10000});
+    await waitCompactInspectorHeading('first section at '+width+'px');
   await openSectionTree();
     await page.locator('#sections .nav-entry').last().click();
-    await page.waitForFunction(()=>document.activeElement===
-      document.getElementById('inspector-title'),null,{timeout:10000});
+    await waitCompactInspectorHeading('last section at '+width+'px');
     await page.locator('[data-inspector-scope="element"]').click();
   }
   await page.setViewportSize({width:1400,height:1000});

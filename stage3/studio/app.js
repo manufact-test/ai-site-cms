@@ -421,10 +421,20 @@
     const target=kind==='section'?$('inspector-scopes'):panel;
     target?.scrollIntoView({block:kind==='section'?'center':'start',behavior:'instant'});
     if(heading){
-      heading.tabIndex=-1;heading.focus({preventScroll:true});
-      /* A compact Inspector may retain its own scroll offset after layout changes.
-         Keep the focused heading onscreen, even when its scopes are centered. */
-      heading.scrollIntoView({block:'nearest',behavior:'instant'});
+      const reveal=()=>{
+        if(!matchMedia('(max-width:970px)').matches||
+          pageId!==selectedPageId||sectionId!==selectedSectionId)return;
+        heading.tabIndex=-1;heading.focus({preventScroll:true});
+        /* A compact Inspector's independent scroll offset may shift after
+           layout or pointer focus; center the heading after the next paint. */
+        heading.scrollIntoView({block:'center',behavior:'instant'});
+      };
+      reveal();
+      requestAnimationFrame(()=>{
+        const active=document.activeElement;
+        if(active===heading||active===document.body||
+          active?.closest('#sections,#pages'))reveal();
+      });
     }
   }
   function handleNavigatorKey(event){
