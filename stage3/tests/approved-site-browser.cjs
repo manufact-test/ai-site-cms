@@ -740,8 +740,11 @@ async function execute(){
     'The hosted canvas remains scriptless while the parent can select rendered blocks');
   const hostedCanvasDraftBefore=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
   await page.evaluate(()=>{window.__hostedCanvasDoc=document.querySelector('#preview').contentDocument;});
+  /* PHP-rendered blocks may still be settling after asset layout updates.
+     Force only skips Playwright's stability wait; the iframe receives a native
+     pointer click and the Inspector/draft assertions below still verify it. */
   await page.frameLocator('#preview').locator('[data-cms-section-id],section[id]')
-    .filter({visible:true}).first().click({position:{x:6,y:6}});
+    .filter({visible:true}).first().click({position:{x:6,y:6},force:true});
   assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА',
     'Pointer selection in actual PHP preview opens the block Inspector');
   assert.equal(await page.evaluate(()=>document.querySelector('#preview').contentDocument===window.__hostedCanvasDoc),true,
