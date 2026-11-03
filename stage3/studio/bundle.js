@@ -11053,20 +11053,25 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         .find(item=>item.id===elementNode?.dataset.cmsEditorElement);
       const nextElement=pickedElement?.id||pickedSection.elements[0].id;
       const nextScope=pickedElement?'element':'block';
-      if(sectionId===pickedSection.id&&elementId===nextElement&&inspectorScope===nextScope)return;
-      sectionId=pickedSection.id;elementId=nextElement;inspectorScope=nextScope;
-      draw();resetInspectorScroll();
-      if(matchMedia('(max-width:970px)').matches){
-        if(nextScope==='block')revealCompactSelection('section',pageId,sectionId);
-        else{
-          const atPage=pageId,atSection=sectionId,atElement=elementId;
-          requestAnimationFrame(()=>{
-            if(pageId!==atPage||sectionId!==atSection||elementId!==atElement)return;
-            const field=$('fields').querySelector('input:not([type="hidden"]),textarea,select,button');
-            field?.focus({preventScroll:true});field?.scrollIntoView({block:'center',behavior:'instant'});
-          });
-        }
+      const revealPicked=()=>{
+        if(!matchMedia('(max-width:970px)').matches)return;
+        if(nextScope==='block'){revealCompactSelection('section',pageId,sectionId);return;}
+        const atPage=pageId,atSection=sectionId,atElement=elementId;
+        requestAnimationFrame(()=>{
+          if(pageId!==atPage||sectionId!==atSection||
+            elementId!==atElement||inspectorScope!=='element')return;
+          const field=[...$('fields').querySelectorAll(
+            'input:not([type="hidden"]),textarea,select,button')].find(node=>node.getClientRects().length)||
+            $('fields').querySelector('summary.inspector-field-group-summary');
+          field?.focus({preventScroll:true});
+          field?.scrollIntoView({block:'center',behavior:'instant'});
+        });
+      };
+      if(sectionId===pickedSection.id&&elementId===nextElement&&inspectorScope===nextScope){
+        revealPicked();return;
       }
+      sectionId=pickedSection.id;elementId=nextElement;inspectorScope=nextScope;
+      draw();resetInspectorScroll();revealPicked();
     };
     doc.addEventListener('click',event=>{
       event.preventDefault();event.stopPropagation();pick(event);

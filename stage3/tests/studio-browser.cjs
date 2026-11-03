@@ -270,6 +270,21 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
         path:path.join(shots,'stage3-inspector-property-groups.png'),animations:'disabled'});
     }
     await page.setViewportSize({width:390,height:740});
+    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
+    await page.waitForFunction(()=>{
+      const active=document.activeElement;
+      return active?.closest('#fields')&&active.getClientRects().length>0;
+    });
+    const mobileCanvasFocus=await page.evaluate(()=>{
+      const active=document.activeElement,rect=active.getBoundingClientRect();
+      return {tag:active.tagName,top:rect.top,bottom:rect.bottom,height:innerHeight,
+        group:active.closest('[data-field-group]')?.dataset.fieldGroup};
+    });
+    assert.ok(mobileCanvasFocus.top>=-1&&mobileCanvasFocus.bottom<=mobileCanvasFocus.height+1,
+      'A second tap on the already selected element reveals a visible Inspector field: '+
+      JSON.stringify(mobileCanvasFocus));
+    assert.equal(mobileCanvasFocus.group,'style',
+      'Phone focus respects the expanded property group rather than focusing hidden content');
     const groupRects=await page.locator('#fields .inspector-field-group-summary')
       .evaluateAll(nodes=>nodes.map(node=>{
         const r=node.getBoundingClientRect();
