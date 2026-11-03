@@ -1039,6 +1039,50 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#redo').click();
     await canvas.locator('.cms-gallery-carousel').waitFor();
 
+    /* An Inspector card choice must reveal an off-screen carousel item inside
+       the same scriptless iframe and never change the unsaved site document. */
+    for(let i=0;i<4;i++)await page.locator('#cms-repeat-add').click();
+    const lastGalleryId=await page.locator('#elements [data-repeat-id]').last()
+      .getAttribute('data-repeat-id');
+    const galleryTrack=canvas.locator('.cms-gallery-carousel');
+    const beforeHorizontal=await galleryTrack.evaluate((track,id)=>{
+      track.scrollLeft=0;
+      const card=[...track.querySelectorAll(':scope > figure')]
+        .find(node=>node.dataset.cmsEditorElement===id);
+      const frame=track.getBoundingClientRect(),rect=card.getBoundingClientRect();
+      return {hidden:rect.left>=frame.right-2,left:track.scrollLeft};
+    },lastGalleryId);
+    assert.equal(beforeHorizontal.hidden,true,
+      'The last gallery item should initially be outside the horizontal viewport');
+    const beforeGallerySelection=await page.evaluate(()=>{
+      window.__galleryCanvasDocument=document.querySelector('#preview').contentDocument;
+      return JSON.stringify(window.Stage3Editor.getSite());
+    });
+    await page.locator('#elements [data-repeat-id="'+lastGalleryId+'"]').click();
+    const revealedGallery=await galleryTrack.evaluate((track,id)=>{
+      const card=[...track.querySelectorAll(':scope > figure')]
+        .find(node=>node.dataset.cmsEditorElement===id);
+      const frame=track.getBoundingClientRect(),rect=card.getBoundingClientRect();
+      return {left:rect.left,right:rect.right,trackLeft:frame.left,
+        trackRight:frame.right,scrollLeft:track.scrollLeft};
+    },lastGalleryId);
+    assert.ok(revealedGallery.scrollLeft>0&&
+      revealedGallery.left>=revealedGallery.trackLeft-2&&
+      revealedGallery.right<=revealedGallery.trackRight+2,
+      'Selected gallery item must scroll into its actual horizontal track: '+
+        JSON.stringify(revealedGallery));
+    assert.equal(await page.evaluate(()=>
+      document.querySelector('#preview').contentDocument===window.__galleryCanvasDocument),true,
+      'Carousel card navigation retains the original iframe');
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      beforeGallerySelection,'Carousel navigation is selection-only');
+    assert.match(await page.locator('#canvas-caption').innerText(),/выбран элемент/);
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.screenshot({path:path.join(shots,'stage3-carousel-card-selection.png'),
+        animations:'disabled',fullPage:true});
+    }
+
     // Opt-in field builder is usable in Chromium, Undo and real draft preview.
     await page.locator('#cms-canvas-add-block').click();
     await page.locator('#cms-component-search').fill('конструктор');

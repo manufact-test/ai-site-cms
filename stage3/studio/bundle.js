@@ -11114,8 +11114,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const device=breakpoint==='desktop'?'ПК':breakpoint==='tablet'?'планшет':'телефон';
     if(inspectorScope==='page')return 'Настройки страницы · '+device;
     if(section.deviceVisibility?.[breakpoint]===false)
-      return 'Секция скрыта на '+deviceVisibilityLabel()+' · выберите «Показать» в настройках блока';
-    return (m?.label||section.component)+' · выбранный блок выделен · '+device;
+      return 'Секция скрыта на '+deviceVisibilityLabel()+' · действие «Показать» доступно в Инспекторе';
+    return (m?.label||section.component)+
+      (inspectorScope==='element'?' · выбран элемент · ':' · выбран блок · ')+device;
   }
   function syncCanvasSelection(){
     const {page,section}=current(),m=manifest(section);
@@ -11146,6 +11147,19 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const target=[...(host?.querySelectorAll('[data-cms-editor-element]')||[])]
       .find(node=>node.dataset.cmsEditorElement===selectedElementId);
     if(!target||!win){scrollCanvasToSection(selectedSectionId);return;}
+    /* A selected carousel card may be outside its own horizontal scrollport
+       even when the whole page is vertically visible. Reveal it in-place. */
+    for(let parent=target.parentElement;parent&&parent!==doc.body&&
+      parent!==doc.documentElement;parent=parent.parentElement){
+      const overflow=win.getComputedStyle(parent).overflowX;
+      if(!['auto','scroll'].includes(overflow)||parent.scrollWidth<=parent.clientWidth+1)continue;
+      const bounds=parent.getBoundingClientRect(),card=target.getBoundingClientRect(),gap=10;
+      const available=bounds.width-2*gap;
+      const delta=card.width>available||card.left<bounds.left+gap
+        ?card.left-bounds.left-gap
+        :card.right>bounds.right-gap?card.right-bounds.right+gap:0;
+      if(Math.abs(delta)>1)parent.scrollBy({left:delta,behavior:'instant'});
+    }
     const rect=target.getBoundingClientRect(),margin=18;
     if(rect.top>=margin&&rect.bottom<=win.innerHeight-margin)return;
     const offset=rect.top<margin||rect.height>win.innerHeight-2*margin
