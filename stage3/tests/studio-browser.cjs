@@ -330,8 +330,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       JSON.stringify(window.Stage3Editor.getSite()));
     await page.locator('#cms-block-contents [data-cms-block-child="section-hero-heading"]').click();
     assert.equal(await page.locator('#inspector-eyebrow').innerText(),'СВОЙСТВА ЭЛЕМЕНТА');
-    assert.equal(await page.locator('#cms-hidden-section-warning').count(),1,
-      'A device-hidden section stays explained while its element Inspector is selected');
+    assert.equal(await page.locator('#cms-hidden-section-warning').isVisible(),true,
+      'A device-hidden section must show a visible repair action outside collapsed element navigation');
     assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
       hiddenBeforeElementPick,'Selecting a hidden element must not mutate its section');
     if(process.env.GITHUB_ACTIONS==='true'){

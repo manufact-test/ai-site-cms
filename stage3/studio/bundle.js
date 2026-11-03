@@ -10209,6 +10209,21 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     };
   })();
 
+  /* The visibility repair belongs to whichever Inspector scope is actually open. */
+  function createHiddenSectionWarning(){
+    const warning=document.createElement('div');
+    warning.id='cms-hidden-section-warning';warning.className='cms-hidden-section-warning';
+    warning.setAttribute('role','status');
+    const message=document.createElement('p');
+    message.textContent='Эта секция скрыта на '+deviceVisibilityLabel()+
+      '. Она осталась в черновике, но отсутствует в предпросмотре этого устройства.';
+    const show=button('Показать на '+deviceVisibilityLabel(),'btn small',()=>{
+      structural({action:'setSectionVisibility',pageId,sectionId,device:breakpoint,visible:true});
+    });
+    show.id='cms-show-hidden-section';show.dataset.editorWrite='true';
+    warning.append(message,show);
+    return warning;
+  }
   function drawElements(){
     const {page,section}=current(),m=manifest(section);
     const pageActions=$('page-add')?.closest('.structure-tools');
@@ -10288,20 +10303,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       intro.textContent='Выбрана вся секция. Нажмите на объект ниже или прямо на странице, чтобы изменить его содержимое.';
       row.append(intro);
     }
-    /* A hidden section must remain discoverable even while editing its element. */
-    if(section.deviceVisibility?.[breakpoint]===false){
-        const warning=document.createElement('div');
-        warning.id='cms-hidden-section-warning';warning.className='cms-hidden-section-warning';
-        warning.setAttribute('role','status');
-        const message=document.createElement('p');
-        message.textContent='Эта секция скрыта на '+deviceVisibilityLabel()+
-          '. Она осталась в черновике, но отсутствует в предпросмотре этого устройства.';
-        const show=button('Показать на '+deviceVisibilityLabel(),'btn small',()=>{
-          structural({action:'setSectionVisibility',pageId,sectionId,device:breakpoint,visible:true});
-        });
-        show.id='cms-show-hidden-section';show.dataset.editorWrite='true';
-        warning.append(message,show);row.append(warning);
-    }
+    if(blockScope&&section.deviceVisibility?.[breakpoint]===false)
+      row.append(createHiddenSectionWarning());
     if(blockScope){
       const contents=document.createElement('details');
       contents.id='cms-block-contents';contents.className='cms-block-contents';
@@ -10684,6 +10687,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const fields=C.controls(session.current,manifests,pageId,sectionId,elementId);
     const box=$('fields');box.replaceChildren();
     if(inspectorScope==='block'||inspectorScope==='page')return;
+    if(current().section.deviceVisibility?.[breakpoint]===false)
+      box.append(createHiddenSectionWarning());
     if(!fields.length){
       const empty=document.createElement('p');empty.className='inspector-empty';
       empty.textContent='У этого элемента пока нет редактируемых свойств.';
