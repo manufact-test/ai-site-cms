@@ -1174,31 +1174,32 @@ async function execute(){
     'FAQ delete must target the specified question, not the currently selected index');
   assert.equal(await page.locator('#elements .cms-repeat-row').count(),2);
   assert.equal(await page.locator('#cms-repeat-add').innerText(),'+ Добавить вопрос');
-  // SEO is a site-level area, separate from the currently selected FAQ block.
-  await page.locator('#server-nav-site-settings').click();
-  await page.locator('#server-view-site-settings:visible').waitFor();
-  await page.locator('#server-tool-seo').evaluate(node=>{node.open=true;});
+  /* Page metadata belongs to the selected page, never site-wide settings. */
+  const pageSettings=page.locator('#server-page-actions');
+  await pageSettings.locator(':scope > summary').click();
+  assert.equal(await pageSettings.locator('.hosted-structure-subhead').count(),2);
+  assert.equal(await page.locator('#server-tool-seo #cms-open-seo').count(),0,
+    'Page SEO cannot be misplaced in the site-wide SEO tools');
   const seoToolButton=page.locator('#cms-open-seo');
   await seoToolButton.scrollIntoViewIfNeeded();
   const seoToolPointerGeometry=await seoToolButton.evaluate(button=>{
     const rect=button.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
-    const area=document.querySelector('#server-view-site-settings');
-    const areaRect=area.getBoundingClientRect(),hit=document.elementFromPoint(x,y);
-    return {areaVisible:!area.hidden,insideArea:x>=areaRect.left&&x<=areaRect.right&&
+    const area=button.closest('#server-page-actions'),areaRect=area.getBoundingClientRect();
+    const hit=document.elementFromPoint(x,y);
+    return {open:area.open,insideArea:x>=areaRect.left&&x<=areaRect.right&&
       y>=areaRect.top&&y<=areaRect.bottom,hitIsTarget:hit===button||button.contains(hit)};
   });
-  console.log('[site-tools-pointer-geometry] '+JSON.stringify(seoToolPointerGeometry));
-  assert.equal(seoToolPointerGeometry.areaVisible,true,
-    'The SEO action must be accessed through site settings');
-  assert.equal(seoToolPointerGeometry.insideArea,true,
-    'The SEO action must remain inside the site-settings screen');
+  console.log('[page-settings-pointer-geometry] '+JSON.stringify(seoToolPointerGeometry));
+  assert.equal(seoToolPointerGeometry.open,true,'Page settings open for the selected page');
+  assert.equal(seoToolPointerGeometry.insideArea,true,'Page SEO stays in the page settings group');
   assert.equal(seoToolPointerGeometry.hitIsTarget,true,
-    'A real pointer at the SEO action center must hit the action: '+JSON.stringify(seoToolPointerGeometry));
+    'A real pointer at page SEO must hit its action: '+JSON.stringify(seoToolPointerGeometry));
   await seoToolButton.click();
   await page.locator('#cms-setting-seo-title').fill('FAQ и готовый сайт — SEO');
   await page.locator('#cms-setting-seo-description').fill('Новые вопросы и SEO опубликованы после ручного сохранения');
   await page.locator('#cms-settings-apply').click();
-  await page.locator('#server-nav-editor').click();
+  assert.equal(await page.locator('#server-nav-editor').getAttribute('aria-current'),'page',
+    'Page-level settings return to the same editor and selected page');
   await page.locator('#save').click();
   await page.locator('#server-launch-review').click();
   await page.locator('#server-launch-dialog').waitFor();

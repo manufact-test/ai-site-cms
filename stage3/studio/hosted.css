@@ -1229,3 +1229,6 @@ html[data-stage3-mode="server"] .workspace.cms-hub-mode{display:block;min-height
 .cms-project-advanced>summary::after{content:"⌄";margin-left:9px}
 .cms-project-advanced[open]>summary::after{content:"⌃"}
 html[data-stage3-mode="server"] #cms-open-page-preview{display:none!important}
+
+/* Contextual page and block operations inside the existing hosted editor. */
+.hosted-structure-more-actions .hosted-structure-subhead{display:block;color:#6c86a1;font-size:10px;letter-spacing:.09em;font-weight:800;padding:12px 7px 5px;line-height:1.4}

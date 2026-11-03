@@ -2619,6 +2619,7 @@
       if(item.title)control.title=item.title;
       if(item.aria)control.setAttribute('aria-label',item.aria);
       if(item.hidden)control.hidden=true;
+      if(item.group)actions.append(element('small','hosted-structure-subhead',item.group));
       control.classList.add('hosted-structure-secondary');
       actions.append(control);
     }
@@ -2626,17 +2627,18 @@
     source.classList.add('hosted-structure-actions');
     source.replaceChildren(primary,details);
   };
-  compactStructureActions('page-add','Добавить страницу','server-page-actions','Действия страницы',[
-    {id:'page-rename',label:'Название и адрес'},
-    {id:'page-duplicate',label:'Дублировать страницу'},
+  compactStructureActions('page-add','Добавить страницу','server-page-actions','Настройки страницы',[
+    {id:'page-rename',label:'Название и адрес',group:'ПАРАМЕТРЫ СТРАНИЦЫ'},
+    {id:'cms-open-seo',label:'SEO и меню страницы'},
+    {id:'page-duplicate',label:'Дублировать страницу',group:'ДЕЙСТВИЯ СО СТРАНИЦЕЙ'},
     {id:'page-up',title:'Переместить страницу выше',aria:'Переместить страницу выше'},
     {id:'page-down',title:'Переместить страницу ниже',aria:'Переместить страницу ниже'},
     {id:'page-remove',label:'Удалить страницу'}
   ]);
   compactStructureActions('section-catalog','Добавить блок','server-section-actions','Действия блока',[
-    {id:'section-appearance',label:'Оформление блока'},
+    {id:'section-appearance',label:'Оформление блока',group:'НАСТРОЙКИ БЛОКА'},
     {id:'section-design-graph',label:'Расширенная композиция'},
-    {id:'section-duplicate',label:'Дублировать блок'},
+    {id:'section-duplicate',label:'Дублировать блок',group:'ДЕЙСТВИЯ С БЛОКОМ'},
     {id:'section-up',title:'Переместить блок выше',aria:'Переместить блок выше'},
     {id:'section-down',title:'Переместить блок ниже',aria:'Переместить блок ниже'},
     {id:'section-remove',label:'Удалить блок'},
@@ -2679,8 +2681,7 @@
     ['cms-open-theme','Стили и язык сайта'],
     ['cms-design-tokens-open','Цвета и дизайн-система']
   ]);
-  addToolCategory('server-tool-seo','SEO','Настройки страниц, задачи, аудит и адреса',[
-    ['cms-open-seo','SEO страниц'],
+  addToolCategory('server-tool-seo','SEO сайта','Аудит сайта, задачи и адреса',[
     ['cms-seo-handoff-open','Задачи SEO'],
     ['cms-quality-open','SEO-проверка и перенаправления']
   ]);
