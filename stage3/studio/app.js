@@ -443,7 +443,12 @@
     session.current.pages.forEach(page=>{
       $('pages').append(button(page.title,'nav-entry'+(page.id===pageId?' active':''),
         event=>{pageId=page.id;sectionId=page.sections[0].id;elementId=page.sections[0].elements[0].id;inspectorScope='block';draw();resetInspectorScroll();if(event.detail>0)revealCompactSelection('page',pageId,sectionId);
-          else $('pages').querySelector('.nav-entry.active')?.focus({preventScroll:true});}));
+          else{const selected=$('pages').querySelector('.nav-entry.active');
+            selected?.focus({preventScroll:true});selected?.scrollIntoView({block:'nearest'});}}));
+      const selected=$('pages').lastElementChild;
+      selected.setAttribute('aria-current',page.id===pageId?'page':'false');
+      selected.setAttribute('aria-keyshortcuts','ArrowUp ArrowDown Home End');
+      selected.title='↑/↓ — другая страница · Home/End — начало/конец';
     });
     $('sections').replaceChildren();
     current().page.sections.forEach((section,index)=>{
@@ -451,7 +456,12 @@
       $('sections').append(button((index+1)+'. '+name,
         'nav-entry'+(section.id===sectionId?' active':''),
         event=>{sectionId=section.id;elementId=section.elements[0].id;inspectorScope='block';draw();resetInspectorScroll();if(event.detail>0)revealCompactSelection('section',pageId,sectionId);
-          else $('sections').querySelector('.nav-entry.active')?.focus({preventScroll:true});}));
+          else{const selected=$('sections').querySelector('.nav-entry.active');
+            selected?.focus({preventScroll:true});selected?.scrollIntoView({block:'nearest'});}}));
+      const selected=$('sections').lastElementChild;
+      selected.setAttribute('aria-current',section.id===sectionId?'location':'false');
+      selected.setAttribute('aria-keyshortcuts','ArrowUp ArrowDown Home End');
+      selected.title='↑/↓ — другой блок · Home/End — начало/конец';
     });
   }
 
@@ -6967,13 +6977,18 @@
           $('elements').querySelector('.inspector-repeat-disclosure > summary')
             ?.focus({preventScroll:true});
         });
-      }else focusTarget?.focus({preventScroll:true});
+      }else{
+        focusTarget?.focus({preventScroll:true});
+        if(keepNavigatorFocus)focusTarget?.scrollIntoView({block:'nearest'});
+      }
     };
     section.elements.forEach(e=>{
       const label=m.elements.find(s=>s.slot===e.slot)?.label||e.slot;
       const choice=button(label,'element'+(e.id===elementId?' active':''),event=>chooseElement(e.id,event.detail===0));
       choice.dataset.inspectorElementId=e.id;
       choice.setAttribute('aria-pressed',String(e.id===elementId));
+      choice.setAttribute('aria-keyshortcuts','ArrowUp ArrowDown Home End');
+      choice.title='↑/↓ — другой элемент · Home/End — начало/конец';
       row.append(choice);
     });
     if(m.repeat){
@@ -7017,6 +7032,8 @@
         choice.dataset.repeatId=item.id;
         choice.dataset.inspectorElementId=item.id;
         choice.setAttribute('aria-pressed',String(item.id===elementId));
+        choice.setAttribute('aria-keyshortcuts','ArrowUp ArrowDown Home End');
+        choice.title='↑/↓ — другой элемент · Home/End — начало/конец';
         line.append(choice);
         /* Rare repeat operations stay next to their item, behind one menu. */
         const more=document.createElement('details');more.className='cms-repeat-more';
@@ -7169,7 +7186,9 @@
         const summary=document.createElement('summary');summary.className='inspector-field-group-summary';
         const heading=document.createElement('h3');heading.className='inspector-field-group-title';
         heading.textContent=groupLabels[group];
-        const count=document.createElement('small');count.textContent=items.length+' настроек';
+        const count=document.createElement('small');
+        count.textContent=items.length+' '+(items.length===1?'настройка':
+          items.length<5?'настройки':'настроек');
         summary.append(heading,count);panel.append(summary);
         summary.addEventListener('click',()=>{
           if(panel.open){inspectorGroupState.set(selectionKey,null);return;}

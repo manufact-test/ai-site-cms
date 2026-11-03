@@ -237,6 +237,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await elementNavigator.first().focus();
     await page.keyboard.press('ArrowDown');
     assert.equal(await elementNavigator.nth(1).getAttribute('aria-pressed'),'true');
+    assert.equal(await elementNavigator.nth(1).getAttribute('aria-keyshortcuts'),
+      'ArrowUp ArrowDown Home End');
     assert.equal(await elementNavigator.nth(1).evaluate(node=>document.activeElement===node),true);
     await page.keyboard.press('End');
     assert.equal(await elementNavigator.last().getAttribute('aria-pressed'),'true');
@@ -618,6 +620,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await sectionNav.first().focus();
     await page.keyboard.press('ArrowDown');
     assert.equal(await sectionNav.nth(1).evaluate(node=>node.classList.contains('active')),true);
+    assert.equal(await sectionNav.nth(1).getAttribute('aria-current'),'location');
+    assert.equal(await sectionNav.nth(1).getAttribute('aria-keyshortcuts'),
+      'ArrowUp ArrowDown Home End');
     assert.equal(await sectionNav.nth(1).evaluate(node=>document.activeElement===node),true,
       'Section arrow navigation retains focus on the selected entry');
     await page.keyboard.press('End');
@@ -629,6 +634,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.keyboard.press('ArrowDown');
     assert.equal(await pageNav.nth(1).evaluate(node=>document.activeElement===node),true,
       'Page arrow navigation retains focus on its current entry');
+    assert.equal(await pageNav.nth(1).getAttribute('aria-current'),'page');
     await page.keyboard.press('Home');
     assert.equal(await pageNav.first().evaluate(node=>document.activeElement===node),true);
     await page.locator('#sections .nav-entry')
