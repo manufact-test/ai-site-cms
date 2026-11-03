@@ -1070,14 +1070,17 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const sectionsBeforeCopy=(await page.evaluate(()=>window.Stage3Editor.getSite()))
       .pages[0].sections;
     const originalSwitcher=sectionsBeforeCopy.find(s=>s.component==='content-switcher');
-    assert.equal(sectionsBeforeCopy.at(-1).id,originalSwitcher.id,
-      'The switcher is the final section of the long-page fixture');
+    const switcherIndex=sectionsBeforeCopy.findIndex(s=>s.id===originalSwitcher.id);
+    assert.ok(switcherIndex>=0&&switcherIndex<sectionsBeforeCopy.length-1,
+      'The switcher is followed by another block in this fixture');
+    const nextAfterSwitcher=sectionsBeforeCopy[switcherIndex+1];
     await openStructureActions();
     await page.locator('#section-duplicate').click();
     const sectionsWithCopy=(await page.evaluate(()=>window.Stage3Editor.getSite()))
       .pages[0].sections;
-    const copiedSwitcher=sectionsWithCopy.at(-1);
+    const copiedSwitcher=sectionsWithCopy[switcherIndex+1];
     assert.equal(copiedSwitcher.component,'content-switcher');
+    assert.equal(sectionsWithCopy.length,sectionsBeforeCopy.length+1);
     assert.notEqual(copiedSwitcher.id,originalSwitcher.id);
     await page.waitForFunction(id=>{
       const doc=document.querySelector('#preview')?.contentDocument;
@@ -1096,7 +1099,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await openStructureActions();
     await page.locator('#section-remove').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
-      .pages[0].sections.at(-1).id,originalSwitcher.id);
+      .pages[0].sections[switcherIndex+1].id,nextAfterSwitcher.id);
     await page.waitForFunction(id=>{
       const doc=document.querySelector('#preview')?.contentDocument;
       const node=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
@@ -1104,10 +1107,32 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       const rect=node?.getBoundingClientRect(),height=doc?.defaultView?.innerHeight||0;
       return node?.classList.contains('cms-editor-current')&&rect&&
         Math.min(rect.bottom,height-18)-Math.max(rect.top,18)>=32;
-    },originalSwitcher.id,{timeout:10000});
+    },nextAfterSwitcher.id,{timeout:10000});
     assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА');
     assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
-      blockBeforeStructural,'Duplicating and removing the last block restores original draft');
+      blockBeforeStructural,'Duplicating and removing the middle block restores original draft');
+
+    /* Deleting the actual final section selects its previous neighbour. */
+    await openSectionTree();
+    await page.locator('#sections .nav-entry').last().click();
+    const finalTwo=(await page.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections.slice(-2);
+    page.once('dialog',dialog=>dialog.accept());
+    await openStructureActions();
+    await page.locator('#section-remove').click();
+    await page.waitForFunction(id=>{
+      const doc=document.querySelector('#preview')?.contentDocument;
+      const node=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
+        .find(el=>el.dataset.cmsEditorSection===id);
+      const rect=node?.getBoundingClientRect(),height=doc?.defaultView?.innerHeight||0;
+      return node?.classList.contains('cms-editor-current')&&rect&&
+        Math.min(rect.bottom,height-18)-Math.max(rect.top,18)>=32;
+    },finalTwo[0].id,{timeout:10000});
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections.at(-1).id,finalTwo[0].id);
+    await page.locator('#undo').click();
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      blockBeforeStructural,'Undo restores the original final section');
 
     await openSectionTree();
     await page.locator('#sections .nav-entry')
