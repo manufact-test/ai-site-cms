@@ -47,6 +47,34 @@ try{
     assert.equal(sha(target),sha(source),'public_html template must match the private source byte-for-byte');
   }
 
+  /* FOX is already installed: provide a separate, verified runtime-only
+     package so File Manager cannot accidentally overwrite public_html. */
+  const foxUpdate=path.join(tmp,'fox-code-only');
+  const builtFox=JSON.parse(run(['pack-php-host',root,foxUpdate]).stdout);
+  assert.equal(builtFox.profile,'php-host');
+  const checkedFox=JSON.parse(run(['verify-fox-code-only',foxUpdate]).stdout);
+  assert.equal(checkedFox.valid,true);
+  assert.equal(checkedFox.publicRootPresent,false);
+  assert.equal(checkedFox.deployed,false);
+  assert.equal(checkedFox.ownerApprovalRequired,true);
+  assert.equal(checkedFox.fingerprint,verified.fingerprint,
+    'FOX update code must be byte-for-byte identical to tested sibling runtime');
+  assert.deepEqual(fs.readdirSync(foxUpdate).sort(),['cms-release.json','stage3']);
+  assert.equal(fs.existsSync(path.join(foxUpdate,'public_html')),false);
+  assert.equal(fs.existsSync(path.join(foxUpdate,'stage3/server/private-config-path.json')),false);
+
+  const unsafeFox=path.join(tmp,'fox-with-public-root');
+  fs.cpSync(foxUpdate,unsafeFox,{recursive:true});
+  fs.cpSync(path.join(release,'public_html'),path.join(unsafeFox,'public_html'),
+    {recursive:true});
+  assert.equal(JSON.parse(run(['verify',unsafeFox]).stdout).hostingerSiblingLayout,true);
+  run(['verify-fox-code-only',unsafeFox],1);
+
+  const alteredFox=path.join(tmp,'fox-altered');
+  fs.cpSync(foxUpdate,alteredFox,{recursive:true});
+  fs.appendFileSync(path.join(alteredFox,'stage3/studio/bundle.js'),'\n/* tampered */');
+  run(['verify-fox-code-only',alteredFox],1);
+
   const tampered=path.join(tmp,'tampered');
   fs.cpSync(release,tampered,{recursive:true});
   const tamperedIndex=path.join(tampered,'public_html/index.php');
@@ -64,6 +92,9 @@ try{
     validPackage:true,
     tamperedPublicEntrypointRejected:true,
     extraPublicRootFileRejected:true,
+    foxCodeOnlyVerified:true,
+    foxPublicRootRejected:true,
+    foxTamperedRuntimeRejected:true,
     deploymentPerformed:false
   })+'\n');
 }finally{

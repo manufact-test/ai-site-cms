@@ -164,6 +164,18 @@ function verify(directory){
   if(stage3extra.length)die('untracked runtime directories');
   return {root,manifest:m,hostingerSiblingLayout};
 }
+/* FOX is already installed: its code-only update must never contain a
+   public document root, even though the installer sibling format allows one. */
+function verifyFoxCodeOnly(directory){
+  const checked=verify(directory),entries=fs.readdirSync(checked.root).sort();
+  if(checked.manifest.profile!=='php-host'||checked.hostingerSiblingLayout||
+    JSON.stringify(entries)!==JSON.stringify(['cms-release.json','stage3']))
+    die('FOX code update must contain only stage3 runtime and cms-release.json');
+  report({action:'verify-fox-code-only',profile:'php-host',
+    fingerprint:checked.manifest.fingerprint,files:checked.manifest.files.length,
+    bytes:checked.manifest.bytes,publicRootPresent:false,
+    ownerApprovalRequired:true,deployed:false,valid:true});
+}
 function compare(oldArg,newArg){
   const old=verify(oldArg).manifest,next=verify(newArg).manifest;
   if(old.profile!==next.profile)die('cannot compare different engine installation profiles');
@@ -328,8 +340,9 @@ try{
     const x=verify(args[0]);report({action:'verify',profile:x.manifest.profile,fingerprint:x.manifest.fingerprint,
       files:x.manifest.files.length,bytes:x.manifest.bytes,
       hostingerSiblingLayout:x.hostingerSiblingLayout,valid:true});
-  }else if(cmd==='compare'&&args.length===2)compare(args[0],args[1]);
+  }else if(cmd==='verify-fox-code-only'&&args.length===1)verifyFoxCodeOnly(args[0]);
+  else if(cmd==='compare'&&args.length===2)compare(args[0],args[1]);
   else if(cmd==='pack-signed-php-host'&&args.length===5)signedPhpHost(args[0],args[1],args[2],args[3],args[4]);
   else if(cmd==='verify-signed-php-host'&&args.length===2)verifySignedPhpHost(args[0],args[1]);
-  else die('usage: pack|pack-php-host|pack-hostinger-sibling ABS_SOURCE_REPO ABS_NEW_OUTPUT | verify ABS_RELEASE | compare ABS_OLD_RELEASE ABS_NEW_RELEASE | pack-signed-php-host ABS_SOURCE ABS_OUTPUT VERSION ABS_PRIVATE_KEY ABS_PUBLIC_KEY | verify-signed-php-host ABS_RELEASE ABS_PUBLIC_KEY');
+  else die('usage: pack|pack-php-host|pack-hostinger-sibling ABS_SOURCE_REPO ABS_NEW_OUTPUT | verify|verify-fox-code-only ABS_RELEASE | compare ABS_OLD_RELEASE ABS_NEW_RELEASE | pack-signed-php-host ABS_SOURCE ABS_OUTPUT VERSION ABS_PRIVATE_KEY ABS_PUBLIC_KEY | verify-signed-php-host ABS_RELEASE ABS_PUBLIC_KEY');
 }catch(error){console.error(error.message);process.exitCode=1;}

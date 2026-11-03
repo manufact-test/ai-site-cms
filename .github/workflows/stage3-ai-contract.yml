@@ -179,6 +179,22 @@ jobs:
           path: ${{ runner.temp }}/hostinger-stage3-package/ai-site-stage3-hostinger-sibling.zip
           retention-days: 7
           if-no-files-found: error
+      - name: Build and verify FOX code-only update (NO DEPLOY)
+        run: |
+          mkdir -p "$RUNNER_TEMP/fox-stage3-code"
+          node stage3/bin/cms-release.cjs pack-php-host "$GITHUB_WORKSPACE" "$RUNNER_TEMP/fox-stage3-code/release"
+          node stage3/bin/cms-release.cjs verify-fox-code-only "$RUNNER_TEMP/fox-stage3-code/release"
+          node stage3/bin/cms-release.cjs compare "$RUNNER_TEMP/hostinger-stage3-package/release" "$RUNNER_TEMP/fox-stage3-code/release"
+          cmp "$RUNNER_TEMP/hostinger-stage3-package/release/cms-release.json" "$RUNNER_TEMP/fox-stage3-code/release/cms-release.json"
+          cd "$RUNNER_TEMP/fox-stage3-code/release"
+          zip -q -r "$RUNNER_TEMP/fox-stage3-code/ai-site-stage3-fox-code-$GITHUB_SHA.zip" stage3 cms-release.json
+      - name: Upload FOX runtime-only code artifact (manual update, no deployment)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-site-stage3-fox-code-update
+          path: ${{ runner.temp }}/fox-stage3-code/ai-site-stage3-fox-code-*.zip
+          retention-days: 7
+          if-no-files-found: error
       - name: Upload desktop and phone smoke screenshots
         if: always()
         uses: actions/upload-artifact@v4
