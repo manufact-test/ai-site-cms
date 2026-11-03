@@ -7940,7 +7940,7 @@
       restore.sectionId===sectionId&&restore.elementId===elementId&&
       inspectorScope==='element')scrollCanvasToElement(sectionId,elementId);
   });
-  async function drawPreview(){
+  async function drawPreview({revealSelected=false}={}){
     const {page,section}=current(),m=manifest(section);
     const frame=$('preview'),viewport=$('viewport'),request=++mainPreviewRequest;
     const canvasIdentity=session.current.siteId+'|'+page.id+'|'+page.path;
@@ -7958,7 +7958,7 @@
         window.Stage3Editor.previewDocument(session.current,page.path,breakpoint);
       if(request!==mainPreviewRequest)return;
       mainPreviewRestoreElement=samePage&&inspectorScope==='element'&&
-        canvasSelectedElementIsVisible()?{request,pageId,sectionId,elementId}:null;
+        (revealSelected||canvasSelectedElementIsVisible())?{request,pageId,sectionId,elementId}:null;
       const tracks=[];
       if(samePage){
         for(const host of frame.contentDocument?.querySelectorAll(
@@ -8112,8 +8112,11 @@
     drawElements();drawFields();syncCanvasSelection();resetInspectorScroll();
   });
   document.querySelectorAll('.device').forEach(b=>b.addEventListener('click',()=>{
+    /* Capture visibility before the device class resizes the old iframe.
+       A previously visible card must remain visible in the new scrollport. */
+    const revealSelected=inspectorScope==='element'&&canvasSelectedElementIsVisible();
     breakpoint=b.dataset.bp;$('viewport').className='viewport '+breakpoint;
-    drawElements();drawFields();drawPreview();
+    drawElements();drawFields();drawPreview({revealSelected});
     document.querySelectorAll('.device').forEach(n=>n.classList.toggle('active',n===b));
   }));
   window.Stage3Editor=Object.freeze({

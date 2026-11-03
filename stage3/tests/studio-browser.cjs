@@ -1136,7 +1136,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     if(process.env.GITHUB_ACTIONS==='true'){
       const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
       await page.screenshot({path:path.join(shots,'stage3-carousel-selection-mobile.png'),
-        animations:'disabled',fullPage:true});
+        animations:'disabled'});
     }
     await page.locator('.device[data-bp="desktop"]').click();
     await canvas.locator('.cms-gallery-carousel').waitFor();
