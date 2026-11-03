@@ -328,7 +328,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),canvasDraftBefore,
       'Undo of both visibility operations restores the exact unchanged draft');
     await page.locator('.device[data-bp="desktop"]').click();
-    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
+    /* After a responsive canvas swap, keyboard selection avoids transient layout motion. */
+    const restoredHeading=canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1');
+    await restoredHeading.focus();await restoredHeading.press('Enter');
     if(process.env.GITHUB_ACTIONS==='true'){
       const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
       await page.screenshot({path:path.join(shots,'stage3-canvas-click-selection.png'),
