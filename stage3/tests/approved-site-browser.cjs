@@ -728,6 +728,19 @@ async function execute(){
     'Pointer selection in actual PHP preview opens the block Inspector');
   assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
     hostedCanvasDraftBefore,'Hosted preview selection does not modify the server draft');
+  const canvasGraph=imported.pages[0].sections.find(section=>section.designGraph);
+  assert.ok(canvasGraph,'The approved-site browser fixture has an individual Design Graph section');
+  const graphTextId='approved-custom-copy';
+  await page.frameLocator('#preview').locator(
+    '[data-cms-section-id="'+canvasGraph.id+'"] [data-cms-editor-graph-node="'+graphTextId+'"]').click();
+  await page.locator('#cms-page-preview[open]').waitFor();
+  assert.equal(await page.locator('#cms-work-graph-node').inputValue(),graphTextId,
+    'Selecting an individual Graph text node opens its exact existing Workbench inspector');
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    hostedCanvasDraftBefore,'Opening the Workbench from canvas does not modify the draft');
+  await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+  await page.locator('#sections .nav-entry').first().click();
+
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-desktop.png'),fullPage:true});
   await page.setViewportSize({width:1024,height:900});
   await assertNoHorizontalOverflow('Studio at 1024px');

@@ -1379,7 +1379,8 @@
     pageId=page.id;sectionId=section.id;elementId=section.elements[0].id;inspectorScope='element';
     breakpoint=device;draw();
     pendingWorkReviewFocus={pageId:page.id,sectionId:section.id,
-      nodeId:typeof target.nodeId==='string'?target.nodeId:'',device,scrollY};
+      nodeId:typeof target.nodeId==='string'?target.nodeId:'',device,scrollY,
+      source:target.source==='canvas'?'canvas':'review'};
     const open=$('cms-open-page-preview');
     if(!open){pendingWorkReviewFocus=null;return false;}
     open.click();return true;
@@ -3748,8 +3749,10 @@
       dismissQuick();showWork();
       frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el.dataset.mode===mode));
       render();modal.showModal();
-      if(focus)feedback('Открыта точка визуальной проверки · '+mode+
-        ' · позиция '+focus.scrollY+' px. Выберите точный элемент на странице.');
+      if(focus)feedback(focus.source==='canvas'
+        ?'Выбран элемент индивидуальной композиции. Его свойства открыты в этом редакторе.'
+        :'Открыта точка визуальной проверки · '+mode+
+          ' · позиция '+focus.scrollY+' px. Выберите точный элемент на странице.');
     });
     open.id='cms-open-page-preview';
     document.querySelector('.canvas-toolbar .devices').before(open);
@@ -7554,7 +7557,8 @@
       '[data-cms-editor-section]:focus-visible{outline:3px solid #1689e8!important;outline-offset:-3px!important}'+
       '[data-cms-editor-section].cms-editor-current{outline:2px solid #2777ee!important;outline-offset:-2px!important}'+
       '[data-cms-editor-element]:hover{box-shadow:inset 0 -2px #1689e8!important;cursor:pointer}'+
-      '[data-cms-editor-element].cms-editor-element-current{outline:2px solid #f1a240!important;outline-offset:2px!important}';
+      '[data-cms-editor-element].cms-editor-element-current{outline:2px solid #f1a240!important;outline-offset:2px!important}'+
+      '[data-cms-editor-graph-node]:hover{outline:2px dashed #1689e8!important;outline-offset:2px!important;cursor:pointer}';
     doc.head.append(css);
     const repeatSelectors={
       'service-grid':'.repeat-grid > article,.cms-preview-grid > article',
@@ -7596,8 +7600,18 @@
       host.tabIndex=0;host.setAttribute('aria-keyshortcuts','Enter Space');
       host.setAttribute('aria-label','Выбрать блок '+(manifest(section)?.label||section.component));
       host.classList.toggle('cms-editor-current',section.id===sectionId);
-      /* Graph nodes remain in the dedicated Workbench inspector. */
-      if(section.designGraph)continue;
+      /* Graph nodes stay in the existing Workbench; link their safe IDs
+         from the main canvas directly to that precise editor context. */
+      if(section.designGraph){
+        const markGraph=nodes=>{
+          for(const node of nodes||[]){
+            const visual=host.getElementsByClassName('cmsdg-n-'+node.id)[0];
+            if(visual)visual.dataset.cmsEditorGraphNode=node.id;
+            if(Array.isArray(node.children))markGraph(node.children);
+          }
+        };
+        markGraph(section.designGraph.nodes);continue;
+      }
       const used=new Set(),selector=repeatSelectors[section.component];
       const cards=selector?[...host.querySelectorAll(selector)]:[];
       if(cards.length===(section.items||[]).length){
@@ -7621,6 +7635,18 @@
       if(!host)return;
       const pickedSection=page.sections.find(section=>section.id===host.dataset.cmsEditorSection);
       if(!pickedSection||page.id!==pageId)return;
+      const graphVisual=target.closest('[data-cms-editor-graph-node]');
+      if(graphVisual&&pickedSection.designGraph){
+        const nodeId=graphVisual.dataset.cmsEditorGraphNode;
+        const contains=(nodes)=>nodes?.some(node=>node.id===nodeId||
+          (Array.isArray(node.children)&&contains(node.children)));
+        if(contains(pickedSection.designGraph.nodes)){
+          focusVisualReview({pageId:page.id,sectionId:pickedSection.id,
+            nodeId,device:breakpoint,
+            scrollY:mainPreviewFrame.contentWindow?.scrollY||0,source:'canvas'});
+          return;
+        }
+      }
       const elementNode=target.closest('[data-cms-editor-element]');
       const pickedElement=[...pickedSection.elements,...(pickedSection.items||[])]
         .find(item=>item.id===elementNode?.dataset.cmsEditorElement);
