@@ -1,3 +1,5 @@
+> **SUPERSEDING HOST STATUS — 03.11.2026:** The isolated FOX site has already completed Stage3 installation and owner login (see [live-host handoff](../handoffs/lead-integrator/HOSTINGER-LIVE-AND-ADMIN-UX-RESET-2026-11-03.md)). The setup steps below record 02.11 history; **do not reinstall, reset the MariaDB database, re-run hPanel Cron, or use the Stage2 Git deployment**. The current future path is a code-only reversible update requiring separate owner approval: [FOX release gate](../stage3/docs/FOX-UPDATE-AND-REGRESSION-GATE-2026-11-03.md), candidate `434e5e39d786279c8eeef02fd718e44a0199f6c7` (CI [CI #41703286381 — SUCCESS 4/4](https://github.com/manufact-test/ai-site-cms/actions/runs/41703286381)).
+
 # Hostinger Stage3 staging addendum
 
 **Updated:** 2026-11-02  

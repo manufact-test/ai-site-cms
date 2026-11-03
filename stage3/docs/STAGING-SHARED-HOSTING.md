@@ -1,3 +1,5 @@
+> **CURRENT OVERRIDE — 03.11.2026:** FOX `mediumpurple-fox-175549.hostingersite.com` is **already installed**; the owner successfully logged in. The installation instructions below are historical and **must not** be repeated on the existing database or private directory. FOX still has older editor code. For a future separately authorized code-only update, use [the current rollback-safe release gate](FOX-UPDATE-AND-REGRESSION-GATE-2026-11-03.md); never re-run `--plan`, `--apply`, installer or Cron. The code-only candidate is `434e5e39d786279c8eeef02fd718e44a0199f6c7` (CI [CI #41703286381 — SUCCESS 4/4](https://github.com/manufact-test/ai-site-cms/actions/runs/41703286381)).
+
 # Stage3 shared-hosting staging deployment
 
 **Status:** isolated Hostinger staging preparation is underway. The owner-selected unconnected test site has the sibling layout and PHP CLI probe/preflight completed; no database, private runner config, `--plan` or `--apply` has been used. This runbook is not production approval.

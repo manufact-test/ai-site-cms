@@ -1,3 +1,13 @@
+# CURRENT CHECKPOINT — FOX code-only release candidate, 2026-11-03 (read first)
+
+**Working branch:** `feature/stage3-ai-site-contract`. **Source functionality:** `3a44e8415ef63872ee1368271dccf4ba4e6fd419` (CI #41700579265, SUCCESS 4/4). **Code-only packaging candidate:** `434e5e39d786279c8eeef02fd718e44a0199f6c7`; **full CI:** [CI #41703286381 — SUCCESS 4/4](https://github.com/manufact-test/ai-site-cms/actions/runs/41703286381) ; **runtime artifact:** [FOX code-only artifact #13264687289](https://github.com/manufact-test/ai-site-cms/actions/runs/41703286381/artifacts/13264687289). The earlier reliable functional fallback is `9f5ac311c6260d94044db8a5f66adedef46bb237`.
+
+**Safety improvement:** The existing PHP-host packer now makes a separate FOX update archive containing only `stage3/` and its file-hash manifest, inside a SHA-named outer folder; it cannot be mistaken for the sibling-layout installer package with a `public_html/` root. An explicit `verify-fox-code-only` command rejects public-root inclusion, changed files and unexpected entries. CI compares the runtime fingerprint byte-for-byte against the already-tested Hostinger sibling package and uploads the separate artifact **without deploying anything**.
+
+**Next gate:** review the exact green artifact and follow [the controlled FOX runtime-only update plan](../stage3/docs/FOX-UPDATE-AND-REGRESSION-GATE-2026-11-03.md). FOX is **already installed** but still runs older Studio. Do not rerun installer/Cron/DB setup; no update of FOX, Stage2, main, production, MariaDB or private files occurred. A separately approved runtime swap and Ilya's hands-on UI acceptance are still mandatory. First real site still awaits source landing and three approved static layouts.
+
+---
+
 # CURRENT CHECKPOINT — carousel navigation and release readiness, 2026-11-03 (read first)
 
 **Branch:** `feature/stage3-ai-site-contract`. **Functional SHA:** `3a44e8415ef63872ee1368271dccf4ba4e6fd419`. **Full no-deploy CI:** [CI #41700579265](https://github.com/manufact-test/ai-site-cms/actions/runs/41700579265) **SUCCESS 4/4**. **Browser evidence:** [real Chromium captures](https://github.com/manufact-test/ai-site-cms/actions/runs/41700579265/artifacts/13262094912) (includes `stage3-carousel-card-selection.png`). **Previous verified fallback:** `9f5ac311c6260d94044db8a5f66adedef46bb237`.
