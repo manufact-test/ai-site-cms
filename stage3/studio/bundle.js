@@ -11107,10 +11107,6 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
      the current draft. Selection cannot submit, navigate or mutate content. */
   let mainPreviewRequest=0,mainPreviewPath='',mainPreviewScroll=0;
   let mainPreviewRestoreElement=null,mainPreviewRestoreCarousels=null;
-  function canvasTrace(event,data){
-    if(Array.isArray(window.__cmsCanvasTrace))
-      window.__cmsCanvasTrace.push({event,...data});
-  }
   const mainPreviewFrame=$('preview');
   /* Keep an actively viewed element visible after content/Undo/device redraws.
      Do not jump back to an element the owner deliberately scrolled away from. */
@@ -11356,9 +11352,6 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     /* A redraw must preserve the owner's position inside horizontal galleries,
        even when the selected element is elsewhere on the page. */
     const restoreTracks=mainPreviewRestoreCarousels;
-    canvasTrace('load-before-restore',{request:mainPreviewRequest,
-      items:restoreTracks?.items,restoreRequest:restoreTracks?.request,
-      element:mainPreviewRestoreElement,trackBefore:doc.querySelector('.cms-gallery-carousel')?.scrollLeft});
     mainPreviewRestoreCarousels=null;
     if(restoreTracks?.request===mainPreviewRequest){
       for(const item of restoreTracks.items){
@@ -11373,8 +11366,6 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     if(restore?.request===mainPreviewRequest&&restore.pageId===pageId&&
       restore.sectionId===sectionId&&restore.elementId===elementId&&
       inspectorScope==='element')scrollCanvasToElement(sectionId,elementId);
-    canvasTrace('load-after-restore',{request:mainPreviewRequest,
-      trackAfter:doc.querySelector('.cms-gallery-carousel')?.scrollLeft});
   });
   async function drawPreview(){
     const {page,section}=current(),m=manifest(section);
@@ -11407,8 +11398,6 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         }
       }
       mainPreviewRestoreCarousels={request,items:tracks};
-      canvasTrace('draw-before-srcdoc',{request,samePage,pageId,sectionId,elementId,
-        scope:inspectorScope,selectedVisible:!!mainPreviewRestoreElement,tracks});
       frame.srcdoc=html;
       viewport.setAttribute('aria-label','Предпросмотр всей страницы '+page.title);
     }catch(error){

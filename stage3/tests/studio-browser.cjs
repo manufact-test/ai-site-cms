@@ -1077,15 +1077,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
       beforeGallerySelection,'Carousel navigation is selection-only');
     assert.match(await page.locator('#canvas-caption').innerText(),/выбран элемент/);
-    if(process.env.GITHUB_ACTIONS==='true'){
-      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
-      await page.screenshot({path:path.join(shots,'stage3-carousel-card-selection.png'),
-        animations:'disabled',fullPage:true});
-    }
 
     /* A real caption edit redraws the iframe: the selected far-away card
        must remain visible, including after one Undo and a responsive switch. */
-    await page.evaluate(()=>{window.__cmsCanvasTrace=[];});
     const caption=page.locator('#fields [data-field="content.caption"]');
     await caption.fill('Дальний кадр галереи');
     await caption.dispatchEvent('change');
@@ -1109,8 +1103,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
             scrollWidth:track?.scrollWidth,clientWidth:track?.clientWidth,
             trackRect:track?.getBoundingClientRect().toJSON(),
             cardRect:card?.getBoundingClientRect().toJSON(),
-            inspector:document.querySelector('#inspector-eyebrow')?.textContent,
-            trace:window.__cmsCanvasTrace};
+            inspector:document.querySelector('#inspector-eyebrow')?.textContent};
         },id);
         throw new Error('Gallery redraw lost the selected card: '+
           JSON.stringify(diagnostic),{cause:error});
@@ -1147,6 +1140,14 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     }
     await page.locator('.device[data-bp="desktop"]').click();
     await canvas.locator('.cms-gallery-carousel').waitFor();
+    await galleryStillVisible(lastGalleryId);
+    /* Capture after the visibility assertions: a full-page Chromium screenshot
+       can itself move native horizontal scrollports. */
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.screenshot({path:path.join(shots,'stage3-carousel-card-selection.png'),
+        animations:'disabled',fullPage:true});
+    }
 
     // Opt-in field builder is usable in Chromium, Undo and real draft preview.
     await page.locator('#cms-canvas-add-block').click();
