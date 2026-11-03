@@ -10323,9 +10323,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       drawElements();drawFields();
       const selected=[...$('elements').querySelectorAll('[data-inspector-element-id]')]
         .find(control=>control.dataset.inspectorElementId===id);
-      const focusTarget=selected?.getClientRects().length?selected:
+      const hiddenInLongList=selected?.closest('.inspector-repeat-disclosure')?.open===false;
+      const focusTarget=selected&&!hiddenInLongList?selected:
         $('elements').querySelector('.inspector-repeat-disclosure > summary');
-      if(focusTarget?.tagName==='SUMMARY'){
+      if(hiddenInLongList){
         /* A native details click may finish its focus default after the redraw. */
         requestAnimationFrame(()=>{
           if(sectionId!==section.id||elementId!==id||inspectorScope!=='element')return;
