@@ -1085,6 +1085,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
 
     /* A real caption edit redraws the iframe: the selected far-away card
        must remain visible, including after one Undo and a responsive switch. */
+    await page.evaluate(()=>{window.__cmsCanvasTrace=[];});
     const caption=page.locator('#fields [data-field="content.caption"]');
     await caption.fill('Дальний кадр галереи');
     await caption.dispatchEvent('change');
@@ -1108,7 +1109,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
             scrollWidth:track?.scrollWidth,clientWidth:track?.clientWidth,
             trackRect:track?.getBoundingClientRect().toJSON(),
             cardRect:card?.getBoundingClientRect().toJSON(),
-            inspector:document.querySelector('#inspector-eyebrow')?.textContent};
+            inspector:document.querySelector('#inspector-eyebrow')?.textContent,
+            trace:window.__cmsCanvasTrace};
         },id);
         throw new Error('Gallery redraw lost the selected card: '+
           JSON.stringify(diagnostic),{cause:error});
