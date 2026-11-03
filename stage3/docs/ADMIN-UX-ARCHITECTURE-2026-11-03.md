@@ -73,3 +73,12 @@ FOX is intentionally unchanged. Real owner hands-on UX approval remains pending;
 - Same `D.edit`, `D.structure`, `D.inheritBreakpoint`, typed manifests, responsive inheritance, Undo/Redo and server save/review/publish gates remain authoritative.
 - Functional and browser-test SHA `c2cc93049453abf03c4fe33eacafa840a5e569d3`; [full Actions #41612749799](https://github.com/manufact-test/ai-site-cms/actions/runs/41612749799) **SUCCESS 4/4**. [Chromium artifact #13219468053](https://github.com/manufact-test/ai-site-cms/actions/runs/41612749799/artifacts/13219468053) includes block properties screenshot plus desktop/tablet/mobile cases. Tests cover block responsive visibility + Undo and selected FAQ field editing. Independent pixel review and real owner acceptance remain outstanding.
 - FOX is not yet updated; main, Stage2 and production untouched. [Handoff](../../handoffs/lead-integrator/ADMIN-UX-BLOCK-ELEMENT-CONTEXT-2026-11-03.md).
+
+
+## Selected-element task groups and multiline content (2026-11-03)
+
+- The existing Inspector now uses the manifest's typed `group` per field: `content` → «Содержимое», `style` → «Оформление», `behavior` → «Действие и ссылки» (fallback «Другие свойства»). Empty groups are omitted and a single-group element has no redundant heading. Original controls, field IDs, SDK paths and event handlers are unchanged.
+- Long declared text fields (`maxLength > 180`) and `content.options` use native multi-line `textarea` with the same `change` mutation and maxLength validation; short labels/headings remain inputs. The original responsive value inheritance and explicit reset button operate in the same field container.
+- Styles cover both offline dark and hosted light palettes; groups add visual hierarchy without new toolbars, buttons, schemas, persistence or publication flows.
+- Last functional SHA `dc312fa301a6dbf29acbdd38c5a9220c2face1fd`; [full CI #41620839120](https://github.com/manufact-test/ai-site-cms/actions/runs/41620839120) **SUCCESS 4/4**. Offline, hosted and approved-site Chromium assertions check group order, multi-line description/FAQ fields and unchanged edit paths. [Screenshot artifact #13223831807](https://github.com/manufact-test/ai-site-cms/actions/runs/41620839120/artifacts/13223831807) contains `owner-studio-element-properties.png` and existing responsive screenshots. Separate human pixel review and owner UX GO are still pending.
+- FOX staging is unchanged; no first real site started.

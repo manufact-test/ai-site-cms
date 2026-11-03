@@ -1,3 +1,13 @@
+# CURRENT CHECKPOINT — grouped element properties and long-text editing, 2026-11-03 (read first)
+
+**Working branch:** `feature/stage3-ai-site-contract`. **Last fully verified functional SHA:** `dc312fa301a6dbf29acbdd38c5a9220c2face1fd`. [Full CI #41620839120](https://github.com/manufact-test/ai-site-cms/actions/runs/41620839120) **SUCCESS 4/4** (contract genuine Chromium, technology-runtime and MariaDB 10.11/11.8). [Real browser screenshot artifact #13223831807](https://github.com/manufact-test/ai-site-cms/actions/runs/41620839120/artifacts/13223831807) includes the new `owner-studio-element-properties.png` from hosted approved-site Chromium. Screenshot generation is test evidence; independent visual inspection and owner UX approval remain outstanding.
+
+**Implemented on the same existing Studio:** selected-element properties are grouped by manifest-declared `content`, `style`, `behavior` as «Содержимое», «Оформление», «Действие и ссылки», with no redundant heading for a one-group element. Long `text` manifest fields above 180 characters and `content.options` use multiline textarea controls; short headings and labels remain compact inputs. All inputs retain their original IDs/data-field, `D.edit`, responsive inheritance, Undo/Redo and Save/Review/Publish; no contract or schema change. Offline dark and hosted light CSS covered. Existing Block/Element context switch from previous green `c2cc930` remains intact. See [architecture](../stage3/docs/ADMIN-UX-ARCHITECTURE-2026-11-03.md).
+
+**Next:** assess screenshot density/contrast/clipping on desktop/tablet/mobile; continue coherent editing clarity for selected element rather than adding random global controls. Later plan a controlled FOX staging update and let the owner personally walk through UX before first real site. **Do not** reinstall Stage3, touch DB/Cron/private settings, Stage2 Woodpecker, main or production. FOX does NOT yet contain latest GitHub UX changes. Do not begin real landing/prototypes without owner materials and approvals.
+
+---
+
 # CURRENT CHECKPOINT — block / element Inspector contexts, 2026-11-03 (read first)
 
 **Working branch:** `feature/stage3-ai-site-contract`. **Last FULL GREEN functional SHA:** `c2cc93049453abf03c4fe33eacafa840a5e569d3`. [Full CI #41612749799](https://github.com/manufact-test/ai-site-cms/actions/runs/41612749799): **SUCCESS 4/4** (contract Chromium, technology-runtime, MariaDB 10.11/11.8). [Real browser screenshots](https://github.com/manufact-test/ai-site-cms/actions/runs/41612749799/artifacts/13219468053) include `owner-studio-block-properties.png`. This is test evidence, not owner UX approval and not a claim of independent manual visual inspection.
