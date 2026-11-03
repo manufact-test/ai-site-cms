@@ -401,6 +401,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[0].sections.find(s=>s.component==='service-grid').items[2].id,cardId);
     await page.locator('[data-repeat-id]').last().click();
     assert.equal(await page.locator('#fields [data-field="content.title"]').inputValue(),'Сборка промышленного шкафа');
+    await page.locator('#elements .cms-repeat-row').last().locator('.cms-repeat-more > summary').click();
     await page.getByRole('button',{name:'Копировать карточку 3'}).click();
     assert.equal(await page.locator('[data-repeat-id]').count(),4);
     await page.locator('#undo').click();
