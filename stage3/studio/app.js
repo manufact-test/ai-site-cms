@@ -7881,8 +7881,8 @@
     const add=$('section-catalog')||$('section-add');
     if(add&&!add.disabled)add.click();
   });
-  $('cms-element-navigator').addEventListener('toggle',()=>{
-    if(inspectorScope==='element')elementNavigatorExpanded=$('cms-element-navigator').open;
+  $('cms-element-navigator').querySelector('summary').addEventListener('click',()=>{
+    if(inspectorScope==='element')elementNavigatorExpanded=!$('cms-element-navigator').open;
   });
   $('inspector-scopes').addEventListener('click',event=>{
     const tab=event.target.closest('[data-inspector-scope]');
