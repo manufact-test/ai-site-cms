@@ -531,6 +531,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await openSectionTree();
     await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
     await page.locator('[data-inspector-scope="element"]').click();
+    assert.equal(await page.locator('#cms-element-navigator').evaluate(node=>node.open),true,
+      'Repeat section exposes its own cards when that section is actively edited');
     assert.equal(await page.locator('[data-repeat-id]').count(),2);
     await page.locator('#cms-repeat-add').click();
     assert.equal(await page.locator('[data-repeat-id]').count(),3);

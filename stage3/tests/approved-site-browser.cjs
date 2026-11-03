@@ -1232,6 +1232,8 @@ async function execute(){
     'Undo restores block-level responsive visibility without changing element content');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-block-properties.png'),fullPage:true});
   await page.locator('[data-inspector-scope="element"]').click();
+  assert.equal(await page.locator('#cms-element-navigator').evaluate(node=>node.open),true,
+    'FAQ item navigator opens by default only in the relevant repeatable section');
   assert.equal(await page.locator('#cms-section-advanced-settings').count(),0,
     'Whole-block operations must not mix with element fields');
   await page.locator('#cms-repeat-add').click();

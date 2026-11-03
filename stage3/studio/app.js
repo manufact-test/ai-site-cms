@@ -55,7 +55,7 @@
     breakpoint='desktop',savedBytes=JSON.stringify(session.current),versions=[],inspectorScope='element';
   const repeatDisclosureState=new Map();
   const inspectorGroupState=new Map();
-  let elementNavigatorExpanded=false;
+  const elementNavigatorState=new Map();
   function notice(message,error=false){
     const node=$('toast');node.textContent=message;node.hidden=false;node.className='toast'+(error?' error':'');
   }
@@ -6791,7 +6791,9 @@
     inspector.dataset.scope=inspectorScope;
     const elementNavigator=$('cms-element-navigator');
     elementNavigator.dataset.scope=inspectorScope;
-    elementNavigator.open=blockScope||elementNavigatorExpanded;
+    const elementNavKey=session.current.siteId+'|'+page.id+'|'+section.id;
+    elementNavigator.open=blockScope||
+      (elementNavigatorState.has(elementNavKey)?elementNavigatorState.get(elementNavKey):Boolean(m?.repeat));
     $('cms-element-nav-title').textContent='Элементы секции';
     $('cms-element-nav-count').textContent=
       (section.elements.length+(section.items?.length||0))+' объектов';
@@ -7905,7 +7907,8 @@
     if(add&&!add.disabled)add.click();
   });
   $('cms-element-navigator').querySelector('summary').addEventListener('click',()=>{
-    if(inspectorScope==='element')elementNavigatorExpanded=!$('cms-element-navigator').open;
+    if(inspectorScope==='element')elementNavigatorState.set(
+      session.current.siteId+'|'+pageId+'|'+sectionId,!$('cms-element-navigator').open);
   });
   $('inspector-scopes').addEventListener('click',event=>{
     const tab=event.target.closest('[data-inspector-scope]');
