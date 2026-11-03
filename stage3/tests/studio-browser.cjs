@@ -1062,27 +1062,43 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     /* Structural edits must keep the owner in the same part of a long page.
        Creating a copy should reveal the copy; removing it should select the
        nearest remaining block, including the last and middle positions. */
-    const blockBeforeStructural=await page.evaluate(()=>
+    /* Run in a second unsaved Studio tab so these extra Undo operations cannot
+       perturb the long main-page regression's historical undo stack. */
+    const structuralErrors=[],structuralPage=await ctx.newPage();
+    structuralPage.on('pageerror',error=>structuralErrors.push(error.message));
+    await structuralPage.goto(pathToFileURL(html).href);
+    await structuralPage.evaluate(site=>window.Stage3Editor.replace(site),
+      await page.evaluate(()=>window.Stage3Editor.getSite()));
+    const openStructuralTree=async()=>{
+      const tree=structuralPage.locator('#cms-section-navigator');
+      if(!(await tree.evaluate(el=>el.open)))await tree.locator(':scope > summary').click();
+    };
+    const openStructuralActions=async()=>structuralPage.evaluate(()=>{
+      for(const id of ['page-actions-more','section-actions-more']){
+        const node=document.getElementById(id);if(node)node.open=true;
+      }
+    });
+    const blockBeforeStructural=await structuralPage.evaluate(()=>
       JSON.stringify(window.Stage3Editor.getSite()));
-    await openSectionTree();
-    await page.locator('#sections .nav-entry')
+    await openStructuralTree();
+    await structuralPage.locator('#sections .nav-entry')
       .filter({hasText:'Переключатель · интерактивные вкладки'}).click();
-    const sectionsBeforeCopy=(await page.evaluate(()=>window.Stage3Editor.getSite()))
+    const sectionsBeforeCopy=(await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
       .pages[0].sections;
     const originalSwitcher=sectionsBeforeCopy.find(s=>s.component==='content-switcher');
     const switcherIndex=sectionsBeforeCopy.findIndex(s=>s.id===originalSwitcher.id);
     assert.ok(switcherIndex>=0&&switcherIndex<sectionsBeforeCopy.length-1,
       'The switcher is followed by another block in this fixture');
     const nextAfterSwitcher=sectionsBeforeCopy[switcherIndex+1];
-    await openStructureActions();
-    await page.locator('#section-duplicate').click();
-    const sectionsWithCopy=(await page.evaluate(()=>window.Stage3Editor.getSite()))
+    await openStructuralActions();
+    await structuralPage.locator('#section-duplicate').click();
+    const sectionsWithCopy=(await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
       .pages[0].sections;
     const copiedSwitcher=sectionsWithCopy[switcherIndex+1];
     assert.equal(copiedSwitcher.component,'content-switcher');
     assert.equal(sectionsWithCopy.length,sectionsBeforeCopy.length+1);
     assert.notEqual(copiedSwitcher.id,originalSwitcher.id);
-    await page.waitForFunction(id=>{
+    await structuralPage.waitForFunction(id=>{
       const doc=document.querySelector('#preview')?.contentDocument;
       const node=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
         .find(el=>el.dataset.cmsEditorSection===id);
@@ -1092,15 +1108,15 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     },copiedSwitcher.id,{timeout:10000});
     if(process.env.GITHUB_ACTIONS==='true'){
       const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
-      await page.screenshot({path:path.join(shots,'stage3-long-page-block-duplicate.png'),
+      await structuralPage.screenshot({path:path.join(shots,'stage3-long-page-block-duplicate.png'),
         animations:'disabled'});
     }
-    page.once('dialog',dialog=>dialog.accept());
-    await openStructureActions();
-    await page.locator('#section-remove').click();
-    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
+    structuralPage.once('dialog',dialog=>dialog.accept());
+    await openStructuralActions();
+    await structuralPage.locator('#section-remove').click();
+    assert.equal((await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
       .pages[0].sections[switcherIndex+1].id,nextAfterSwitcher.id);
-    await page.waitForFunction(id=>{
+    await structuralPage.waitForFunction(id=>{
       const doc=document.querySelector('#preview')?.contentDocument;
       const node=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
         .find(el=>el.dataset.cmsEditorSection===id);
@@ -1108,19 +1124,19 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       return node?.classList.contains('cms-editor-current')&&rect&&
         Math.min(rect.bottom,height-18)-Math.max(rect.top,18)>=32;
     },nextAfterSwitcher.id,{timeout:10000});
-    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА');
-    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    assert.equal(await structuralPage.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА');
+    assert.equal(await structuralPage.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
       blockBeforeStructural,'Duplicating and removing the middle block restores original draft');
 
     /* Deleting the actual final section selects its previous neighbour. */
-    await openSectionTree();
-    await page.locator('#sections .nav-entry').last().click();
-    const finalTwo=(await page.evaluate(()=>window.Stage3Editor.getSite()))
+    await openStructuralTree();
+    await structuralPage.locator('#sections .nav-entry').last().click();
+    const finalTwo=(await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
       .pages[0].sections.slice(-2);
-    page.once('dialog',dialog=>dialog.accept());
-    await openStructureActions();
-    await page.locator('#section-remove').click();
-    await page.waitForFunction(id=>{
+    structuralPage.once('dialog',dialog=>dialog.accept());
+    await openStructuralActions();
+    await structuralPage.locator('#section-remove').click();
+    await structuralPage.waitForFunction(id=>{
       const doc=document.querySelector('#preview')?.contentDocument;
       const node=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
         .find(el=>el.dataset.cmsEditorSection===id);
@@ -1128,21 +1144,21 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       return node?.classList.contains('cms-editor-current')&&rect&&
         Math.min(rect.bottom,height-18)-Math.max(rect.top,18)>=32;
     },finalTwo[0].id,{timeout:10000});
-    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
+    assert.equal((await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
       .pages[0].sections.at(-1).id,finalTwo[0].id);
-    await page.locator('#undo').click();
-    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    await structuralPage.locator('#undo').click();
+    assert.equal(await structuralPage.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
       blockBeforeStructural,'Undo restores the original final section');
 
-    await openSectionTree();
-    await page.locator('#sections .nav-entry')
+    await openStructuralTree();
+    await structuralPage.locator('#sections .nav-entry')
       .filter({hasText:'Этапы работы · дорожная карта'}).click();
-    const comparisonAfterTimeline=(await page.evaluate(()=>window.Stage3Editor.getSite()))
+    const comparisonAfterTimeline=(await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
       .pages[0].sections.find(s=>s.component==='comparison-matrix');
-    page.once('dialog',dialog=>dialog.accept());
-    await openStructureActions();
-    await page.locator('#section-remove').click();
-    await page.waitForFunction(id=>{
+    structuralPage.once('dialog',dialog=>dialog.accept());
+    await openStructuralActions();
+    await structuralPage.locator('#section-remove').click();
+    await structuralPage.waitForFunction(id=>{
       const doc=document.querySelector('#preview')?.contentDocument;
       const node=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
         .find(el=>el.dataset.cmsEditorSection===id);
@@ -1150,10 +1166,13 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       return node?.classList.contains('cms-editor-current')&&rect&&
         Math.min(rect.bottom,height-18)-Math.max(rect.top,18)>=32;
     },comparisonAfterTimeline.id,{timeout:10000});
-    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА');
-    await page.locator('#undo').click();
-    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    assert.equal(await structuralPage.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА');
+    await structuralPage.locator('#undo').click();
+    assert.equal(await structuralPage.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
       blockBeforeStructural,'Undo restores the removed middle section and every draft value');
+
+    assert.deepEqual(structuralErrors,[],'Isolated structural flow has no browser errors');
+    await structuralPage.close();
 
     /* A wide comparison row is larger than its phone scrollport. Editing and
        Undo must preserve the manually inspected right-hand columns. */
