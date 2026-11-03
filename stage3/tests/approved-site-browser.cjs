@@ -1199,6 +1199,30 @@ async function execute(){
   await page.locator('#cms-work-history').getByRole('button',{name:'↷ Повтор'}).click();
   assert.equal((await backdrop()).mobilePosterAssetId,importedMobileLogo.id);
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+  /* Manifest image properties use the same approved media, with a visible thumbnail. */
+  const importedImageContext=await page.evaluate(()=>{
+    const sections=window.Stage3Editor.getSite().pages[0].sections;
+    const index=sections.findIndex(section=>section.id==='section-approved-image');
+    const photo=sections[index].elements.find(element=>element.slot==='photo');
+    return {index,elementId:photo.id,assetId:photo.values['content.media']};
+  });
+  await openSectionTree();
+  await page.locator('#sections .nav-entry').nth(importedImageContext.index).click();
+  await page.locator('#cms-block-contents [data-cms-block-child="'+
+    importedImageContext.elementId+'"]').click();
+  assert.equal(await page.locator('#fields [data-field="content.media"]').inputValue(),
+    importedImageContext.assetId);
+  const selectedMediaThumb=page.locator('#fields .inspector-media-preview img');
+  await selectedMediaThumb.waitFor();
+  await page.waitForFunction(()=>document.querySelector(
+    '#fields .inspector-media-preview img')?.src.startsWith('data:image/'),null,{timeout:15000});
+  assert.ok((await selectedMediaThumb.getAttribute('alt')).length>0,
+    'The selected real media item has accessible alternative text');
+  assert.equal((await selectedMediaThumb.getAttribute('src')).startsWith('data:image/'),true,
+    'The preview uses the existing authenticated media bytes');
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-manifest-media-choice.png'),
+    animations:'disabled',fullPage:true});
+
   // Graph editor retains the selected custom section. Explicitly restore
   // hero focus before exercising its separate responsive inspector controls.
   await openSectionTree();

@@ -10804,10 +10804,46 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         clear.id='cms-field-inherit-'+field.path.replace(/[^a-zA-Z0-9_-]/g,'-');
         wrap.append(clear);
       }
+      if(field.type==='media'){
+        const preview=document.createElement('figure');
+        preview.className='inspector-media-preview';
+        const frame=document.createElement('div');
+        frame.className='inspector-media-preview-frame';
+        const caption=document.createElement('figcaption');
+        const showSelectedMedia=()=>{
+          const asset=session.current.assets.find(item=>item.id===control.value);
+          preview.hidden=!asset;frame.replaceChildren();
+          if(!asset)return;
+          const source=previewImageUrl(asset.id);
+          if(source){
+            const image=document.createElement('img');
+            image.src=source;image.alt=asset.alt||'Выбранное изображение';
+            image.loading='lazy';image.decoding='async';
+            frame.append(image);
+          }else{
+            const missing=document.createElement('span');
+            missing.className='inspector-media-preview-missing';
+            missing.textContent='Миниатюра пока недоступна';
+            frame.append(missing);
+          }
+          caption.textContent=asset.alt||'Изображение без описания';
+        };
+        preview.append(frame,caption);
+        control.addEventListener('change',showSelectedMedia);
+        control.addEventListener('cms-media-ready',showSelectedMedia);
+        showSelectedMedia();wrap.append(preview);
+      }
       wrap.append(error);body.append(wrap);
     }
     }
   }
+  /* Refresh only live media controls after the existing hosted preview fetch completes. */
+  window.addEventListener('stage3-media-ready',event=>{
+    const id=event.detail?.assetId;
+    if(!id)return;
+    for(const control of document.querySelectorAll('#fields select[data-field="content.media"]'))
+      if(control.value===id)control.dispatchEvent(new Event('cms-media-ready'));
+  });
   function stylesFor(block){
     const heading=block.elements.find(x=>x.slot==='heading');
     return {

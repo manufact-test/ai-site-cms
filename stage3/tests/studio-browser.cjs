@@ -1025,6 +1025,14 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       .getAttribute('aria-pressed'),'true',
       'Clicking a repeated gallery card selects its actual editable item');
     assert.equal(await page.locator('#inspector-eyebrow').innerText(),'СВОЙСТВА ЭЛЕМЕНТА');
+    const galleryMedia=page.locator('#fields [data-field="content.media"]');
+    assert.equal(await galleryMedia.count(),1,
+      'Selected gallery image keeps its native media field');
+    assert.equal(await page.locator('#fields .inspector-media-preview').count(),1,
+      'Manifest media selection has one image confirmation, not a second picker');
+    const galleryMediaId=await galleryMedia.inputValue();
+    assert.equal(await page.locator('#fields .inspector-media-preview').isVisible(),!!galleryMediaId,
+      'An unselected image does not add an empty panel to the Inspector');
     await page.locator('#undo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages.flatMap(p=>p.sections)
       .find(s=>s.component==='adaptive-gallery').elements[1].values['behavior.layout'],'masonry');
