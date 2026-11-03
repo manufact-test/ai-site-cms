@@ -211,6 +211,14 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const canvas=page.frameLocator('#preview');
     await canvas.locator('h1').waitFor();
     assert.equal(await canvas.locator('h1').innerText(),'Производим технологическое оборудование');
+    assert.deepEqual(await page.locator('#fields .inspector-field-group-title').allInnerTexts(),
+      ['Содержимое','Оформление'],'Mixed element controls are grouped by owner task');
+    await page.locator('#elements .element').filter({hasText:'Описание'}).click();
+    assert.equal(await page.locator('#fields textarea[data-field="content.text"]').count(),1,
+      'Long descriptions are multi-line controls, not a cramped one-line input');
+    assert.equal(await page.locator('#fields .inspector-field-group-title').count(),0,
+      'A single content group needs no redundant heading');
+    await page.locator('#elements .element').filter({hasText:'Главный заголовок'}).click();
     const headline=page.locator('#fields [data-field="content.text"]');
     await headline.fill('Новое промышленное оборудование');
     await headline.dispatchEvent('change');

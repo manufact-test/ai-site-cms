@@ -1147,6 +1147,9 @@ async function execute(){
   // hero focus before exercising its separate responsive inspector controls.
   await page.locator('#sections .nav-entry').first().click();
   await page.locator('[data-inspector-scope="element"]').click();
+  assert.deepEqual(await page.locator('#fields .inspector-field-group-title').allInnerTexts(),
+    ['Содержимое','Оформление']);
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-element-properties.png'),fullPage:true});
   assert.notEqual(imported.assets[0].id,'asset-external-hero','Server gives immutable site-owned asset ID');
   assert.equal(imported.pages[0].seo.ogImage,imported.assets[0].id,'SEO media reference remapped');
   assert.equal(imported.pages[0].seo.ogTitle,'asset-external-hero',
@@ -1182,6 +1185,8 @@ async function execute(){
   assert.equal(await page.locator('#elements .cms-repeat-row').count(),3);
   await page.locator('#fields [data-field="content.question"]').fill('Что входит в комплект?');
   await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
+  assert.equal(await page.locator('#fields textarea[data-field="content.answer"]').count(),1,
+    'FAQ answers use an editable multi-line field');
   await page.locator('#fields [data-field="content.answer"]').fill('Состав услуги указан в договоре.');
   await page.locator('#fields [data-field="content.answer"]').dispatchEvent('change');
   const questions=()=>page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections

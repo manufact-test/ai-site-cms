@@ -1281,3 +1281,13 @@ html[data-stage3-mode="server"] .inspector[data-scope="block"] #elements{display
 html[data-stage3-mode="server"] .inspector[data-scope="block"] #fields{display:none}
 html[data-stage3-mode="server"] .inspector[data-scope="block"] #cms-section-device-visibility{
   background:#f8fafd;border-color:#dbe5ef;color:#29425e}
+
+html[data-stage3-mode="server"] .inspector .inspector-field-group+.inspector-field-group{
+  border-top-color:#e1e9f1;
+}
+html[data-stage3-mode="server"] .inspector .inspector-field-group-title{
+  color:#536f8f;
+}
+html[data-stage3-mode="server"] .inspector .inspector-field-group textarea.control{
+  min-height:86px;max-height:240px;resize:vertical;line-height:1.5;
+}

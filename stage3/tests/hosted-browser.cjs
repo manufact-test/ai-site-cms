@@ -1558,6 +1558,7 @@ async function execute(){
   assert.equal(await page.locator('#elements .cms-repeat-row').count(),3);
   await page.locator('#fields [data-field="content.question"]').fill('Что входит в комплект?');
   await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
+  assert.equal(await page.locator('#fields textarea[data-field="content.answer"]').count(),1);
   await page.locator('#fields [data-field="content.answer"]').fill('Состав услуги указан в договоре.');
   await page.locator('#fields [data-field="content.answer"]').dispatchEvent('change');
   const questions=()=>page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections

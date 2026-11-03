@@ -10403,7 +10403,25 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     }
     const enumLabels={grid:'Сетка',masonry:'Мозаика',carousel:'Карусель',
       cover:'Заполнить область',contain:'Показать целиком'};
+    /* Keep frequent content first while preserving the original manifest controls. */
+    const sections=new Map();
+    for(const key of ['content','style','behavior','other'])sections.set(key,[]);
     for(const field of fields){
+      const key=sections.has(field.group)?field.group:'other';
+      sections.get(key).push(field);
+    }
+    const visibleGroups=[...sections].filter(([,items])=>items.length);
+    const groupLabels={content:'Содержимое',style:'Оформление',
+      behavior:'Действие и ссылки',other:'Другие свойства'};
+    for(const [group,items] of visibleGroups){
+      const panel=document.createElement('section');panel.className='inspector-field-group';
+      panel.dataset.fieldGroup=group;
+      if(visibleGroups.length>1){
+        const heading=document.createElement('h3');heading.className='inspector-field-group-title';
+        heading.textContent=groupLabels[group];panel.append(heading);
+      }
+      box.append(panel);
+    for(const field of items){
       const wrap=document.createElement('div');wrap.className='inspector-field';
       const id='field-'+field.path.replace(/[^a-zA-Z0-9_-]/g,'-');
       const overridden=field.responsive&&Object.prototype.hasOwnProperty.call(field.value,breakpoint);
@@ -10431,7 +10449,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           opt.textContent=enumLabels[v]||v;control.append(opt);
         });control.value=initial;
       }else{
-        control=document.createElement(field.path==='content.options'?'textarea':'input');
+        const longText=field.path==='content.options'||
+          (field.type==='text'&&(field.maxLength||0)>180);
+        control=document.createElement(longText?'textarea':'input');
+        if(longText)control.rows=3;
         if(control.tagName==='INPUT')control.type=field.type==='color'?'color':
           field.type==='number'?'number':'text';
         control.value=field.type==='boolean'?'':safeText(initial);
@@ -10474,7 +10495,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         clear.id='cms-field-inherit-'+field.path.replace(/[^a-zA-Z0-9_-]/g,'-');
         wrap.append(clear);
       }
-      wrap.append(error);box.append(wrap);
+      wrap.append(error);panel.append(wrap);
+    }
     }
   }
   function stylesFor(block){
