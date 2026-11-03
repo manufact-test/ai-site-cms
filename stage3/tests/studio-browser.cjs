@@ -293,6 +293,14 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await heroAction.focus();await heroAction.press('Enter');
     assert.equal(await page.locator('[data-inspector-scope="element"]').getAttribute('aria-pressed'),'true');
     assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),canvasDraftBefore);
+    /* Choosing a visible element from block contents must keep the real page mounted. */
+    await page.locator('#sections .nav-entry').first().click();
+    await page.locator('#cms-block-contents [data-cms-block-child="section-hero-action"]').click();
+    assert.equal(await page.locator('#inspector-title').innerText(),'Основная кнопка');
+    assert.equal(await page.evaluate(()=>document.querySelector('#preview').contentDocument===window.__editorCanvasDoc),true,
+      'Selecting a section child must not reconstruct the same page iframe');
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),canvasDraftBefore,
+      'Selecting a section child must not mutate content');
     await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
     await page.locator('#preview').evaluate(frame=>frame.contentWindow.scrollTo(0,150));
     await page.waitForFunction(()=>document.querySelector('#preview')?.contentWindow?.scrollY>50);

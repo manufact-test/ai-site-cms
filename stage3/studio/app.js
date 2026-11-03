@@ -6887,7 +6887,9 @@
           entity.values?.['content.question']||entity.values?.['content.caption']||
           entity.values?.['content.author']||entity.slot||'Карточка '+(index+1);
         const child=button(String(text).slice(0,64),'cms-block-child',()=>{
-          elementId=entity.id;inspectorScope='element';draw();resetInspectorScroll();
+          elementId=entity.id;inspectorScope='element';
+          drawHeader();drawTree();drawElements();drawFields();syncCanvasSelection();
+          scrollCanvasToElement(sectionId,elementId);resetInspectorScroll();
           if(matchMedia('(max-width:970px)').matches){
             const chosenPage=pageId,chosenSection=sectionId,chosenElement=elementId;
             requestAnimationFrame(()=>{
@@ -7664,6 +7666,19 @@
     if(!target||!win)return;
     win.scrollTo(0,Math.max(0,win.scrollY+target.getBoundingClientRect().top-12));
     mainPreviewScroll=win.scrollY;
+  }
+  function scrollCanvasToElement(selectedSectionId,selectedElementId){
+    const doc=mainPreviewFrame.contentDocument,win=mainPreviewFrame.contentWindow;
+    const host=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
+      .find(node=>node.dataset.cmsEditorSection===selectedSectionId);
+    const target=[...(host?.querySelectorAll('[data-cms-editor-element]')||[])]
+      .find(node=>node.dataset.cmsEditorElement===selectedElementId);
+    if(!target||!win){scrollCanvasToSection(selectedSectionId);return;}
+    const rect=target.getBoundingClientRect(),margin=18;
+    if(rect.top>=margin&&rect.bottom<=win.innerHeight-margin)return;
+    const offset=rect.top<margin||rect.height>win.innerHeight-2*margin
+      ?rect.top-margin:rect.bottom-win.innerHeight+margin;
+    win.scrollBy(0,offset);mainPreviewScroll=win.scrollY;
   }
   mainPreviewFrame.addEventListener('load',()=>{
     const doc=mainPreviewFrame.contentDocument;
