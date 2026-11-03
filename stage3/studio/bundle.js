@@ -11130,7 +11130,15 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(field.type!=='text'||!field.path.startsWith('content.'))continue;
         const value=norm(field.responsive?C.effectiveValue(field.value,breakpoint):field.value);
         if(!value)continue;
-        const target=candidates.find(node=>!used.has(node)&&norm(node.textContent)===value);
+        const target=candidates.find(node=>{
+          if(used.has(node))return false;
+          if(norm(node.textContent)===value)return true;
+          /* Decorative icons must not make an otherwise editable control unselectable. */
+          if(!node.querySelector('[aria-hidden="true"]'))return false;
+          const textOnly=node.cloneNode(true);
+          textOnly.querySelectorAll('[aria-hidden="true"]').forEach(icon=>icon.remove());
+          return norm(textOnly.textContent)===value;
+        });
         if(!target)continue;
         used.add(target);target.dataset.cmsEditorElement=entity.id;
       }

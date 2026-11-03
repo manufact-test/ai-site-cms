@@ -283,7 +283,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
       canvasDraftBefore,'Canvas selection does not edit, save or publish the draft');
     /* The actual hero CTA selects its own caption and destination, not the whole section. */
-    const heroAction=canvas.locator('[data-cms-section-id="'+seoSection.id+'"] a').first();
+    const heroAction=canvas.locator('[data-cms-section-id="'+seoSection.id+'"] [data-cms-editor-element="section-hero-action"]');
+    assert.equal(await heroAction.count(),1,
+      'An icon next to the hero CTA must not prevent selecting the visible action');
     await heroAction.click();
     assert.equal(await page.locator('#inspector-title').innerText(),'Основная кнопка');
     assert.equal(await page.locator('#fields [data-field="behavior.href"]').count(),1,
