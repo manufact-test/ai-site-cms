@@ -1058,3 +1058,12 @@ button:disabled{opacity:.45}
   .inspector .element-list{margin-bottom:8px}
   .inspector .field-list{scroll-margin-top:12px}
 }
+
+/* In the two-column tablet layout the sidebar must not cover the Inspector below. */
+@media(min-width:651px) and (max-width:970px){
+  .workspace>.sidebar{
+    position:static;top:auto;align-self:start;
+    height:calc(100dvh - 76px);max-height:none;
+    overflow-x:hidden;overflow-y:auto;
+  }
+}

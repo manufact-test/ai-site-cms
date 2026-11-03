@@ -565,6 +565,16 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       assert.equal(await page.locator('[data-inspector-scope="block"]')
         .getAttribute('aria-pressed'),'true',
         'Narrow-screen section selection opens its own block context');
+      const scopePointer=await page.locator('[data-inspector-scope="element"]').evaluate(button=>{
+        const r=button.getBoundingClientRect(),hit=document.elementFromPoint(
+          r.left+r.width/2,r.top+r.height/2);
+        return {targetVisible:r.width>0&&r.height>0,
+          pointerHitsTarget:hit===button||button.contains(hit),
+          blocker:hit?.closest('aside')?.className||hit?.tagName||null};
+      });
+      assert.ok(scopePointer.targetVisible&&scopePointer.pointerHitsTarget,
+        'Context switch must be clickable, not covered by tablet navigation: '+
+        JSON.stringify(scopePointer));
       await page.locator('[data-inspector-scope="element"]').click();
     }
     await page.setViewportSize({width:1450,height:600});
