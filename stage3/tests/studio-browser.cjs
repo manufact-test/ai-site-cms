@@ -974,6 +974,76 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       const exported=await page.evaluate(()=>window.Stage3Editor.getSite());
       assert.equal(exported.pages.flatMap(p=>p.sections).find(s=>s.component===type).items[0].values[field],value);
     }
+    /* A chosen block on a long page must remain in view after responsive
+       reflow. Block scope should behave like an individually selected element. */
+    const longPageBefore=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+    const longBlockId=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='content-switcher').id;
+    await openSectionTree();
+    await page.locator('#sections .nav-entry')
+      .filter({hasText:'Переключатель · интерактивные вкладки'}).click();
+    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА');
+    const blockVisibility=async id=>canvas.locator('[data-cms-editor-section="'+id+'"]')
+      .evaluate(node=>{
+        const r=node.getBoundingClientRect(),height=node.ownerDocument.defaultView.innerHeight;
+        return {top:r.top,bottom:r.bottom,height,
+          visible:Math.max(0,Math.min(r.bottom,height-18)-Math.max(r.top,18))};
+      });
+    const oldBlockPosition=await blockVisibility(longBlockId);
+    assert.ok(oldBlockPosition.visible>=32,
+      'Block navigation reveals its selected section before changing device: '+
+        JSON.stringify(oldBlockPosition));
+    await page.evaluate(()=>{window.__blockBeforeMobile=
+      document.querySelector('#preview').contentDocument;});
+    await page.locator('.device[data-bp="mobile"]').click();
+    await page.waitForFunction(id=>{
+      const doc=document.querySelector('#preview')?.contentDocument;
+      if(!doc||doc===window.__blockBeforeMobile)return false;
+      const node=[...doc.querySelectorAll('[data-cms-editor-section]')]
+        .find(x=>x.dataset.cmsEditorSection===id);
+      if(!node)return false;
+      const r=node.getBoundingClientRect(),height=doc.defaultView.innerHeight;
+      return Math.max(0,Math.min(r.bottom,height-18)-Math.max(r.top,18))>=32;
+    },longBlockId,{timeout:10000});
+    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА');
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.screenshot({path:path.join(shots,'stage3-long-page-block-mobile.png'),
+        animations:'disabled'});
+    }
+    await page.locator('.device[data-bp="desktop"]').click();
+    await page.waitForFunction(id=>{
+      const node=[...document.querySelector('#preview')?.contentDocument
+        ?.querySelectorAll('[data-cms-editor-section]')||[]]
+        .find(x=>x.dataset.cmsEditorSection===id);
+      if(!node)return false;
+      const r=node.getBoundingClientRect(),height=node.ownerDocument.defaultView.innerHeight;
+      return r.top<height-32&&r.bottom>32;
+    },longBlockId,{timeout:10000});
+    /* Leaving the block manually must not turn its persistent selection into
+       an unwanted scroll jump during later device changes. */
+    await page.locator('#preview').evaluate(frame=>frame.contentWindow.scrollTo(0,0));
+    await page.waitForFunction(()=>document.querySelector('#preview')?.contentWindow?.scrollY<8);
+    await page.evaluate(()=>{window.__blockAwayBeforeTablet=
+      document.querySelector('#preview').contentDocument;});
+    await page.locator('.device[data-bp="tablet"]').click();
+    await page.waitForFunction(id=>{
+      const doc=document.querySelector('#preview')?.contentDocument;
+      if(!doc||doc===window.__blockAwayBeforeTablet||
+        !document.querySelector('#viewport')?.classList.contains('tablet'))return false;
+      const node=[...doc.querySelectorAll('[data-cms-editor-section]')]
+        .find(x=>x.dataset.cmsEditorSection===id);
+      const r=node?.getBoundingClientRect();
+      return doc.defaultView.scrollY<8&&r&&r.top>=doc.defaultView.innerHeight;
+    },longBlockId,{timeout:10000});
+    await page.evaluate(()=>{window.__blockAwayBeforeDesktop=
+      document.querySelector('#preview').contentDocument;});
+    await page.locator('.device[data-bp="desktop"]').click();
+    await page.waitForFunction(()=>document.querySelector('#viewport')?.classList.contains('desktop')&&
+      document.querySelector('#preview')?.contentDocument!==window.__blockAwayBeforeDesktop);
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      longPageBefore,'Responsive block selection and scroll-away never edit the site draft');
+
     /* A wide comparison row is larger than its phone scrollport. Editing and
        Undo must preserve the manually inspected right-hand columns. */
     await openSectionTree();

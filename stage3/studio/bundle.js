@@ -11106,18 +11106,19 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   /* The scriptless canvas binds only validated section and manifest IDs to
      the current draft. Selection cannot submit, navigate or mutate content. */
   let mainPreviewRequest=0,mainPreviewPath='',mainPreviewScroll=0;
-  let mainPreviewRestoreElement=null,mainPreviewRestoreScrollports=null;
+  let mainPreviewRestoreSelection=null,mainPreviewRestoreScrollports=null;
   const canvasScrollportSelectors=['.cms-gallery-carousel','.cms-compare-scroll'];
   const mainPreviewFrame=$('preview');
-  /* Keep an actively viewed element visible after content/Undo/device redraws.
-     Do not jump back to an element the owner deliberately scrolled away from. */
-  function canvasSelectedElementIsVisible(){
+  /* Retain only the context the owner was actually viewing. Do not snap back
+     to a selected block or element the owner deliberately scrolled away from. */
+  function canvasSelectedContextIsVisible(){
     const doc=mainPreviewFrame.contentDocument,win=mainPreviewFrame.contentWindow;
-    if(!doc||!win)return false;
+    if(!doc||!win||inspectorScope==='page')return false;
     const host=[...doc.querySelectorAll('[data-cms-editor-section]')]
       .find(node=>node.dataset.cmsEditorSection===sectionId);
-    const target=[...(host?.querySelectorAll('[data-cms-editor-element]')||[])]
-      .find(node=>node.dataset.cmsEditorElement===elementId);
+    const target=inspectorScope==='block'?host:
+      [...(host?.querySelectorAll('[data-cms-editor-element]')||[])]
+        .find(node=>node.dataset.cmsEditorElement===elementId);
     if(!target)return false;
     const rect=target.getBoundingClientRect();
     let left=0,top=0,right=win.innerWidth,bottom=win.innerHeight;
@@ -11164,6 +11165,20 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       .find(node=>node.dataset.cmsEditorSection===id);
     if(!target||!win)return;
     win.scrollTo(0,Math.max(0,win.scrollY+target.getBoundingClientRect().top-12));
+    mainPreviewScroll=win.scrollY;
+  }
+  /* A selected long section can shift when responsive heights change.
+     Reveal a useful slice, without re-aligning a section already in view. */
+  function revealCanvasSectionIfNeeded(id){
+    const win=mainPreviewFrame.contentWindow,doc=mainPreviewFrame.contentDocument;
+    const target=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
+      .find(node=>node.dataset.cmsEditorSection===id);
+    if(!target||!win)return;
+    const rect=target.getBoundingClientRect(),margin=18;
+    const visible=Math.max(0,Math.min(rect.bottom,win.innerHeight-margin)-
+      Math.max(rect.top,margin));
+    if(visible>=Math.min(90,Math.max(32,rect.height/4)))return;
+    win.scrollBy(0,rect.top-margin);
     mainPreviewScroll=win.scrollY;
   }
   function scrollCanvasToElement(selectedSectionId,selectedElementId){
@@ -11366,11 +11381,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(track)track.scrollLeft=item.left;
       }
     }
-    const restore=mainPreviewRestoreElement;
-    mainPreviewRestoreElement=null;
+    const restore=mainPreviewRestoreSelection;
+    mainPreviewRestoreSelection=null;
     if(restore?.request===mainPreviewRequest&&restore.pageId===pageId&&
       restore.sectionId===sectionId&&restore.elementId===elementId&&
-      inspectorScope==='element')scrollCanvasToElement(sectionId,elementId);
+      restore.scope===inspectorScope){
+      if(inspectorScope==='element')scrollCanvasToElement(sectionId,elementId);
+      else if(inspectorScope==='block')revealCanvasSectionIfNeeded(sectionId);
+    }
   });
   async function drawPreview({revealSelected=false}={}){
     const {page,section}=current(),m=manifest(section);
@@ -11389,8 +11407,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         await window.Stage3Host.previewPage(session.current,page.path):
         window.Stage3Editor.previewDocument(session.current,page.path,breakpoint);
       if(request!==mainPreviewRequest)return;
-      mainPreviewRestoreElement=samePage&&inspectorScope==='element'&&
-        (revealSelected||canvasSelectedElementIsVisible())?{request,pageId,sectionId,elementId}:null;
+      mainPreviewRestoreSelection=samePage&&inspectorScope!=='page'&&
+        (revealSelected||canvasSelectedContextIsVisible())?
+          {request,pageId,sectionId,elementId,scope:inspectorScope}:null;
       const tracks=[];
       if(samePage){
         for(const host of frame.contentDocument?.querySelectorAll(
@@ -11409,7 +11428,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       viewport.setAttribute('aria-label','Предпросмотр всей страницы '+page.title);
     }catch(error){
       if(request!==mainPreviewRequest)return;
-      mainPreviewRestoreElement=null;mainPreviewRestoreScrollports=null;
+      mainPreviewRestoreSelection=null;mainPreviewRestoreScrollports=null;
       frame.srcdoc='<!doctype html><html lang="ru"><body style="font:14px system-ui;padding:24px;color:#8b3030">'+
         'Не удалось построить предпросмотр страницы: '+escapeHtml(error.message)+'</body></html>';
     }
@@ -11548,7 +11567,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   document.querySelectorAll('.device').forEach(b=>b.addEventListener('click',()=>{
     /* Capture visibility before the device class resizes the old iframe.
        A previously visible card must remain visible in the new scrollport. */
-    const revealSelected=inspectorScope==='element'&&canvasSelectedElementIsVisible();
+    const revealSelected=inspectorScope!=='page'&&canvasSelectedContextIsVisible();
     breakpoint=b.dataset.bp;$('viewport').className='viewport '+breakpoint;
     drawElements();drawFields();drawPreview({revealSelected});
     document.querySelectorAll('.device').forEach(n=>n.classList.toggle('active',n===b));
