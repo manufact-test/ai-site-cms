@@ -1897,33 +1897,39 @@ async function execute(){
   assert.equal(await page.locator('#server-site-tools-dialog').evaluate(node=>node.open),false,
     'Signing out never leaves a site tools dialog open');
 
-  // Reproduce the post-authentication recovery edge case: credentials are
-  // accepted, the site list is readable, but opening the selected site's
-  // draft is blocked (503) while the CMS engine requires recovery.
+  /* An unavailable draft does not invalidate a login. The owner explicitly
+     chooses a site and can open platform maintenance after a failed fetch. */
   await page.route('**/api/sites/site-approved-browser',route=>
     route.fulfill({status:503,contentType:'application/json',
       body:JSON.stringify({error:'CMS engine recovery required'})}),
     {times:1});
   await page.locator('#server-username').fill('testowner');
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
+  await page.locator('#server-signin').click();
+  await page.locator('#server-login').waitFor({state:'hidden'});
+  await page.locator('#server-site-list .cms-site-card').first().waitFor();
+  assert.equal(await page.locator('#server-view-home:visible').count(),1,
+    'Login shows the explicit site list, never silently opens an arbitrary site');
+  await page.locator('#server-site-list .cms-site-card button').first().click();
+  await page.locator('#toast.error').getByText(/CMS engine recovery required/).waitFor();
+  await page.locator('#server-nav-platform').click();
   const engineStatusResponsePromise=page.waitForResponse(response=>{
     try{return new URL(response.url()).pathname==='/api/engine'&&response.request().method()==='GET';}
     catch{return false;}
   });
-  await page.locator('#server-signin').click();
-  await page.locator('#server-login').waitFor({state:'hidden'});
+  await page.locator('#server-engine-open').click();
   await page.locator('#server-engine-dialog[open]').waitFor();
   const engineStatusResponse=await engineStatusResponsePromise;
   const engineStatusBody=await engineStatusResponse.text();
   assert.equal(engineStatusResponse.status(),200,
-    'The stable owner maintenance endpoint remains available during site recovery: '+engineStatusBody.slice(0,500));
+    'The owner maintenance endpoint remains available after a site fetch failure: '+engineStatusBody.slice(0,500));
   assert.equal(await page.locator('#server-engine-open').evaluate(node=>node.hidden),false,
-    'A successful owner login is preserved when the first site draft is unavailable');
+    'Owner maintenance is available independently from opening a site');
   await page.locator('#server-engine-status').getByText(/Текущая версия:/).waitFor({timeout:5000});
   assert.match(await page.locator('#server-engine-status').innerText(),/Текущая версия:/,
-    'Owner is taken to the CMS maintenance surface instead of a false login error');
+    'Owner can inspect CMS maintenance without a false login error');
   assert.equal(await page.locator('#server-engine-apply').isDisabled(),true,
-    'A recovery redirect never starts an engine update automatically');
+    'A site-fetch failure never starts an engine update automatically');
   await page.unroute('**/api/sites/site-approved-browser');
   await page.locator('#server-engine-close').click();
   await page.locator('#server-nav-account').click();
