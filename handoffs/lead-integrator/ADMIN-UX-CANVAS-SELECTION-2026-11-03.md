@@ -7,10 +7,10 @@ Status: source implemented; final CI SUCCESS 4/4; owner hands-on review remains 
 
 - Repo: https://github.com/manufact-test/ai-site-cms
 - Branch: `feature/stage3-ai-site-contract`
-- Functional SHA: `2d3db6e25fd61dcab3a4a24d4ca5f54f7e2c504c`
-- CI: https://github.com/manufact-test/ai-site-cms/actions/runs/41661403198 — **SUCCESS 4/4** (contract + genuine Chromium, Next runtime, MariaDB 10.11/11.8).
-- Real Chromium screenshot artifact: https://github.com/manufact-test/ai-site-cms/actions/runs/41661403198/artifacts/13243096641. A canvas-selection desktop screenshot and earlier mobile Inspector geometry evidence were visually reviewed.
-- Last verified fallback: `be2a0169a686cd2b118b8e721547f8050a827cc8`, CI #41660481727 SUCCESS 4/4.
+- Functional SHA: `dec59430f789e9907c545c1ecca7bbe334004843`
+- CI: https://github.com/manufact-test/ai-site-cms/actions/runs/41664294523 — **SUCCESS 4/4**; previous green fallback 9212b95 CI #41662591463 SUCCESS 4/4 (contract + genuine Chromium, Next runtime, MariaDB 10.11/11.8).
+- Current Chromium screenshot artifact: https://github.com/manufact-test/ai-site-cms/actions/runs/41664294523/artifacts/13246870299. A canvas-selection desktop screenshot and earlier mobile Inspector geometry evidence were visually reviewed.
+- Previous fully green rollback: `9212b95b686f2ba53dfa2a389118a42f661871c6`, CI #41662591463 SUCCESS 4/4.
 - Previous documentation checkpoint: `37cf07ce20af75ab1f2cbd9fe195ff59a9185c1c`.
 
 ## Why this change
@@ -40,3 +40,17 @@ The owner's main pain is the gap between visual page and task-based Inspector. P
 ## Read next
 
 `docs/NEXT-CHAT.md` top; `stage3/docs/ADMIN-UX-ARCHITECTURE-2026-11-03.md`; `stage3/docs/OWNER-STUDIO-UX-ACCEPTANCE.md`; `docs/MASTER-TZ.md`; `docs/ROADMAP.md`.
+
+
+## Mobile selection follow-up (9212b95)
+
+Re-tapping the current element from the embedded canvas no longer returns silently on a stacked phone layout; it reveals the Inspector. The focus is filtered by real rendered geometry, so an input inside a closed field group is not selected over the currently expanded group. The 390 px offline Chromium regression opens «Оформление», leaves «Содержимое» collapsed, taps the same selected heading and requires visible focus inside the phone viewport. This changes only pointer focus and scroll behavior, not content data or publishing. Final isolated CI: https://github.com/manufact-test/ai-site-cms/actions/runs/41662591463 (**SUCCESS 4/4**).
+
+
+## Exact Graph node selection in existing Workbench (11024fc)
+
+The main parent-owned canvas binding now includes validated IDs of Design Graph nodes (via the existing first-party `cmsdg-n-` classes). Clicking a Graph node routes to the existing `focusVisualReview` and full-page Workbench with the same node ID, device and scroll location; clicking unbound background still opens block scope. The Workbench Graph node select is already the real typed inspector, so no second editor or duplicate graph property panel was added. The action is navigation, not a `D.edit`, `D.structure` or server save.
+
+Genuine hosted Chromium test selects `approved-custom-copy` in the actual PHP-rendered approved custom section, asserts `#cms-work-graph-node` is that exact ID and verifies draft byte equality before/after. Full isolated CI #41664294523: **SUCCESS 4/4**. FOX/Stage2/main/Production remain unchanged.
+
+The initial Graph bridge run #41663405126 failed because its new test used `[data-cms-section-id]` for a real PHP Design Graph section, which renders as `section#section-approved-custom`. The test-only `dec5943` changed the locator to that real PHP ID, checked the validated graph binding, and the entire CI #41664294523 passed 4/4. This was not a draft/publish or server-render regression.

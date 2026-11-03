@@ -135,3 +135,17 @@ FOX is intentionally unchanged. Real owner hands-on UX approval remains pending;
 - The iframe's `sandbox="allow-same-origin"` permits the parent to inspect first-party DOM, but intentionally omits `allow-scripts`, forms, top navigation and popups. Click/submit defaults are prevented; the preview CSP continues to disable scripts. The canvas selection does not call `D.edit`, `D.structure`, server Save or Publish.
 - Section Enter/Space selection and scroll restoration across same-page redraw and responsive mode changes are covered by offline Chromium. Hosted test clicks real PHP-rendered page content. The selected block/element is indicated transiently in preview without modifying the generated published HTML or site contract.
 - Functional candidate `2d3db6e25fd61dcab3a4a24d4ca5f54f7e2c504c`, CI [#41661403198](https://github.com/manufact-test/ai-site-cms/actions/runs/41661403198) **SUCCESS 4/4**. Owner UI/UX approval remains pending. FOX, Stage2, main, production and live data untouched.
+
+
+## Phone re-selection of the current canvas element (2026-11-03)
+
+On ≤970px viewports the main preview picker now also reveals the Inspector when the same element is tapped again. For element context it selects the first physically rendered input/textarea/select/button from the currently **open** field group, falling back to a disclosure summary when all controls are closed. This prevents focusing a hidden input behind a collapsed group. Block context continues to reveal its heading. No draft mutation or new editor state.
+
+The genuine 390px Chromium flow leaves the Style group expanded and Content closed, re-taps the selected heading, and asserts that the active field belongs to Style and is inside the viewport. Functional candidate `9212b95b686f2ba53dfa2a389118a42f661871c6`, [CI #41662591463](https://github.com/manufact-test/ai-site-cms/actions/runs/41662591463) **SUCCESS 4/4**. Owner acceptance, Hostinger FOX deployment and real client site remain separate gates.
+
+
+## Individual Design Graph node click-through (2026-11-03)
+
+The main preview now identifies **validated** graph IDs via the same emitted `.cmsdg-n-{id}` classes already consumed by Workbench. A click on such a node routes to the existing `focusVisualReview` → full-page Workbench with its exact node ID, responsive mode and scroll position; background clicks still select block scope. Workbench's own Graph inspector renders the same original typed node controls, undo/save/review/publish gates. This is not a new Graph editor or hidden code evaluation, and site/graph data is unchanged by navigation.
+
+Hosted approved-site genuine Chromium clicks `approved-custom-copy` in PHP-rendered Design Graph, requires `#cms-work-graph-node` to be the same stable ID, and compares the draft before and after. Verified functional SHA `dec59430f789e9907c545c1ecca7bbe334004843`, [CI #41664294523](https://github.com/manufact-test/ai-site-cms/actions/runs/41664294523) **SUCCESS 4/4** final result. Owner acceptance and staging deployment remain separate.

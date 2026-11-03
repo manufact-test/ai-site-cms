@@ -1,3 +1,29 @@
+# CURRENT CHECKPOINT — direct Design Graph node to existing Workbench, 2026-11-03 (read first)
+
+**Branch:** `feature/stage3-ai-site-contract`. **Latest functional SHA:** `dec59430f789e9907c545c1ecca7bbe334004843`. **Full CI:** [#41664294523](https://github.com/manufact-test/ai-site-cms/actions/runs/41664294523) — **SUCCESS 4/4**. Previous green functional SHA `9212b95b686f2ba53dfa2a389118a42f661871c6`, [CI #41662591463 SUCCESS 4/4](https://github.com/manufact-test/ai-site-cms/actions/runs/41662591463).
+
+**Individual Design Graph editing:** the real main Studio preview now binds validated visible Design Graph node IDs to their rendered nodes. Clicking a text/image/etc node in a custom composition opens that **exact node** in the already-existing full-page Workbench/Graph inspector. Clicking the section background still selects whole-block properties. Normal manifest text, media and repeat cards still open the regular Inspector as in the preceding checkpoint, and responsive scroll/focus behavior remains. The bridge is UI navigation only: same draft, same Workbench, no new editor or schema, no auto-Save/Publish. Node IDs are checked against the current validated graph before navigation.
+
+**Final proof:** [CI #41664294523 SUCCESS 4/4](https://github.com/manufact-test/ai-site-cms/actions/runs/41664294523), [real Chromium screenshots #13246870299](https://github.com/manufact-test/ai-site-cms/actions/runs/41664294523/artifacts/13246870299). The first Graph test on #41663405126 used a stale `data-cms-section-id` selector against PHP's actual `section#id`; corrected in test-only `dec5943` before the green run. **Regression:** hosted approved-site Chromium selects the exact `approved-custom-copy` node in a genuine PHP-rendered Graph section, verifies the Workbench node selector and unchanged draft, closes the dialog and returns to normal editing. Existing offline, PHP, Next and MariaDB 10.11/11.8 jobs remain the full gate. Engineer screenshot evidence is not owner acceptance.
+
+**Next:** use the verified screenshot evidence and conduct owner UX review and a separately authorized controlled FOX update. FOX/Stage2/main/Production/private DB/Cron/settings untouched. First real site still waits for owner's original landing + three approved static desktop/tablet/mobile prototypes.
+
+**Detailed handoff:** [ADMIN-UX-CANVAS-SELECTION-2026-11-03.md](../handoffs/lead-integrator/ADMIN-UX-CANVAS-SELECTION-2026-11-03.md).
+
+---
+
+# CURRENT CHECKPOINT — phone canvas re-selection focus, 2026-11-03 (read first)
+
+**Branch:** `feature/stage3-ai-site-contract`. **Latest functional SHA:** `9212b95b686f2ba53dfa2a389118a42f661871c6`. **Full CI:** [#41662591463](https://github.com/manufact-test/ai-site-cms/actions/runs/41662591463) — **SUCCESS 4/4**. Previous verified functional fallback `2d3db6e25fd61dcab3a4a24d4ca5f54f7e2c504c`, [CI #41661403198 SUCCESS 4/4](https://github.com/manufact-test/ai-site-cms/actions/runs/41661403198).
+
+**Additional phone UX fix:** tapping the already selected element in the now-clickable scriptless main canvas also reveals its actual Inspector field; previously the redundant selection returned silently while the Inspector remained below the viewport. On compact screens the focus targets a **visible** control in the currently expanded «Содержимое»/«Оформление»/«Действие и ссылки» group, never an input hidden in a closed disclosure. The existing block/element selection, scroll retention, responsive inheritance, Undo/Redo, Save/Review/Publish and rollback remain unchanged.
+
+The real offline Chromium test reproduces a 390 px phone with «Оформление» open and «Содержимое» closed, taps the selected heading again, and asserts focus + physical viewport visibility. This is editing UX only, not client content or publication. No FOX/Stage2/main/Production update. Owner personal UI/UX GO remains pending; real site starts only after original landing and three approved static designs.
+
+**Handoff:** [ADMIN-UX-CANVAS-SELECTION-2026-11-03.md](../handoffs/lead-integrator/ADMIN-UX-CANVAS-SELECTION-2026-11-03.md) and the previous checkpoint below.
+
+---
+
 # CURRENT CHECKPOINT — direct canvas selection and scroll continuity, 2026-11-03 (read first)
 
 **Branch:** `feature/stage3-ai-site-contract`. **Latest functional SHA:** `2d3db6e25fd61dcab3a4a24d4ca5f54f7e2c504c`. **Full CI:** [#41661403198](https://github.com/manufact-test/ai-site-cms/actions/runs/41661403198) — **SUCCESS 4/4**. Previous fully green functional fallback: `be2a0169a686cd2b118b8e721547f8050a827cc8` ([CI #41660481727](https://github.com/manufact-test/ai-site-cms/actions/runs/41660481727) SUCCESS 4/4).
