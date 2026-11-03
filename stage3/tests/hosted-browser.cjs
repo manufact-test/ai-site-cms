@@ -127,6 +127,7 @@ async function execute(){
   await page.locator('#server-search-pages').press('Escape');
   assert.equal(await page.locator('#pages .nav-entry:visible').count(),2);
   await page.locator('#pages .nav-entry').first().click();
+  await page.locator('[data-inspector-scope="element"]').click();
   const field=page.locator('#fields [data-field="content.text"]');
   await field.fill('Проверка серверного сайта');
   await field.dispatchEvent('change');
@@ -867,6 +868,7 @@ async function execute(){
   await page.locator('#section-catalog').click();
   await page.locator('#cms-component-search').fill('галерея');
   await page.locator('#cms-component-list [data-component="photo-gallery"]').click();
+  await page.locator('[data-inspector-scope="element"]').click();
   await page.locator('#elements [data-repeat-id]').first().click();
   await page.locator('#fields [data-field="content.media"]').selectOption(assetId);
   await page.locator('#fields [data-field="content.caption"]').fill('Фото производства');
@@ -1840,6 +1842,7 @@ async function execute(){
 
   // A stale remote save never overwrites another session or destroys local edits.
   await page.locator('#pages .nav-entry').first().click();
+  await page.locator('[data-inspector-scope="element"]').click();
   await page.locator('#fields [data-field="content.text"]').fill('Несохранённый конфликтующий текст');
   await page.locator('#fields [data-field="content.text"]').dispatchEvent('change');
   const saveConflictRoute='**/api/sites/'+siteId+'/save';

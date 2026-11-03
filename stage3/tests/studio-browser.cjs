@@ -318,6 +318,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await canvas.locator('h2').innerText(),'Свяжитесь с нами');
     // Local revisions survive a reload; restoring never publishes anything.
     await page.locator('#pages .nav-entry').first().click();
+    await page.locator('[data-inspector-scope="element"]').click();
     const title=page.locator('#fields [data-field="content.text"]');
     await title.fill('Черновик версии 2');await title.dispatchEvent('change');
     await page.locator('#save').click();

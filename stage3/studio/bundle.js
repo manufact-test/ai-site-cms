@@ -4758,7 +4758,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const device=['desktop','tablet','mobile'].includes(target.device)?target.device:'desktop';
     const scrollY=Number.isFinite(target.scrollY)?Math.max(0,Math.min(60000,
       Math.round(target.scrollY))):0;
-    pageId=page.id;sectionId=section.id;elementId=section.elements[0].id;
+    pageId=page.id;sectionId=section.id;elementId=section.elements[0].id;inspectorScope='element';
     breakpoint=device;draw();
     pendingWorkReviewFocus={pageId:page.id,sectionId:section.id,
       nodeId:typeof target.nodeId==='string'?target.nodeId:'',device,scrollY};
@@ -4772,7 +4772,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     if(!page)return false;
     const section=page.sections.find(s=>s.id===issue.sectionId)||page.sections[0];
     const element=[...section.elements,...(section.items||[])].find(e=>e.id===issue.elementId)||section.elements[0];
-    pageId=page.id;sectionId=section.id;elementId=element.id;
+    pageId=page.id;sectionId=section.id;elementId=element.id;inspectorScope='element';
     if(['desktop','tablet','mobile'].includes(issue.device))breakpoint=issue.device;
     draw();
     if((issue.nodeId||(section.designGraph&&
@@ -10974,7 +10974,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       if(!target)return false;
       session=D.edit(session,manifests,{pageId:page.id,sectionId:section.id,elementId:target.id,
         path:'content.media',value:assetId,expectedRevision:session.revision});
-      pageId=page.id;sectionId=section.id;elementId=target.id;draw();
+      pageId=page.id;sectionId=section.id;elementId=target.id;inspectorScope='element';draw();
       return true;
     },
     assetAction:command=>{
