@@ -1,3 +1,21 @@
+# CURRENT CHECKPOINT — page / block / element contextual Inspector, 2026-11-03 (read first)
+
+**Branch:** `feature/stage3-ai-site-contract`. **Verified functional SHA:** `005753aad832b6628b85d47b2e705cd7ad45b92e`. **Complete GitHub Actions:** [#41684120493](https://github.com/manufact-test/ai-site-cms/actions/runs/41684120493) **SUCCESS 4/4**. **Real Chromium captures:** https://github.com/manufact-test/ai-site-cms/actions/runs/41684120493/artifacts/13254592185.
+
+**Owner UX rule:** The central full scrollable page is the primary navigation. Clicking its section background selects block settings; clicking visible heading/media/repeat cards selects element fields; the validated Graph node still opens the existing Workbench. The sidebar structure tree remains optional.
+
+**New page-level flow:** Clicking a page entry in the left page list (or the site overview's page card) opens the Inspector's **«Страница»** context. It shows the selected page title/path, real original actions for creating/renaming/duplicating/reordering/deleting pages, and page SEO/menu settings. **«Блок»** and **«Элемент»** remain adjacent scopes, with their original existing controls. Re-selecting the current page changes context without reloading the iframe or mutating the draft; selecting a different page follows the existing preview render. The page list remains visible, with no simultaneous false section-active state.
+
+**Navigation and clarity:** Inspector/page focus on 390/820px widths; original Workbench entry is now labelled «Расширенный редактор», distinguishable from the primary canvas. User can reach context from page/section/element directly without permanent competing lists. Original Typed Site Contract, Design Graph, SEO Engine, forms/media, Undo/Redo, Save/Publish/release restore all preserved.
+
+**Validation:** Full CI 4/4 includes genuine offline and PHP Chromium. Desktop, mobile and page-settings screenshots personally reviewed as engineering evidence; not owner's UX acceptance.
+
+**Deployment boundary:** GitHub only; FOX remains on older Stage3 and **must not be used to judge these improvements yet**. No Stage2/main/production/private Hostinger changes. Controlled reversible FOX update requires separate stage; then invite owner test. First real site remains on hold until prior landing and approved static PC/tablet/mobile mockups.
+
+**Handoff:** [ADMIN-UX-PAGE-SCOPE-2026-11-03.md](../handoffs/lead-integrator/ADMIN-UX-PAGE-SCOPE-2026-11-03.md).
+
+---
+
 # CURRENT CHECKPOINT — visual-first editor, 2026-11-03 (read first)
 
 **Working branch:** `feature/stage3-ai-site-contract`. **Functional SHA:** `db6d6b5c474549344a578e5afa2dd6a7da3f3716`. **Full CI:** [#41673681398](https://github.com/manufact-test/ai-site-cms/actions/runs/41673681398) — SUCCESS 4/4. **Chromium screenshots:** https://github.com/manufact-test/ai-site-cms/actions/runs/41673681398/artifacts/13250351207.
