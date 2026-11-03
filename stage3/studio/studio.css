@@ -951,3 +951,30 @@ button:disabled{opacity:.45}
 .cms-page-details-dialog .cms-page-details-error[hidden]{display:none}
 .cms-page-details-dialog .cms-settings-actions{justify-content:flex-end;gap:10px}
 @media(max-width:540px){.cms-page-details-dialog{padding:18px}.cms-page-details-dialog .cms-settings-actions{flex-direction:column-reverse}.cms-page-details-dialog .cms-settings-actions .btn{width:100%}}
+
+
+/* Context menu keeps repeat rows readable without four permanent icon buttons. */
+.cms-repeat-row{position:relative}
+.cms-repeat-more{position:relative;flex:0 0 auto;z-index:2}
+.cms-repeat-more>summary{
+  display:grid;place-items:center;list-style:none;width:34px;min-height:35px;
+  border:1px solid #486173;border-radius:8px;background:#1b3445;color:#e6f4fd;
+  cursor:pointer;font-size:22px;font-weight:700;line-height:1;
+}
+.cms-repeat-more>summary::-webkit-details-marker{display:none}
+.cms-repeat-more>summary:hover,.cms-repeat-more[open]>summary{background:#24506b;border-color:#83b5d9}
+.cms-repeat-more>summary:focus-visible{outline:3px solid #72bee8;outline-offset:2px}
+.cms-repeat-more-actions{
+  position:absolute;right:0;top:calc(100% + 5px);z-index:20;
+  display:grid;gap:3px;min-width:182px;padding:7px;
+  border:1px solid #496477;border-radius:11px;background:#1b3242;
+  box-shadow:0 14px 32px #020d18a6;
+}
+.cms-repeat-more:not([open]) .cms-repeat-more-actions{display:none}
+.cms-repeat-more-actions .btn.small{
+  width:100%;min-height:35px;padding:8px 10px;text-align:left;
+  border:0;border-radius:7px;background:transparent;color:#e2eff7;
+  font-size:12px;font-weight:600;
+}
+.cms-repeat-more-actions .btn.small:hover:not(:disabled){background:#31566d}
+.cms-repeat-more-actions .btn.small:disabled{opacity:.4}

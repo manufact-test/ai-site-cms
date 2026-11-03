@@ -6723,7 +6723,18 @@
   function drawElements(){
     const {section}=current(),m=manifest(section);
     $('inspector-title').textContent=m?.label||section.component;
-    $('inspector-caption').textContent='Выберите элемент блока, чтобы изменить его содержимое.';
+    const selectedElement=section.elements.find(e=>e.id===elementId);
+    const selectedItem=section.items?.find(item=>item.id===elementId);
+    const selectedLabel=selectedElement
+      ?(m?.elements?.find(def=>def.slot===selectedElement.slot)?.label||selectedElement.slot)
+      :selectedItem
+        ?(selectedItem.values['content.title']||selectedItem.values['content.question']||
+          selectedItem.values['content.author']||selectedItem.values['content.caption']||
+          'Карточка блока')
+        :null;
+    $('inspector-caption').textContent=selectedLabel
+      ?'Выбран элемент: '+String(selectedLabel).slice(0,70)
+      :'Выберите элемент блока, чтобы изменить его содержимое.';
     const row=$('elements');row.replaceChildren();
     let formSettingsPanel=null;
     if(section.component==='lead-form-flex'){
@@ -6879,16 +6890,22 @@
         const choice=button((i+1)+'. '+String(headline).slice(0,56),'element'+(item.id===elementId?' active':''),
           ()=>{elementId=item.id;drawElements();drawFields();});
         choice.dataset.repeatId=item.id;line.append(choice);
-        const op=(title,label,action,disabled=false,more={})=>{
-          const control=button(title,'btn small',()=>operateRepeat(action,item.id,more));
+        /* Rare repeat operations stay next to their item, behind one menu. */
+        const more=document.createElement('details');more.className='cms-repeat-more';
+        const menuToggle=document.createElement('summary');menuToggle.textContent='⋯';
+        menuToggle.setAttribute('aria-label','Действия для '+(faq?'вопроса ':'карточки ')+(i+1));
+        menuToggle.title='Действия с '+noun;
+        const menu=document.createElement('div');menu.className='cms-repeat-more-actions';
+        const op=(title,label,action,disabled=false,extra={})=>{
+          const control=button(title,'btn small',()=>operateRepeat(action,item.id,extra));
           control.title=label;control.setAttribute('aria-label',label+' '+(i+1));
-          control.disabled=disabled;line.append(control);
+          control.disabled=disabled;menu.append(control);
         };
-        op('↑','Поднять '+noun,'moveItem',i===0,{delta:-1});
-        op('↓','Опустить '+noun,'moveItem',i===section.items.length-1,{delta:1});
-        op('⧉','Копировать '+noun,'duplicateItem',section.items.length>=m.repeat.max);
-        op('×','Удалить '+noun,'removeItem',section.items.length<=m.repeat.min);
-        row.append(line);
+        op('Переместить выше','Поднять '+noun,'moveItem',i===0,{delta:-1});
+        op('Переместить ниже','Опустить '+noun,'moveItem',i===section.items.length-1,{delta:1});
+        op('Дублировать','Копировать '+noun,'duplicateItem',section.items.length>=m.repeat.max);
+        op('Удалить','Удалить '+noun,'removeItem',section.items.length<=m.repeat.min);
+        more.append(menuToggle,menu);line.append(more);row.append(line);
       });
       const add=button(faq?'+ Добавить вопрос':'+ Добавить карточку','btn small',
         ()=>operateRepeat('addItem',null));

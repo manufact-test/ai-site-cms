@@ -1558,12 +1558,19 @@ async function execute(){
     .find(section=>section.component==='faq-accordion').items.map(item=>item.values['content.question']));
   assert.deepEqual(await questions(),['Как оформить заказ?','Как происходит доставка?','Что входит в комплект?'],
     'New FAQ item must actually receive edited question before reordering');
-  await page.locator('#elements .cms-repeat-row').last()
-    .locator('button[aria-label^="Поднять вопрос"]').click();
+  const lastFaqRow=page.locator('#elements .cms-repeat-row').last();
+  assert.equal(await lastFaqRow.locator('.cms-repeat-more > summary').count(),1);
+  assert.equal(await lastFaqRow.locator('.cms-repeat-more-actions .btn:visible').count(),0,
+    'Rare FAQ actions remain hidden until the row menu is opened');
+  assert.match(await page.locator('#inspector-caption').innerText(),/Что входит в комплект/);
+  await lastFaqRow.locator('.cms-repeat-more > summary').click();
+  await lastFaqRow.locator('button[aria-label^="Поднять вопрос"]').click();
   assert.deepEqual(await questions(),['Как оформить заказ?','Что входит в комплект?','Как происходит доставка?'],
     'FAQ move must change ordering of the actual saved draft');
-  await page.locator('#elements .cms-repeat-row')
-    .filter({hasText:'Как происходит доставка?'}).locator('button[aria-label^="Удалить вопрос"]').click();
+  const deleteFaqRow=page.locator('#elements .cms-repeat-row')
+    .filter({hasText:'Как происходит доставка?'});
+  await deleteFaqRow.locator('.cms-repeat-more > summary').click();
+  await deleteFaqRow.locator('button[aria-label^="Удалить вопрос"]').click();
   assert.deepEqual(await questions(),['Как оформить заказ?','Что входит в комплект?'],
     'FAQ delete must target the specified question, not the currently selected index');
   assert.equal(await page.locator('#elements .cms-repeat-row').count(),2);

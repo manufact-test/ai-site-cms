@@ -1249,3 +1249,23 @@ html[data-stage3-mode="server"] #cms-page-details-dialog .control{
 html[data-stage3-mode="server"] #cms-page-details-dialog .cms-page-details-error{
   background:#fff0ef;border-color:#e1aba5;color:#963d3c;
 }
+
+
+/* Hosted light-theme counterpart for compact repeat item action menus. */
+html[data-stage3-mode="server"] .inspector .cms-repeat-more>summary{
+  width:34px;min-height:35px;background:#f5f8fc;border:1px solid #d6e2ef;
+  color:#31577e;
+}
+html[data-stage3-mode="server"] .inspector .cms-repeat-more>summary:hover,
+html[data-stage3-mode="server"] .inspector .cms-repeat-more[open]>summary{
+  background:#e9f2fe;border-color:#9bbfe7;
+}
+html[data-stage3-mode="server"] .inspector .cms-repeat-more-actions{
+  background:#fff;border-color:#ceddea;box-shadow:0 14px 35px #183e6338;
+}
+html[data-stage3-mode="server"] .inspector .cms-repeat-more-actions .btn.small{
+  background:transparent;color:#2e4965;
+}
+html[data-stage3-mode="server"] .inspector .cms-repeat-more-actions .btn.small:hover:not(:disabled){
+  background:#eff5fd;
+}
