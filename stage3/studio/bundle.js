@@ -9665,33 +9665,118 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       }
       parent.before(tools);
     };
-    const pageActions=[
-      ['page-add','Добавить страницу',()=>{
-        const title=prompt('Название новой страницы','Новая страница');if(title===null)return;
-        const path=prompt('Путь страницы (например /catalog/)','/new-page/');if(path===null)return;
-        const id=uniqueId('page'),firstSectionId=uniqueId('section');
-        structural({action:'addPage',id,path,title,sectionId:firstSectionId,component:'company-hero'});
-        if(session.current.pages.some(x=>x.id===id)){
-          pageId=id;sectionId=session.current.pages.find(x=>x.id===id).sections[0].id;
-          elementId=session.current.pages.find(x=>x.id===id).sections[0].elements[0].id;draw();
+    /* One contextual form edits page identity without browser prompt chains. */
+    const openPageDetails=(()=>{
+      const dialog=document.createElement('dialog');
+      dialog.id='cms-page-details-dialog';
+      dialog.className='cms-settings-dialog cms-page-details-dialog';
+      const heading=document.createElement('h2');
+      heading.id='cms-page-details-heading';
+      const description=document.createElement('p');
+      description.id='cms-page-details-description';
+      const form=document.createElement('form');
+      form.id='cms-page-details-form';
+      form.noValidate=true;
+      const titleLabel=document.createElement('label');
+      titleLabel.textContent='Название страницы';
+      const titleInput=document.createElement('input');
+      titleInput.id='cms-page-details-title';
+      titleInput.className='control';
+      titleInput.type='text';
+      titleInput.required=true;
+      titleInput.maxLength=160;
+      titleLabel.htmlFor=titleInput.id;
+      titleLabel.append(titleInput);
+      const pathLabel=document.createElement('label');
+      pathLabel.textContent='Адрес страницы';
+      const pathInput=document.createElement('input');
+      pathInput.id='cms-page-details-path';
+      pathInput.className='control';
+      pathInput.type='text';
+      pathInput.required=true;
+      pathInput.spellcheck=false;
+      pathInput.autocomplete='off';
+      pathLabel.htmlFor=pathInput.id;
+      pathLabel.append(pathInput);
+      const hint=document.createElement('small');
+      hint.textContent='Укажите путь внутри сайта, например /catalog/. Меняется только черновик.';
+      const error=document.createElement('p');
+      error.id='cms-page-details-error';
+      error.className='cms-page-details-error';
+      error.setAttribute('role','alert');
+      error.hidden=true;
+      const actions=document.createElement('div');
+      actions.className='cms-settings-actions';
+      const submit=document.createElement('button');
+      submit.id='cms-page-details-submit';
+      submit.className='btn primary';
+      submit.type='submit';
+      const cancel=button('Отмена','btn',()=>dialog.close());
+      cancel.id='cms-page-details-cancel';
+      actions.append(submit,cancel);
+      form.append(titleLabel,pathLabel,hint,error,actions);
+      dialog.append(heading,description,form);
+      document.body.append(dialog);
+      let mode='rename',targetId='';
+      form.addEventListener('submit',event=>{
+        event.preventDefault();
+        const title=titleInput.value.trim(),path=pathInput.value.trim();
+        if(!title||!path.startsWith('/')){
+          error.textContent='Заполните название и путь страницы, начинающийся с /.';
+          error.hidden=false;
+          return;
         }
-      }],
-      ['page-rename','Переименовать страницу',()=>{
-        const page=current().page;
-        const title=prompt('Название страницы',page.title);if(title===null)return;
-        const path=prompt('Путь страницы',page.path);if(path===null)return;
-        structural({action:'updatePage',pageId:page.id,title,path});
-      }],
-      ['page-duplicate','Дублировать страницу',()=>{
-        const page=current().page;
-        const name=prompt('Название копии страницы',page.title+' — копия');if(name===null)return;
-        const path=prompt('Новый URL копии страницы','/copy-'+Date.now().toString(36)+'/');
-        if(path===null)return;
-        const id=uniqueId('page');
-        structural({action:'duplicatePage',pageId:page.id,id,title:name,path});
-        const result=session.current.pages.find(x=>x.id===id);
-        if(result){pageId=id;sectionId=result.sections[0].id;elementId=result.sections[0].elements[0].id;draw();}
-      }],
+        const before=session.current;
+        if(mode==='rename'){
+          structural({action:'updatePage',pageId:targetId,title,path});
+        }else if(mode==='add'){
+          const id=uniqueId('page'),firstSectionId=uniqueId('section');
+          structural({action:'addPage',id,path,title,sectionId:firstSectionId,component:'company-hero'});
+          const added=session.current.pages.find(x=>x.id===id);
+          if(added){
+            pageId=id;sectionId=added.sections[0].id;
+            elementId=added.sections[0].elements[0].id;draw();
+          }
+        }else{
+          const id=uniqueId('page');
+          structural({action:'duplicatePage',pageId:targetId,id,title,path});
+          const copy=session.current.pages.find(x=>x.id===id);
+          if(copy){
+            pageId=id;sectionId=copy.sections[0].id;
+            elementId=copy.sections[0].elements[0].id;draw();
+          }
+        }
+        if(before===session.current){
+          error.textContent='Страница не изменена. Проверьте уникальность адреса и сообщение внизу экрана.';
+          error.hidden=false;
+          return;
+        }
+        dialog.close();
+      });
+      return nextMode=>{
+        const page=nextMode==='add'?null:current().page;
+        mode=nextMode;targetId=page?.id||'';
+        heading.textContent=nextMode==='add'?'Новая страница':
+          nextMode==='duplicate'?'Копировать страницу':'Настройки страницы';
+        description.textContent=nextMode==='add'
+          ?'Создайте страницу внутри выбранного сайта. Она появится в черновике и не будет опубликована автоматически.'
+          :nextMode==='duplicate'
+            ?'Копия страницы получит новый адрес. Исходная страница не изменится.'
+            :'Название и URL выбранной страницы. При изменении адреса CMS обновит внутренние ссылки и перенаправления.';
+        submit.textContent=nextMode==='add'?'Создать страницу':
+          nextMode==='duplicate'?'Создать копию':'Применить изменения';
+        titleInput.value=nextMode==='add'?'':nextMode==='duplicate'?page.title+' — копия':page.title;
+        pathInput.value=nextMode==='add'?'/new-page/':
+          nextMode==='duplicate'?'/copy-'+Date.now().toString(36)+'/':page.path;
+        error.hidden=true;error.textContent='';
+        dialog.showModal();
+        titleInput.focus();
+      };
+    })();
+    const pageActions=[
+      ['page-add','Добавить страницу',()=>openPageDetails('add')],
+      ['page-rename','Переименовать страницу',()=>openPageDetails('rename')],
+      ['page-duplicate','Дублировать страницу',()=>openPageDetails('duplicate')],
       ['page-up','Переместить выше',()=>structural({action:'movePage',pageId:pageId,delta:-1})],
       ['page-down','Переместить ниже',()=>structural({action:'movePage',pageId:pageId,delta:1})],
       ['page-remove','Удалить страницу',()=>{
