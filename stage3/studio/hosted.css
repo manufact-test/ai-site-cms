@@ -1221,3 +1221,11 @@ html[data-stage3-mode="server"] .workspace.cms-hub-mode{display:block;min-height
   .cms-hub-actions>.btn{flex:1 1 160px}
   .cms-hub .hosted-tool-category-summary,.cms-hub .hosted-drawer-summary{padding:14px}
 }
+
+/* Hosted Studio: keep secondary navigation and server switching out of the main editing path. */
+.cms-project-advanced{margin-top:18px;padding-top:14px;border-top:1px solid #e4eaf2;max-width:540px}
+.cms-project-advanced>summary{cursor:pointer;color:#34648d;font-size:12px;font-weight:750;padding:8px 0;list-style:none}
+.cms-project-advanced>summary::-webkit-details-marker{display:none}
+.cms-project-advanced>summary::after{content:"⌄";margin-left:9px}
+.cms-project-advanced[open]>summary::after{content:"⌃"}
+html[data-stage3-mode="server"] #cms-open-page-preview{display:none!important}

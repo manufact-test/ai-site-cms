@@ -2745,7 +2745,8 @@
     setCmsView('site-settings');
   });
   siteToolsTrigger.classList.add('hosted-site-tools-trigger');
-  document.querySelector('.panel-top').append(siteToolsTrigger);
+  /* Keep the legacy trigger callable without duplicating the primary navigation. */
+  siteToolsDialog.append(siteToolsTrigger);
   siteToolsDialog.addEventListener('click',event=>{
     if(event.target===siteToolsDialog)siteToolsDialog.close();
   });
@@ -2807,7 +2808,10 @@
     action('Настройки сайта','server-project-settings',()=>setCmsView('site-settings')),
     action('Медиа и заявки','server-project-resources',()=>setCmsView('resources')));
   const projectCard=element('section','cms-hub-card');
-  projectCard.append(siteHeadline,siteFacts,siteButtons,toolbar);
+  const projectAdvanced=element('details','cms-project-advanced');
+  projectAdvanced.id='server-project-advanced';
+  projectAdvanced.append(element('summary',null,'Переключить или обновить сайт'),toolbar);
+  projectCard.append(siteHeadline,siteFacts,siteButtons,projectAdvanced);
   const projectPages=element('div','cms-project-pages');projectPages.id='server-project-pages';
   siteView.append(projectCard,element('h2','cms-section-title','Страницы сайта'),projectPages);
   const settingsView=makeCmsView('site-settings','УРОВЕНЬ САЙТА','Настройки сайта',

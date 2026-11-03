@@ -600,6 +600,12 @@ async function execute(){
   await page.locator('#server-nav-site').click();
   assert.match(await page.locator('#server-project-title').innerText(),/Внешний готовый сайт/);
   assert.equal(await page.locator('#server-project-pages .cms-page-link').count(),2);
+  assert.equal(await page.locator('#server-project-advanced').evaluate(node=>node.open),false,
+    'Secondary site switching stays collapsed in the project overview');
+  assert.equal(await page.locator('#server-site-select:visible').count(),0);
+  await page.locator('#server-project-advanced > summary').click();
+  assert.equal(await page.locator('#server-site-select:visible').count(),1);
+  await page.locator('#server-project-advanced > summary').click();
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-site-dashboard.png'),fullPage:true});
   await page.locator('#server-project-pages .cms-page-link').first().click();
   await page.locator('#page-add:visible').waitFor();
@@ -736,7 +742,7 @@ async function execute(){
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-mobile.png'),fullPage:true});
   // Site settings have their own screen; native edit dialogs still return
   // focus to the invoking control after Escape.
-  await page.locator('#server-site-tools-open').click();
+  await page.locator('#server-nav-site-settings').click();
   await page.locator('#server-view-site-settings:visible').waitFor();
   await page.locator('#server-tool-navigation').evaluate(node=>{node.open=true;});
   await page.locator('#cms-menu-open').click();
@@ -1002,7 +1008,7 @@ async function execute(){
   assert.deepEqual(authored,{rows:4,columns:4,gallery:3,cite:'Технический редактор'});
   // Owner finishes the existing custom container's decorative MP4 directly
   // in the PHP page Workbench, including three poster sizes and the tint.
-  await page.locator('#cms-open-page-preview').click();
+  await page.locator('#server-edit-page').click();
   await page.locator('#cms-page-preview[open]').waitFor();
   await page.locator('#cms-work-section').selectOption('section-approved-custom');
   await page.locator('#cms-work-graph-node').selectOption('approved-custom-container');
@@ -1169,7 +1175,7 @@ async function execute(){
   assert.equal(await page.locator('#elements .cms-repeat-row').count(),2);
   assert.equal(await page.locator('#cms-repeat-add').innerText(),'+ Добавить вопрос');
   // SEO is a site-level area, separate from the currently selected FAQ block.
-  await page.locator('#server-site-tools-open').click();
+  await page.locator('#server-nav-site-settings').click();
   await page.locator('#server-view-site-settings:visible').waitFor();
   await page.locator('#server-tool-seo').evaluate(node=>{node.open=true;});
   const seoToolButton=page.locator('#cms-open-seo');
