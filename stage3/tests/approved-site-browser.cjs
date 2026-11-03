@@ -807,7 +807,10 @@ async function execute(){
   });
   assert.ok(activeSectionVisible,'Keyboard search must scroll the selected mobile block into view');
   await sectionSearch.press('Escape');
+  await sectionSearch.fill('');
   await openSectionTree();
+  assert.equal(await page.locator('#sections .nav-entry').first().isVisible(),true,
+    'Clearing block search restores normal page navigation');
   await page.locator('#sections .nav-entry').first().click();
   assert.equal(await page.locator('#save').getAttribute('aria-keyshortcuts'),'Control+S Meta+S');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-mobile.png'),fullPage:true});
