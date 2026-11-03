@@ -1037,3 +1037,24 @@ button:disabled{opacity:.45}
   outline:3px solid #72bee8;outline-offset:2px;border-radius:8px;
 }
 .inspector .inspector-repeat-items{padding:7px;border-top:1px solid #405669}
+
+/* Keep the editing context visible while the desktop Inspector itself scrolls. */
+@media(min-width:971px){
+  .inspector{scroll-padding-top:175px}
+  .inspector .inspector-top{
+    position:sticky;top:0;z-index:6;padding-top:15px;padding-bottom:10px;
+    background:#fff;border-bottom:1px solid #e5edf5;
+    box-shadow:0 5px 14px #1c365010;
+  }
+}
+/* Native repeat menus flip above the row near scrollport/viewport edges. */
+.cms-repeat-more.cms-repeat-menu-up .cms-repeat-more-actions{
+  top:auto;bottom:calc(100% + 5px);
+}
+.cms-repeat-more-actions{
+  max-height:min(250px,60dvh);overflow-y:auto;overscroll-behavior:contain;
+}
+@media(max-width:650px){
+  .inspector .element-list{margin-bottom:8px}
+  .inspector .field-list{scroll-margin-top:12px}
+}

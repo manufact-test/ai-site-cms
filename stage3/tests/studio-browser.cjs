@@ -486,6 +486,87 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#undo').click();
     assert.deepEqual(await repeatOrder(),originalOrder);
 
+    // Inspector viewport QA: sticky context, safe menus and mobile edit focus.
+    for(const [width,height,kind] of [
+      [1450,800,'desktop'],[820,760,'tablet'],[390,740,'mobile']
+    ]){
+      await page.setViewportSize({width,height});
+      const geometry=await page.locator('.inspector').evaluate(node=>{
+        const r=node.getBoundingClientRect(),fields=node.querySelector('#fields').getBoundingClientRect();
+        return {left:r.left,right:r.right,fieldLeft:fields.left,fieldRight:fields.right,
+          viewport:innerWidth,sticky:getComputedStyle(node.querySelector('.inspector-top')).position};
+      });
+      assert.ok(geometry.left>=-1&&geometry.right<=width+1,
+        'Inspector stays within '+kind+' width: '+JSON.stringify(geometry));
+      assert.ok(geometry.fieldLeft>=-1&&geometry.fieldRight<=width+1,
+        'Property fields stay within '+kind+' width: '+JSON.stringify(geometry));
+      assert.equal(geometry.sticky,width>970?'sticky':'static',
+        'Context header sticks only inside the desktop Inspector');
+      const lastMenu=page.locator('#elements .cms-repeat-row').last()
+        .locator('.cms-repeat-more');
+      await lastMenu.locator(':scope > summary').evaluate(node=>
+        node.scrollIntoView({block:'end',behavior:'instant'}));
+      await lastMenu.locator(':scope > summary').click();
+      await page.waitForFunction(()=>{
+        const popup=document.querySelector('#elements .cms-repeat-row:last-of-type .cms-repeat-more');
+        return popup?.open&&!!popup.querySelector('.cms-repeat-more-actions')?.style.maxHeight;
+      },null,{timeout:3000});
+      const popupRect=await lastMenu.locator('.cms-repeat-more-actions').evaluate(menu=>{
+        const rect=menu.getBoundingClientRect(),anchor=menu.parentElement.querySelector('summary').getBoundingClientRect();
+        return {left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,
+          anchorBottom:anchor.bottom,up:menu.parentElement.classList.contains('cms-repeat-menu-up')};
+      });
+      assert.ok(popupRect.left>=-1&&popupRect.right<=width+1&&
+        popupRect.top>=-1&&popupRect.bottom<=height+1,
+        'Repeat actions must fit '+kind+' viewport: '+JSON.stringify(popupRect));
+      if(process.env.GITHUB_ACTIONS==='true'){
+        const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+        await page.locator('.inspector').screenshot({
+          path:path.join(shots,'stage3-inspector-'+kind+'-responsive.png'),animations:'disabled'});
+      }
+      await lastMenu.locator(':scope > summary').focus();
+      await page.keyboard.press('Escape');
+      assert.equal(await lastMenu.evaluate(node=>node.open),false,
+        'Escape closes the '+kind+' repeat menu');
+      if(kind==='mobile'){
+        await page.locator('#elements [data-repeat-id]').first().click();
+        await page.waitForFunction(()=>{
+          const first=document.querySelector('#fields [data-field="content.title"]');
+          return first&&document.activeElement===first;
+        },null,{timeout:3000});
+        const position=await page.locator('#fields [data-field="content.title"]')
+          .evaluate(node=>{const r=node.getBoundingClientRect();
+            return {top:r.top,bottom:r.bottom,height:innerHeight};});
+        assert.ok(position.top>=0&&position.bottom<=position.height,
+          'Selecting a mobile card reveals the content field: '+JSON.stringify(position));
+      }
+    }
+    await page.setViewportSize({width:1450,height:600});
+    const scrolledBeforeScope=await page.evaluate(()=>{
+      const inspector=document.querySelector('.inspector');
+      inspector.scrollTop=300;
+      const before=inspector.scrollTop;
+      document.querySelector('[data-inspector-scope="block"]').click();
+      return before;
+    });
+    assert.ok(scrolledBeforeScope>0,'The desktop Inspector was genuinely scrollable');
+    assert.equal(await page.locator('.inspector').evaluate(node=>node.scrollTop),0,
+      'Changing Inspector context resets stale deep scrolling');
+    await page.locator('[data-inspector-scope="element"]').click();
+    const scrolledBeforeSection=await page.evaluate(()=>{
+      const inspector=document.querySelector('.inspector');
+      inspector.scrollTop=300;
+      const before=inspector.scrollTop;
+      document.querySelector('#sections .nav-entry').click();
+      return before;
+    });
+    assert.ok(scrolledBeforeSection>0,'Section-switch test starts deep in the Inspector');
+    assert.equal(await page.locator('.inspector').evaluate(node=>node.scrollTop),0,
+      'Selecting another section returns to its Inspector heading');
+    await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
+    await page.locator('[data-inspector-scope="element"]').click();
+    await page.setViewportSize({width:1450,height:1000});
+
     // Searchable first-party component catalog, FAQ native semantic preview.
     await page.locator('#section-catalog').click();
     await page.locator('#cms-component-search').fill('FAQ');

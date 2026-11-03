@@ -1194,6 +1194,36 @@ async function execute(){
   assert.deepEqual(await questions(),['Как оформить заказ?','Как происходит доставка?','Что входит в комплект?'],
     'New FAQ item must actually receive edited question before reordering');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-faq-actions.png'),fullPage:true});
+  for(const [width,height,label] of [[820,760,'tablet'],[390,740,'mobile']]){
+    await page.setViewportSize({width,height});
+    const bounds=await page.locator('.inspector').evaluate(el=>{
+      const r=el.getBoundingClientRect(),fields=el.querySelector('#fields').getBoundingClientRect();
+      return {left:r.left,right:r.right,fieldsLeft:fields.left,fieldsRight:fields.right};
+    });
+    assert.ok(bounds.left>=-1&&bounds.right<=width+1&&
+      bounds.fieldsLeft>=-1&&bounds.fieldsRight<=width+1,
+      'Hosted Inspector fits '+label+': '+JSON.stringify(bounds));
+    const popup=page.locator('#elements .cms-repeat-row').last().locator('.cms-repeat-more');
+    await popup.locator(':scope > summary').evaluate(node=>
+      node.scrollIntoView({block:'end',behavior:'instant'}));
+    await popup.locator(':scope > summary').click();
+    await page.waitForFunction(()=>{
+      const row=document.querySelector('#elements .cms-repeat-row:last-of-type .cms-repeat-more');
+      return row?.open&&!!row.querySelector('.cms-repeat-more-actions')?.style.maxHeight;
+    },null,{timeout:3000});
+    const menu=await popup.locator('.cms-repeat-more-actions').evaluate(el=>{
+      const r=el.getBoundingClientRect();
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+    });
+    assert.ok(menu.left>=-1&&menu.right<=width+1&&menu.top>=-1&&menu.bottom<=height+1,
+      'Hosted repeat menu stays visible on '+label+': '+JSON.stringify(menu));
+    await page.locator('.inspector').screenshot({
+      path:path.join(studioScreenDir,'owner-studio-inspector-'+label+'.png'),animations:'disabled'});
+    await popup.locator(':scope > summary').focus();
+    await page.keyboard.press('Escape');
+    assert.equal(await popup.evaluate(node=>node.open),false);
+  }
+  await page.setViewportSize({width:1400,height:1000});
   const lastFaqRow=page.locator('#elements .cms-repeat-row').last();
   assert.equal(await lastFaqRow.locator('.cms-repeat-more > summary').count(),1);
   assert.equal(await lastFaqRow.locator('.cms-repeat-more-actions .btn:visible').count(),0,
