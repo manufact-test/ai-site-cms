@@ -1,3 +1,19 @@
+# CURRENT CHECKPOINT — visual-first editor, 2026-11-03 (read first)
+
+**Working branch:** `feature/stage3-ai-site-contract`. **Functional SHA:** `db6d6b5c474549344a578e5afa2dd6a7da3f3716`. **Full CI:** [#41673681398](https://github.com/manufact-test/ai-site-cms/actions/runs/41673681398) — SUCCESS 4/4. **Chromium screenshots:** https://github.com/manufact-test/ai-site-cms/actions/runs/41673681398/artifacts/13250351207.
+
+**Owner clarification:** The center is a real, full scrollable page. Clicking a section background selects that section and reveals its actual content list and block operations in the Inspector. Clicking a heading/image/repeat card opens exactly its own existing fields, while verified Design Graph leaves route to the existing Workbench. There is no need to find a block in a permanent side tree.
+
+**New interaction contract:** Section tree in sidebar starts collapsed («Структура страницы») and can be opened to navigate/keyboard-select precise or hidden sections. Element navigator starts closed on regular sections; repeatable FAQ/card sections show their items when in element context, with manual per-section preference remembered. One contextual «+ Добавить секцию» at the canvas invokes the original catalog; block actions live only with block properties in the Inspector. On same-page selection, the canvas iframe is not reloaded, preserving exact scroll position and interaction continuity; choosing a section from the optional navigator scrolls the iframe to it. Editable nodes also support keyboard Enter/Space.
+
+**Safety and preservation:** Same Typed Site Contract, Design Graph, SEO Engine, Draft/Undo, media/forms, Save/Review/Publish, rollback and server permissions. Parent-owned UI handlers only; iframe still scriptless. No new persisted state, editor, schema or renderer, and no automatic save or publish. Tests cover offline and real PHP-rendered Chromium, including no iframe reload/no draft mutation and 390px responsive focus.
+
+**Delivery:** GitHub only. FOX is still on older code; **do not ask owner to test FOX yet**. Stage2, `main`, Production, private MariaDB/Cron/settings unchanged. Continue screenshot review and usability fixes, then separately authorize reversible FOX update and owner hands-on acceptance. First real site remains blocked until original landing plus approved static desktop/tablet/mobile mocks.
+
+**Handoff:** [ADMIN-UX-VISUAL-FIRST-2026-11-03.md](../handoffs/lead-integrator/ADMIN-UX-VISUAL-FIRST-2026-11-03.md).
+
+---
+
 # CURRENT CHECKPOINT — direct Design Graph node to existing Workbench, 2026-11-03 (read first)
 
 **Branch:** `feature/stage3-ai-site-contract`. **Latest functional SHA:** `dec59430f789e9907c545c1ecca7bbe334004843`. **Full CI:** [#41664294523](https://github.com/manufact-test/ai-site-cms/actions/runs/41664294523) — **SUCCESS 4/4**. Previous green functional SHA `9212b95b686f2ba53dfa2a389118a42f661871c6`, [CI #41662591463 SUCCESS 4/4](https://github.com/manufact-test/ai-site-cms/actions/runs/41662591463).
