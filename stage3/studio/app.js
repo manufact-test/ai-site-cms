@@ -6986,13 +6986,45 @@
   }
   function operateRepeat(action,itemId,extra={}){
     if(action==='removeItem'&&!confirm('Удалить выбранный повторяемый элемент из черновика? Его можно вернуть кнопкой «Отменить».'))return;
+    const source=current().section;
+    const priorIndex=source.items?.findIndex(item=>item.id===itemId)??-1;
+    const removedSelected=action==='removeItem'&&elementId===itemId;
+    const startingRevision=session.revision;
     const id=action==='addItem'||action==='duplicateItem'?uniqueId('item'):undefined;
     structural({action,pageId,sectionId,itemId,...(id?{id}:{}),...extra});
+    if(session.revision===startingRevision)return;
     const section=current().section;
     if(id&&section.items?.some(x=>x.id===id)){
       elementId=id;inspectorScope='element';drawElements();drawFields();drawPreview();
       $('fields').querySelector('input:not([type="checkbox"]),textarea,select')?.focus({preventScroll:true});
+      return;
     }
+    if(action!=='moveItem'&&action!=='removeItem')return;
+    const survivingItem=section.items?.some(item=>item.id===itemId);
+    if(action==='moveItem'&&survivingItem)elementId=itemId;
+    if(removedSelected){
+      elementId=section.items[Math.min(priorIndex,section.items.length-1)]?.id||
+        section.elements[0].id;
+    }
+    inspectorScope='element';
+    drawElements();drawFields();drawPreview();
+    const focusId=action==='moveItem'?itemId:
+      removedSelected?elementId:section.items[Math.min(priorIndex,section.items.length-1)]?.id||elementId;
+    const pageAtAction=pageId,sectionAtAction=sectionId,elementAtAction=elementId;
+    /* Native menu clicks finish after a redraw; restore focus to the new row. */
+    requestAnimationFrame(()=>{
+      if(pageId!==pageAtAction||sectionId!==sectionAtAction||
+        elementId!==elementAtAction||inspectorScope!=='element')return;
+      const itemButton=[...$('elements').querySelectorAll('[data-repeat-id]')]
+        .find(button=>button.dataset.repeatId===focusId);
+      const row=itemButton?.closest('.cms-repeat-row');
+      const menu=action==='moveItem'?row?.querySelector('.cms-repeat-more > summary'):null;
+      const target=(menu||itemButton)?.closest('.inspector-repeat-disclosure')?.open===false
+        ?$('elements').querySelector('.inspector-repeat-disclosure > summary')
+        :menu||itemButton||$('elements').querySelector('[data-inspector-element-id]');
+      target?.focus({preventScroll:true});
+      target?.scrollIntoView({block:'nearest'});
+    });
   }
   function applyEdit(field,raw,valueOnScreen,output){
     try{

@@ -426,6 +426,66 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('[data-repeat-id]').count(),4);
 
+    // Repeat-item menu actions preserve context, ordering, Undo and keyboard focus.
+    const repeatOrder=()=>page.locator('#elements [data-repeat-id]').evaluateAll(
+      buttons=>buttons.map(button=>button.dataset.repeatId));
+    const originalOrder=await repeatOrder();
+    const movedId=originalOrder[2];
+    const focusedRepeatMenu=async id=>page.waitForFunction(itemId=>{
+      const item=[...document.querySelectorAll('#elements [data-repeat-id]')]
+        .find(button=>button.dataset.repeatId===itemId);
+      return item&&document.activeElement===item.closest('.cms-repeat-row')
+        ?.querySelector('.cms-repeat-more > summary');
+    },id,{timeout:3000});
+    await page.locator('#elements .cms-repeat-row').nth(2)
+      .locator('.cms-repeat-more > summary').click();
+    await page.getByRole('button',{name:'Поднять карточку 3'}).click();
+    assert.deepEqual(await repeatOrder(),[originalOrder[0],movedId,originalOrder[1],originalOrder[3]]);
+    assert.equal(await page.locator('#elements [data-repeat-id="'+movedId+'"]')
+      .getAttribute('aria-pressed'),'true',
+      'The moved card stays selected for editing');
+    await focusedRepeatMenu(movedId);
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#elements .cms-repeat-row').nth(1)
+      .locator('.cms-repeat-more').evaluate(node=>node.open),true,
+      'Keyboard Enter reopens actions for the moved card');
+    await page.getByRole('button',{name:'Опустить карточку 2'}).click();
+    assert.deepEqual(await repeatOrder(),originalOrder,
+      'Moving back restores exact original order');
+    await focusedRepeatMenu(movedId);
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await closeEditingExtras();
+      await page.screenshot({path:path.join(shots,'stage3-repeat-menu-focus.png'),fullPage:true});
+      await openLocalTools();await openStructureActions();
+    }
+    await page.locator('#elements .cms-repeat-row').nth(2)
+      .locator('.cms-repeat-more > summary').focus();
+    await page.keyboard.press('Enter');
+    page.once('dialog',dialog=>dialog.accept());
+    await page.getByRole('button',{name:'Удалить карточку 3'}).click();
+    assert.deepEqual(await repeatOrder(),[originalOrder[0],originalOrder[1],originalOrder[3]]);
+    assert.equal(await page.locator('#elements [data-repeat-id="'+originalOrder[3]+'"]')
+      .getAttribute('aria-pressed'),'true',
+      'Deleting the selected card selects its nearest surviving neighbor');
+    await page.waitForFunction(id=>{
+      const item=[...document.querySelectorAll('#elements [data-repeat-id]')]
+        .find(node=>node.dataset.repeatId===id);
+      return item&&document.activeElement===item;
+    },originalOrder[3],{timeout:3000});
+    await page.locator('#undo').click();
+    assert.deepEqual(await repeatOrder(),originalOrder,
+      'Undo restores the deleted card and exact order');
+    await page.locator('#elements .cms-repeat-row').first()
+      .locator('.cms-repeat-more > summary').click();
+    page.once('dialog',dialog=>dialog.accept());
+    await page.getByRole('button',{name:'Удалить карточку 1'}).click();
+    assert.equal(await page.locator('#elements [data-repeat-id="'+originalOrder[3]+'"]')
+      .getAttribute('aria-pressed'),'true',
+      'Deleting a different card does not steal the current selection');
+    await page.locator('#undo').click();
+    assert.deepEqual(await repeatOrder(),originalOrder);
+
     // Searchable first-party component catalog, FAQ native semantic preview.
     await page.locator('#section-catalog').click();
     await page.locator('#cms-component-search').fill('FAQ');
@@ -464,6 +524,15 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await longFaq.evaluate(node=>node.open),true);
     assert.equal(await longFaq.locator('.cms-repeat-more > summary').count(),7,
       'Long-list item actions remain available inside the disclosure');
+    const lastFaqId=await longFaq.locator('[data-repeat-id]').last().getAttribute('data-repeat-id');
+    await longFaq.locator('.cms-repeat-row').last().locator('.cms-repeat-more > summary').click();
+    await page.getByRole('button',{name:'Поднять вопрос 7'}).click();
+    assert.equal(await longFaq.evaluate(node=>node.open),true,
+      'Moving an item keeps a deliberately expanded long list open');
+    assert.equal(await longFaq.locator('[data-repeat-id]').nth(5).getAttribute('data-repeat-id'),lastFaqId);
+    await focusedRepeatMenu(lastFaqId);
+    await page.locator('#undo').click();
+    assert.equal(await longFaq.locator('[data-repeat-id]').last().getAttribute('data-repeat-id'),lastFaqId);
     await longFaq.locator('[data-repeat-id]').last().click();
     assert.equal(await longFaq.evaluate(node=>node.open),false,
       'Choosing a question closes the navigator to reveal its properties');
