@@ -1237,6 +1237,8 @@ async function execute(){
   }
   await page.setViewportSize({width:1400,height:1000});
   const lastFaqRow=page.locator('#elements .cms-repeat-row').last();
+  /* Restore the edited FAQ item after exercising separate block navigation. */
+  await lastFaqRow.locator('[data-repeat-id]').click();
   assert.equal(await lastFaqRow.locator('.cms-repeat-more > summary').count(),1);
   assert.equal(await lastFaqRow.locator('.cms-repeat-more-actions .btn:visible').count(),0,
     'Rare FAQ actions remain hidden until the row menu is opened');
