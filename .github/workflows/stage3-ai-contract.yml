@@ -186,8 +186,12 @@ jobs:
           node stage3/bin/cms-release.cjs verify-fox-code-only "$RUNNER_TEMP/fox-stage3-code/release"
           node stage3/bin/cms-release.cjs compare "$RUNNER_TEMP/hostinger-stage3-package/release" "$RUNNER_TEMP/fox-stage3-code/release"
           cmp "$RUNNER_TEMP/hostinger-stage3-package/release/cms-release.json" "$RUNNER_TEMP/fox-stage3-code/release/cms-release.json"
-          cd "$RUNNER_TEMP/fox-stage3-code/release"
-          zip -q -r "$RUNNER_TEMP/fox-stage3-code/ai-site-stage3-fox-code-$GITHUB_SHA.zip" stage3 cms-release.json
+          mv "$RUNNER_TEMP/fox-stage3-code/release" "$RUNNER_TEMP/fox-stage3-code/fox-update-$GITHUB_SHA"
+          cd "$RUNNER_TEMP/fox-stage3-code"
+          zip -q -r "ai-site-stage3-fox-code-$GITHUB_SHA.zip" "fox-update-$GITHUB_SHA"
+          unzip -Z1 "ai-site-stage3-fox-code-$GITHUB_SHA.zip" > entries.txt
+          grep -q "^fox-update-$GITHUB_SHA/stage3/" entries.txt
+          ! grep -q "public_html" entries.txt
       - name: Upload FOX runtime-only code artifact (manual update, no deployment)
         uses: actions/upload-artifact@v4
         with:
