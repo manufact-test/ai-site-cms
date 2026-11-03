@@ -631,7 +631,8 @@ async function execute(){
   await page.locator('#cms-component-catalog[open]').waitFor();
   await page.locator('#cms-component-catalog').getByRole('button',{name:'Закрыть'}).click();
   assert.equal(await page.locator('#server-tool-appearance #cms-open-theme').count(),1);
-  assert.equal(await page.locator('#server-tool-seo #cms-open-seo').count(),1);
+  assert.equal(await page.locator('#server-page-actions #cms-open-seo').count(),1);
+  assert.equal(await page.locator('#server-tool-seo #cms-open-seo').count(),0);
   assert.equal(await page.locator('#server-tool-navigation #cms-menu-open').count(),1);
   const secondPage=page.locator('#pages .nav-entry').last();
   await secondPage.focus();
