@@ -112,6 +112,10 @@ async function execute(){
   }finally{await keyboard.close();}
   const ctx=await browser.newContext({viewport:{width:1400,height:1000}});
   const page=await ctx.newPage(),errors=[];
+  const openSectionTree=async()=>{
+    const details=page.locator('#cms-section-navigator');
+    if(!(await details.evaluate(node=>node.open)))await details.locator(':scope > summary').click();
+  };
   const openGraphActions=async()=>{
     const group=page.locator('#cms-design-structure-actions');
     if(!(await group.evaluate(node=>node.open)))await group.locator(':scope > summary').click();
@@ -656,6 +660,7 @@ async function execute(){
   await secondPage.focus();
   await page.keyboard.press('Enter');
   await page.waitForFunction(()=>document.activeElement?.matches('#pages .nav-entry.active[aria-current="page"]'));
+  await openSectionTree();
   const lastSection=page.locator('#sections .nav-entry').last();
   await lastSection.focus();
   await page.keyboard.press('Enter');
@@ -725,10 +730,13 @@ async function execute(){
   assert.equal(await page.locator('#preview').getAttribute('sandbox'),'allow-same-origin',
     'The hosted canvas remains scriptless while the parent can select rendered blocks');
   const hostedCanvasDraftBefore=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+  await page.evaluate(()=>{window.__hostedCanvasDoc=document.querySelector('#preview').contentDocument;});
   await page.frameLocator('#preview').locator('[data-cms-section-id],section[id]')
     .filter({visible:true}).first().click({position:{x:6,y:6}});
   assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА',
     'Pointer selection in actual PHP preview opens the block Inspector');
+  assert.equal(await page.evaluate(()=>document.querySelector('#preview').contentDocument===window.__hostedCanvasDoc),true,
+    'Clicking a PHP-rendered section does not reload the full page');
   assert.equal(await page.locator('#cms-block-contents [data-cms-block-child]').count()>0,true,
     'Selected PHP-rendered section shows its actual editable children');
   assert.equal(await page.locator('#cms-selected-block-actions').isVisible(),true,
@@ -753,6 +761,7 @@ async function execute(){
   assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
     hostedCanvasDraftBefore,'Opening the Workbench from canvas does not modify the draft');
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+  await openSectionTree();
   await page.locator('#sections .nav-entry').first().click();
 
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-desktop.png'),fullPage:true});
@@ -789,6 +798,7 @@ async function execute(){
   });
   assert.ok(activeSectionVisible,'Keyboard search must scroll the selected mobile block into view');
   await sectionSearch.press('Escape');
+  await openSectionTree();
   await page.locator('#sections .nav-entry').first().click();
   assert.equal(await page.locator('#save').getAttribute('aria-keyshortcuts'),'Control+S Meta+S');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-mobile.png'),fullPage:true});
@@ -1029,6 +1039,7 @@ async function execute(){
   // a gallery photo and edit quote attribution inside the existing Studio.
   // The final saved+published PHP output must reflect those exact operations.
   await page.locator('#server-nav-editor').click();
+  await openSectionTree();
   await page.locator('#sections .nav-entry').nth(3).click();
   // The advanced block action is intentionally collapsed in the owner UI.
   // Exercise its real disclosure before using the secondary action.
@@ -1181,6 +1192,7 @@ async function execute(){
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
   // Graph editor retains the selected custom section. Explicitly restore
   // hero focus before exercising its separate responsive inspector controls.
+  await openSectionTree();
   await page.locator('#sections .nav-entry').first().click();
   await page.locator('[data-inspector-scope="element"]').click();
   assert.equal(await page.locator('#cms-element-navigator').evaluate(node=>node.open),false,
@@ -1203,6 +1215,7 @@ async function execute(){
   await page.locator('#fields [data-field="style.fontSize"]').dispatchEvent('change');
   await page.locator('.device[data-bp="desktop"]').click();
   // Same imported site's FAQ — real add, edit, reorder, delete and Undo controls.
+  await openSectionTree();
   await page.locator('#sections .nav-entry').last().click();
   assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
   assert.equal(await page.locator('[data-inspector-scope="block"]').getAttribute('aria-pressed'),'true');
@@ -1265,11 +1278,13 @@ async function execute(){
   }
   for(const [width,height] of [[820,760],[390,740]]){
     await page.setViewportSize({width,height});
+  await openSectionTree();
     await page.locator('#sections .nav-entry').first().click();
     await page.waitForFunction(()=>{
       const h=document.getElementById('inspector-title'),r=h?.getBoundingClientRect();
       return h&&document.activeElement===h&&r.top>=0&&r.top<innerHeight;
     },null,{timeout:3000});
+  await openSectionTree();
     await page.locator('#sections .nav-entry').last().click();
     await page.waitForFunction(()=>document.activeElement===
       document.getElementById('inspector-title'),null,{timeout:3000});
@@ -1805,6 +1820,7 @@ async function execute(){
   // Save/Publish reload the server snapshot and may reset the inspector focus.
   // Re-select the exact imported FAQ before changing the next private draft.
   await page.locator('#pages .nav-entry').first().click();
+  await openSectionTree();
   await page.locator('#sections .nav-entry').last().click();
   assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
   await page.locator('[data-inspector-scope="element"]').click();

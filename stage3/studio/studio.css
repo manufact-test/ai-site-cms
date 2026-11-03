@@ -1182,3 +1182,15 @@ details.inspector-field-group:not([open])>.inspector-field-group-body{display:no
   .cms-section-navigator #sections{display:flex;flex-wrap:nowrap}
   .inspector .cms-element-navigator{margin-top:9px}
 }
+
+/* The single add-section entry stays above the canvas; block operations stay contextual. */
+.inspector .cms-selected-block-actions #section-catalog,
+.inspector .cms-selected-block-actions #section-add{display:none}
+@media(min-width:1221px){
+  .workspace{grid-template-columns:228px minmax(360px,1fr) 308px}
+}
+@media(min-width:651px) and (max-width:1220px){
+  .canvas-toolbar{flex-wrap:wrap}
+  .canvas-toolbar .devices{margin-left:auto}
+  .canvas-toolbar #cms-canvas-add-block{margin-left:0}
+}

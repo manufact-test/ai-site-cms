@@ -3886,7 +3886,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const name=manifest(section)?.label||section.component;
       $('sections').append(button((index+1)+'. '+name,
         'nav-entry'+(section.id===sectionId?' active':''),
-        event=>{sectionId=section.id;elementId=section.elements[0].id;inspectorScope='block';draw();resetInspectorScroll();if(event.detail>0)revealCompactSelection('section',pageId,sectionId);
+        event=>{sectionId=section.id;elementId=section.elements[0].id;inspectorScope='block';
+          drawHeader();drawTree();drawElements();drawFields();syncCanvasSelection();scrollCanvasToSection(sectionId);
+          resetInspectorScroll();if(event.detail>0)revealCompactSelection('section',pageId,sectionId);
           else{const selected=$('sections').querySelector('.nav-entry.active');
             selected?.focus({preventScroll:true});selected?.scrollIntoView({block:'nearest'});}}));
       const selected=$('sections').lastElementChild;
@@ -10421,7 +10423,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const chooseElement=(id,keepNavigatorFocus=false)=>{
       elementId=id;inspectorScope='element';
       if(m.repeat&&section.items.length>6&&!keepNavigatorFocus)repeatDisclosureState.set(section.id,false);
-      drawElements();drawFields();
+      drawElements();drawFields();syncCanvasSelection();
       const selected=[...$('elements').querySelectorAll('[data-inspector-element-id]')]
         .find(control=>control.dataset.inspectorElementId===id);
       const compact=matchMedia('(max-width:650px)').matches&&!keepNavigatorFocus;
@@ -11010,6 +11012,29 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
      the current draft. Selection cannot submit, navigate or mutate content. */
   let mainPreviewRequest=0,mainPreviewPath='',mainPreviewScroll=0;
   const mainPreviewFrame=$('preview');
+  function syncCanvasSelection(){
+    const {page,section}=current(),m=manifest(section);
+    $('canvas-title').textContent=page.title;
+    $('canvas-caption').textContent=(m?.label||section.component)+' · выбранный блок выделен · '+
+      (breakpoint==='desktop'?'ПК':breakpoint==='tablet'?'планшет':'телефон');
+    const doc=mainPreviewFrame.contentDocument;
+    if(!doc)return;
+    for(const host of doc.querySelectorAll('[data-cms-editor-section]')){
+      const currentSection=host.dataset.cmsEditorSection===sectionId;
+      host.classList.toggle('cms-editor-current',currentSection);
+      for(const node of host.querySelectorAll('[data-cms-editor-element]'))
+        node.classList.toggle('cms-editor-element-current',currentSection&&
+          inspectorScope==='element'&&node.dataset.cmsEditorElement===elementId);
+    }
+  }
+  function scrollCanvasToSection(id){
+    const win=mainPreviewFrame.contentWindow,doc=mainPreviewFrame.contentDocument;
+    const target=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
+      .find(node=>node.dataset.cmsEditorSection===id);
+    if(!target||!win)return;
+    win.scrollTo(0,Math.max(0,win.scrollY+target.getBoundingClientRect().top-12));
+    mainPreviewScroll=win.scrollY;
+  }
   mainPreviewFrame.addEventListener('load',()=>{
     const doc=mainPreviewFrame.contentDocument;
     const page=session.current.pages.find(p=>p.id===pageId);
@@ -11145,7 +11170,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         revealPicked();return;
       }
       sectionId=pickedSection.id;elementId=nextElement;inspectorScope=nextScope;
-      draw();resetInspectorScroll();revealPicked();
+      drawHeader();drawTree();drawElements();drawFields();syncCanvasSelection();
+      resetInspectorScroll();revealPicked();
     };
     doc.addEventListener('click',event=>{
       event.preventDefault();event.stopPropagation();pick(event);
@@ -11177,10 +11203,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         await window.Stage3Host.previewPage(session.current,page.path):
         window.Stage3Editor.previewDocument(session.current,page.path,breakpoint);
       if(request!==mainPreviewRequest)return;
-      const safeSectionId=String(section.id).replace(/[^a-zA-Z0-9_-]/g,'');
-      const marker='<style>[data-cms-section-id="'+safeSectionId+'"],#'+safeSectionId+
-        '{outline:2px solid #2777ee!important;outline-offset:-2px!important}</style>';
-      frame.srcdoc=html.includes('</head>')?html.replace('</head>',marker+'</head>'):html+marker;
+      frame.srcdoc=html;
       viewport.setAttribute('aria-label','Предпросмотр всей страницы '+page.title);
     }catch(error){
       if(request!==mainPreviewRequest)return;
@@ -11316,7 +11339,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     if(!tab||!$('inspector-scopes').contains(tab))return;
     if(inspectorScope===tab.dataset.inspectorScope)return;
     inspectorScope=tab.dataset.inspectorScope;
-    drawElements();drawFields();resetInspectorScroll();
+    drawElements();drawFields();syncCanvasSelection();resetInspectorScroll();
   });
   document.querySelectorAll('.device').forEach(b=>b.addEventListener('click',()=>{
     breakpoint=b.dataset.bp;$('viewport').className='viewport '+breakpoint;

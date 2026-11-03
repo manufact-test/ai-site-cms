@@ -25,6 +25,10 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
         }
       });
     };
+    const openSectionTree=async()=>{
+      const details=page.locator('#cms-section-navigator');
+      if(!(await details.evaluate(node=>node.open)))await details.locator(':scope > summary').click();
+    };
     const openGraphActions=async()=>{
       const group=page.locator('#cms-design-structure-actions');
       if(!(await group.evaluate(node=>node.open)))await group.locator(':scope > summary').click();
@@ -222,10 +226,16 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#preview').getAttribute('sandbox'),'allow-same-origin',
       'Main canvas is parent-selectable but still forbids scripts and navigation');
     const canvasDraftBefore=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+    await page.evaluate(()=>{window.__editorCanvasDoc=document.querySelector('#preview').contentDocument;});
+    await openSectionTree();
     await page.locator('#sections .nav-entry').nth(1).click();
+    assert.equal(await page.evaluate(()=>document.querySelector('#preview').contentDocument===window.__editorCanvasDoc),true,
+      'Choosing another section from the tree does not reload the page iframe');
     await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
     assert.equal(await page.locator('#sections .nav-entry').first().getAttribute('aria-current'),'location',
       'Clicking a real heading returns to its actual section');
+    assert.equal(await page.evaluate(()=>document.querySelector('#preview').contentDocument===window.__editorCanvasDoc),true,
+      'Clicking real page text updates only selection chrome without flashing or reloading content');
     assert.equal(await page.locator('#inspector-eyebrow').innerText(),'СВОЙСТВА ЭЛЕМЕНТА',
       'Clicking page text opens element properties, not block settings');
     assert.equal(await page.locator('#fields [data-field="content.text"]').inputValue(),
@@ -518,6 +528,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-canvas-add-block').click();
     await page.locator('#cms-component-search').fill('Услуги');
     await page.locator('#cms-component-list [data-component="service-grid"]').click();
+    await openSectionTree();
     await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
     await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('[data-repeat-id]').count(),2);
@@ -542,6 +553,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.reload();
     await page.locator('#site-name').getByText('Завод оборудования').waitFor();
     await openLocalTools();await openStructureActions();
+    await openSectionTree();
     await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
     await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('[data-repeat-id]').count(),4);
@@ -669,12 +681,14 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     }
     for(const [width,height] of [[820,760],[390,740]]){
       await page.setViewportSize({width,height});
+    await openSectionTree();
       await page.locator('#sections .nav-entry').first().click();
       await page.waitForFunction(()=>{
         const heading=document.getElementById('inspector-title');
         const r=heading?.getBoundingClientRect();
         return heading&&document.activeElement===heading&&r.top>=0&&r.top<innerHeight;
       },null,{timeout:3000});
+    await openSectionTree();
       await page.locator('#sections .nav-entry')
         .filter({hasText:'Услуги · повторяемые карточки'}).click();
       await page.waitForFunction(()=>document.activeElement===
@@ -686,6 +700,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
         return heading&&document.activeElement===heading&&r.top>=0&&r.top<innerHeight;
       },null,{timeout:3000});
       await page.locator('#pages .nav-entry').first().click();
+    await openSectionTree();
       await page.locator('#sections .nav-entry')
         .filter({hasText:'Услуги · повторяемые карточки'}).click();
       assert.equal(await page.locator('[data-inspector-scope="block"]')
@@ -725,6 +740,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await pageNav.nth(1).getAttribute('aria-current'),'page');
     await page.keyboard.press('Home');
     assert.equal(await pageNav.first().evaluate(node=>document.activeElement===node),true);
+    await openSectionTree();
     await page.locator('#sections .nav-entry')
       .filter({hasText:'Услуги · повторяемые карточки'}).click();
     await page.locator('[data-inspector-scope="element"]').click();
@@ -749,6 +765,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.ok(scrolledBeforeSection>0,'Section-switch test starts deep in the Inspector');
     assert.equal(await page.locator('.inspector').evaluate(node=>node.scrollTop),0,
       'Selecting another section returns to its Inspector heading');
+    await openSectionTree();
     await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
     await page.locator('[data-inspector-scope="element"]').click();
     await page.setViewportSize({width:1450,height:1000});
@@ -758,6 +775,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-component-search').fill('FAQ');
     assert.equal(await page.locator('#cms-component-list [data-component]').count(),1);
     await page.locator('#cms-component-list [data-component="faq-accordion"]').click();
+    await openSectionTree();
     await page.locator('#sections .nav-entry').filter({hasText:'FAQ'}).click();
     await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
@@ -831,6 +849,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       await page.locator('#cms-canvas-add-block').click();
       await page.locator('#cms-component-search').fill(type);
       await page.locator('#cms-component-list [data-component="'+type+'"]').click();
+    await openSectionTree();
       await page.locator('#sections .nav-entry').filter({hasText:label}).click();
     await page.locator('[data-inspector-scope="element"]').click();
       assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
@@ -870,6 +889,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-canvas-add-block').click();
     await page.locator('#cms-component-search').fill('adaptive-gallery');
     await page.locator('#cms-component-list [data-component="adaptive-gallery"]').click();
+    await openSectionTree();
     await page.locator('#sections .nav-entry').filter({hasText:'Адаптивная галерея'}).click();
     await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
@@ -1823,6 +1843,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     graphFormSite.pages[1].sections.push(graphFormSection);
     await page.evaluate(site=>window.Stage3Editor.replace(site),graphFormSite);
     await page.locator('#pages .nav-entry').nth(1).click();
+    await openSectionTree();
     await page.locator('#sections .nav-entry').last().click();
     await page.locator('[data-inspector-scope="block"]').click();
     await page.locator('#section-design-graph').click();
@@ -1897,6 +1918,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     sheetSite.pages[0].sections.push(sheetSec);
     await page.evaluate(site=>window.Stage3Editor.replace(site),sheetSite);
     await page.locator('#pages .nav-entry').first().click();
+    await openSectionTree();
     await page.locator('#sections .nav-entry').last().click();
     await page.locator('[data-inspector-scope="block"]').click();
     await page.locator('#section-design-graph').click();
