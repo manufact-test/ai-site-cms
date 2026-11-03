@@ -419,7 +419,8 @@
       const panel=kind==='section'?document.querySelector('.inspector'):
         document.querySelector('.canvas-toolbar');
       const heading=kind==='section'?$('inspector-title'):$('canvas-title');
-      panel?.scrollIntoView({block:'start',behavior:'instant'});
+      const target=kind==='section'?$('inspector-scopes'):panel;
+      target?.scrollIntoView({block:kind==='section'?'center':'start',behavior:'instant'});
       if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
     });
   }

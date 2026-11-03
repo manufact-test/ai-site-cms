@@ -713,6 +713,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
           r.left+r.width/2,r.top+r.height/2);
         return {targetVisible:r.width>0&&r.height>0,
           pointerHitsTarget:hit===button||button.contains(hit),
+          position:{left:r.left,top:r.top,right:r.right,bottom:r.bottom},
+          viewport:{width:innerWidth,height:innerHeight,scrollY},
           blocker:hit?.closest('aside')?.className||hit?.tagName||null};
       });
       assert.ok(scopePointer.targetVisible&&scopePointer.pointerHitsTarget,
@@ -1123,6 +1125,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     // Appearance panel changes only the selected block; preview reacts immediately.
     await page.locator('#cms-appearance-dialog').count();
     await page.locator('[data-inspector-scope="block"]').click();
+    await openStructureActions();
     await page.locator('#section-appearance').click();
     await page.locator('#cms-appearance-surface').selectOption('dark');
     await page.locator('#cms-appearance-spacing').selectOption('airy');
@@ -1270,6 +1273,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const selectedSection=await page.evaluate(()=>window.Stage3Editor.selection().sectionId);
     page.once('dialog',dialog=>dialog.accept());
     await page.locator('[data-inspector-scope="block"]').click();
+    await openStructureActions();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-graph-dialog').waitFor({state:'visible'});
     const designFrame=page.frameLocator('#cms-design-preview-frame');
@@ -1531,6 +1535,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     // User can extend a generated composition with a safe native icon and
     // customize its animation without calling the AI or writing raw HTML/CSS.
     await page.locator('[data-inspector-scope="block"]').click();
+    await openStructureActions();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
     await designFrame.locator('.cmsdg h2').waitFor();
@@ -1573,6 +1578,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await canvas.locator('svg[role="img"]').waitFor();
     // Edit a whole AI-authored nested composition without AI, scripts or raw CSS.
     await page.locator('[data-inspector-scope="block"]').click();
+    await openStructureActions();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
     await openGraphActions();
@@ -1848,6 +1854,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await openSectionTree();
     await page.locator('#sections .nav-entry').last().click();
     await page.locator('[data-inspector-scope="block"]').click();
+    await openStructureActions();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-graph-dialog[open]').waitFor();
     const graphFormFrame=page.frameLocator('#cms-design-preview-frame');
@@ -1923,6 +1930,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await openSectionTree();
     await page.locator('#sections .nav-entry').last().click();
     await page.locator('[data-inspector-scope="block"]').click();
+    await openStructureActions();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-node-select').selectOption('sheet-table-ui');
     await openGraphActions();
