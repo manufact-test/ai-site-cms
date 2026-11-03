@@ -3837,18 +3837,29 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const inspector=document.querySelector('.inspector');
     if(inspector)inspector.scrollTop=0;
   }
+  function revealCompactSelection(kind,selectedPageId,selectedSectionId){
+    if(!matchMedia('(max-width:970px)').matches)return;
+    requestAnimationFrame(()=>{
+      if(pageId!==selectedPageId||sectionId!==selectedSectionId)return;
+      const panel=kind==='section'?document.querySelector('.inspector'):
+        document.querySelector('.canvas-toolbar');
+      const heading=kind==='section'?$('inspector-title'):$('canvas-title');
+      panel?.scrollIntoView({block:'start',behavior:'instant'});
+      if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
+    });
+  }
   function drawTree(){
     $('pages').replaceChildren();
     session.current.pages.forEach(page=>{
       $('pages').append(button(page.title,'nav-entry'+(page.id===pageId?' active':''),
-        ()=>{pageId=page.id;sectionId=page.sections[0].id;elementId=page.sections[0].elements[0].id;inspectorScope='block';draw();resetInspectorScroll();}));
+        ()=>{pageId=page.id;sectionId=page.sections[0].id;elementId=page.sections[0].elements[0].id;inspectorScope='block';draw();resetInspectorScroll();revealCompactSelection('page',pageId,sectionId);}));
     });
     $('sections').replaceChildren();
     current().page.sections.forEach((section,index)=>{
       const name=manifest(section)?.label||section.component;
       $('sections').append(button((index+1)+'. '+name,
         'nav-entry'+(section.id===sectionId?' active':''),
-        ()=>{sectionId=section.id;elementId=section.elements[0].id;inspectorScope='block';draw();resetInspectorScroll();}));
+        ()=>{sectionId=section.id;elementId=section.elements[0].id;inspectorScope='block';draw();resetInspectorScroll();revealCompactSelection('section',pageId,sectionId);}));
     });
   }
 

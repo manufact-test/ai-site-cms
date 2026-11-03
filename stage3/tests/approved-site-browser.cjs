@@ -1223,6 +1223,18 @@ async function execute(){
     await page.keyboard.press('Escape');
     assert.equal(await popup.evaluate(node=>node.open),false);
   }
+  for(const [width,height] of [[820,760],[390,740]]){
+    await page.setViewportSize({width,height});
+    await page.locator('#sections .nav-entry').first().click();
+    await page.waitForFunction(()=>{
+      const h=document.getElementById('inspector-title'),r=h?.getBoundingClientRect();
+      return h&&document.activeElement===h&&r.top>=0&&r.top<innerHeight;
+    },null,{timeout:3000});
+    await page.locator('#sections .nav-entry').last().click();
+    await page.waitForFunction(()=>document.activeElement===
+      document.getElementById('inspector-title'),null,{timeout:3000});
+    await page.locator('[data-inspector-scope="element"]').click();
+  }
   await page.setViewportSize({width:1400,height:1000});
   const lastFaqRow=page.locator('#elements .cms-repeat-row').last();
   assert.equal(await lastFaqRow.locator('.cms-repeat-more > summary').count(),1);

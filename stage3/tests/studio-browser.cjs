@@ -541,6 +541,32 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
           'Selecting a mobile card reveals the content field: '+JSON.stringify(position));
       }
     }
+    for(const [width,height] of [[820,760],[390,740]]){
+      await page.setViewportSize({width,height});
+      await page.locator('#sections .nav-entry').first().click();
+      await page.waitForFunction(()=>{
+        const heading=document.getElementById('inspector-title');
+        const r=heading?.getBoundingClientRect();
+        return heading&&document.activeElement===heading&&r.top>=0&&r.top<innerHeight;
+      },null,{timeout:3000});
+      await page.locator('#sections .nav-entry')
+        .filter({hasText:'Услуги · повторяемые карточки'}).click();
+      await page.waitForFunction(()=>document.activeElement===
+        document.getElementById('inspector-title'),null,{timeout:3000});
+      await page.locator('#pages .nav-entry').last().click();
+      await page.waitForFunction(()=>{
+        const heading=document.getElementById('canvas-title');
+        const r=heading?.getBoundingClientRect();
+        return heading&&document.activeElement===heading&&r.top>=0&&r.top<innerHeight;
+      },null,{timeout:3000});
+      await page.locator('#pages .nav-entry').first().click();
+      await page.locator('#sections .nav-entry')
+        .filter({hasText:'Услуги · повторяемые карточки'}).click();
+      assert.equal(await page.locator('[data-inspector-scope="block"]')
+        .getAttribute('aria-pressed'),'true',
+        'Narrow-screen section selection opens its own block context');
+      await page.locator('[data-inspector-scope="element"]').click();
+    }
     await page.setViewportSize({width:1450,height:600});
     const scrolledBeforeScope=await page.evaluate(()=>{
       const inspector=document.querySelector('.inspector');
