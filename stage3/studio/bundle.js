@@ -3481,6 +3481,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     elementId=session.current.pages[0].sections[0].elements[0].id,
     breakpoint='desktop',savedBytes=JSON.stringify(session.current),versions=[],inspectorScope='element';
   const repeatDisclosureState=new Map();
+  const inspectorGroupState=new Map();
   function notice(message,error=false){
     const node=$('toast');node.textContent=message;node.hidden=false;node.className='toast'+(error?' error':'');
   }
@@ -10190,6 +10191,19 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       tab.classList.toggle('is-active',active);
     });
     const row=$('elements');row.replaceChildren();
+    row.onkeydown=event=>{
+      if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;
+      const active=event.target.closest('button[data-inspector-element-id]');
+      if(!active||!row.contains(active))return;
+      const choices=[...row.querySelectorAll('button[data-inspector-element-id]')]
+        .filter(node=>node.getClientRects().length);
+      const currentIndex=choices.indexOf(active);
+      if(currentIndex<0)return;
+      const nextIndex=event.key==='Home'?0:event.key==='End'?choices.length-1:
+        Math.max(0,Math.min(choices.length-1,currentIndex+(event.key==='ArrowDown'?1:-1)));
+      if(nextIndex===currentIndex)return;
+      event.preventDefault();choices[nextIndex].click();
+    };
     row.setAttribute('aria-label',blockScope?'Настройки выбранного блока':'Элементы выбранного блока');
     if(blockScope){
       const intro=document.createElement('p');intro.className='inspector-block-intro';
@@ -10332,13 +10346,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const elementHeading=document.createElement('div');
     elementHeading.className='inspector-group-title';elementHeading.textContent='Элементы блока';
     row.append(elementHeading);
-    const chooseElement=id=>{
+    const chooseElement=(id,keepNavigatorFocus=false)=>{
       elementId=id;inspectorScope='element';
-      if(m.repeat&&section.items.length>6)repeatDisclosureState.set(section.id,false);
+      if(m.repeat&&section.items.length>6&&!keepNavigatorFocus)repeatDisclosureState.set(section.id,false);
       drawElements();drawFields();
       const selected=[...$('elements').querySelectorAll('[data-inspector-element-id]')]
         .find(control=>control.dataset.inspectorElementId===id);
-      const compact=matchMedia('(max-width:650px)').matches;
+      const compact=matchMedia('(max-width:650px)').matches&&!keepNavigatorFocus;
       const field=compact?$('fields').querySelector(
         'input:not([type="hidden"]),textarea,select,button'):null;
       if(field){
@@ -10366,7 +10380,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     };
     section.elements.forEach(e=>{
       const label=m.elements.find(s=>s.slot===e.slot)?.label||e.slot;
-      const choice=button(label,'element'+(e.id===elementId?' active':''),()=>chooseElement(e.id));
+      const choice=button(label,'element'+(e.id===elementId?' active':''),event=>chooseElement(e.id,event.detail===0));
       choice.dataset.inspectorElementId=e.id;
       choice.setAttribute('aria-pressed',String(e.id===elementId));
       row.append(choice);
@@ -10408,7 +10422,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           (faq?'Вопрос ':'Карточка ')+(i+1);
         const line=document.createElement('div');line.className='cms-repeat-row';
         const choice=button((i+1)+'. '+String(headline).slice(0,56),'element'+(item.id===elementId?' active':''),
-          ()=>chooseElement(item.id));
+          event=>chooseElement(item.id,event.detail===0));
         choice.dataset.repeatId=item.id;
         choice.dataset.inspectorElementId=item.id;
         choice.setAttribute('aria-pressed',String(item.id===elementId));
@@ -10553,13 +10567,27 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const groupLabels={content:'Содержимое',style:'Оформление',
       behavior:'Действие и ссылки',other:'Другие свойства'};
     for(const [group,items] of visibleGroups){
-      const panel=document.createElement('section');panel.className='inspector-field-group';
-      panel.dataset.fieldGroup=group;
+      const panel=document.createElement(visibleGroups.length>1?'details':'section');
+      panel.className='inspector-field-group';panel.dataset.fieldGroup=group;
+      const body=document.createElement('div');body.className='inspector-field-group-body';
       if(visibleGroups.length>1){
+        const selectionKey=pageId+'|'+sectionId+'|'+elementId;
+        const choice=inspectorGroupState.has(selectionKey)?inspectorGroupState.get(selectionKey):
+          visibleGroups[0][0];
+        panel.open=choice===group;
+        const summary=document.createElement('summary');summary.className='inspector-field-group-summary';
         const heading=document.createElement('h3');heading.className='inspector-field-group-title';
-        heading.textContent=groupLabels[group];panel.append(heading);
+        heading.textContent=groupLabels[group];
+        const count=document.createElement('small');count.textContent=items.length+' настроек';
+        summary.append(heading,count);panel.append(summary);
+        summary.addEventListener('click',()=>{
+          if(panel.open){inspectorGroupState.set(selectionKey,null);return;}
+          inspectorGroupState.set(selectionKey,group);
+          for(const other of box.querySelectorAll('details.inspector-field-group'))
+            if(other!==panel)other.open=false;
+        });
       }
-      box.append(panel);
+      panel.append(body);box.append(panel);
     for(const field of items){
       const wrap=document.createElement('div');wrap.className='inspector-field';
       const id='field-'+field.path.replace(/[^a-zA-Z0-9_-]/g,'-');
@@ -10634,7 +10662,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         clear.id='cms-field-inherit-'+field.path.replace(/[^a-zA-Z0-9_-]/g,'-');
         wrap.append(clear);
       }
-      wrap.append(error);panel.append(wrap);
+      wrap.append(error);body.append(wrap);
     }
     }
   }

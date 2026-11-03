@@ -1159,6 +1159,7 @@ async function execute(){
   await page.locator('#fields [data-field="content.text"]').first().fill('Редактируется после подключения');
   await page.locator('#fields [data-field="content.text"]').first().dispatchEvent('change');
   await page.locator('.device[data-bp="mobile"]').click();
+  await page.locator('#fields details[data-field-group="style"] > summary').click();
   await page.locator('#fields [data-field="style.fontSize"]').fill('31px');
   await page.locator('#fields [data-field="style.fontSize"]').dispatchEvent('change');
   await page.locator('.device[data-bp="desktop"]').click();

@@ -213,6 +213,35 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await canvas.locator('h1').innerText(),'Производим технологическое оборудование');
     assert.deepEqual(await page.locator('#fields .inspector-field-group-title').allInnerTexts(),
       ['Содержимое','Оформление'],'Mixed element controls are grouped by owner task');
+    const contentGroup=page.locator('#fields details[data-field-group="content"]');
+    const styleGroup=page.locator('#fields details[data-field-group="style"]');
+    assert.equal(await contentGroup.getAttribute('open'),'',
+      'Frequent content properties are immediately available');
+    assert.equal(await styleGroup.getAttribute('open'),null,
+      'Secondary appearance properties begin collapsed');
+    await styleGroup.locator('summary').click();
+    assert.equal(await styleGroup.getAttribute('open'),'');
+    assert.equal(await contentGroup.getAttribute('open'),null,
+      'Opening another property group hides the previous controls');
+    await page.locator('.device[data-bp="tablet"]').click();
+    assert.equal(await styleGroup.getAttribute('open'),'',
+      'The chosen group stays open across responsive device changes');
+    await page.locator('.device[data-bp="desktop"]').click();
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.locator('.inspector').screenshot({
+        path:path.join(shots,'stage3-inspector-property-groups.png'),animations:'disabled'});
+    }
+    await contentGroup.locator('summary').click();
+    const elementNavigator=page.locator('#elements button[data-inspector-element-id]');
+    await elementNavigator.first().focus();
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await elementNavigator.nth(1).getAttribute('aria-pressed'),'true');
+    assert.equal(await elementNavigator.nth(1).evaluate(node=>document.activeElement===node),true);
+    await page.keyboard.press('End');
+    assert.equal(await elementNavigator.last().getAttribute('aria-pressed'),'true');
+    await page.keyboard.press('Home');
+    assert.equal(await elementNavigator.first().getAttribute('aria-pressed'),'true');
     await page.locator('#elements .element').filter({hasText:'Описание'}).click();
     assert.equal(await page.locator('#fields textarea[data-field="content.text"]').count(),1,
       'Long descriptions are multi-line controls, not a cramped one-line input');
@@ -244,6 +273,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await canvas.locator('h1').innerText(),'Современное промышленное оборудование');
     await page.locator('#undo').click();
     assert.equal(await canvas.locator('h1').innerText(),'Новое промышленное оборудование');
+    await page.locator('#fields details[data-field-group="style"] > summary').click();
     const size=page.locator('#fields [data-field="style.fontSize"]');
     await size.fill('35px');await size.dispatchEvent('change');
     await canvas.locator('h1[style*="font-size:35px"]').waitFor();
@@ -529,6 +559,12 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       assert.equal(await lastMenu.evaluate(node=>node.open),false,
         'Escape closes the '+kind+' repeat menu');
       if(kind==='mobile'){
+        const mobileChoices=page.locator('#elements [data-repeat-id]');
+        await mobileChoices.first().focus();
+        await page.keyboard.press('ArrowDown');
+        assert.equal(await mobileChoices.nth(1).getAttribute('aria-pressed'),'true');
+        assert.equal(await mobileChoices.nth(1).evaluate(node=>document.activeElement===node),true,
+          'Keyboard block navigation keeps focus in the mobile element list');
         await page.locator('#elements [data-repeat-id]').first().click();
         await page.waitForFunction(()=>{
           const first=document.querySelector('#fields [data-field="content.title"]');
@@ -724,6 +760,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
     await page.locator('#elements .element').filter({hasText:'Варианты отображения'}).click();
+    await page.locator('#fields details[data-field-group="behavior"] > summary').click();
     await page.locator('#fields [data-field="behavior.layout"]').selectOption('masonry');
     await canvas.locator('.cms-gallery-masonry').waitFor();
     await page.locator('#fields [data-field="behavior.columns"]').fill('4');

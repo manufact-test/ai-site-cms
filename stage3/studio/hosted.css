@@ -1307,3 +1307,12 @@ html[data-stage3-mode="server"] .inspector .inspector-repeat-items{border-top-co
 html[data-stage3-mode="server"] .inspector .inspector-repeat-disclosure>summary:focus-visible{
   outline-color:#347acc;
 }
+
+/* The hosted light Inspector uses the same grouped property workflow. */
+html[data-stage3-mode="server"] .inspector .inspector-field-group-summary{
+  background:#f3f7fc;border-color:#dbe5ef;color:#314d6d;
+}
+html[data-stage3-mode="server"] .inspector .inspector-field-group-summary small{color:#758ba5}
+html[data-stage3-mode="server"] .inspector .inspector-field-group-summary:focus-visible{
+  outline-color:#2479d6;
+}
