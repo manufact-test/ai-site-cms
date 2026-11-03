@@ -627,6 +627,14 @@ async function execute(){
   await page.locator('#cms-page-details-dialog[open]').waitFor();
   assert.equal((await page.locator('#cms-page-details-title').inputValue()).length>0,true);
   assert.equal((await page.locator('#cms-page-details-path').inputValue()).startsWith('/'),true);
+  const pageDetailsPalette=await page.locator('#cms-page-details-dialog').evaluate(dialog=>{
+    const label=dialog.querySelector('label'),description=dialog.querySelector('#cms-page-details-description');
+    return {background:getComputedStyle(dialog).backgroundColor,
+      label:getComputedStyle(label).color,description:getComputedStyle(description).color};
+  });
+  assert.deepEqual(pageDetailsPalette,{background:'rgb(255, 255, 255)',
+    label:'rgb(41, 71, 98)',description:'rgb(83, 107, 133)'},
+    'Page settings form must keep readable contrast in the hosted light theme');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-page-details.png'),fullPage:true});
   await page.locator('#cms-page-details-cancel').click();
   await page.locator('#cms-page-details-dialog').waitFor({state:'hidden'});

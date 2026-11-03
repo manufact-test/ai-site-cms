@@ -1232,3 +1232,20 @@ html[data-stage3-mode="server"] #cms-open-page-preview{display:none!important}
 
 /* Contextual page and block operations inside the existing hosted editor. */
 .hosted-structure-more-actions .hosted-structure-subhead{display:block;color:#6c86a1;font-size:10px;letter-spacing:.09em;font-weight:800;padding:12px 7px 5px;line-height:1.4}
+
+
+/* The hosted light theme keeps contextual page labels legible on white. */
+html[data-stage3-mode="server"] #cms-page-details-dialog{
+  background:#fff;color:#203b56;border:1px solid #d7e2ed;
+  box-shadow:0 22px 70px #10294155;
+}
+html[data-stage3-mode="server"] #cms-page-details-dialog h2{color:#1e3854}
+html[data-stage3-mode="server"] #cms-page-details-dialog>p{color:#536b85}
+html[data-stage3-mode="server"] #cms-page-details-dialog label{color:#294762}
+html[data-stage3-mode="server"] #cms-page-details-dialog form>small{color:#617991}
+html[data-stage3-mode="server"] #cms-page-details-dialog .control{
+  background:#fff;color:#253f58;border:1px solid #cbd9e7;
+}
+html[data-stage3-mode="server"] #cms-page-details-dialog .cms-page-details-error{
+  background:#fff0ef;border-color:#e1aba5;color:#963d3c;
+}
