@@ -1,3 +1,17 @@
+# CURRENT CHECKPOINT — Admin UX restructuring, 2026-11-03 (read first)
+
+**Working branch:** `feature/stage3-ai-site-contract`. **Last fully green functional SHA:** `7ee38f8e578a7240d3397a39e149ab80cc8d8814`, [GitHub Actions #41596955430](https://github.com/manufact-test/ai-site-cms/actions/runs/41596955430) **SUCCESS 4/4** (contract with genuine Chromium, technology-runtime, MariaDB 10.11 and 11.8). [Real screenshot artifact #13212159401](https://github.com/manufact-test/ai-site-cms/actions/runs/41596955430/artifacts/13212159401).
+
+**Latest functional UI cleanup SHA:** `126592b18a513adabb5f299253aabb91eddff134` — follows the green checkpoint. Its CI must be checked separately; do not label it green based on the prior run. It hides redundant site-settings and page-preview entrypoints from the editor and collapses site switching in project overview, while preserving the original button IDs and handlers.
+
+**What is implemented, not yet owner-accepted:** one existing hosted Studio with explicit CMS home (real server sites only), project overview, editor, site settings, resources, approved-v2 import guidance, account and owner platform administration. The offline industrial fixture remains for offline testing but is never displayed as a server site when no real site is selected. Login opens the real site list; no arbitrary automatic site selection. Password/logout belong to Account; users/audit/licenses/engine updates to platform; Save/Review/Publish only to active editor. Genuine Chromium tests cover empty CMS, account/platform, explicit sealed import and recovery, responsive canvas, media, SEO, save/publish/restore. See [admin UX architecture](../stage3/docs/ADMIN-UX-ARCHITECTURE-2026-11-03.md).
+
+**Next actions:** (1) verify full Actions for the latest UI cleanup SHA, repair any authentic failure without reversing the information architecture; (2) inspect updated real screenshots of home, project overview, editor and settings at 1400/768/390 px; (3) continue coherent contextual editor refinements and owner UX acceptance. Do not create or import a random client site or request the first landing yet.
+
+**Hard boundaries:** Stage3 is already installed and authenticated on isolated FOX `mediumpurple-fox-175549.hostingersite.com/studio`; no staging redeployment, reinstallation, database/Cron/secret edits have been performed in this UX pass. Stage2 Woodpecker, production, main and client data untouched. GitHub CI is not owner UI/UX GO. Old installation instructions lower in this file are historical and superseded.
+
+---
+
 # CURRENT PRIORITY UPDATE — 2026-11-03 (read first)
 
 **This update SUPERSEDES the older v9.15 Hostinger “not yet installed / create DB / run plan/apply” instructions below.** Stage3 has now been successfully installed and the owner has authenticated on the isolated FOX staging host. Do NOT recreate database, rerun plan/apply, or ask for credentials. The existing site is https://mediumpurple-fox-175549.hostingersite.com/studio . No finished real website has been approved/imported. Existing “Завод оборудования” pages/sections are not approved pilot content and may be synthetic or a placeholder; first verify where they come from and preserve persisted data.
