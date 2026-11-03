@@ -1,3 +1,19 @@
+# CURRENT CHECKPOINT — canvas-first element continuity and device-hidden sections, 2026-11-03 (read first)
+
+**Branch:** `feature/stage3-ai-site-contract`. **Functional SHA:** `fde064af85f534f8168a27183317677d0257cfe9`. **Full CI:** [#41687851736](https://github.com/manufact-test/ai-site-cms/actions/runs/41687851736) — **SUCCESS 4/4**. **Real Chromium screenshots:** [artifact](https://github.com/manufact-test/ai-site-cms/actions/runs/41687851736/artifacts/13256116162).
+
+**Owner-facing outcome:** Work on a complete scrollable page in the center. Clicking its real hero CTA selects the correct element (including when a decorative arrow appears) and opens its existing link field. Opening an element from the selected section's `Содержимое секции` retains the same page iframe instead of reloading it; off-screen elements are scrolled into view. Side section navigation remains optional.
+
+**Responsive visibility:** When a selected section is intentionally hidden on the chosen device, the canvas explicitly says why it is absent; the block Inspector gives a device-specific `Показать` action. This is a normal reversible draft edit: new Chromium checks cover hide/reveal/Undo/Undo and exact draft restoration, plus keyboard selection. The saved/published site is not touched until the original commands explicitly run.
+
+**Architecture:** Preserve the same Typed Site Contract, Design Graph Workbench, SEO Engine, forms, media, Undo/Redo, save/review/publish and rollback. Scriptless preview and validated IDs only; no new CMS engine, editor, manifest, schema, or automatic persistence.
+
+**Release gates:** GitHub branch only. FOX `mediumpurple-fox-175549.hostingersite.com/studio` still runs older code. No uncontrolled FOX update, no Stage2/main/Production/MariaDB/Cron/private changes. Owner must personally test after a separately authorized reversible deployment. First real site remains on hold until source landing and approved distinct desktop/tablet/mobile mocks.
+
+**Full handoff:** [ADMIN-UX-CANVAS-SELECTION-HIDDEN-2026-11-03.md](../handoffs/lead-integrator/ADMIN-UX-CANVAS-SELECTION-HIDDEN-2026-11-03.md).
+
+---
+
 # CURRENT CHECKPOINT — page / block / element contextual Inspector, 2026-11-03 (read first)
 
 **Branch:** `feature/stage3-ai-site-contract`. **Verified functional SHA:** `005753aad832b6628b85d47b2e705cd7ad45b92e`. **Complete GitHub Actions:** [#41684120493](https://github.com/manufact-test/ai-site-cms/actions/runs/41684120493) **SUCCESS 4/4**. **Real Chromium captures:** https://github.com/manufact-test/ai-site-cms/actions/runs/41684120493/artifacts/13254592185.

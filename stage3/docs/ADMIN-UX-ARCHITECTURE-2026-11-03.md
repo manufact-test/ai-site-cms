@@ -1,3 +1,5 @@
+> **Canvas selection continuity, 03.11.2026:** icon-decorated CTA in the scriptless preview binds to its actual element; choosing an element via Inspector's section contents preserves iframe identity and scrolls its exact rendered node when offscreen; hidden device-specific sections show a clear explanation and normal undoable visibility repair. Functional SHA `fde064af85f534f8168a27183317677d0257cfe9`; [full CI #41687851736](https://github.com/manufact-test/ai-site-cms/actions/runs/41687851736) **SUCCESS 4/4**; [Chromium screenshots](https://github.com/manufact-test/ai-site-cms/actions/runs/41687851736/artifacts/13256116162). Engineering only: FOX unchanged, owner acceptance pending. [Handoff](../../handoffs/lead-integrator/ADMIN-UX-CANVAS-SELECTION-HIDDEN-2026-11-03.md).
+
 # Stage3 Studio — navigation and context contract (2026-11-03)
 
 Status: engineering UX restructuring, **not** owner acceptance or Hostinger deployment. Branch `feature/stage3-ai-site-contract`. Stage2, main, production, Hostinger private files and persisted site records are outside this change.
