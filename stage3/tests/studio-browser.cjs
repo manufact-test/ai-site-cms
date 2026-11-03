@@ -228,6 +228,11 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА',
       'Clicking section background opens whole-block context');
     await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
+    await canvas.locator('[data-cms-section-id="'+otherSectionId+'"]').focus();
+    await canvas.locator('[data-cms-section-id="'+otherSectionId+'"]').press('Enter');
+    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА',
+      'Enter on a focused preview section opens its block settings');
+    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
     assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
       canvasDraftBefore,'Canvas selection does not edit, save or publish the draft');
     await page.locator('#preview').evaluate(frame=>frame.contentWindow.scrollTo(0,150));
@@ -845,6 +850,12 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       .flatMap(p=>p.sections).find(s=>s.component==='adaptive-gallery');
     assert.equal(galleryState.elements[1].values['behavior.layout'],'carousel');
     assert.equal(galleryState.elements[1].values['behavior.columns'],4);
+    const canvasGalleryItem=galleryState.items[0].id;
+    await canvas.locator('.cms-gallery-carousel > figure').first().click();
+    assert.equal(await page.locator('#elements [data-repeat-id="'+canvasGalleryItem+'"]')
+      .getAttribute('aria-pressed'),'true',
+      'Clicking a repeated gallery card selects its actual editable item');
+    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'СВОЙСТВА ЭЛЕМЕНТА');
     await page.locator('#undo').click();
     assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages.flatMap(p=>p.sections)
       .find(s=>s.component==='adaptive-gallery').elements[1].values['behavior.layout'],'masonry');

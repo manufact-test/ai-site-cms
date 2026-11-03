@@ -11008,6 +11008,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         used.add(target);target.dataset.cmsEditorElement=entity.id;
       }
     };
+    const bindMedia=(container,entity,section)=>{
+      const media=C.controls(session.current,manifests,page.id,section.id,entity.id)
+        .find(field=>field.type==='media'&&field.path==='content.media');
+      if(!media)return;
+      const target=container.matches('img,.media-placeholder')?container:
+        container.querySelector('img,.media-placeholder');
+      if(target)target.dataset.cmsEditorElement=entity.id;
+    };
     for(const host of hosts){
       const section=page.sections.find(item=>item.id===idOf(host));
       if(!section)continue;
@@ -11023,10 +11031,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         cards.forEach((card,index)=>{
           const item=section.items[index];
           card.dataset.cmsEditorElement=item.id;
-          bindText(card,item,section,used);
+          bindText(card,item,section,used);bindMedia(card,item,section);
         });
       }
-      for(const entity of section.elements)bindText(host,entity,section,used);
+      for(const entity of section.elements){
+        bindText(host,entity,section,used);bindMedia(host,entity,section);
+      }
       for(const node of host.querySelectorAll('[data-cms-editor-element]'))
         node.classList.toggle('cms-editor-element-current',
           section.id===sectionId&&inspectorScope==='element'&&node.dataset.cmsEditorElement===elementId);
