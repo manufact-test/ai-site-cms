@@ -282,6 +282,16 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       'Enter on a focused page heading opens the same element Inspector');
     assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
       canvasDraftBefore,'Canvas selection does not edit, save or publish the draft');
+    /* The actual hero CTA selects its own caption and destination, not the whole section. */
+    const heroAction=canvas.locator('[data-cms-section-id="'+seoSection.id+'"] a').first();
+    await heroAction.click();
+    assert.equal(await page.locator('#inspector-title').innerText(),'Основная кнопка');
+    assert.equal(await page.locator('#fields [data-field="behavior.href"]').count(),1,
+      'Clicking the real visible CTA exposes the existing URL property');
+    await heroAction.focus();await heroAction.press('Enter');
+    assert.equal(await page.locator('[data-inspector-scope="element"]').getAttribute('aria-pressed'),'true');
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),canvasDraftBefore);
+    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
     await page.locator('#preview').evaluate(frame=>frame.contentWindow.scrollTo(0,150));
     await page.waitForFunction(()=>document.querySelector('#preview')?.contentWindow?.scrollY>50);
     const canvasScrollBefore=await page.locator('#preview').evaluate(frame=>frame.contentWindow.scrollY);
@@ -290,6 +300,33 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.ok(await page.locator('#preview').evaluate(frame=>frame.contentWindow.scrollY)>=Math.min(50,canvasScrollBefore),
       'Device switch keeps the main canvas position on a long page');
     await page.locator('.device[data-bp="desktop"]').click();
+    /* An intentionally hidden section is still editable and discoverable.
+       Its visibility repair is one normal undoable draft command. */
+    await page.locator('#sections .nav-entry').first().click();
+    await page.locator('#cms-section-device-visibility button[data-section-device="mobile"]').click();
+    await page.locator('.device[data-bp="mobile"]').click();
+    assert.match(await page.locator('#canvas-caption').innerText(),/Секция скрыта на телефоне/);
+    assert.match(await page.locator('#cms-hidden-section-warning').innerText(),/осталась в черновике/);
+    await page.waitForFunction(id=>![...document.querySelector('#preview').contentDocument
+      .querySelectorAll('[data-cms-section-id]')].some(node=>node.dataset.cmsSectionId===id),
+      seoSection.id);
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.screenshot({path:path.join(shots,'stage3-hidden-section-device.png'),
+        animations:'disabled',fullPage:true});
+    }
+    await page.locator('#cms-show-hidden-section').click();
+    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"]').waitFor();
+    assert.equal(await page.locator('#cms-hidden-section-warning').count(),0);
+    await page.locator('#undo').click();
+    assert.equal(await page.locator('#cms-hidden-section-warning').count(),1,
+      'Undo restores the selected device-specific hidden state');
+    await page.locator('#undo').click();
+    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"]').waitFor();
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),canvasDraftBefore,
+      'Undo of both visibility operations restores the exact unchanged draft');
+    await page.locator('.device[data-bp="desktop"]').click();
+    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
     if(process.env.GITHUB_ACTIONS==='true'){
       const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
       await page.screenshot({path:path.join(shots,'stage3-canvas-click-selection.png'),

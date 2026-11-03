@@ -1227,3 +1227,18 @@ details.inspector-field-group:not([open])>.inspector-field-group-body{display:no
     grid-column:1/-1;grid-row:auto;min-width:0;
   }
 }
+
+/* A hidden section cannot be found on the current canvas breakpoint:
+   explain why and surface the existing undoable visibility operation. */
+.inspector .cms-hidden-section-warning{
+  display:grid;gap:9px;margin:0 0 13px;padding:12px 13px;
+  border:1px solid #dfb96e;border-radius:10px;background:#fff8e9;color:#6e4d18;
+}
+.inspector .cms-hidden-section-warning p{
+  margin:0;font-size:12px;line-height:1.55;color:#674c24;
+}
+.inspector .cms-hidden-section-warning .btn{
+  width:100%;min-height:38px;background:#fff;border-color:#c9a057;
+  color:#674311;font-weight:750;
+}
+.inspector .cms-hidden-section-warning .btn:hover{background:#ffefd2}

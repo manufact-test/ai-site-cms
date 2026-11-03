@@ -6860,6 +6860,19 @@
       const intro=document.createElement('p');intro.className='inspector-block-intro';
       intro.textContent='Выбрана вся секция. Нажмите на объект ниже или прямо на странице, чтобы изменить его содержимое.';
       row.append(intro);
+      if(section.deviceVisibility?.[breakpoint]===false){
+        const warning=document.createElement('div');
+        warning.id='cms-hidden-section-warning';warning.className='cms-hidden-section-warning';
+        warning.setAttribute('role','status');
+        const message=document.createElement('p');
+        message.textContent='Эта секция скрыта на '+deviceVisibilityLabel()+
+          '. Она осталась в черновике, но отсутствует в предпросмотре этого устройства.';
+        const show=button('Показать на '+deviceVisibilityLabel(),'btn small',()=>{
+          structural({action:'setSectionVisibility',pageId,sectionId,device:breakpoint,visible:true});
+        });
+        show.id='cms-show-hidden-section';show.dataset.editorWrite='true';
+        warning.append(message,show);row.append(warning);
+      }
       const contents=document.createElement('details');
       contents.id='cms-block-contents';contents.className='cms-block-contents';
       const entities=[...section.elements,...(section.items||[])];
@@ -7620,12 +7633,20 @@
      the current draft. Selection cannot submit, navigate or mutate content. */
   let mainPreviewRequest=0,mainPreviewPath='',mainPreviewScroll=0;
   const mainPreviewFrame=$('preview');
+  function deviceVisibilityLabel(device=breakpoint){
+    return device==='mobile'?'телефоне':device==='tablet'?'планшете':'компьютере';
+  }
+  function canvasSelectionCaption(section,m){
+    const device=breakpoint==='desktop'?'ПК':breakpoint==='tablet'?'планшет':'телефон';
+    if(inspectorScope==='page')return 'Настройки страницы · '+device;
+    if(section.deviceVisibility?.[breakpoint]===false)
+      return 'Секция скрыта на '+deviceVisibilityLabel()+' · выберите «Показать» в настройках блока';
+    return (m?.label||section.component)+' · выбранный блок выделен · '+device;
+  }
   function syncCanvasSelection(){
     const {page,section}=current(),m=manifest(section);
     $('canvas-title').textContent=page.title;
-    $('canvas-caption').textContent=(inspectorScope==='page'?'Настройки страницы · ':
-      (m?.label||section.component)+' · выбранный блок выделен · ')+
-      (breakpoint==='desktop'?'ПК':breakpoint==='tablet'?'планшет':'телефон');
+    $('canvas-caption').textContent=canvasSelectionCaption(section,m);
     const doc=mainPreviewFrame.contentDocument;
     if(!doc)return;
     for(const host of doc.querySelectorAll('[data-cms-editor-section]')){
@@ -7798,14 +7819,12 @@
   async function drawPreview(){
     const {page,section}=current(),m=manifest(section);
     const frame=$('preview'),viewport=$('viewport'),request=++mainPreviewRequest;
-    const deviceLabel=breakpoint==='desktop'?'ПК':breakpoint==='tablet'?'планшет':'телефон';
     const canvasIdentity=session.current.siteId+'|'+page.id+'|'+page.path;
     if(mainPreviewPath===canvasIdentity){
       try{mainPreviewScroll=frame.contentWindow?.scrollY||0;}catch(_){}
     }else{mainPreviewPath=canvasIdentity;mainPreviewScroll=0;}
     $('canvas-title').textContent=page.title;
-    $('canvas-caption').textContent=(inspectorScope==='page'?'Настройки страницы · ':
-      (m?.label||section.component)+' · выбранный блок выделен · ')+deviceLabel;
+    $('canvas-caption').textContent=canvasSelectionCaption(section,m);
     frame.title='Полный предпросмотр страницы '+page.title;
     frame.style.height='calc(100vh - 270px)';
     try{
@@ -7954,7 +7973,7 @@
   });
   document.querySelectorAll('.device').forEach(b=>b.addEventListener('click',()=>{
     breakpoint=b.dataset.bp;$('viewport').className='viewport '+breakpoint;
-    drawFields();drawPreview();
+    drawElements();drawFields();drawPreview();
     document.querySelectorAll('.device').forEach(n=>n.classList.toggle('active',n===b));
   }));
   window.Stage3Editor=Object.freeze({
