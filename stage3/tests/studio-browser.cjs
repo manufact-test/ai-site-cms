@@ -959,9 +959,24 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       ['comparison-matrix','Сравнение · два варианта','content.metric','Поддержка'],
       ['content-switcher','Переключатель · интерактивные вкладки','content.title','Первый вариант']
     ]){
+      const previousSectionIds=(await page.evaluate(()=>window.Stage3Editor.getSite()))
+        .pages.flatMap(p=>p.sections).map(section=>section.id);
       await page.locator('#cms-canvas-add-block').click();
       await page.locator('#cms-component-search').fill(type);
       await page.locator('#cms-component-list [data-component="'+type+'"]').click();
+      const created=(await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+        .flatMap(p=>p.sections).find(section=>!previousSectionIds.includes(section.id));
+      assert.equal(created.component,type);
+      assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА',
+        'Adding a new block opens its contextual Inspector immediately');
+      await page.waitForFunction(id=>{
+        const doc=document.querySelector('#preview')?.contentDocument;
+        const node=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
+          .find(el=>el.dataset.cmsEditorSection===id);
+        const rect=node?.getBoundingClientRect(),height=doc?.defaultView?.innerHeight||0;
+        return node?.classList.contains('cms-editor-current')&&rect&&
+          Math.min(rect.bottom,height-18)-Math.max(rect.top,18)>=32;
+      },created.id,{timeout:10000});
     await openSectionTree();
       await page.locator('#sections .nav-entry').filter({hasText:label}).click();
     await page.locator('[data-inspector-scope="element"]').click();
@@ -1043,6 +1058,77 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       document.querySelector('#preview')?.contentDocument!==window.__blockAwayBeforeDesktop);
     assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
       longPageBefore,'Responsive block selection and scroll-away never edit the site draft');
+
+    /* Structural edits must keep the owner in the same part of a long page.
+       Creating a copy should reveal the copy; removing it should select the
+       nearest remaining block, including the last and middle positions. */
+    const blockBeforeStructural=await page.evaluate(()=>
+      JSON.stringify(window.Stage3Editor.getSite()));
+    await openSectionTree();
+    await page.locator('#sections .nav-entry')
+      .filter({hasText:'Переключатель · интерактивные вкладки'}).click();
+    const sectionsBeforeCopy=(await page.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections;
+    const originalSwitcher=sectionsBeforeCopy.find(s=>s.component==='content-switcher');
+    assert.equal(sectionsBeforeCopy.at(-1).id,originalSwitcher.id,
+      'The switcher is the final section of the long-page fixture');
+    await openStructureActions();
+    await page.locator('#section-duplicate').click();
+    const sectionsWithCopy=(await page.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections;
+    const copiedSwitcher=sectionsWithCopy.at(-1);
+    assert.equal(copiedSwitcher.component,'content-switcher');
+    assert.notEqual(copiedSwitcher.id,originalSwitcher.id);
+    await page.waitForFunction(id=>{
+      const doc=document.querySelector('#preview')?.contentDocument;
+      const node=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
+        .find(el=>el.dataset.cmsEditorSection===id);
+      const rect=node?.getBoundingClientRect(),height=doc?.defaultView?.innerHeight||0;
+      return node?.classList.contains('cms-editor-current')&&rect&&
+        Math.min(rect.bottom,height-18)-Math.max(rect.top,18)>=32;
+    },copiedSwitcher.id,{timeout:10000});
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.screenshot({path:path.join(shots,'stage3-long-page-block-duplicate.png'),
+        animations:'disabled'});
+    }
+    page.once('dialog',dialog=>dialog.accept());
+    await openStructureActions();
+    await page.locator('#section-remove').click();
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections.at(-1).id,originalSwitcher.id);
+    await page.waitForFunction(id=>{
+      const doc=document.querySelector('#preview')?.contentDocument;
+      const node=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
+        .find(el=>el.dataset.cmsEditorSection===id);
+      const rect=node?.getBoundingClientRect(),height=doc?.defaultView?.innerHeight||0;
+      return node?.classList.contains('cms-editor-current')&&rect&&
+        Math.min(rect.bottom,height-18)-Math.max(rect.top,18)>=32;
+    },originalSwitcher.id,{timeout:10000});
+    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА');
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      blockBeforeStructural,'Duplicating and removing the last block restores original draft');
+
+    await openSectionTree();
+    await page.locator('#sections .nav-entry')
+      .filter({hasText:'Этапы работы · дорожная карта'}).click();
+    const comparisonAfterTimeline=(await page.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections.find(s=>s.component==='comparison-matrix');
+    page.once('dialog',dialog=>dialog.accept());
+    await openStructureActions();
+    await page.locator('#section-remove').click();
+    await page.waitForFunction(id=>{
+      const doc=document.querySelector('#preview')?.contentDocument;
+      const node=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
+        .find(el=>el.dataset.cmsEditorSection===id);
+      const rect=node?.getBoundingClientRect(),height=doc?.defaultView?.innerHeight||0;
+      return node?.classList.contains('cms-editor-current')&&rect&&
+        Math.min(rect.bottom,height-18)-Math.max(rect.top,18)>=32;
+    },comparisonAfterTimeline.id,{timeout:10000});
+    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА');
+    await page.locator('#undo').click();
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      blockBeforeStructural,'Undo restores the removed middle section and every draft value');
 
     /* A wide comparison row is larger than its phone scrollport. Editing and
        Undo must preserve the manually inspected right-hand columns. */

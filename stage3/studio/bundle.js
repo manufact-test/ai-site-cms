@@ -3922,14 +3922,31 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const before=session.current;
       const priorPage=command.action==='updatePage'?before.pages.find(x=>x.id===command.pageId):null;
       const urlChanged=!!priorPage&&priorPage.path!==command.path;
+      /* Keep the editing position when the owner removes a selected block. */
+      const removedCurrent=command.action==='removeSection'&&
+        command.pageId===pageId&&command.sectionId===sectionId;
+      const oldIndex=removedCurrent?
+        before.pages.find(x=>x.id===pageId)?.sections.findIndex(x=>x.id===sectionId):-1;
       session=D.structure(session,manifests,{...command,expectedRevision:session.revision});
       const selected=session.current.pages.find(x=>x.id===pageId);
       if(!selected){pageId=session.current.pages[0].id;sectionId='';}
       const page=session.current.pages.find(x=>x.id===pageId);
-      if(!page.sections.some(x=>x.id===sectionId))sectionId=page.sections[0].id;
-      if(![...page.sections.find(x=>x.id===sectionId).elements,...(page.sections.find(x=>x.id===sectionId).items||[])].some(x=>x.id===elementId))
-        elementId=page.sections.find(x=>x.id===sectionId).elements[0].id;
-      draw();
+      const inserted=['addSection','duplicateSection'].includes(command.action)&&
+        command.pageId===pageId? page.sections.find(x=>x.id===command.id):null;
+      if(inserted){
+        sectionId=inserted.id;elementId=inserted.elements[0].id;
+        inspectorScope='block';
+      }else if(!page.sections.some(x=>x.id===sectionId)){
+        /* The next section occupies the deleted one's position; at the end,
+           keep the previous neighbour instead of jumping to page start. */
+        sectionId=page.sections[removedCurrent&&oldIndex>=0?
+          Math.min(oldIndex,page.sections.length-1):0].id;
+        if(removedCurrent)inspectorScope='block';
+      }
+      const active=page.sections.find(x=>x.id===sectionId);
+      if(![...active.elements,...(active.items||[])].some(x=>x.id===elementId))
+        elementId=active.elements[0].id;
+      draw({revealSelected:!!inserted||removedCurrent});
       if(before!==session.current)notice(urlChanged
         ?'URL изменён: внутренние ссылки обновлены, старый адрес перенаправляется на новый. Для сохранения нажмите «Сохранить». '
         :'Структура изменена в черновике. Для сохранения нажмите «Сохранить».');
@@ -5337,7 +5354,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             structural({action:'addSection',pageId:targetPage,sectionId,id,component:m.id});
             const inserted=session.current.pages.find(p=>p.id===targetPage)?.sections.find(s=>s.id===id);
             if(inserted){
-              sectionId=id;elementId=inserted.elements[0].id;dialog.close();draw();
+              dialog.close();
             }
           });
           entry.dataset.component=m.id;
@@ -9860,16 +9877,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(component===null)return;
         const id=uniqueId('section');
         structural({action:'addSection',pageId,sectionId,id,component});
-        const page=session.current.pages.find(x=>x.id===pageId);
-        if(page.sections.some(x=>x.id===id)){
-          sectionId=id;elementId=page.sections.find(x=>x.id===id).elements[0].id;draw();
-        }
+
       }],
       ['section-duplicate','Дублировать блок',()=>{
         const id=uniqueId('section');
         structural({action:'duplicateSection',pageId,sectionId,id});
-        const section=session.current.pages.find(x=>x.id===pageId)?.sections.find(x=>x.id===id);
-        if(section){sectionId=id;elementId=section.elements[0].id;draw();}
+
       }],
       ['section-up','Переместить выше',()=>structural({action:'moveSection',pageId,sectionId,delta:-1})],
       ['section-down','Переместить ниже',()=>structural({action:'moveSection',pageId,sectionId,delta:1})],
@@ -11457,7 +11470,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       subtitle.textContent=new Date(item.at).toLocaleString('ru-RU');b.append(subtitle);box.append(b);
     });
   }
-  function draw(){current();drawHeader();drawTree();drawElements();drawFields();drawPreview();drawVersions();if(HOSTED)window.Stage3Host?.onDraw?.();
+  function draw({revealSelected=false}={}){current();drawHeader();drawTree();drawElements();drawFields();drawPreview({revealSelected});drawVersions();if(HOSTED)window.Stage3Host?.onDraw?.();
     document.querySelectorAll('.device').forEach(b=>b.classList.toggle('active',b.dataset.bp===breakpoint));
     persistInteropSession();}
   function save(){
