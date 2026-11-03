@@ -1,3 +1,13 @@
+# CURRENT CHECKPOINT — carousel navigation and release readiness, 2026-11-03 (read first)
+
+**Branch:** `feature/stage3-ai-site-contract`. **Functional SHA:** `3a44e8415ef63872ee1368271dccf4ba4e6fd419`. **Full no-deploy CI:** [CI #41700579265](https://github.com/manufact-test/ai-site-cms/actions/runs/41700579265) **SUCCESS 4/4**. **Browser evidence:** [real Chromium captures](https://github.com/manufact-test/ai-site-cms/actions/runs/41700579265/artifacts/13262094912) (includes `stage3-carousel-card-selection.png`). **Previous verified fallback:** `9f5ac311c6260d94044db8a5f66adedef46bb237`.
+
+**Owner-facing fix:** Selecting a far card in a horizontal gallery now scrolls the carousel itself to reveal that exact item in the central page, while preserving the same preview iframe and unchanged draft. Normal vertical reveal still works. Canvas captions also reflect whether the Inspector is editing an element or the block. No extra editor, toolbar, schema, Save or Publish. The existing offline Chromium scenario now exercises six gallery cards, verifies horizontal visibility, no iframe reload and no data mutation; full suite covers authenticated PHP/MariaDB and other form/media/SEO/release paths.
+
+**Independent release review:** A broad engineering regression inventory, host preflight, source-only update, recovery and owner hands-on checklist are documented in [FOX release gate](../stage3/docs/FOX-UPDATE-AND-REGRESSION-GATE-2026-11-03.md). **This is a plan, not authorization**: FOX still has older Studio, no deploy or reinstall took place. Do not alter Stage2, main, production, MariaDB, private files, Cron or settings. Owner UX GO is still pending; first real client site still awaits original landing and three approved static desktop/tablet/mobile designs.
+
+---
+
 # CURRENT CHECKPOINT — repeat-item canvas synchronization and media preview, 2026-11-03 (read first)
 
 **Branch:** `feature/stage3-ai-site-contract`. **Functional SHA:** `9f5ac311c6260d94044db8a5f66adedef46bb237`. **Full CI:** [#41693383840](https://github.com/manufact-test/ai-site-cms/actions/runs/41693383840) **SUCCESS 4/4**. **Real Chromium artifact:** [screenshots](https://github.com/manufact-test/ai-site-cms/actions/runs/41693383840/artifacts/13260475490). **Latest full handoff:** [ADMIN-UX-REPEATER-MEDIA-INSPECTOR-2026-11-03.md](../handoffs/lead-integrator/ADMIN-UX-REPEATER-MEDIA-INSPECTOR-2026-11-03.md).
