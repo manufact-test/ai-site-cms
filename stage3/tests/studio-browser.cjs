@@ -1203,6 +1203,39 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
         animations:'disabled',fullPage:true});
     }
 
+    /* Deliberate scroll-away must not snap a selected distant card back into view
+       when its caption is edited or the edit is undone. */
+    const awayBefore=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+    const galleryAway=await galleryTrack.evaluate((track,id)=>{
+      track.scrollLeft=0;
+      const card=[...track.querySelectorAll(':scope > figure')]
+        .find(node=>node.dataset.cmsEditorElement===id);
+      const bounds=track.getBoundingClientRect(),rect=card.getBoundingClientRect();
+      return {left:track.scrollLeft,hidden:rect.left>=bounds.right-2};
+    },lastGalleryId);
+    assert.ok(galleryAway.hidden&&galleryAway.left<20,
+      'A deliberately scrolled-away card is outside the gallery viewport');
+    await page.evaluate(()=>{window.__galleryAwayDocument=
+      document.querySelector('#preview').contentDocument;});
+    const awayCaption=page.locator('#fields [data-field="content.caption"]');
+    await awayCaption.fill('Отредактировано вне экрана');
+    await awayCaption.dispatchEvent('change');
+    await page.waitForFunction(()=>document.querySelector('#preview')?.contentDocument!==
+      window.__galleryAwayDocument);
+    const galleryAfterAwayEdit=await galleryTrack.evaluate(track=>track.scrollLeft);
+    assert.ok(galleryAfterAwayEdit<20,
+      'A text edit must not pull back a carousel the owner deliberately scrolled away from: '+
+        galleryAfterAwayEdit);
+    await page.evaluate(()=>{window.__galleryAwayUndo=
+      document.querySelector('#preview').contentDocument;});
+    await page.locator('#undo').click();
+    await page.waitForFunction(()=>document.querySelector('#preview')?.contentDocument!==
+      window.__galleryAwayUndo);
+    assert.ok(await galleryTrack.evaluate(track=>track.scrollLeft)<20,
+      'Undo must not force a distant selected carousel item back into view');
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      awayBefore,'The scroll-away edit and Undo leave the original draft intact');
+
     // Opt-in field builder is usable in Chromium, Undo and real draft preview.
     await page.locator('#cms-canvas-add-block').click();
     await page.locator('#cms-component-search').fill('конструктор');
