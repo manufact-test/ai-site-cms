@@ -10287,7 +10287,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const intro=document.createElement('p');intro.className='inspector-block-intro';
       intro.textContent='Выбрана вся секция. Нажмите на объект ниже или прямо на странице, чтобы изменить его содержимое.';
       row.append(intro);
-      if(section.deviceVisibility?.[breakpoint]===false){
+    }
+    /* A hidden section must remain discoverable even while editing its element. */
+    if(section.deviceVisibility?.[breakpoint]===false){
         const warning=document.createElement('div');
         warning.id='cms-hidden-section-warning';warning.className='cms-hidden-section-warning';
         warning.setAttribute('role','status');
@@ -10299,7 +10301,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         });
         show.id='cms-show-hidden-section';show.dataset.editorWrite='true';
         warning.append(message,show);row.append(warning);
-      }
+    }
+    if(blockScope){
       const contents=document.createElement('details');
       contents.id='cms-block-contents';contents.className='cms-block-contents';
       const entities=[...section.elements,...(section.items||[])];
@@ -10474,6 +10477,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       elementId=id;inspectorScope='element';
       if(m.repeat&&section.items.length>6&&!keepNavigatorFocus)repeatDisclosureState.set(section.id,false);
       drawElements();drawFields();syncCanvasSelection();
+      scrollCanvasToElement(sectionId,id);
       const selected=[...$('elements').querySelectorAll('[data-inspector-element-id]')]
         .find(control=>control.dataset.inspectorElementId===id);
       const compact=matchMedia('(max-width:650px)').matches&&!keepNavigatorFocus;

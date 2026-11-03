@@ -325,6 +325,20 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       await page.screenshot({path:path.join(shots,'stage3-hidden-section-device.png'),
         animations:'disabled',fullPage:true});
     }
+    /* Hidden element properties remain reachable, with the same repair action. */
+    const hiddenBeforeElementPick=await page.evaluate(()=>
+      JSON.stringify(window.Stage3Editor.getSite()));
+    await page.locator('#cms-block-contents [data-cms-block-child="section-hero-heading"]').click();
+    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'СВОЙСТВА ЭЛЕМЕНТА');
+    assert.equal(await page.locator('#cms-hidden-section-warning').count(),1,
+      'A device-hidden section stays explained while its element Inspector is selected');
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      hiddenBeforeElementPick,'Selecting a hidden element must not mutate its section');
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.screenshot({path:path.join(shots,'stage3-hidden-element-inspector.png'),
+        animations:'disabled',fullPage:true});
+    }
     await page.locator('#cms-show-hidden-section').click();
     await canvas.locator('[data-cms-section-id="'+seoSection.id+'"]').waitFor();
     assert.equal(await page.locator('#cms-hidden-section-warning').count(),0);
@@ -627,6 +641,31 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
     await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('[data-repeat-id]').count(),4);
+
+    /* Repeater navigation must keep the same canvas document and reveal its actual card. */
+    const repeatCanvasBefore=await page.evaluate(()=>{
+      window.__repeatCanvasDocument=document.querySelector('#preview').contentDocument;
+      return JSON.stringify(window.Stage3Editor.getSite());
+    });
+    const farRepeatId=await page.locator('#elements [data-repeat-id]').last().getAttribute('data-repeat-id');
+    await page.locator('#preview').evaluate(frame=>frame.contentWindow.scrollTo(0,0));
+    await page.locator('#elements [data-repeat-id="'+farRepeatId+'"]').click();
+    const repeatedCardPosition=await canvas.locator('[data-cms-editor-element="'+farRepeatId+'"]').first()
+      .evaluate(node=>{const rect=node.getBoundingClientRect();
+        return {top:rect.top,bottom:rect.bottom,height:innerHeight};});
+    assert.ok(repeatedCardPosition.top>=-2&&repeatedCardPosition.top<repeatedCardPosition.height,
+      'Selecting a repeated card in Inspector scrolls its actual page card into view: '+
+        JSON.stringify(repeatedCardPosition));
+    assert.equal(await page.evaluate(()=>
+      document.querySelector('#preview').contentDocument===window.__repeatCanvasDocument),true,
+      'Repeater element switching must not recreate the scrollable preview');
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),repeatCanvasBefore,
+      'Repeater selection alone must not change the draft');
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.screenshot({path:path.join(shots,'stage3-repeater-canvas-sync.png'),
+        animations:'disabled',fullPage:true});
+    }
 
     // Repeat-item menu actions preserve context, ordering, Undo and keyboard focus.
     const repeatOrder=()=>page.locator('#elements [data-repeat-id]').evaluateAll(
