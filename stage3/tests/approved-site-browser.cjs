@@ -116,6 +116,26 @@ async function execute(){
     const details=page.locator('#cms-section-navigator');
     if(!(await details.evaluate(node=>node.open)))await details.locator(':scope > summary').click();
   };
+  const waitSelectedPageKeyboardFocus=async context=>{
+    try{
+      await page.waitForFunction(()=>document.activeElement
+        ?.matches('#pages .nav-entry.active[aria-current="page"]'),
+        null,{timeout:12000});
+    }catch(error){
+      const focus=await page.evaluate(()=>({
+        activeTag:document.activeElement?.tagName,
+        activeId:document.activeElement?.id,
+        activeText:document.activeElement?.textContent?.slice(0,100),
+        activeConnected:document.activeElement?.isConnected,
+        selected:[...document.querySelectorAll('#pages .nav-entry')]
+          .filter(node=>node.matches('.active,[aria-current="page"]'))
+          .map(node=>({title:node.textContent,aria:node.getAttribute('aria-current')})),
+        pageCount:document.querySelectorAll('#pages .nav-entry').length
+      }));
+      console.error('[hosted-page-nav-focus]',context,JSON.stringify(focus));
+      throw error;
+    }
+  };
   const openGraphActions=async()=>{
     const group=page.locator('#cms-design-structure-actions');
     if(!(await group.evaluate(node=>node.open)))await group.locator(':scope > summary').click();
@@ -668,7 +688,7 @@ async function execute(){
   const secondPage=page.locator('#pages .nav-entry').last();
   await secondPage.focus();
   await page.keyboard.press('Enter');
-  await page.waitForFunction(()=>document.activeElement?.matches('#pages .nav-entry.active[aria-current="page"]'));
+  await waitSelectedPageKeyboardFocus('forward');
   await openSectionTree();
   const lastSection=page.locator('#sections .nav-entry').last();
   await lastSection.focus();
@@ -677,7 +697,7 @@ async function execute(){
   const firstPage=page.locator('#pages .nav-entry').first();
   await firstPage.focus();
   await page.keyboard.press('Enter');
-  await page.waitForFunction(()=>document.activeElement?.matches('#pages .nav-entry.active[aria-current="page"]'));
+  await waitSelectedPageKeyboardFocus('return');
   const tabletDevice=page.locator('.canvas-toolbar .devices [data-bp="tablet"]');
   const desktopDevice=page.locator('.canvas-toolbar .devices [data-bp="desktop"]');
   await tabletDevice.click();

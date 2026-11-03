@@ -3884,7 +3884,16 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           resetInspectorScroll();
           if(event.detail>0)revealCompactSelection('section',pageId,sectionId);
           else{const selected=$('pages').querySelector('.nav-entry.active');
-            selected?.focus({preventScroll:true});selected?.scrollIntoView({block:'nearest'});}}));
+            selected?.focus({preventScroll:true});selected?.scrollIntoView({block:'nearest'});
+            /* Keyboard navigation can re-render the hosted sidebar again.
+               Restore focus to the still-selected page after that paint. */
+            const targetPageId=page.id;
+            requestAnimationFrame(()=>{
+              if(pageId!==targetPageId)return;
+              const live=$('pages').querySelector('.nav-entry.active');
+              if(live&&document.activeElement!==live)live.focus({preventScroll:true});
+            });
+          }}));
       const selected=$('pages').lastElementChild;
       selected.setAttribute('aria-current',page.id===pageId?'page':'false');
       selected.setAttribute('aria-keyshortcuts','ArrowUp ArrowDown Home End');
@@ -3903,7 +3912,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           drawHeader();drawTree();drawElements();drawFields();syncCanvasSelection();scrollCanvasToSection(sectionId);
           resetInspectorScroll();if(event.detail>0)revealCompactSelection('section',pageId,sectionId);
           else{const selected=$('sections').querySelector('.nav-entry.active');
-            selected?.focus({preventScroll:true});selected?.scrollIntoView({block:'nearest'});}}));
+            selected?.focus({preventScroll:true});selected?.scrollIntoView({block:'nearest'});
+            const targetPageId=pageId,targetSectionId=section.id;
+            requestAnimationFrame(()=>{
+              if(pageId!==targetPageId||sectionId!==targetSectionId)return;
+              const live=$('sections').querySelector('.nav-entry.active');
+              if(live&&document.activeElement!==live)live.focus({preventScroll:true});
+            });
+          }}));
       const selected=$('sections').lastElementChild;
       selected.setAttribute('aria-current',inspectorScope!=='page'&&section.id===sectionId?'location':'false');
       selected.setAttribute('aria-keyshortcuts','ArrowUp ArrowDown Home End');
