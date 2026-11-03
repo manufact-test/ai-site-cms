@@ -1146,6 +1146,7 @@ async function execute(){
   // Graph editor retains the selected custom section. Explicitly restore
   // hero focus before exercising its separate responsive inspector controls.
   await page.locator('#sections .nav-entry').first().click();
+  await page.locator('[data-inspector-scope="element"]').click();
   assert.notEqual(imported.assets[0].id,'asset-external-hero','Server gives immutable site-owned asset ID');
   assert.equal(imported.pages[0].seo.ogImage,imported.assets[0].id,'SEO media reference remapped');
   assert.equal(imported.pages[0].seo.ogTitle,'asset-external-hero',
@@ -1166,6 +1167,13 @@ async function execute(){
     'Selecting a whole block cannot expose the previous element properties');
   assert.equal(await page.locator('#cms-section-device-visibility').count(),1);
   assert.equal(await page.locator('#cms-section-advanced-settings').count(),1);
+  const mobileVisibility=page.locator('[data-section-device="mobile"]');
+  assert.equal(await mobileVisibility.getAttribute('aria-pressed'),'true');
+  await mobileVisibility.click();
+  assert.equal(await mobileVisibility.getAttribute('aria-pressed'),'false');
+  await page.locator('#undo').click();
+  assert.equal(await mobileVisibility.getAttribute('aria-pressed'),'true',
+    'Undo restores block-level responsive visibility without changing element content');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-block-properties.png'),fullPage:true});
   await page.locator('[data-inspector-scope="element"]').click();
   assert.equal(await page.locator('#cms-section-advanced-settings').count(),0,

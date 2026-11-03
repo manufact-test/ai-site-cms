@@ -10174,6 +10174,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       tab.classList.toggle('is-active',active);
     });
     const row=$('elements');row.replaceChildren();
+    row.setAttribute('aria-label',blockScope?'Настройки выбранного блока':'Элементы выбранного блока');
     if(blockScope){
       const intro=document.createElement('p');intro.className='inspector-block-intro';
       intro.textContent='Настройки всего блока. Для текста, изображений и карточек перейдите в «Элемент».';
