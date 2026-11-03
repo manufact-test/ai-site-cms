@@ -609,6 +609,9 @@ async function execute(){
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-site-dashboard.png'),fullPage:true});
   await page.locator('#server-project-pages .cms-page-link').first().click();
   await page.locator('#page-add:visible').waitFor();
+  assert.equal(await page.locator('#cms-section-navigator').evaluate(node=>node.open),false,
+    'Hosted Studio begins on full visual page with optional section tree');
+  await page.locator('#cms-section-navigator>summary').click();
   assert.equal(await page.locator('#server-project-editor').count(),1);
 
   // Actual Chromium renders of the OWNER Studio (synthetic CI content only).
@@ -642,7 +645,7 @@ async function execute(){
   await page.locator('#server-section-actions>summary').click();
   assert.equal(await page.locator('#section-appearance').isVisible(),true);
   await page.locator('#server-section-actions>summary').click();
-  await page.locator('#section-catalog').click();
+  await page.locator('#cms-canvas-add-block').click();
   await page.locator('#cms-component-catalog[open]').waitFor();
   await page.locator('#cms-component-catalog').getByRole('button',{name:'Закрыть'}).click();
   assert.equal(await page.locator('#server-tool-appearance #cms-open-theme').count(),1);
@@ -726,6 +729,12 @@ async function execute(){
     .filter({visible:true}).first().click({position:{x:6,y:6}});
   assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА',
     'Pointer selection in actual PHP preview opens the block Inspector');
+  assert.equal(await page.locator('#cms-block-contents [data-cms-block-child]').count()>0,true,
+    'Selected PHP-rendered section shows its actual editable children');
+  assert.equal(await page.locator('#cms-selected-block-actions').isVisible(),true,
+    'Block actions appear in the Inspector, not in permanent side navigation');
+  await page.locator('.inspector').screenshot({
+    path:path.join(studioScreenDir,'owner-studio-canvas-section-contents.png'),animations:'disabled'});
   assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
     hostedCanvasDraftBefore,'Hosted preview selection does not modify the server draft');
   const canvasGraph=imported.pages[0].sections.find(section=>section.designGraph);
@@ -736,7 +745,8 @@ async function execute(){
   await graphVisual.waitFor();
   assert.equal(await graphVisual.getAttribute('data-cms-editor-graph-node'),graphTextId,
     'Only a real validated PHP-rendered Graph node receives the editor binding');
-  await graphVisual.click();
+  await graphVisual.focus();
+  await graphVisual.press('Enter');
   await page.locator('#cms-page-preview[open]').waitFor();
   assert.equal(await page.locator('#cms-work-graph-node').inputValue(),graphTextId,
     'Selecting an individual Graph text node opens its exact existing Workbench inspector');
@@ -1173,6 +1183,9 @@ async function execute(){
   // hero focus before exercising its separate responsive inspector controls.
   await page.locator('#sections .nav-entry').first().click();
   await page.locator('[data-inspector-scope="element"]').click();
+  assert.equal(await page.locator('#cms-element-navigator').evaluate(node=>node.open),false,
+    'Element properties are not preceded by an expanded second navigator');
+  await page.locator('#cms-element-navigator>summary').click();
   assert.deepEqual(await page.locator('#fields .inspector-field-group-title').allInnerTexts(),
     ['Содержимое','Оформление']);
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-element-properties.png'),fullPage:true});

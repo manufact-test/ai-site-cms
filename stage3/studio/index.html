@@ -43,11 +43,15 @@
   </div>
   </details>
  <div class="nav-title">СТРАНИЦЫ</div><nav id="pages" aria-label="Страницы"></nav>
- <div class="nav-title">БЛОКИ СТРАНИЦЫ</div><nav id="sections" aria-label="Блоки"></nav>
+ <details id="cms-section-navigator" class="cms-section-navigator">
+  <summary><span>Структура страницы</span><small id="cms-section-nav-status">Блоки выбранной страницы</small></summary>
+  <nav id="sections" aria-label="Блоки"></nav>
+ </details>
  <div class="sidebar-bottom"><span class="live-dot"></span>Работает локально и без сети<div class="subdued">Это изолированный прототип редактора. Не публикация и не Hostinger.</div></div>
 </aside>
 <main class="center" id="main-content" tabindex="-1">
  <div class="canvas-toolbar"><div><span class="eyebrow">ПРЕДПРОСМОТР СТРАНИЦЫ</span><h2 id="canvas-title">Выберите блок</h2><p class="subdued" id="canvas-caption">Сайт не опубликован</p></div>
+ <button id="cms-canvas-add-block" class="btn small cms-canvas-add-block" type="button">+ Добавить секцию</button>
  <div class="devices" role="group" aria-label="Ширина экрана">
   <button class="device active" data-bp="desktop">ПК</button><button class="device" data-bp="tablet">Планшет</button><button class="device" data-bp="mobile">Телефон</button>
  </div></div>
@@ -61,7 +65,11 @@
    <button type="button" class="inspector-scope is-active" data-inspector-scope="element" aria-pressed="true">Элемент</button>
    <button type="button" class="inspector-scope" data-inspector-scope="block" aria-pressed="false">Блок</button>
   </div></div>
- <div id="elements" class="element-list" role="group" aria-label="Элементы выбранного блока"></div>
+ <div id="cms-selected-block-actions" class="cms-selected-block-actions"></div>
+ <details id="cms-element-navigator" class="cms-element-navigator">
+  <summary><span id="cms-element-nav-title">Элементы секции</span><small id="cms-element-nav-count"></small></summary>
+  <div id="elements" class="element-list" role="group" aria-label="Элементы выбранного блока"></div>
+ </details>
  <div id="fields" class="field-list"></div>
  <div class="inspector-foot">Ненужные свойства не показываются. Изменения видны сразу, но не сохраняются без команды.</div>
 </aside>

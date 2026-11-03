@@ -19,10 +19,11 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
         .forEach(node=>{node.open=true;}));
     };
     const openStructureActions=async()=>{
-      for(const id of ['page-actions-more','section-actions-more']){
-        const group=page.locator('#'+id);
-        if(!(await group.evaluate(node=>node.open)))await group.locator('summary').click();
-      }
+      await page.evaluate(()=>{
+        for(const id of ['page-actions-more','section-actions-more']){
+          const node=document.getElementById(id);if(node)node.open=true;
+        }
+      });
     };
     const openGraphActions=async()=>{
       const group=page.locator('#cms-design-structure-actions');
@@ -41,6 +42,13 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#site-name').getByText('Завод оборудования').waitFor();
     assert.equal(await page.locator('#pages .nav-entry').count(),2);
     assert.equal(await page.locator('#sections .nav-entry').count(),2);
+    assert.equal(await page.locator('#cms-section-navigator').evaluate(node=>node.open),false,
+      'Visual canvas starts as the primary navigation surface, block list is optional');
+    assert.equal(await page.locator('#cms-element-navigator').evaluate(node=>node.open),false,
+      'Element tree is not another permanently expanded pane');
+    assert.equal(await page.locator('#cms-canvas-add-block').isVisible(),true,
+      'A new section is always available from the page canvas');
+    await page.locator('#cms-section-navigator>summary').click();
     assert.equal(await page.locator('#history-details').evaluate(node=>node.open),false,
       'Version history stays out of the default editing workspace');
     assert.equal(await page.locator('#local-site-tools').evaluate(node=>node.open),false,
@@ -227,12 +235,22 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#sections .nav-entry').nth(1).getAttribute('aria-current'),'location');
     assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА',
       'Clicking section background opens whole-block context');
+    assert.equal(await page.locator('#cms-block-contents').isVisible(),true,
+      'Clicking a section exposes its real editable contents in the contextual Inspector');
+    assert.equal(await page.locator('#cms-selected-block-actions').isVisible(),true,
+      'Structural actions belong to the selected block, not the permanent sidebar');
+    await page.locator('#cms-block-contents [data-cms-block-child]').first().click();
+    assert.equal(await page.locator('[data-inspector-scope="element"]').getAttribute('aria-pressed'),'true',
+      'Choosing a child of the selected section opens its individual properties');
     await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
     await canvas.locator('[data-cms-section-id="'+otherSectionId+'"]').focus();
     await canvas.locator('[data-cms-section-id="'+otherSectionId+'"]').press('Enter');
     assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА',
       'Enter on a focused preview section opens its block settings');
-    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
+    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').focus();
+    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').press('Enter');
+    assert.equal(await page.locator('[data-inspector-scope="element"]').getAttribute('aria-pressed'),'true',
+      'Enter on a focused page heading opens the same element Inspector');
     assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
       canvasDraftBefore,'Canvas selection does not edit, save or publish the draft');
     await page.locator('#preview').evaluate(frame=>frame.contentWindow.scrollTo(0,150));
@@ -300,6 +318,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     }
     await page.setViewportSize({width:1450,height:800});
     await contentGroup.locator('summary').click();
+    assert.equal(await page.locator('#cms-element-navigator').evaluate(node=>node.open),false,
+      'Direct canvas selection keeps the optional element tree closed');
+    await page.locator('#cms-element-navigator>summary').click();
     const elementNavigator=page.locator('#elements button[data-inspector-element-id]');
     await elementNavigator.first().focus();
     await page.keyboard.press('ArrowDown');
@@ -494,7 +515,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#undo').click();
 
     // Real offline repeatable cards: add, edit, clone, reorder and Undo through Studio.
-    await page.locator('#section-add').click();
+    await page.locator('#cms-canvas-add-block').click();
     await page.locator('#cms-component-search').fill('Услуги');
     await page.locator('#cms-component-list [data-component="service-grid"]').click();
     await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
@@ -733,7 +754,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.setViewportSize({width:1450,height:1000});
 
     // Searchable first-party component catalog, FAQ native semantic preview.
-    await page.locator('#section-catalog').click();
+    await page.locator('#cms-canvas-add-block').click();
     await page.locator('#cms-component-search').fill('FAQ');
     assert.equal(await page.locator('#cms-component-list [data-component]').count(),1);
     await page.locator('#cms-component-list [data-component="faq-accordion"]').click();
@@ -807,7 +828,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       ['comparison-matrix','Сравнение · два варианта','content.metric','Поддержка'],
       ['content-switcher','Переключатель · интерактивные вкладки','content.title','Первый вариант']
     ]){
-      await page.locator('#section-catalog').click();
+      await page.locator('#cms-canvas-add-block').click();
       await page.locator('#cms-component-search').fill(type);
       await page.locator('#cms-component-list [data-component="'+type+'"]').click();
       await page.locator('#sections .nav-entry').filter({hasText:label}).click();
@@ -846,7 +867,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
 
     // Visual 3-mode gallery is a first-party CMS component, not a standalone
     // Workbench demo: change layout in Inspector, then verify draft+preview.
-    await page.locator('#section-catalog').click();
+    await page.locator('#cms-canvas-add-block').click();
     await page.locator('#cms-component-search').fill('adaptive-gallery');
     await page.locator('#cms-component-list [data-component="adaptive-gallery"]').click();
     await page.locator('#sections .nav-entry').filter({hasText:'Адаптивная галерея'}).click();
@@ -878,7 +899,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await canvas.locator('.cms-gallery-carousel').waitFor();
 
     // Opt-in field builder is usable in Chromium, Undo and real draft preview.
-    await page.locator('#section-catalog').click();
+    await page.locator('#cms-canvas-add-block').click();
     await page.locator('#cms-component-search').fill('конструктор');
     await page.locator('#cms-component-list [data-component="lead-form-flex"]').click();
     await page.locator('[data-inspector-scope="block"]').click();
@@ -1079,6 +1100,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
 
     // Appearance panel changes only the selected block; preview reacts immediately.
     await page.locator('#cms-appearance-dialog').count();
+    await page.locator('[data-inspector-scope="block"]').click();
     await page.locator('#section-appearance').click();
     await page.locator('#cms-appearance-surface').selectOption('dark');
     await page.locator('#cms-appearance-spacing').selectOption('airy');
@@ -1225,6 +1247,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     // A template is never flattened or erased: it remains as rollback fallback.
     const selectedSection=await page.evaluate(()=>window.Stage3Editor.selection().sectionId);
     page.once('dialog',dialog=>dialog.accept());
+    await page.locator('[data-inspector-scope="block"]').click();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-graph-dialog').waitFor({state:'visible'});
     const designFrame=page.frameLocator('#cms-design-preview-frame');
@@ -1485,6 +1508,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await canvas.locator('.cmsdg').waitFor();
     // User can extend a generated composition with a safe native icon and
     // customize its animation without calling the AI or writing raw HTML/CSS.
+    await page.locator('[data-inspector-scope="block"]').click();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
     await designFrame.locator('.cmsdg h2').waitFor();
@@ -1526,6 +1550,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#redo').click();
     await canvas.locator('svg[role="img"]').waitFor();
     // Edit a whole AI-authored nested composition without AI, scripts or raw CSS.
+    await page.locator('[data-inspector-scope="block"]').click();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-node-select').selectOption(selectedSection+'-layout');
     await openGraphActions();
@@ -1799,6 +1824,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.evaluate(site=>window.Stage3Editor.replace(site),graphFormSite);
     await page.locator('#pages .nav-entry').nth(1).click();
     await page.locator('#sections .nav-entry').last().click();
+    await page.locator('[data-inspector-scope="block"]').click();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-graph-dialog[open]').waitFor();
     const graphFormFrame=page.frameLocator('#cms-design-preview-frame');
@@ -1872,6 +1898,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.evaluate(site=>window.Stage3Editor.replace(site),sheetSite);
     await page.locator('#pages .nav-entry').first().click();
     await page.locator('#sections .nav-entry').last().click();
+    await page.locator('[data-inspector-scope="block"]').click();
     await page.locator('#section-design-graph').click();
     await page.locator('#cms-design-node-select').selectOption('sheet-table-ui');
     await openGraphActions();

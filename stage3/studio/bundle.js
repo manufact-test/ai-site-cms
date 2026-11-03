@@ -3482,6 +3482,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     breakpoint='desktop',savedBytes=JSON.stringify(session.current),versions=[],inspectorScope='element';
   const repeatDisclosureState=new Map();
   const inspectorGroupState=new Map();
+  let elementNavigatorExpanded=false;
   function notice(message,error=false){
     const node=$('toast');node.textContent=message;node.hidden=false;node.className='toast'+(error?' error':'');
   }
@@ -3878,7 +3879,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       selected.title='↑/↓ — другая страница · Home/End — начало/конец';
     });
     $('sections').replaceChildren();
-    current().page.sections.forEach((section,index)=>{
+    const selectedPage=current().page;
+    $('cms-section-nav-status').textContent=selectedPage.sections.length+' секц. · '+
+      (manifest(current().section)?.label||current().section.component);
+    selectedPage.sections.forEach((section,index)=>{
       const name=manifest(section)?.label||section.component;
       $('sections').append(button((index+1)+'. '+name,
         'nav-entry'+(section.id===sectionId?' active':''),
@@ -10210,6 +10214,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         :null;
     const inspector=$('inspector-title').closest('.inspector');
     inspector.dataset.scope=inspectorScope;
+    const elementNavigator=$('cms-element-navigator');
+    elementNavigator.dataset.scope=inspectorScope;
+    elementNavigator.open=blockScope||elementNavigatorExpanded;
+    $('cms-element-nav-title').textContent='Элементы секции';
+    $('cms-element-nav-count').textContent=
+      (section.elements.length+(section.items?.length||0))+' объектов';
     $('inspector-eyebrow').textContent=blockScope?'НАСТРОЙКИ БЛОКА':'СВОЙСТВА ЭЛЕМЕНТА';
     $('inspector-title').textContent=blockScope?blockLabel:
       String(selectedLabel||'Элемент блока').slice(0,70);
@@ -10238,8 +10248,39 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     row.setAttribute('aria-label',blockScope?'Настройки выбранного блока':'Элементы выбранного блока');
     if(blockScope){
       const intro=document.createElement('p');intro.className='inspector-block-intro';
-      intro.textContent='Настройки всего блока. Для текста, изображений и карточек перейдите в «Элемент».';
+      intro.textContent='Выбрана вся секция. Нажмите на объект ниже или прямо на странице, чтобы изменить его содержимое.';
       row.append(intro);
+      const contents=document.createElement('details');
+      contents.id='cms-block-contents';contents.className='cms-block-contents';
+      const entities=[...section.elements,...(section.items||[])];
+      contents.open=entities.length<=6;
+      const summary=document.createElement('summary');
+      summary.textContent='Содержимое секции · '+entities.length;
+      contents.append(summary);
+      const children=document.createElement('div');children.className='cms-block-contents-list';
+      for(const [index,entity] of entities.entries()){
+        const definition=m?.elements?.find(item=>item.slot===entity.slot);
+        const text=definition?.label||entity.values?.['content.title']||
+          entity.values?.['content.question']||entity.values?.['content.caption']||
+          entity.values?.['content.author']||entity.slot||'Карточка '+(index+1);
+        const child=button(String(text).slice(0,64),'cms-block-child',()=>{
+          elementId=entity.id;inspectorScope='element';draw();resetInspectorScroll();
+          if(matchMedia('(max-width:970px)').matches){
+            const chosenPage=pageId,chosenSection=sectionId,chosenElement=elementId;
+            requestAnimationFrame(()=>{
+              if(pageId!==chosenPage||sectionId!==chosenSection||elementId!==chosenElement)return;
+              const target=[...$('fields').querySelectorAll('input,textarea,select,button')]
+                .find(node=>node.getClientRects().length)||
+                $('fields').querySelector('summary.inspector-field-group-summary');
+              target?.scrollIntoView({block:'center',behavior:'instant'});
+              target?.focus({preventScroll:true});
+            });
+          }
+        });
+        child.dataset.cmsBlockChild=entity.id;
+        children.append(child);
+      }
+      contents.append(children);row.append(contents);
     }
     let formSettingsPanel=null;
     if(blockScope&&section.component==='lead-form-flex'){
@@ -11033,7 +11074,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const markGraph=nodes=>{
           for(const node of nodes||[]){
             const visual=host.getElementsByClassName('cmsdg-n-'+node.id)[0];
-            if(visual)visual.dataset.cmsEditorGraphNode=node.id;
+            if(visual){
+              visual.dataset.cmsEditorGraphNode=node.id;
+              if(!node.children?.length){
+                visual.tabIndex=0;visual.setAttribute('aria-keyshortcuts','Enter Space');
+              }
+            }
             if(Array.isArray(node.children))markGraph(node.children);
           }
         };
@@ -11051,9 +11097,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       for(const entity of section.elements){
         bindText(host,entity,section,used);bindMedia(host,entity,section);
       }
-      for(const node of host.querySelectorAll('[data-cms-editor-element]'))
+      for(const node of host.querySelectorAll('[data-cms-editor-element]')){
+        node.tabIndex=0;node.setAttribute('aria-keyshortcuts','Enter Space');
         node.classList.toggle('cms-editor-element-current',
           section.id===sectionId&&inspectorScope==='element'&&node.dataset.cmsEditorElement===elementId);
+      }
     }
     const pick=event=>{
       const target=event.target;
@@ -11103,7 +11151,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       event.preventDefault();event.stopPropagation();pick(event);
     },true);
     doc.addEventListener('keydown',event=>{
-      if(!['Enter',' '].includes(event.key)||event.target!==event.target.closest('[data-cms-editor-section]'))return;
+      if(!['Enter',' '].includes(event.key))return;
+      const choice=event.target.closest(
+        '[data-cms-editor-element],[data-cms-editor-graph-node],[data-cms-editor-section]');
+      if(choice!==event.target)return;
       event.preventDefault();pick(event);
     },true);
     doc.addEventListener('submit',event=>{event.preventDefault();event.stopPropagation();},true);
@@ -11253,6 +11304,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       draw();notice('Исходный пример восстановлен. Все его локальные версии очищены.');
     }catch(e){notice(e.message,true);}
   });
+  $('cms-canvas-add-block').addEventListener('click',()=>{
+    const add=$('section-catalog')||$('section-add');
+    if(add&&!add.disabled)add.click();
+  });
+  $('cms-element-navigator').addEventListener('toggle',()=>{
+    if(inspectorScope==='element')elementNavigatorExpanded=$('cms-element-navigator').open;
+  });
   $('inspector-scopes').addEventListener('click',event=>{
     const tab=event.target.closest('[data-inspector-scope]');
     if(!tab||!$('inspector-scopes').contains(tab))return;
@@ -11385,7 +11443,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     remapImportedMedia:(site,idMap,assets)=>C.remapImportedMedia(site,manifests,idMap,assets),
     fromBrief:(siteId,title)=>C.siteFromBrief({siteId,title},manifests)
   });
-  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();initSettings();initSeoHandoff();initFooterEditor();initMenuEditor();initSiteQuality();arrangeLocalTools();initFullPagePreview();load();restoreInteropSession();draw();
+  initContentWorkbench();initSiteMap();initPageBlueprint();initContentFill();createStructureTools();
+  const sectionTools=$('section-catalog')?.closest('.structure-tools');
+  if(sectionTools)$('cms-selected-block-actions').append(sectionTools);
+  initSettings();initSeoHandoff();initFooterEditor();initMenuEditor();initSiteQuality();arrangeLocalTools();initFullPagePreview();load();restoreInteropSession();draw();
 })();
 
 })();
