@@ -1161,6 +1161,15 @@ async function execute(){
   // Same imported site's FAQ — real add, edit, reorder, delete and Undo controls.
   await page.locator('#sections .nav-entry').last().click();
   assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
+  assert.equal(await page.locator('[data-inspector-scope="block"]').getAttribute('aria-pressed'),'true');
+  assert.equal(await page.locator('#fields [data-field]').count(),0,
+    'Selecting a whole block cannot expose the previous element properties');
+  assert.equal(await page.locator('#cms-section-device-visibility').count(),1);
+  assert.equal(await page.locator('#cms-section-advanced-settings').count(),1);
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-block-properties.png'),fullPage:true});
+  await page.locator('[data-inspector-scope="element"]').click();
+  assert.equal(await page.locator('#cms-section-advanced-settings').count(),0,
+    'Whole-block operations must not mix with element fields');
   await page.locator('#cms-repeat-add').click();
   assert.equal(await page.locator('#elements .cms-repeat-row').count(),3);
   await page.locator('#fields [data-field="content.question"]').fill('Что входит в комплект?');
@@ -1176,7 +1185,7 @@ async function execute(){
   assert.equal(await lastFaqRow.locator('.cms-repeat-more > summary').count(),1);
   assert.equal(await lastFaqRow.locator('.cms-repeat-more-actions .btn:visible').count(),0,
     'Rare FAQ actions remain hidden until the row menu is opened');
-  assert.match(await page.locator('#inspector-caption').innerText(),/Что входит в комплект/);
+  assert.match(await page.locator('#inspector-title').innerText(),/Что входит в комплект/);
   await lastFaqRow.locator('.cms-repeat-more > summary').click();
   await lastFaqRow.locator('button[aria-label^="Поднять вопрос"]').click();
   const movedQuestions=await questions();
@@ -1701,6 +1710,7 @@ async function execute(){
   await page.locator('#pages .nav-entry').first().click();
   await page.locator('#sections .nav-entry').last().click();
   assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
+  await page.locator('[data-inspector-scope="element"]').click();
   await page.locator('#elements .cms-repeat-row').last().locator('button.element').click();
   await page.locator('#fields [data-field="content.question"]').fill('Черновик, который нужно откатить');
   await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');

@@ -3479,7 +3479,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   let session=D.begin(starter,manifests),pageId=session.current.pages[0].id,
     sectionId=session.current.pages[0].sections[0].id,
     elementId=session.current.pages[0].sections[0].elements[0].id,
-    breakpoint='desktop',savedBytes=JSON.stringify(session.current),versions=[];
+    breakpoint='desktop',savedBytes=JSON.stringify(session.current),versions=[],inspectorScope='element';
   function notice(message,error=false){
     const node=$('toast');node.textContent=message;node.hidden=false;node.className='toast'+(error?' error':'');
   }
@@ -3836,14 +3836,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     $('pages').replaceChildren();
     session.current.pages.forEach(page=>{
       $('pages').append(button(page.title,'nav-entry'+(page.id===pageId?' active':''),
-        ()=>{pageId=page.id;sectionId=page.sections[0].id;elementId=page.sections[0].elements[0].id;draw();}));
+        ()=>{pageId=page.id;sectionId=page.sections[0].id;elementId=page.sections[0].elements[0].id;inspectorScope='block';draw();}));
     });
     $('sections').replaceChildren();
     current().page.sections.forEach((section,index)=>{
       const name=manifest(section)?.label||section.component;
       $('sections').append(button((index+1)+'. '+name,
         'nav-entry'+(section.id===sectionId?' active':''),
-        ()=>{sectionId=section.id;elementId=section.elements[0].id;draw();}));
+        ()=>{sectionId=section.id;elementId=section.elements[0].id;inspectorScope='block';draw();}));
     });
   }
 
@@ -10148,8 +10148,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   })();
 
   function drawElements(){
-    const {section}=current(),m=manifest(section);
-    $('inspector-title').textContent=m?.label||section.component;
+    const {page,section}=current(),m=manifest(section);
+    const blockScope=inspectorScope==='block';
+    const blockLabel=m?.label||section.component;
     const selectedElement=section.elements.find(e=>e.id===elementId);
     const selectedItem=section.items?.find(item=>item.id===elementId);
     const selectedLabel=selectedElement
@@ -10159,12 +10160,27 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           selectedItem.values['content.author']||selectedItem.values['content.caption']||
           'Карточка блока')
         :null;
-    $('inspector-caption').textContent=selectedLabel
-      ?'Выбран элемент: '+String(selectedLabel).slice(0,70)
-      :'Выберите элемент блока, чтобы изменить его содержимое.';
+    const inspector=$('inspector-title').closest('.inspector');
+    inspector.dataset.scope=inspectorScope;
+    $('inspector-eyebrow').textContent=blockScope?'НАСТРОЙКИ БЛОКА':'СВОЙСТВА ЭЛЕМЕНТА';
+    $('inspector-title').textContent=blockScope?blockLabel:
+      String(selectedLabel||'Элемент блока').slice(0,70);
+    $('inspector-caption').textContent=blockScope
+      ?'Страница «'+page.title+'» · положение и свойства блока «'+blockLabel+'»'
+      :'Блок «'+blockLabel+'» · страница «'+page.title+'»';
+    document.querySelectorAll('[data-inspector-scope]').forEach(tab=>{
+      const active=tab.dataset.inspectorScope===inspectorScope;
+      tab.setAttribute('aria-pressed',String(active));
+      tab.classList.toggle('is-active',active);
+    });
     const row=$('elements');row.replaceChildren();
+    if(blockScope){
+      const intro=document.createElement('p');intro.className='inspector-block-intro';
+      intro.textContent='Настройки всего блока. Для текста, изображений и карточек перейдите в «Элемент».';
+      row.append(intro);
+    }
     let formSettingsPanel=null;
-    if(section.component==='lead-form-flex'){
+    if(blockScope&&section.component==='lead-form-flex'){
       const builder=button('Поля и шаги формы · '+(section.formFields||[]).length+'/9'+(section.formSteps?' · '+section.formSteps.length+' шага(ов)':''),
         'btn small',openFormBuilder);
       builder.id='cms-form-builder-open';builder.dataset.editorWrite='true';row.append(builder);
@@ -10237,7 +10253,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const sectionSettings=document.createElement('details');
     sectionSettings.className='inspector-advanced-group';sectionSettings.id='cms-section-advanced-settings';
     const sectionSummary=document.createElement('summary');
-    sectionSummary.textContent='Дополнительные настройки блока';
+    sectionSummary.textContent='Общие секции и связь страниц';
     sectionSettings.append(sectionSummary);
     const visibilityPanel=document.createElement('fieldset');visibilityPanel.id='cms-section-device-visibility';
     const visibilityTitle=document.createElement('legend');visibilityTitle.textContent='Показывать на';
@@ -10253,7 +10269,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       visibilityChoices.append(control);
     }
     visibilityPanel.append(visibilityChoices);
-    sectionSettings.append(visibilityPanel);
+    // Visibility is a primary block property, not an advanced element setting.
     // Multi-page shared sections: one page-local ID per instance and atomic
     // propagation of every edit. Detach preserves this page's current content.
     {
@@ -10295,13 +10311,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         sectionSettings.append(unlink);
       }
     }
+    if(!blockScope){
     const elementHeading=document.createElement('div');
     elementHeading.className='inspector-group-title';elementHeading.textContent='Элементы блока';
     row.append(elementHeading);
     section.elements.forEach(e=>{
       const label=m.elements.find(s=>s.slot===e.slot)?.label||e.slot;
       row.append(button(label,'element'+(e.id===elementId?' active':''),
-        ()=>{elementId=e.id;drawElements();drawFields();}));
+        ()=>{elementId=e.id;inspectorScope='element';drawElements();drawFields();}));
     });
     if(m.repeat){
       const faq=section.component==='faq-accordion';
@@ -10315,7 +10332,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           (faq?'Вопрос ':'Карточка ')+(i+1);
         const line=document.createElement('div');line.className='cms-repeat-row';
         const choice=button((i+1)+'. '+String(headline).slice(0,56),'element'+(item.id===elementId?' active':''),
-          ()=>{elementId=item.id;drawElements();drawFields();});
+          ()=>{elementId=item.id;inspectorScope='element';drawElements();drawFields();});
         choice.dataset.repeatId=item.id;line.append(choice);
         /* Rare repeat operations stay next to their item, behind one menu. */
         const more=document.createElement('details');more.className='cms-repeat-more';
@@ -10338,8 +10355,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         ()=>operateRepeat('addItem',null));
       add.id='cms-repeat-add';add.disabled=section.items.length>=m.repeat.max;row.append(add);
     }
-    if(formSettingsPanel)row.append(formSettingsPanel);
-    row.append(sectionSettings);
+    }else{
+      row.append(visibilityPanel);
+      if(formSettingsPanel)row.append(formSettingsPanel);
+      row.append(sectionSettings);
+    }
   }
   function operateRepeat(action,itemId,extra={}){
     if(action==='removeItem'&&!confirm('Удалить выбранный повторяемый элемент из черновика? Его можно вернуть кнопкой «Отменить».'))return;
@@ -10347,7 +10367,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     structural({action,pageId,sectionId,itemId,...(id?{id}:{}),...extra});
     const section=current().section;
     if(id&&section.items?.some(x=>x.id===id)){
-      elementId=id;drawElements();drawFields();drawPreview();
+      elementId=id;inspectorScope='element';drawElements();drawFields();drawPreview();
     }
   }
   function applyEdit(field,raw,valueOnScreen,output){
@@ -10374,6 +10394,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   function drawFields(){
     const fields=C.controls(session.current,manifests,pageId,sectionId,elementId);
     const box=$('fields');box.replaceChildren();
+    if(inspectorScope==='block')return;
     if(!fields.length){
       const empty=document.createElement('p');empty.className='inspector-empty';
       empty.textContent='У этого элемента пока нет редактируемых свойств.';
@@ -10854,6 +10875,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       sectionId=session.current.pages[0].sections[0].id;elementId=session.current.pages[0].sections[0].elements[0].id;
       draw();notice('Исходный пример восстановлен. Все его локальные версии очищены.');
     }catch(e){notice(e.message,true);}
+  });
+  $('inspector-scopes').addEventListener('click',event=>{
+    const tab=event.target.closest('[data-inspector-scope]');
+    if(!tab||!$('inspector-scopes').contains(tab))return;
+    inspectorScope=tab.dataset.inspectorScope;
+    drawElements();drawFields();
   });
   document.querySelectorAll('.device').forEach(b=>b.addEventListener('click',()=>{
     breakpoint=b.dataset.bp;$('viewport').className='viewport '+breakpoint;

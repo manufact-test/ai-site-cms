@@ -56,7 +56,11 @@
  
 </main>
 <aside class="inspector" aria-labelledby="inspector-title">
- <div class="inspector-top"><span class="eyebrow">СВОЙСТВА ВЫБРАННОГО ЭЛЕМЕНТА</span><h2 id="inspector-title">Настройки блока</h2><p class="subdued" id="inspector-caption">Выберите элемент, чтобы изменить его содержимое</p></div>
+ <div class="inspector-top"><span class="eyebrow" id="inspector-eyebrow">СВОЙСТВА ЭЛЕМЕНТА</span><h2 id="inspector-title">Элемент блока</h2><p class="subdued" id="inspector-caption">Выберите элемент, чтобы изменить его содержимое</p>
+  <div class="inspector-scopes" id="inspector-scopes" role="group" aria-label="Что настраиваем">
+   <button type="button" class="inspector-scope is-active" data-inspector-scope="element" aria-pressed="true">Элемент</button>
+   <button type="button" class="inspector-scope" data-inspector-scope="block" aria-pressed="false">Блок</button>
+  </div></div>
  <div id="elements" class="element-list" role="group" aria-label="Элементы выбранного блока"></div>
  <div id="fields" class="field-list"></div>
  <div class="inspector-foot">Ненужные свойства не показываются. Изменения видны сразу, но не сохраняются без команды.</div>

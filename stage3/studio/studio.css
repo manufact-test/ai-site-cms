@@ -978,3 +978,22 @@ button:disabled{opacity:.45}
 }
 .cms-repeat-more-actions .btn.small:hover:not(:disabled){background:#31566d}
 .cms-repeat-more-actions .btn.small:disabled{opacity:.4}
+
+/* Context ownership: element fields and whole-block operations never compete. */
+.inspector-scopes{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:15px;padding:4px;
+  border:1px solid #3b5364;border-radius:10px;background:#142735}
+.inspector-scope{min-height:38px;border:0;border-radius:7px;background:transparent;color:#bbcfde;
+  font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.inspector-scope.is-active{background:#2e5265;color:#fff;box-shadow:0 1px 5px #06131c70}
+.inspector-scope:focus-visible{outline:3px solid #88d9ff;outline-offset:2px}
+.inspector-block-intro{margin:4px 3px 14px;color:#a9bdcd;font-size:12px;line-height:1.55}
+.inspector[data-scope="block"] #elements{display:block;min-width:0}
+.inspector[data-scope="block"] #fields{display:none}
+.inspector[data-scope="block"] .inspector-device-choices{padding:10px 0}
+.inspector[data-scope="block"] #cms-section-device-visibility{
+  margin:0 0 12px;padding:12px;border:1px solid #3a5366;border-radius:10px}
+.inspector[data-scope="block"] #cms-section-device-visibility legend{font-size:12px;font-weight:700}
+.inspector[data-scope="block"] .inspector-advanced-group{margin:10px 0}
+@media(min-width:571px) and (max-width:820px){
+  .inspector[data-scope="block"] #elements{grid-column:1/-1}
+}

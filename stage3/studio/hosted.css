@@ -1269,3 +1269,15 @@ html[data-stage3-mode="server"] .inspector .cms-repeat-more-actions .btn.small{
 html[data-stage3-mode="server"] .inspector .cms-repeat-more-actions .btn.small:hover:not(:disabled){
   background:#eff5fd;
 }
+
+/* Hosted inspector uses the same context split with a readable light palette. */
+html[data-stage3-mode="server"] .inspector-scopes{background:#eff3f8;border-color:#d8e2ed}
+html[data-stage3-mode="server"] .inspector-scope{color:#566f8a}
+html[data-stage3-mode="server"] .inspector-scope.is-active{
+  background:#fff;color:#174b8b;box-shadow:0 1px 5px #173b5d19}
+html[data-stage3-mode="server"] .inspector-scope:focus-visible{outline-color:#347acc}
+html[data-stage3-mode="server"] .inspector-block-intro{color:#687f96}
+html[data-stage3-mode="server"] .inspector[data-scope="block"] #elements{display:block}
+html[data-stage3-mode="server"] .inspector[data-scope="block"] #fields{display:none}
+html[data-stage3-mode="server"] .inspector[data-scope="block"] #cms-section-device-visibility{
+  background:#f8fafd;border-color:#dbe5ef;color:#29425e}

@@ -390,6 +390,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-component-search').fill('Услуги');
     await page.locator('#cms-component-list [data-component="service-grid"]').click();
     await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
+    await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('[data-repeat-id]').count(),2);
     await page.locator('#cms-repeat-add').click();
     assert.equal(await page.locator('[data-repeat-id]').count(),3);
@@ -413,6 +414,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#site-name').getByText('Завод оборудования').waitFor();
     await openLocalTools();await openStructureActions();
     await page.locator('#sections .nav-entry').filter({hasText:'Услуги · повторяемые карточки'}).click();
+    await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('[data-repeat-id]').count(),4);
 
     // Searchable first-party component catalog, FAQ native semantic preview.
@@ -421,6 +423,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#cms-component-list [data-component]').count(),1);
     await page.locator('#cms-component-list [data-component="faq-accordion"]').click();
     await page.locator('#sections .nav-entry').filter({hasText:'FAQ'}).click();
+    await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
     await page.locator('#elements [data-repeat-id]').first().click();
     await page.locator('#fields [data-field="content.question"]').fill('Как оформить заказ?');
@@ -439,6 +442,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       await page.locator('#cms-component-search').fill(type);
       await page.locator('#cms-component-list [data-component="'+type+'"]').click();
       await page.locator('#sections .nav-entry').filter({hasText:label}).click();
+    await page.locator('[data-inspector-scope="element"]').click();
       assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
       await page.locator('#elements [data-repeat-id]').first().click();
       const changed=page.locator('#fields [data-field="'+field+'"]');
@@ -477,6 +481,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-component-search').fill('adaptive-gallery');
     await page.locator('#cms-component-list [data-component="adaptive-gallery"]').click();
     await page.locator('#sections .nav-entry').filter({hasText:'Адаптивная галерея'}).click();
+    await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
     await page.locator('#elements .element').filter({hasText:'Варианты отображения'}).click();
     await page.locator('#fields [data-field="behavior.layout"]').selectOption('masonry');
@@ -499,6 +504,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#section-catalog').click();
     await page.locator('#cms-component-search').fill('конструктор');
     await page.locator('#cms-component-list [data-component="lead-form-flex"]').click();
+    await page.locator('[data-inspector-scope="block"]').click();
     await page.locator('#cms-form-builder-open').click();
     await page.locator('#cms-form-add').click();
     const question=page.locator('#cms-form-rows [data-form-field]').first();
@@ -1376,6 +1382,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.evaluate(site=>window.Stage3Editor.replace(site),sharedBase);
     // Shared-section controls intentionally live in the inspector's advanced
     // disclosure; test the real operator path before interacting with them.
+    await page.locator('[data-inspector-scope="block"]').click();
     await page.locator('#cms-section-advanced-settings > summary').click();
     await page.locator('#cms-shared-section-target').selectOption('page-contact');
     await page.locator('#cms-shared-section-link').click();

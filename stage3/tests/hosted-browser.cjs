@@ -454,6 +454,7 @@ async function execute(){
   const componentState=await page.evaluate(()=>({pages:window.Stage3Editor.getSite().pages.map(p=>({id:p.id,sections:p.sections.map(s=>s.component)})),assets:window.Stage3Editor.getSite().assets.length}));
   console.log('HOSTED MEDIA SELECTION STATE',JSON.stringify(componentState));
   await page.locator('#sections .nav-entry').filter({hasText:'Изображение и описание'}).click();
+  await page.locator('[data-inspector-scope="element"]').click();
   await page.locator('#elements .element').filter({hasText:'Фотография'}).click();
   const editablePaths=await page.locator('#fields [data-field]').evaluateAll(nodes=>nodes.map(n=>n.dataset.field));
   assert.ok(editablePaths.includes('content.media'),'Expected image field, saw: '+JSON.stringify(editablePaths));
@@ -961,6 +962,7 @@ async function execute(){
   // link is an Undo-able draft edit, and public bytes change only after publish.
   await page.locator('#pages .nav-entry').first().click();
   await page.locator('#sections .nav-entry').filter({hasText:'Изображение и описание'}).click();
+  await page.locator('[data-inspector-scope="element"]').click();
   await page.locator('#elements .element').filter({hasText:'Фотография'}).click();
   const originalPublishedMedia=await visitor.locator('.gallery-grid img').first().getAttribute('src');
   const generated=await page.evaluate(()=>{
@@ -1017,6 +1019,7 @@ async function execute(){
   // before uploading so the Media & Motion attachment is a dirty draft edit.
   await page.locator('#pages .nav-entry').first().click();
   await page.locator('#sections .nav-entry').filter({hasText:'Изображение и описание'}).click();
+  await page.locator('[data-inspector-scope="element"]').click();
   await page.locator('#elements .element').filter({hasText:'Фотография'}).click();
   // A genuine full-sized photo is processed by the hosted Studio, not only
   // inserted through a raw HTTP test. Two smaller physical renditions plus
@@ -1548,6 +1551,7 @@ async function execute(){
   // Same imported site's FAQ — real add, edit, reorder, delete and Undo controls.
   await page.locator('#sections .nav-entry').last().click();
   assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
+  await page.locator('[data-inspector-scope="element"]').click();
   await page.locator('#cms-repeat-add').click();
   assert.equal(await page.locator('#elements .cms-repeat-row').count(),3);
   await page.locator('#fields [data-field="content.question"]').fill('Что входит в комплект?');
@@ -1562,7 +1566,7 @@ async function execute(){
   assert.equal(await lastFaqRow.locator('.cms-repeat-more > summary').count(),1);
   assert.equal(await lastFaqRow.locator('.cms-repeat-more-actions .btn:visible').count(),0,
     'Rare FAQ actions remain hidden until the row menu is opened');
-  assert.match(await page.locator('#inspector-caption').innerText(),/Что входит в комплект/);
+  assert.match(await page.locator('#inspector-title').innerText(),/Что входит в комплект/);
   await lastFaqRow.locator('.cms-repeat-more > summary').click();
   await lastFaqRow.locator('button[aria-label^="Поднять вопрос"]').click();
   assert.deepEqual(await questions(),['Как оформить заказ?','Что входит в комплект?','Как происходит доставка?'],
@@ -1615,6 +1619,7 @@ async function execute(){
   await page.locator('#pages .nav-entry').first().click();
   await page.locator('#sections .nav-entry').last().click();
   assert.match(await page.locator('#inspector-title').innerText(),/FAQ/);
+  await page.locator('[data-inspector-scope="element"]').click();
   await page.locator('#elements .cms-repeat-row').last().locator('button.element').click();
   await page.locator('#fields [data-field="content.question"]').fill('Черновик, который нужно откатить');
   await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
