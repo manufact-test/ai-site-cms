@@ -11106,7 +11106,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   /* The scriptless canvas binds only validated section and manifest IDs to
      the current draft. Selection cannot submit, navigate or mutate content. */
   let mainPreviewRequest=0,mainPreviewPath='',mainPreviewScroll=0;
-  let mainPreviewRestoreElement=null,mainPreviewRestoreCarousels=null;
+  let mainPreviewRestoreElement=null,mainPreviewRestoreScrollports=null;
+  const canvasScrollportSelectors=['.cms-gallery-carousel','.cms-compare-scroll'];
   const mainPreviewFrame=$('preview');
   /* Keep an actively viewed element visible after content/Undo/device redraws.
      Do not jump back to an element the owner deliberately scrolled away from. */
@@ -11180,9 +11181,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       if(!['auto','scroll'].includes(overflow)||parent.scrollWidth<=parent.clientWidth+1)continue;
       const bounds=parent.getBoundingClientRect(),card=target.getBoundingClientRect(),gap=10;
       const available=bounds.width-2*gap;
-      const delta=card.width>available||card.left<bounds.left+gap
-        ?card.left-bounds.left-gap
-        :card.right>bounds.right-gap?card.right-bounds.right+gap:0;
+      /* A comparison row can be wider than the viewport itself. When any
+         part is already visible, preserve the owner's horizontal position. */
+      const oversized=card.width>available;
+      const intersects=card.right>bounds.left+gap&&card.left<bounds.right-gap;
+      const delta=oversized&&intersects?0:
+        (oversized||card.left<bounds.left+gap)
+          ?card.left-bounds.left-gap:
+            card.right>bounds.right-gap?card.right-bounds.right+gap:0;
       if(Math.abs(delta)>1)parent.scrollBy({left:delta,behavior:'instant'});
     }
     const rect=target.getBoundingClientRect(),margin=18;
@@ -11349,15 +11355,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },true);
     doc.addEventListener('submit',event=>{event.preventDefault();event.stopPropagation();},true);
     mainPreviewFrame.contentWindow?.scrollTo(0,mainPreviewScroll);
-    /* A redraw must preserve the owner's position inside horizontal galleries,
-       even when the selected element is elsewhere on the page. */
-    const restoreTracks=mainPreviewRestoreCarousels;
-    mainPreviewRestoreCarousels=null;
+    /* Keep native horizontal scrollports anchored during content redraws. */
+    const restoreTracks=mainPreviewRestoreScrollports;
+    mainPreviewRestoreScrollports=null;
     if(restoreTracks?.request===mainPreviewRequest){
       for(const item of restoreTracks.items){
         const host=[...doc.querySelectorAll('[data-cms-editor-section]')]
           .find(node=>node.dataset.cmsEditorSection===item.sectionId);
-        const track=host?.querySelectorAll('.cms-gallery-carousel')[item.index];
+        const track=host?.querySelectorAll(item.selector)[item.index];
         if(track)track.scrollLeft=item.left;
       }
     }
@@ -11390,19 +11395,21 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       if(samePage){
         for(const host of frame.contentDocument?.querySelectorAll(
           '[data-cms-editor-section]')||[]){
-          [...host.querySelectorAll('.cms-gallery-carousel')].forEach((track,index)=>{
-            if(track.scrollLeft>0)tracks.push({
-              sectionId:host.dataset.cmsEditorSection,index,left:track.scrollLeft
+          for(const selector of canvasScrollportSelectors){
+            [...host.querySelectorAll(selector)].forEach((track,index)=>{
+              if(track.scrollLeft>0)tracks.push({
+                sectionId:host.dataset.cmsEditorSection,selector,index,left:track.scrollLeft
+              });
             });
-          });
+          }
         }
       }
-      mainPreviewRestoreCarousels={request,items:tracks};
+      mainPreviewRestoreScrollports={request,items:tracks};
       frame.srcdoc=html;
       viewport.setAttribute('aria-label','Предпросмотр всей страницы '+page.title);
     }catch(error){
       if(request!==mainPreviewRequest)return;
-      mainPreviewRestoreElement=null;mainPreviewRestoreCarousels=null;
+      mainPreviewRestoreElement=null;mainPreviewRestoreScrollports=null;
       frame.srcdoc='<!doctype html><html lang="ru"><body style="font:14px system-ui;padding:24px;color:#8b3030">'+
         'Не удалось построить предпросмотр страницы: '+escapeHtml(error.message)+'</body></html>';
     }

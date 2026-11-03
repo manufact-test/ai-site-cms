@@ -974,6 +974,60 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       const exported=await page.evaluate(()=>window.Stage3Editor.getSite());
       assert.equal(exported.pages.flatMap(p=>p.sections).find(s=>s.component===type).items[0].values[field],value);
     }
+    /* A wide comparison row is larger than its phone scrollport. Editing and
+       Undo must preserve the manually inspected right-hand columns. */
+    await openSectionTree();
+    await page.locator('#sections .nav-entry')
+      .filter({hasText:'Сравнение · два варианта'}).click();
+    await page.locator('[data-inspector-scope="element"]').click();
+    const comparisonId=await page.locator('#elements [data-repeat-id]').first()
+      .getAttribute('data-repeat-id');
+    await page.locator('#elements [data-repeat-id="'+comparisonId+'"]').click();
+    await page.locator('.device[data-bp="mobile"]').click();
+    const comparisonTrack=canvas.locator('.cms-compare-scroll');
+    await comparisonTrack.waitFor();
+    const compareBefore=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+    const rightEdge=await comparisonTrack.evaluate(track=>{
+      track.scrollLeft=track.scrollWidth;
+      return {left:track.scrollLeft,max:track.scrollWidth-track.clientWidth,
+        width:track.clientWidth};
+    });
+    assert.ok(rightEdge.max>40&&rightEdge.left>=rightEdge.max-2,
+      'The mobile comparison table must provide a real horizontal scrollport: '+
+        JSON.stringify(rightEdge));
+    await page.evaluate(()=>{window.__comparisonBeforeEdit=
+      document.querySelector('#preview').contentDocument;});
+    const comparisonMetric=page.locator('#fields [data-field="content.metric"]');
+    await comparisonMetric.fill('Поддержка по SLA');
+    await comparisonMetric.dispatchEvent('change');
+    await page.waitForFunction(()=>document.querySelector('#preview')?.contentDocument!==
+      window.__comparisonBeforeEdit);
+    const afterCompareEdit=await comparisonTrack.evaluate(track=>({
+      left:track.scrollLeft,max:track.scrollWidth-track.clientWidth
+    }));
+    assert.ok(afterCompareEdit.left>=rightEdge.left-2,
+      'Editing a wide table row cannot jump back to the first column: '+
+        JSON.stringify({rightEdge,afterCompareEdit}));
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='comparison-matrix')
+      .items.find(item=>item.id===comparisonId).values['content.metric'],'Поддержка по SLA');
+    await page.evaluate(()=>{window.__comparisonBeforeUndo=
+      document.querySelector('#preview').contentDocument;});
+    await page.locator('#undo').click();
+    await page.waitForFunction(()=>document.querySelector('#preview')?.contentDocument!==
+      window.__comparisonBeforeUndo);
+    const afterCompareUndo=await comparisonTrack.evaluate(track=>track.scrollLeft);
+    assert.ok(afterCompareUndo>=rightEdge.left-2,
+      'Undo must preserve the visible comparison columns');
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      compareBefore,'Undo restores the original comparison content without editing layout');
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.screenshot({path:path.join(shots,'stage3-comparison-mobile-columns.png'),
+        animations:'disabled'});
+    }
+    await page.locator('.device[data-bp="desktop"]').click();
+
     // Chromium checks the actual authored document in a stable visitor page.
     // The editor iframe refreshes after edits, so testing a click inside that
     // transient navigation races with redraw rather than testing interaction.
