@@ -7535,11 +7535,120 @@
       '<style>.cms-adaptive-section{min-width:0}.cms-adaptive-gallery{min-width:0;max-width:100%;margin:20px 0}.cms-adaptive-card{overflow:hidden;min-width:0;break-inside:avoid;margin:0;background:var(--cms-surface);border:1px solid #d6e0ea;border-radius:12px}.cms-adaptive-card img{display:block;width:100%;aspect-ratio:4/3;max-height:460px;object-fit:cover}.cms-adaptive-card .media-placeholder{min-height:110px}.cms-gallery-fit-contain .cms-adaptive-card img{object-fit:contain}.cms-adaptive-card figcaption{padding:12px;overflow-wrap:anywhere}.cms-gallery-grid{display:grid;grid-template-columns:repeat(var(--cms-gallery-columns),minmax(0,1fr));gap:14px}.cms-gallery-grid .cms-gallery-featured{grid-column:span 2}.cms-gallery-masonry{columns:var(--cms-gallery-columns);column-gap:14px}.cms-gallery-masonry .cms-adaptive-card{display:inline-block;width:100%;margin-bottom:14px}.cms-gallery-masonry .cms-adaptive-card img{aspect-ratio:auto;height:auto}.cms-gallery-carousel{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;padding:4px 4px 18px}.cms-gallery-carousel:focus-visible{outline:3px solid var(--cms-primary)}.cms-gallery-carousel .cms-adaptive-card{flex:0 0 clamp(210px,calc(100% / var(--cms-gallery-columns)),75%);scroll-snap-align:start}.cms-gallery-carousel .cms-adaptive-card img{aspect-ratio:4/3}@media(max-width:760px){.cms-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cms-gallery-masonry{columns:2}.cms-gallery-carousel .cms-adaptive-card{flex-basis:70%}}@media(max-width:520px){.cms-gallery-grid{grid-template-columns:1fr}.cms-gallery-grid .cms-gallery-featured{grid-column:auto}.cms-gallery-masonry{columns:1}.cms-gallery-carousel .cms-adaptive-card{flex-basis:84%}}</style>'+
       '<style>.cms-preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:16px}.cms-preview-grid .card{margin:0}.cms-preview-grid h3{margin:5px 0 10px}.cms-preview-faq details{background:var(--cms-surface);border:1px solid #dce6e9;border-radius:10px;padding:15px;margin-block:10px}.cms-preview-faq summary{cursor:pointer;font-weight:700}.cms-preview-grid figcaption{margin-top:10px}</style>'+palette+skinCss+'</head><body>'+content+'</body></html>';
   }
-  let mainPreviewRequest=0;
+  /* The scriptless canvas binds only validated section and manifest IDs to
+     the current draft. Selection cannot submit, navigate or mutate content. */
+  let mainPreviewRequest=0,mainPreviewPath='',mainPreviewScroll=0;
+  const mainPreviewFrame=$('preview');
+  mainPreviewFrame.addEventListener('load',()=>{
+    const doc=mainPreviewFrame.contentDocument;
+    const page=session.current.pages.find(p=>p.id===pageId);
+    if(!doc||!page)return;
+    const ids=new Set(page.sections.map(section=>section.id));
+    const idOf=node=>node?.dataset?.cmsSectionId||node?.id||'';
+    const hosts=[...doc.querySelectorAll('[data-cms-section-id],section[id]')]
+      .filter(node=>ids.has(idOf(node)));
+    if(!hosts.length)return;
+    const css=doc.createElement('style');
+    css.textContent='[data-cms-editor-section]{cursor:pointer}'+
+      '[data-cms-editor-section]:hover{outline:2px dashed #1689e8!important;outline-offset:-2px!important}'+
+      '[data-cms-editor-section]:focus-visible{outline:3px solid #1689e8!important;outline-offset:-3px!important}'+
+      '[data-cms-editor-section].cms-editor-current{outline:2px solid #2777ee!important;outline-offset:-2px!important}'+
+      '[data-cms-editor-element]:hover{box-shadow:inset 0 -2px #1689e8!important;cursor:pointer}'+
+      '[data-cms-editor-element].cms-editor-element-current{outline:2px solid #f1a240!important;outline-offset:2px!important}';
+    doc.head.append(css);
+    const repeatSelectors={
+      'service-grid':'.repeat-grid > article,.cms-preview-grid > article',
+      'pricing-plans':'.cms-pricing-grid > article',
+      'process-timeline':'.cms-process-list > li',
+      'comparison-matrix':'tbody > tr',
+      'content-switcher':'.cms-switcher-tab',
+      'faq-accordion':'details',
+      'testimonials':'.repeat-grid > figure,.cms-preview-grid > blockquote',
+      'photo-gallery':'.gallery-grid > figure,.cms-preview-grid > figure',
+      'adaptive-gallery':'.cms-adaptive-gallery > figure',
+      'partner-logos':'.partner-grid > a,.cms-preview-grid > div.card'
+    };
+    const norm=value=>String(value??'').replace(/\s+/g,' ').trim();
+    const textSelector='h1,h2,h3,h4,p,small,span,strong,summary,figcaption,blockquote,button,a,label,legend,th,td,caption';
+    const bindText=(host,entity,section,used)=>{
+      const candidates=[...host.querySelectorAll(textSelector)];
+      for(const field of C.controls(session.current,manifests,page.id,section.id,entity.id)){
+        if(field.type!=='text'||!field.path.startsWith('content.'))continue;
+        const value=norm(field.responsive?C.effectiveValue(field.value,breakpoint):field.value);
+        if(!value)continue;
+        const target=candidates.find(node=>!used.has(node)&&norm(node.textContent)===value);
+        if(!target)continue;
+        used.add(target);target.dataset.cmsEditorElement=entity.id;
+      }
+    };
+    for(const host of hosts){
+      const section=page.sections.find(item=>item.id===idOf(host));
+      if(!section)continue;
+      host.dataset.cmsEditorSection=section.id;
+      host.tabIndex=0;host.setAttribute('aria-keyshortcuts','Enter Space');
+      host.setAttribute('aria-label','Выбрать блок '+(manifest(section)?.label||section.component));
+      host.classList.toggle('cms-editor-current',section.id===sectionId);
+      /* Graph nodes remain in the dedicated Workbench inspector. */
+      if(section.designGraph)continue;
+      const used=new Set(),selector=repeatSelectors[section.component];
+      const cards=selector?[...host.querySelectorAll(selector)]:[];
+      if(cards.length===(section.items||[]).length){
+        cards.forEach((card,index)=>{
+          const item=section.items[index];
+          card.dataset.cmsEditorElement=item.id;
+          bindText(card,item,section,used);
+        });
+      }
+      for(const entity of section.elements)bindText(host,entity,section,used);
+      for(const node of host.querySelectorAll('[data-cms-editor-element]'))
+        node.classList.toggle('cms-editor-element-current',
+          section.id===sectionId&&inspectorScope==='element'&&node.dataset.cmsEditorElement===elementId);
+    }
+    const pick=event=>{
+      const target=event.target;
+      if(!(target instanceof doc.defaultView.Element))return;
+      let host=target.closest('[data-cms-editor-section]');
+      if(!host)return;
+      const pickedSection=page.sections.find(section=>section.id===host.dataset.cmsEditorSection);
+      if(!pickedSection||page.id!==pageId)return;
+      const elementNode=target.closest('[data-cms-editor-element]');
+      const pickedElement=[...pickedSection.elements,...(pickedSection.items||[])]
+        .find(item=>item.id===elementNode?.dataset.cmsEditorElement);
+      const nextElement=pickedElement?.id||pickedSection.elements[0].id;
+      const nextScope=pickedElement?'element':'block';
+      if(sectionId===pickedSection.id&&elementId===nextElement&&inspectorScope===nextScope)return;
+      sectionId=pickedSection.id;elementId=nextElement;inspectorScope=nextScope;
+      draw();resetInspectorScroll();
+      if(matchMedia('(max-width:970px)').matches){
+        if(nextScope==='block')revealCompactSelection('section',pageId,sectionId);
+        else{
+          const atPage=pageId,atSection=sectionId,atElement=elementId;
+          requestAnimationFrame(()=>{
+            if(pageId!==atPage||sectionId!==atSection||elementId!==atElement)return;
+            const field=$('fields').querySelector('input:not([type="hidden"]),textarea,select,button');
+            field?.focus({preventScroll:true});field?.scrollIntoView({block:'center',behavior:'instant'});
+          });
+        }
+      }
+    };
+    doc.addEventListener('click',event=>{
+      event.preventDefault();event.stopPropagation();pick(event);
+    },true);
+    doc.addEventListener('keydown',event=>{
+      if(!['Enter',' '].includes(event.key)||event.target!==event.target.closest('[data-cms-editor-section]'))return;
+      event.preventDefault();pick(event);
+    },true);
+    doc.addEventListener('submit',event=>{event.preventDefault();event.stopPropagation();},true);
+    mainPreviewFrame.contentWindow?.scrollTo(0,mainPreviewScroll);
+  });
   async function drawPreview(){
     const {page,section}=current(),m=manifest(section);
     const frame=$('preview'),viewport=$('viewport'),request=++mainPreviewRequest;
     const deviceLabel=breakpoint==='desktop'?'ПК':breakpoint==='tablet'?'планшет':'телефон';
+    const canvasIdentity=session.current.siteId+'|'+page.id+'|'+page.path;
+    if(mainPreviewPath===canvasIdentity){
+      try{mainPreviewScroll=frame.contentWindow?.scrollY||0;}catch(_){}
+    }else{mainPreviewPath=canvasIdentity;mainPreviewScroll=0;}
     $('canvas-title').textContent=page.title;
     $('canvas-caption').textContent=(m?.label||section.component)+' · выбранный блок выделен · '+deviceLabel;
     frame.title='Полный предпросмотр страницы '+page.title;

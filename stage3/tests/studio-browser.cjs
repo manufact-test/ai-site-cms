@@ -211,6 +211,38 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const canvas=page.frameLocator('#preview');
     await canvas.locator('h1').waitFor();
     assert.equal(await canvas.locator('h1').innerText(),'Производим технологическое оборудование');
+    assert.equal(await page.locator('#preview').getAttribute('sandbox'),'allow-same-origin',
+      'Main canvas is parent-selectable but still forbids scripts and navigation');
+    const canvasDraftBefore=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+    await page.locator('#sections .nav-entry').nth(1).click();
+    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
+    assert.equal(await page.locator('#sections .nav-entry').first().getAttribute('aria-current'),'location',
+      'Clicking a real heading returns to its actual section');
+    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'СВОЙСТВА ЭЛЕМЕНТА',
+      'Clicking page text opens element properties, not block settings');
+    assert.equal(await page.locator('#fields [data-field="content.text"]').inputValue(),
+      seoElement.values['content.text']);
+    const otherSectionId=sourceSite.pages[0].sections[1].id;
+    await canvas.locator('[data-cms-section-id="'+otherSectionId+'"]').click({position:{x:5,y:5}});
+    assert.equal(await page.locator('#sections .nav-entry').nth(1).getAttribute('aria-current'),'location');
+    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА',
+      'Clicking section background opens whole-block context');
+    await canvas.locator('[data-cms-section-id="'+seoSection.id+'"] h1').click();
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      canvasDraftBefore,'Canvas selection does not edit, save or publish the draft');
+    await page.locator('#preview').evaluate(frame=>frame.contentWindow.scrollTo(0,150));
+    await page.waitForFunction(()=>document.querySelector('#preview')?.contentWindow?.scrollY>50);
+    const canvasScrollBefore=await page.locator('#preview').evaluate(frame=>frame.contentWindow.scrollY);
+    await page.locator('.device[data-bp="tablet"]').click();
+    await page.waitForFunction(()=>document.querySelector('#preview')?.contentWindow?.scrollY>50);
+    assert.ok(await page.locator('#preview').evaluate(frame=>frame.contentWindow.scrollY)>=Math.min(50,canvasScrollBefore),
+      'Device switch keeps the main canvas position on a long page');
+    await page.locator('.device[data-bp="desktop"]').click();
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.screenshot({path:path.join(shots,'stage3-canvas-click-selection.png'),
+        animations:'disabled',fullPage:true});
+    }
     assert.deepEqual(await page.locator('#fields .inspector-field-group-title').allInnerTexts(),
       ['Содержимое','Оформление'],'Mixed element controls are grouped by owner task');
     const contentGroup=page.locator('#fields details[data-field-group="content"]');

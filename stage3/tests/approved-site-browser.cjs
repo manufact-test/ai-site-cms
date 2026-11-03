@@ -719,6 +719,15 @@ async function execute(){
     .first().waitFor({state:'attached'});
   assert.equal(await page.locator('#canvas-title').innerText(),imported.pages[0].title,
     'Main canvas shows the full selected page, not an isolated block preview');
+  assert.equal(await page.locator('#preview').getAttribute('sandbox'),'allow-same-origin',
+    'The hosted canvas remains scriptless while the parent can select rendered blocks');
+  const hostedCanvasDraftBefore=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+  await page.frameLocator('#preview').locator('[data-cms-section-id],section[id]')
+    .filter({visible:true}).first().click({position:{x:6,y:6}});
+  assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА',
+    'Pointer selection in actual PHP preview opens the block Inspector');
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    hostedCanvasDraftBefore,'Hosted preview selection does not modify the server draft');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-hosted-desktop.png'),fullPage:true});
   await page.setViewportSize({width:1024,height:900});
   await assertNoHorizontalOverflow('Studio at 1024px');
