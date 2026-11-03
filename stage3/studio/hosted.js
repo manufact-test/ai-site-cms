@@ -2579,14 +2579,14 @@
   // full-page Workbench. Secondary site utilities must never push it offscreen.
   // These disclosures only MOVE existing authenticated panels; their handlers,
   // IDs, server permissions and draft/publication contracts are unchanged.
-  const editPage=action('Редактировать страницу','server-edit-page',()=>{
+  const editPage=action('Расширенный редактор','server-edit-page',()=>{
     if(!state.siteId||state.busy)return;
     const existing=$('cms-open-page-preview');
     if(existing&&!existing.disabled)existing.click();
   });
   editPage.disabled=true;
   editPage.classList.add('hosted-edit-primary');
-  editPage.title='Открыть полную страницу в существующем редакторе CMS';
+  editPage.title='Дополнительный редактор композиции и полноэкранный предпросмотр';
   document.querySelector('.top-actions').insertBefore(editPage,$('save'));
   row.removeChild(launchReviewButton);
   launchReviewButton.textContent='Проверка перед публикацией';

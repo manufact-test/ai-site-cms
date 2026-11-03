@@ -613,6 +613,12 @@ async function execute(){
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-site-dashboard.png'),fullPage:true});
   await page.locator('#server-project-pages .cms-page-link').first().click();
   await page.locator('#page-add:visible').waitFor();
+  assert.equal(await page.locator('[data-inspector-scope="page"]').getAttribute('aria-pressed'),'true',
+    'Opening a page in the routed Studio shows its page-level context');
+  assert.equal(await page.locator('#cms-page-actions-slot #server-page-actions').count(),1,
+    'Existing page actions are owned by the page Inspector, not the sidebar');
+  assert.equal(await page.locator('#cms-page-context-path').innerText(),
+    'Адрес: '+(await page.evaluate(()=>window.Stage3Editor.getSite().pages[0].path)));
   assert.equal(await page.locator('#cms-section-navigator').evaluate(node=>node.open),false,
     'Hosted Studio begins on full visual page with optional section tree');
   await page.locator('#cms-section-navigator>summary').click();
@@ -624,9 +630,10 @@ async function execute(){
   // The page/section tree exposes the current location to assistive technology
   // and keeps keyboard focus on the selected item after the existing redraw.
   await page.waitForFunction(()=>document.querySelectorAll('#pages .nav-entry[aria-current="page"]').length===1&&
-    document.querySelectorAll('#sections .nav-entry[aria-current="location"]').length===1);
+    document.querySelectorAll('#sections .nav-entry[aria-current="location"]').length===0);
   assert.equal(await page.locator('#pages .nav-entry[aria-current="page"]').count(),1);
-  assert.equal(await page.locator('#sections .nav-entry[aria-current="location"]').count(),1);
+  assert.equal(await page.locator('#sections .nav-entry[aria-current="location"]').count(),0,
+    'Choosing a page does not pretend a section is also the active editing scope');
   assert.equal(await page.locator('#server-page-actions').evaluate(node=>node.open),false);
   await page.locator('#server-page-actions>summary').click();
   assert.equal(await page.locator('#page-rename').isVisible(),true);
@@ -646,6 +653,8 @@ async function execute(){
   await page.locator('#cms-page-details-cancel').click();
   await page.locator('#cms-page-details-dialog').waitFor({state:'hidden'});
   await page.locator('#server-page-actions>summary').click();
+  await page.locator('#sections .nav-entry').first().click();
+  assert.equal(await page.locator('[data-inspector-scope="block"]').getAttribute('aria-pressed'),'true');
   await page.locator('#server-section-actions>summary').click();
   assert.equal(await page.locator('#section-appearance').isVisible(),true);
   await page.locator('#server-section-actions>summary').click();
@@ -1322,6 +1331,8 @@ async function execute(){
   assert.equal(await page.locator('#elements .cms-repeat-row').count(),2);
   assert.equal(await page.locator('#cms-repeat-add').innerText(),'+ Добавить вопрос');
   /* Page metadata belongs to the selected page, never site-wide settings. */
+  await page.locator('[data-inspector-scope="page"]').click();
+  assert.equal(await page.locator('#cms-page-context').isVisible(),true);
   const pageSettings=page.locator('#server-page-actions');
   await pageSettings.locator(':scope > summary').click();
   assert.equal(await pageSettings.locator('.hosted-structure-subhead').count(),2);

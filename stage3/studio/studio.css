@@ -980,7 +980,7 @@ button:disabled{opacity:.45}
 .cms-repeat-more-actions .btn.small:disabled{opacity:.4}
 
 /* Context ownership: element fields and whole-block operations never compete. */
-.inspector-scopes{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:15px;padding:4px;
+.inspector-scopes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:15px;padding:4px;
   border:1px solid #3b5364;border-radius:10px;background:#142735}
 .inspector-scope{min-height:38px;border:0;border-radius:7px;background:transparent;color:#bbcfde;
   font:inherit;font-size:12px;font-weight:700;cursor:pointer}
@@ -1193,4 +1193,37 @@ details.inspector-field-group:not([open])>.inspector-field-group-body{display:no
   .canvas-toolbar{flex-wrap:wrap}
   .canvas-toolbar .devices{margin-left:auto}
   .canvas-toolbar #cms-canvas-add-block{margin-left:0}
+}
+
+/* Page, section and element share one inspector; the page actions are the
+   original command nodes, moved rather than copied. */
+.inspector .cms-page-context{display:none;min-width:0;padding:3px 16px 18px}
+.inspector[data-scope="page"] .cms-page-context{display:block}
+.inspector[data-scope="page"] .cms-element-navigator,
+.inspector[data-scope="page"] .cms-selected-block-actions,
+.inspector[data-scope="page"] .field-list{display:none}
+.inspector .cms-page-context-intro{
+  margin:4px 1px 14px;color:#6d7d91;font-size:12px;line-height:1.55;
+}
+.inspector .cms-page-context-facts{
+  display:grid;gap:4px;padding:13px;border:1px solid #dfe9f2;
+  border-radius:10px;background:#f5f9fd;overflow-wrap:anywhere;
+}
+.inspector .cms-page-context-facts strong{font-size:14px;color:#263e57}
+.inspector .cms-page-context-facts small{font-size:12px;color:#658099}
+.inspector #cms-page-actions-slot{margin-top:12px;min-width:0}
+.inspector #cms-page-actions-slot .structure-tools{
+  display:grid;grid-template-columns:minmax(0,1fr);gap:9px;padding:0;
+}
+.inspector #cms-page-actions-slot .structure-tools>.btn,
+.inspector #cms-page-actions-slot .structure-tools>.hosted-structure-more,
+.inspector #cms-page-seo-shortcut{width:100%}
+.inspector #cms-page-actions-slot .structure-actions-more{margin:0}
+.inspector #cms-page-actions-slot .structure-actions-more-list{grid-template-columns:1fr}
+.inspector #cms-page-seo-shortcut{margin-top:9px}
+@media(min-width:651px) and (max-width:970px){
+  .inspector[data-scope="page"]>.inspector-top,
+  .inspector[data-scope="page"]>.cms-page-context{
+    grid-column:1/-1;grid-row:auto;min-width:0;
+  }
 }

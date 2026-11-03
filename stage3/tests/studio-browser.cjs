@@ -223,6 +223,25 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const canvas=page.frameLocator('#preview');
     await canvas.locator('h1').waitFor();
     assert.equal(await canvas.locator('h1').innerText(),'Производим технологическое оборудование');
+    // A page itself has an editable context. Re-selecting that same page must
+    // not recreate its canvas or silently alter the draft.
+    const pageContextDraft=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+    await page.evaluate(()=>{window.__pageContextFrameDoc=document.querySelector('#preview').contentDocument;});
+    await page.locator('#pages .nav-entry').first().click();
+    assert.equal(await page.locator('[data-inspector-scope="page"]').getAttribute('aria-pressed'),'true');
+    assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ СТРАНИЦЫ');
+    assert.equal(await page.locator('#cms-page-context-title').innerText(),'Главная');
+    assert.equal(await page.locator('#cms-page-context-path').innerText(),'Адрес: /');
+    assert.equal(await page.locator('#cms-page-actions-slot #page-add').isVisible(),true);
+    assert.equal(await page.locator('#cms-page-seo-shortcut').isVisible(),true);
+    assert.equal(await page.locator('#cms-element-navigator').isVisible(),false);
+    await page.locator('#pages .nav-entry').first().click();
+    assert.equal(await page.evaluate(()=>document.querySelector('#preview').contentDocument===window.__pageContextFrameDoc),true,
+      'Re-selecting the current page switches context without reloading its canvas');
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),pageContextDraft,
+      'Selecting page settings does not modify the draft');
+    await page.locator('[data-inspector-scope="block"]').click();
+    assert.equal(await page.locator('#cms-block-contents').isVisible(),true);
     assert.equal(await page.locator('#preview').getAttribute('sandbox'),'allow-same-origin',
       'Main canvas is parent-selectable but still forbids scripts and navigation');
     const canvasDraftBefore=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
@@ -697,10 +716,12 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
         document.getElementById('inspector-title'),null,{timeout:3000});
       await page.locator('#pages .nav-entry').last().click();
       await page.waitForFunction(()=>{
-        const heading=document.getElementById('canvas-title');
+        const heading=document.getElementById('inspector-title');
         const r=heading?.getBoundingClientRect();
         return heading&&document.activeElement===heading&&r.top>=0&&r.top<innerHeight;
       },null,{timeout:3000});
+      assert.equal(await page.locator('[data-inspector-scope="page"]').getAttribute('aria-pressed'),'true',
+        'Page selection reveals page-level settings in the compact Inspector');
       await page.locator('#pages .nav-entry').first().click();
     await openSectionTree();
       await page.locator('#sections .nav-entry')
