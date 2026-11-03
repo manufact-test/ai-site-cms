@@ -1167,7 +1167,7 @@ async function execute(){
     'Selecting a whole block cannot expose the previous element properties');
   assert.equal(await page.locator('#cms-section-device-visibility').count(),1);
   assert.equal(await page.locator('#cms-section-advanced-settings').count(),1);
-  const mobileVisibility=page.locator('[data-section-device="mobile"]');
+  const mobileVisibility=page.locator('#cms-section-device-visibility button[data-section-device="mobile"]');
   assert.equal(await mobileVisibility.getAttribute('aria-pressed'),'true');
   await mobileVisibility.click();
   assert.equal(await mobileVisibility.getAttribute('aria-pressed'),'false');
