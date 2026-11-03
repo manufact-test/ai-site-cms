@@ -10325,7 +10325,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         .find(control=>control.dataset.inspectorElementId===id);
       const focusTarget=selected?.getClientRects().length?selected:
         $('elements').querySelector('.inspector-repeat-disclosure > summary');
-      focusTarget?.focus({preventScroll:true});
+      if(focusTarget?.tagName==='SUMMARY'){
+        /* A native details click may finish its focus default after the redraw. */
+        requestAnimationFrame(()=>{
+          if(sectionId!==section.id||elementId!==id||inspectorScope!=='element')return;
+          $('elements').querySelector('.inspector-repeat-disclosure > summary')
+            ?.focus({preventScroll:true});
+        });
+      }else focusTarget?.focus({preventScroll:true});
     };
     section.elements.forEach(e=>{
       const label=m.elements.find(s=>s.slot===e.slot)?.label||e.slot;

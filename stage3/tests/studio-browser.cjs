@@ -468,6 +468,10 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await longFaq.evaluate(node=>node.open),false,
       'Choosing a question closes the navigator to reveal its properties');
     assert.match(await longFaq.locator(':scope > summary').innerText(),/Выбран: 7/);
+    await page.waitForFunction(()=>{
+      const summary=document.querySelector('#elements .inspector-repeat-disclosure > summary');
+      return summary&&document.activeElement===summary;
+    },null,{timeout:3000});
     assert.equal(await longFaq.locator(':scope > summary')
       .evaluate(node=>document.activeElement===node),true,
       'Focus returns to the long-list summary after selection');
