@@ -623,6 +623,13 @@ async function execute(){
   assert.equal(await page.locator('#server-page-actions').evaluate(node=>node.open),false);
   await page.locator('#server-page-actions>summary').click();
   assert.equal(await page.locator('#page-rename').isVisible(),true);
+  await page.locator('#page-rename').click();
+  await page.locator('#cms-page-details-dialog[open]').waitFor();
+  assert.equal((await page.locator('#cms-page-details-title').inputValue()).length>0,true);
+  assert.equal((await page.locator('#cms-page-details-path').inputValue()).startsWith('/'),true);
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-page-details.png'),fullPage:true});
+  await page.locator('#cms-page-details-cancel').click();
+  await page.locator('#cms-page-details-dialog').waitFor({state:'hidden'});
   await page.locator('#server-page-actions>summary').click();
   await page.locator('#server-section-actions>summary').click();
   assert.equal(await page.locator('#section-appearance').isVisible(),true);
@@ -1181,6 +1188,7 @@ async function execute(){
   assert.equal(await pageSettings.locator('.hosted-structure-subhead').count(),2);
   assert.equal(await page.locator('#server-tool-seo #cms-open-seo').count(),0,
     'Page SEO cannot be misplaced in the site-wide SEO tools');
+  await page.screenshot({path:path.join(studioScreenDir,'owner-studio-page-settings.png'),fullPage:true});
   const seoToolButton=page.locator('#cms-open-seo');
   await seoToolButton.scrollIntoViewIfNeeded();
   const seoToolPointerGeometry=await seoToolButton.evaluate(button=>{

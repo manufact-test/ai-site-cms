@@ -649,11 +649,14 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
 
     // Renaming a page updates CMS-owned internal links and retargets existing aliases.
     await page.locator('#pages .nav-entry').nth(1).click();
-    page.once('dialog',dialog=>{
-      page.once('dialog',next=>next.accept('/get-in-touch/'));
-      dialog.accept('Контакты');
-    });
+    if(!await page.locator('#page-actions-more').evaluate(node=>node.open))
+      await page.locator('#page-actions-more > summary').click();
     await page.locator('#page-rename').click();
+    await page.locator('#cms-page-details-dialog[open]').waitFor();
+    assert.equal(await page.locator('#cms-page-details-path').inputValue(),'/contact/');
+    await page.locator('#cms-page-details-title').fill('Контакты');
+    await page.locator('#cms-page-details-path').fill('/get-in-touch/');
+    await page.locator('#cms-page-details-submit').click();
     let renamed=(await page.evaluate(()=>window.Stage3Editor.getSite()));
     assert.equal(renamed.pages.find(p=>p.id==='page-contact').path,'/get-in-touch/');
     assert.equal(renamed.pages.find(p=>p.id==='page-home').sections[0].elements

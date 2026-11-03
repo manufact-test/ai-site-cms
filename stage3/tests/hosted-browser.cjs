@@ -352,11 +352,20 @@ async function execute(){
   assert.equal(await visitor.locator('h1').innerText(),'Оборудование для вашего производства');
   // Edit the real page tree from Studio and publish a second page.
   page.off('dialog',acceptDialogs);
-  const replies=['Каталог решений','/solutions/','Оборудование','/equipment/','feature-highlights'];
+  const replies=['feature-highlights'];
   page.on('dialog',dialog=>dialog.accept(dialog.type()==='prompt'?replies.shift():''));
   await page.locator('#page-add').click();
+  await page.locator('#cms-page-details-dialog[open]').waitFor();
+  await page.locator('#cms-page-details-title').fill('Каталог решений');
+  await page.locator('#cms-page-details-path').fill('/solutions/');
+  await page.locator('#cms-page-details-submit').click();
   assert.equal(await page.locator('#pages .nav-entry').count(),3);
+  await page.locator('#server-page-actions > summary').click();
   await page.locator('#page-rename').click();
+  await page.locator('#cms-page-details-dialog[open]').waitFor();
+  await page.locator('#cms-page-details-title').fill('Оборудование');
+  await page.locator('#cms-page-details-path').fill('/equipment/');
+  await page.locator('#cms-page-details-submit').click();
   assert.equal(await page.locator('#pages .nav-entry').nth(2).innerText(),'Оборудование');
   await page.locator('#section-add').click();
   assert.equal(await page.locator('#sections .nav-entry').count(),2);

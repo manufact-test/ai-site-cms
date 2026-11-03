@@ -937,3 +937,17 @@ button:disabled{opacity:.45}
    own expanded content or let a later button sit behind the panel header. */
 .sidebar>*{flex-shrink:0}
 .sidebar>.sidebar-bottom{flex:0 0 auto}
+
+
+/* Contextual page identity form, shared by hosted and offline Studio. */
+.cms-page-details-dialog{width:min(520px,calc(100% - 24px));box-sizing:border-box}
+.cms-page-details-dialog h2{margin:0;font-size:21px;line-height:1.3}
+.cms-page-details-dialog>p{margin:0;color:#b4c4d0;font-size:13px;line-height:1.55}
+.cms-page-details-dialog form{display:grid;gap:14px}
+.cms-page-details-dialog label{font-size:13px;font-weight:600;color:#eef5fa}
+.cms-page-details-dialog label .control{margin-top:3px;font-weight:400}
+.cms-page-details-dialog form>small{line-height:1.5;color:#afc1cd;opacity:1}
+.cms-page-details-dialog .cms-page-details-error{margin:0;padding:9px 11px;border:1px solid #c96a6a;border-radius:8px;color:#ffe0df;background:#4e2528;font-size:12px;line-height:1.4}
+.cms-page-details-dialog .cms-page-details-error[hidden]{display:none}
+.cms-page-details-dialog .cms-settings-actions{justify-content:flex-end;gap:10px}
+@media(max-width:540px){.cms-page-details-dialog{padding:18px}.cms-page-details-dialog .cms-settings-actions{flex-direction:column-reverse}.cms-page-details-dialog .cms-settings-actions .btn{width:100%}}
