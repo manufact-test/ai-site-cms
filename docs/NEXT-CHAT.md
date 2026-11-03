@@ -1,3 +1,19 @@
+# CURRENT CHECKPOINT — repeat-item canvas synchronization and media preview, 2026-11-03 (read first)
+
+**Branch:** `feature/stage3-ai-site-contract`. **Functional SHA:** `9f5ac311c6260d94044db8a5f66adedef46bb237`. **Full CI:** [#41693383840](https://github.com/manufact-test/ai-site-cms/actions/runs/41693383840) **SUCCESS 4/4**. **Real Chromium artifact:** [screenshots](https://github.com/manufact-test/ai-site-cms/actions/runs/41693383840/artifacts/13260475490). **Latest full handoff:** [ADMIN-UX-REPEATER-MEDIA-INSPECTOR-2026-11-03.md](../handoffs/lead-integrator/ADMIN-UX-REPEATER-MEDIA-INSPECTOR-2026-11-03.md).
+
+**Daily page editing:** The central full scrollable page is primary; click selected page, block or element to open only the relevant existing Inspector. Optional section/element lists are secondary. Picking a repeated FAQ/card through the Inspector now scrolls the unchanged live page iframe to that exact visible item without rerendering or editing the draft.
+
+**Hidden-device context:** When a section is hidden at the selected responsive breakpoint, a visible reason and device-specific `Показать` repair are accessible in **both** block and element context. The element warning is outside the collapsed navigation. The command uses original `setSectionVisibility` and Undo/Redo; it never saves/publishes automatically.
+
+**Image field clarity:** A manifest media field now displays a compact real thumbnail and current asset description, only when an image is selected. This reuses existing media IDs, authenticated hosted bytes and the media-ready event; no new picker/upload/library/schema. Real PHP Chromium verifies preview of an imported approved image; offline Chromium verifies the empty case.
+
+**Preservation:** Typed Site Contract, Design Graph, SEO Engine, media, forms, Undo/Redo, Save/Review/Publish, rollback, permissions, PHP and standalone Studio remain. No parallel editor or custom site generator.
+
+**Release gate:** Only GitHub source updated. FOX `mediumpurple-fox-175549.hostingersite.com/studio` is older; no deployment. Stage2, `main`, Production, private MariaDB/Cron/settings/connections untouched. Next: high-impact real UX checks and complete CMS verification; separately authorize reversible FOX update and owner personal acceptance. First real site stays on hold until the original landing and three separately approved desktop/tablet/mobile static designs.
+
+---
+
 # CURRENT CHECKPOINT — canvas-first element continuity and device-hidden sections, 2026-11-03 (read first)
 
 **Branch:** `feature/stage3-ai-site-contract`. **Functional SHA:** `fde064af85f534f8168a27183317677d0257cfe9`. **Full CI:** [#41687851736](https://github.com/manufact-test/ai-site-cms/actions/runs/41687851736) — **SUCCESS 4/4**. **Real Chromium screenshots:** [artifact](https://github.com/manufact-test/ai-site-cms/actions/runs/41687851736/artifacts/13256116162).
