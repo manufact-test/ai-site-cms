@@ -11106,7 +11106,32 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   /* The scriptless canvas binds only validated section and manifest IDs to
      the current draft. Selection cannot submit, navigate or mutate content. */
   let mainPreviewRequest=0,mainPreviewPath='',mainPreviewScroll=0;
+  let mainPreviewRestoreElement=null;
   const mainPreviewFrame=$('preview');
+  /* Keep an actively viewed element visible after content/Undo/device redraws.
+     Do not jump back to an element the owner deliberately scrolled away from. */
+  function canvasSelectedElementIsVisible(){
+    const doc=mainPreviewFrame.contentDocument,win=mainPreviewFrame.contentWindow;
+    if(!doc||!win)return false;
+    const host=[...doc.querySelectorAll('[data-cms-editor-section]')]
+      .find(node=>node.dataset.cmsEditorSection===sectionId);
+    const target=[...(host?.querySelectorAll('[data-cms-editor-element]')||[])]
+      .find(node=>node.dataset.cmsEditorElement===elementId);
+    if(!target)return false;
+    const rect=target.getBoundingClientRect();
+    let left=0,top=0,right=win.innerWidth,bottom=win.innerHeight;
+    for(let parent=target.parentElement;parent&&parent!==doc.body&&
+      parent!==doc.documentElement;parent=parent.parentElement){
+      const style=win.getComputedStyle(parent),bounds=parent.getBoundingClientRect();
+      if(['auto','scroll','hidden','clip'].includes(style.overflowX)){
+        left=Math.max(left,bounds.left);right=Math.min(right,bounds.right);
+      }
+      if(['auto','scroll','hidden','clip'].includes(style.overflowY)){
+        top=Math.max(top,bounds.top);bottom=Math.min(bottom,bounds.bottom);
+      }
+    }
+    return rect.right>left&&rect.left<right&&rect.bottom>top&&rect.top<bottom;
+  }
   function deviceVisibilityLabel(device=breakpoint){
     return device==='mobile'?'телефоне':device==='tablet'?'планшете':'компьютере';
   }
@@ -11324,12 +11349,18 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },true);
     doc.addEventListener('submit',event=>{event.preventDefault();event.stopPropagation();},true);
     mainPreviewFrame.contentWindow?.scrollTo(0,mainPreviewScroll);
+    const restore=mainPreviewRestoreElement;
+    mainPreviewRestoreElement=null;
+    if(restore?.request===mainPreviewRequest&&restore.pageId===pageId&&
+      restore.sectionId===sectionId&&restore.elementId===elementId&&
+      inspectorScope==='element')scrollCanvasToElement(sectionId,elementId);
   });
   async function drawPreview(){
     const {page,section}=current(),m=manifest(section);
     const frame=$('preview'),viewport=$('viewport'),request=++mainPreviewRequest;
     const canvasIdentity=session.current.siteId+'|'+page.id+'|'+page.path;
-    if(mainPreviewPath===canvasIdentity){
+    const samePage=mainPreviewPath===canvasIdentity;
+    if(samePage){
       try{mainPreviewScroll=frame.contentWindow?.scrollY||0;}catch(_){}
     }else{mainPreviewPath=canvasIdentity;mainPreviewScroll=0;}
     $('canvas-title').textContent=page.title;
@@ -11341,10 +11372,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         await window.Stage3Host.previewPage(session.current,page.path):
         window.Stage3Editor.previewDocument(session.current,page.path,breakpoint);
       if(request!==mainPreviewRequest)return;
+      mainPreviewRestoreElement=samePage&&inspectorScope==='element'&&
+        canvasSelectedElementIsVisible()?{request,pageId,sectionId,elementId}:null;
       frame.srcdoc=html;
       viewport.setAttribute('aria-label','Предпросмотр всей страницы '+page.title);
     }catch(error){
       if(request!==mainPreviewRequest)return;
+      mainPreviewRestoreElement=null;
       frame.srcdoc='<!doctype html><html lang="ru"><body style="font:14px system-ui;padding:24px;color:#8b3030">'+
         'Не удалось построить предпросмотр страницы: '+escapeHtml(error.message)+'</body></html>';
     }

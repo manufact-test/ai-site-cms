@@ -1083,6 +1083,52 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
         animations:'disabled',fullPage:true});
     }
 
+    /* A real caption edit redraws the iframe: the selected far-away card
+       must remain visible, including after one Undo and a responsive switch. */
+    const caption=page.locator('#fields [data-field="content.caption"]');
+    await caption.fill('Дальний кадр галереи');
+    await caption.dispatchEvent('change');
+    const galleryStillVisible=id=>page.waitForFunction(selectedId=>{
+      const doc=document.querySelector('#preview')?.contentDocument;
+      const track=doc?.querySelector('.cms-gallery-carousel');
+      const card=[...(track?.querySelectorAll(':scope > figure')||[])]
+        .find(node=>node.dataset.cmsEditorElement===selectedId);
+      if(!track||!card)return false;
+      const frame=track.getBoundingClientRect(),rect=card.getBoundingClientRect();
+      return track.scrollLeft>0&&rect.left>=frame.left-2&&rect.right<=frame.right+2;
+    },id,{timeout:10000});
+    await page.waitForFunction(()=>document.querySelector('#preview')?.contentDocument!==
+      window.__galleryCanvasDocument);
+    await galleryStillVisible(lastGalleryId);
+    assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages
+      .flatMap(p=>p.sections).find(s=>s.component==='adaptive-gallery')
+      .items.find(item=>item.id===lastGalleryId).values['content.caption'],
+      'Дальний кадр галереи');
+    await page.evaluate(()=>{window.__galleryAfterEditDocument=
+      document.querySelector('#preview').contentDocument;});
+    await page.locator('#undo').click();
+    await page.waitForFunction(()=>document.querySelector('#preview')?.contentDocument!==
+      window.__galleryAfterEditDocument);
+    await galleryStillVisible(lastGalleryId);
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      beforeGallerySelection,'Undo restores exactly the original gallery draft');
+
+    await page.evaluate(()=>{window.__galleryBeforeMobileDocument=
+      document.querySelector('#preview').contentDocument;});
+    await page.locator('.device[data-bp="mobile"]').click();
+    await page.waitForFunction(()=>document.querySelector('#viewport')?.classList.contains('mobile')&&
+      document.querySelector('#preview')?.contentDocument!==window.__galleryBeforeMobileDocument);
+    await galleryStillVisible(lastGalleryId);
+    assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      beforeGallerySelection,'A device switch never edits the gallery draft');
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.screenshot({path:path.join(shots,'stage3-carousel-selection-mobile.png'),
+        animations:'disabled',fullPage:true});
+    }
+    await page.locator('.device[data-bp="desktop"]').click();
+    await canvas.locator('.cms-gallery-carousel').waitFor();
+
     // Opt-in field builder is usable in Chromium, Undo and real draft preview.
     await page.locator('#cms-canvas-add-block').click();
     await page.locator('#cms-component-search').fill('конструктор');
