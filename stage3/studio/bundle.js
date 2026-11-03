@@ -3847,7 +3847,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const heading=kind==='section'?$('inspector-title'):$('canvas-title');
     const target=kind==='section'?$('inspector-scopes'):panel;
     target?.scrollIntoView({block:kind==='section'?'center':'start',behavior:'instant'});
-    if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
+    if(heading){
+      heading.tabIndex=-1;heading.focus({preventScroll:true});
+      /* A compact Inspector may retain its own scroll offset after layout changes.
+         Keep the focused heading onscreen, even when its scopes are centered. */
+      heading.scrollIntoView({block:'nearest',behavior:'instant'});
+    }
   }
   function handleNavigatorKey(event){
     if(event.altKey||event.ctrlKey||event.metaKey||
