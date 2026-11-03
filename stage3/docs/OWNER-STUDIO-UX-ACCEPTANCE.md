@@ -109,3 +109,7 @@
 - дальнейшие изменения Studio выполнять по конкретным замечаниям, выявленным в реальном рабочем процессе, а не по предположениям разработчика.
 
 Техническое состояние после v9.8: первоначальный pointer-interception исправлен; полный workflow на функциональном SHA `3a5fe6072600b7d74152673ae3316b5cc1e1483b` прошёл успешно — contract и technology-runtime SUCCESS в [Actions #41252586497](https://github.com/manufact-test/ai-site-cms/actions/runs/41252586497). CI подтверждает инженерный сценарий, но не заменяет будущую практическую оценку владельца.
+
+
+> **Engineering status 03.11.2026 — NOT an owner acceptance decision.** On functional SHA `f861ea7055dac3bff5ecdb4c68597c68d0cf73d2` the Inspector now defaults to the main task group, with other property groups disclosed on demand; keyboard navigation across pages, sections and elements preserves focus and continues to work alongside pointer/touch responsive reveal. [Full CI #41647681104 SUCCESS 4/4](https://github.com/manufact-test/ai-site-cms/actions/runs/41647681104), [real Chromium screenshots](https://github.com/manufact-test/ai-site-cms/actions/runs/41647681104/artifacts/13235149333). **No UI/UX GO and no FOX redeployment.** Owner hands-on acceptance below is still required.
+

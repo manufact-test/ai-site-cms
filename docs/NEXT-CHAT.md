@@ -1,3 +1,19 @@
+# CURRENT CHECKPOINT — task-focused Inspector and keyboard navigation, 2026-11-03 (read first)
+
+**Branch:** `feature/stage3-ai-site-contract`. **Last verified functional SHA:** `f861ea7055dac3bff5ecdb4c68597c68d0cf73d2`. **Full CI:** [#41647681104](https://github.com/manufact-test/ai-site-cms/actions/runs/41647681104) — **SUCCESS 4/4** (offline and approved-site Chromium, Next runtime, MariaDB 10.11/11.8). [Genuine browser screenshots](https://github.com/manufact-test/ai-site-cms/actions/runs/41647681104/artifacts/13235149333). **Docs HEAD** is the latest documentation-only commit following this functional SHA.
+
+**New owner-oriented workflow in the existing Studio:**
+- The element Inspector now has collapsible task groups: «Содержимое», «Оформление», «Действие и ссылки», other properties as applicable. The first relevant group is open initially; choosing another closes the previous one and remembers that choice per page/block/element for this editing session, including device changes. One-group elements remain uncluttered, without a redundant disclosure.
+- Pages, blocks and element rows support ArrowUp/ArrowDown/Home/End keyboard selection without losing focus after redraw; active pages/blocks expose `aria-current`, all navigator rows advertise their shortcuts, and keyboard selection scrolls into view. Pointer/touch selection still reveals the canvas or Inspector appropriately on narrow screens; phone pointer selection still moves to the first editable field. Long repeat lists keep their existing collapsed/disclosed behavior.
+- The change is **presentation and editor interaction only**: no new site schema, template library, AI generator, server migration, content mutation, publication or protected-host action. Existing Undo/Redo, Save, Review/Publish, rollback, Design Graph, Typed Site Contract, SEO Engine, forms and media remain in place.
+- Browser regressions now exercise group initial state, changing group, persistence across responsive device selection, one-group behavior, desktop/mobile keyboard navigation and focus, plus the existing end-to-end editing and hosted approved-site flows. Screenshots `stage3-inspector-property-groups.png` and `stage3-inspector-property-groups-mobile.png` record the task-based property editor on desktop and phone, with explicit mobile width containment assertions.
+
+**Next gate:** owner visual/interaction review of screenshots and then controlled FOX staging update and the owner's own usability session. **FOX still runs the previous code**. Keep Stage2, `main`, production, private Hostinger data, database and Cron untouched. Do not start the first real site until the owner supplies and approves the original landing/static desktop/tablet/mobile designs.
+
+**Detailed handoff:** [ADMIN-UX-FIELD-GROUPS-KEYBOARD-2026-11-03.md](../handoffs/lead-integrator/ADMIN-UX-FIELD-GROUPS-KEYBOARD-2026-11-03.md). **Prior fully green rollback SHA:** `0d5059f9cd2fa6d77f197f1cdbefeef0ece5fa12`.
+
+---
+
 # CURRENT CHECKPOINT — responsive Inspector and context-safe menus, 2026-11-03 (read first)
 
 **Working branch:** `feature/stage3-ai-site-contract`. **Last verified functional SHA:** `0d5059f9cd2fa6d77f197f1cdbefeef0ece5fa12`. [Full CI #41635244405](https://github.com/manufact-test/ai-site-cms/actions/runs/41635244405) **SUCCESS 4/4** (genuine Chromium offline and hosted Studio, Next runtime, MariaDB 10.11/11.8). [Real Chromium screenshots](https://github.com/manufact-test/ai-site-cms/actions/runs/41635244405/artifacts/13230406794) include `stage3-inspector-desktop-responsive.png`, `stage3-inspector-tablet-responsive.png`, `stage3-inspector-mobile-responsive.png` and hosted `owner-studio-inspector-tablet.png` / `owner-studio-inspector-mobile.png`. Generated screenshots and geometry assertions are automated evidence, not a substitute for owner approval or independent pixel-level design review.
