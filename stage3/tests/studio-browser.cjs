@@ -614,6 +614,26 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       await page.locator('[data-inspector-scope="element"]').click();
     }
     await page.setViewportSize({width:1450,height:600});
+    const sectionNav=page.locator('#sections .nav-entry');
+    await sectionNav.first().focus();
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await sectionNav.nth(1).evaluate(node=>node.classList.contains('active')),true);
+    assert.equal(await sectionNav.nth(1).evaluate(node=>document.activeElement===node),true,
+      'Section arrow navigation retains focus on the selected entry');
+    await page.keyboard.press('End');
+    assert.equal(await sectionNav.last().evaluate(node=>document.activeElement===node),true);
+    await page.keyboard.press('Home');
+    assert.equal(await sectionNav.first().evaluate(node=>document.activeElement===node),true);
+    const pageNav=page.locator('#pages .nav-entry');
+    await pageNav.first().focus();
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await pageNav.nth(1).evaluate(node=>document.activeElement===node),true,
+      'Page arrow navigation retains focus on its current entry');
+    await page.keyboard.press('Home');
+    assert.equal(await pageNav.first().evaluate(node=>document.activeElement===node),true);
+    await page.locator('#sections .nav-entry')
+      .filter({hasText:'Услуги · повторяемые карточки'}).click();
+    await page.locator('[data-inspector-scope="element"]').click();
     const scrolledBeforeScope=await page.evaluate(()=>{
       const inspector=document.querySelector('.inspector');
       inspector.scrollTop=300;
@@ -760,7 +780,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('[data-inspector-scope="element"]').click();
     assert.equal(await page.locator('#elements [data-repeat-id]').count(),2);
     await page.locator('#elements .element').filter({hasText:'Варианты отображения'}).click();
-    await page.locator('#fields details[data-field-group="behavior"] > summary').click();
+    const behaviorSummary=page.locator('#fields details[data-field-group="behavior"] > summary');
+    if(await behaviorSummary.count())await behaviorSummary.click();
     await page.locator('#fields [data-field="behavior.layout"]').selectOption('masonry');
     await canvas.locator('.cms-gallery-masonry').waitFor();
     await page.locator('#fields [data-field="behavior.columns"]').fill('4');

@@ -3849,18 +3849,36 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
     });
   }
+  function handleNavigatorKey(event){
+    if(event.altKey||event.ctrlKey||event.metaKey||
+      !['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;
+    const active=event.target.closest('button.nav-entry');
+    const navigation=active?.closest('#pages,#sections');
+    if(!navigation)return;
+    const choices=[...navigation.querySelectorAll('button.nav-entry')];
+    const index=choices.indexOf(active);
+    if(index<0)return;
+    const next=event.key==='Home'?0:event.key==='End'?choices.length-1:
+      Math.max(0,Math.min(choices.length-1,index+(event.key==='ArrowDown'?1:-1)));
+    if(next===index)return;
+    event.preventDefault();choices[next].click();
+  }
   function drawTree(){
+    $('pages').onkeydown=handleNavigatorKey;
+    $('sections').onkeydown=handleNavigatorKey;
     $('pages').replaceChildren();
     session.current.pages.forEach(page=>{
       $('pages').append(button(page.title,'nav-entry'+(page.id===pageId?' active':''),
-        event=>{pageId=page.id;sectionId=page.sections[0].id;elementId=page.sections[0].elements[0].id;inspectorScope='block';draw();resetInspectorScroll();if(event.detail>0)revealCompactSelection('page',pageId,sectionId);}));
+        event=>{pageId=page.id;sectionId=page.sections[0].id;elementId=page.sections[0].elements[0].id;inspectorScope='block';draw();resetInspectorScroll();if(event.detail>0)revealCompactSelection('page',pageId,sectionId);
+          else $('pages').querySelector('.nav-entry.active')?.focus({preventScroll:true});}));
     });
     $('sections').replaceChildren();
     current().page.sections.forEach((section,index)=>{
       const name=manifest(section)?.label||section.component;
       $('sections').append(button((index+1)+'. '+name,
         'nav-entry'+(section.id===sectionId?' active':''),
-        event=>{sectionId=section.id;elementId=section.elements[0].id;inspectorScope='block';draw();resetInspectorScroll();if(event.detail>0)revealCompactSelection('section',pageId,sectionId);}));
+        event=>{sectionId=section.id;elementId=section.elements[0].id;inspectorScope='block';draw();resetInspectorScroll();if(event.detail>0)revealCompactSelection('section',pageId,sectionId);
+          else $('sections').querySelector('.nav-entry.active')?.focus({preventScroll:true});}));
     });
   }
 
