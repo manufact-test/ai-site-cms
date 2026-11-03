@@ -440,6 +440,47 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await canvas.locator('details summary').getByText('Как оформить заказ?').waitFor();
     assert.equal(await page.locator('#cms-component-catalog').isVisible(),false);
 
+    // Long FAQ lists stay compact; keyboard focus survives element switching.
+    await page.locator('#elements [data-inspector-element-id]').first().click();
+    assert.equal(await page.locator('#elements [data-inspector-element-id]').first()
+      .evaluate(node=>document.activeElement===node),true,
+      'Selecting a normal element retains keyboard focus after inspector redraw');
+    for(let i=0;i<5;i++)await page.locator('#cms-repeat-add').click();
+    const longFaq=page.locator('#elements .inspector-repeat-disclosure');
+    assert.equal(await page.locator('#elements [data-repeat-id]').count(),7);
+    assert.equal(await longFaq.count(),1);
+    assert.equal(await longFaq.evaluate(node=>node.open),false,
+      'Seven FAQ items are collapsed so selected properties remain in view');
+    assert.equal(await page.locator('#fields [data-field="content.question"]').isVisible(),true);
+    assert.equal(await page.locator('#cms-repeat-add').isVisible(),true,
+      'Add question remains accessible outside the long-list disclosure');
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await closeEditingExtras();
+      await page.screenshot({path:path.join(shots,'stage3-faq-compact-editor.png'),fullPage:true});
+      await openLocalTools();await openStructureActions();
+    }
+    await longFaq.locator(':scope > summary').click();
+    assert.equal(await longFaq.evaluate(node=>node.open),true);
+    assert.equal(await longFaq.locator('.cms-repeat-more > summary').count(),7,
+      'Long-list item actions remain available inside the disclosure');
+    await longFaq.locator('[data-repeat-id]').last().click();
+    assert.equal(await longFaq.evaluate(node=>node.open),false,
+      'Choosing a question closes the navigator to reveal its properties');
+    assert.match(await longFaq.locator(':scope > summary').innerText(),/Выбран: 7/);
+    assert.equal(await longFaq.locator(':scope > summary')
+      .evaluate(node=>document.activeElement===node),true,
+      'Focus returns to the long-list summary after selection');
+    assert.equal(await page.locator('#fields [data-field="content.question"]').isVisible(),true);
+    await longFaq.locator(':scope > summary').click();
+    assert.equal(await longFaq.evaluate(node=>node.open),true,
+      'The list remains keyboard accessible for further editing');
+    await longFaq.locator(':scope > summary').click();
+    for(let i=0;i<5;i++)await page.locator('#undo').click();
+    assert.equal(await page.locator('#elements [data-repeat-id]').count(),2,
+      'Undo restores the original short FAQ without a stale compact disclosure');
+    assert.equal(await page.locator('#elements .inspector-repeat-disclosure').count(),0);
+
     // Product-level component catalog: create and edit four first-party layouts.
     for(const [type,label,field,value] of [
       ['pricing-plans','Тарифы · планы с услугами','content.price','450 BYN'],

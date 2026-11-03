@@ -1011,3 +1011,29 @@ button:disabled{opacity:.45}
 .inspector .inspector-field-group textarea.control{
   min-height:86px;max-height:240px;resize:vertical;line-height:1.5;
 }
+
+/* Long repeat lists stay available without pushing selected properties off-screen. */
+.inspector .inspector-repeat-disclosure{
+  margin:4px 0 2px;border:1px solid #405669;border-radius:9px;background:#152737;
+}
+.inspector .inspector-repeat-disclosure>summary{
+  display:grid;grid-template-columns:14px minmax(0,1fr);column-gap:8px;row-gap:2px;
+  align-items:center;padding:10px 11px;cursor:pointer;list-style:none;
+  color:#d5e5f4;font-size:12px;font-weight:750;line-height:1.4;
+}
+.inspector .inspector-repeat-disclosure>summary::-webkit-details-marker{display:none}
+.inspector .inspector-repeat-disclosure>summary::before{
+  content:'▸';color:#85b9e3;font-size:14px;grid-column:1;grid-row:1;
+}
+.inspector .inspector-repeat-disclosure[open]>summary::before{content:'▾'}
+.inspector .inspector-repeat-disclosure>summary>span{grid-column:2;min-width:0}
+.inspector .inspector-repeat-selected{
+  grid-column:2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:#a5bacd;font-size:11px;font-weight:500;
+}
+.inspector .inspector-repeat-disclosure>summary:hover,
+.inspector .inspector-repeat-disclosure[open]>summary{background:#203a4d}
+.inspector .inspector-repeat-disclosure>summary:focus-visible{
+  outline:3px solid #72bee8;outline-offset:2px;border-radius:8px;
+}
+.inspector .inspector-repeat-items{padding:7px;border-top:1px solid #405669}

@@ -53,6 +53,7 @@
     sectionId=session.current.pages[0].sections[0].id,
     elementId=session.current.pages[0].sections[0].elements[0].id,
     breakpoint='desktop',savedBytes=JSON.stringify(session.current),versions=[],inspectorScope='element';
+  const repeatDisclosureState=new Map();
   function notice(message,error=false){
     const node=$('toast');node.textContent=message;node.hidden=false;node.className='toast'+(error?' error':'');
   }
@@ -6889,25 +6890,65 @@
     const elementHeading=document.createElement('div');
     elementHeading.className='inspector-group-title';elementHeading.textContent='Элементы блока';
     row.append(elementHeading);
+    const chooseElement=id=>{
+      elementId=id;inspectorScope='element';
+      if(m.repeat&&section.items.length>6)repeatDisclosureState.set(section.id,false);
+      drawElements();drawFields();
+      const selected=[...$('elements').querySelectorAll('[data-inspector-element-id]')]
+        .find(control=>control.dataset.inspectorElementId===id);
+      const focusTarget=selected?.getClientRects().length?selected:
+        $('elements').querySelector('.inspector-repeat-disclosure > summary');
+      focusTarget?.focus({preventScroll:true});
+    };
     section.elements.forEach(e=>{
       const label=m.elements.find(s=>s.slot===e.slot)?.label||e.slot;
-      row.append(button(label,'element'+(e.id===elementId?' active':''),
-        ()=>{elementId=e.id;inspectorScope='element';drawElements();drawFields();}));
+      const choice=button(label,'element'+(e.id===elementId?' active':''),()=>chooseElement(e.id));
+      choice.dataset.inspectorElementId=e.id;
+      choice.setAttribute('aria-pressed',String(e.id===elementId));
+      row.append(choice);
     });
     if(m.repeat){
       const faq=section.component==='faq-accordion';
       const noun=faq?'вопрос':'карточку';
-      const label=document.createElement('small');label.className='field-path';
-      label.textContent=(faq?'Вопросы':'Карточки')+' · '+section.items.length;
-      row.append(label);
+      const compact=section.items.length>6;
+      let itemList=row;
+      if(compact){
+        const disclosure=document.createElement('details');
+        disclosure.className='inspector-repeat-disclosure';
+        disclosure.open=repeatDisclosureState.get(section.id)===true;
+        const summary=document.createElement('summary');
+        const count=document.createElement('span');count.textContent=
+          (faq?'Вопросы':'Карточки')+' · '+section.items.length;
+        summary.append(count);
+        const selectedIndex=section.items.findIndex(item=>item.id===elementId);
+        if(selectedIndex>=0){
+          const selectedText=document.createElement('small');
+          selectedText.className='inspector-repeat-selected';
+          selectedText.textContent='Выбран: '+(selectedIndex+1)+'. '+String(selectedLabel||'').slice(0,55);
+          summary.append(selectedText);
+        }
+        itemList=document.createElement('div');itemList.className='inspector-repeat-items';
+        disclosure.append(summary,itemList);row.append(disclosure);
+        disclosure.addEventListener('toggle',()=>{
+          if(disclosure.isConnected)repeatDisclosureState.set(section.id,disclosure.open);
+        });
+      }else{
+        repeatDisclosureState.delete(section.id);
+        const label=document.createElement('small');label.className='field-path';
+        label.textContent=(faq?'Вопросы':'Карточки')+' · '+section.items.length;
+        row.append(label);
+      }
       section.items.forEach((item,i)=>{
         const headline=item.values['content.title']||item.values['content.question']||
           item.values['content.author']||item.values['content.caption']||
           (faq?'Вопрос ':'Карточка ')+(i+1);
         const line=document.createElement('div');line.className='cms-repeat-row';
         const choice=button((i+1)+'. '+String(headline).slice(0,56),'element'+(item.id===elementId?' active':''),
-          ()=>{elementId=item.id;inspectorScope='element';drawElements();drawFields();});
-        choice.dataset.repeatId=item.id;line.append(choice);
+          ()=>chooseElement(item.id));
+        choice.dataset.repeatId=item.id;
+        choice.dataset.inspectorElementId=item.id;
+        choice.setAttribute('aria-pressed',String(item.id===elementId));
+        line.append(choice);
         /* Rare repeat operations stay next to their item, behind one menu. */
         const more=document.createElement('details');more.className='cms-repeat-more';
         const menuToggle=document.createElement('summary');menuToggle.textContent='⋯';
@@ -6923,7 +6964,7 @@
         op('Переместить ниже','Опустить '+noun,'moveItem',i===section.items.length-1,{delta:1});
         op('Дублировать','Копировать '+noun,'duplicateItem',section.items.length>=m.repeat.max);
         op('Удалить','Удалить '+noun,'removeItem',section.items.length<=m.repeat.min);
-        more.append(menuToggle,menu);line.append(more);row.append(line);
+        more.append(menuToggle,menu);line.append(more);itemList.append(line);
       });
       const add=button(faq?'+ Добавить вопрос':'+ Добавить карточку','btn small',
         ()=>operateRepeat('addItem',null));
@@ -6942,6 +6983,7 @@
     const section=current().section;
     if(id&&section.items?.some(x=>x.id===id)){
       elementId=id;inspectorScope='element';drawElements();drawFields();drawPreview();
+      $('fields').querySelector('input:not([type="checkbox"]),textarea,select')?.focus({preventScroll:true});
     }
   }
   function applyEdit(field,raw,valueOnScreen,output){

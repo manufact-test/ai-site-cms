@@ -1291,3 +1291,19 @@ html[data-stage3-mode="server"] .inspector .inspector-field-group-title{
 html[data-stage3-mode="server"] .inspector .inspector-field-group textarea.control{
   min-height:86px;max-height:240px;resize:vertical;line-height:1.5;
 }
+
+/* Light hosted palette for the compact long-list navigator. */
+html[data-stage3-mode="server"] .inspector .inspector-repeat-disclosure{
+  background:#f7fafd;border-color:#d6e2ee;
+}
+html[data-stage3-mode="server"] .inspector .inspector-repeat-disclosure>summary{color:#284a6c}
+html[data-stage3-mode="server"] .inspector .inspector-repeat-disclosure>summary::before{color:#427eae}
+html[data-stage3-mode="server"] .inspector .inspector-repeat-selected{color:#647d96}
+html[data-stage3-mode="server"] .inspector .inspector-repeat-disclosure>summary:hover,
+html[data-stage3-mode="server"] .inspector .inspector-repeat-disclosure[open]>summary{
+  background:#edf4fc;
+}
+html[data-stage3-mode="server"] .inspector .inspector-repeat-items{border-top-color:#d6e2ee}
+html[data-stage3-mode="server"] .inspector .inspector-repeat-disclosure>summary:focus-visible{
+  outline-color:#347acc;
+}
