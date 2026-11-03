@@ -232,6 +232,21 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       await page.locator('.inspector').screenshot({
         path:path.join(shots,'stage3-inspector-property-groups.png'),animations:'disabled'});
     }
+    await page.setViewportSize({width:390,height:740});
+    const groupRects=await page.locator('#fields .inspector-field-group-summary')
+      .evaluateAll(nodes=>nodes.map(node=>{
+        const r=node.getBoundingClientRect();
+        return {left:r.left,right:r.right,width:r.width,viewport:innerWidth};
+      }));
+    assert.equal(groupRects.length,2);
+    assert.ok(groupRects.every(r=>r.left>=-1&&r.right<=r.viewport+1),
+      'Grouped property headings fit a narrow phone viewport: '+JSON.stringify(groupRects));
+    if(process.env.GITHUB_ACTIONS==='true'){
+      const shots=path.join(root,'studio/out');fs.mkdirSync(shots,{recursive:true});
+      await page.locator('.inspector').screenshot({
+        path:path.join(shots,'stage3-inspector-property-groups-mobile.png'),animations:'disabled'});
+    }
+    await page.setViewportSize({width:1450,height:800});
     await contentGroup.locator('summary').click();
     const elementNavigator=page.locator('#elements button[data-inspector-element-id]');
     await elementNavigator.first().focus();
