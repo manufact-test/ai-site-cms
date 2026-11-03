@@ -7679,7 +7679,7 @@
   /* The scriptless canvas binds only validated section and manifest IDs to
      the current draft. Selection cannot submit, navigate or mutate content. */
   let mainPreviewRequest=0,mainPreviewPath='',mainPreviewScroll=0;
-  let mainPreviewRestoreElement=null;
+  let mainPreviewRestoreElement=null,mainPreviewRestoreCarousels=null;
   const mainPreviewFrame=$('preview');
   /* Keep an actively viewed element visible after content/Undo/device redraws.
      Do not jump back to an element the owner deliberately scrolled away from. */
@@ -7922,6 +7922,18 @@
     },true);
     doc.addEventListener('submit',event=>{event.preventDefault();event.stopPropagation();},true);
     mainPreviewFrame.contentWindow?.scrollTo(0,mainPreviewScroll);
+    /* A redraw must preserve the owner's position inside horizontal galleries,
+       even when the selected element is elsewhere on the page. */
+    const restoreTracks=mainPreviewRestoreCarousels;
+    mainPreviewRestoreCarousels=null;
+    if(restoreTracks?.request===mainPreviewRequest){
+      for(const item of restoreTracks.items){
+        const host=[...doc.querySelectorAll('[data-cms-editor-section]')]
+          .find(node=>node.dataset.cmsEditorSection===item.sectionId);
+        const track=host?.querySelectorAll('.cms-gallery-carousel')[item.index];
+        if(track)track.scrollLeft=item.left;
+      }
+    }
     const restore=mainPreviewRestoreElement;
     mainPreviewRestoreElement=null;
     if(restore?.request===mainPreviewRequest&&restore.pageId===pageId&&
@@ -7947,11 +7959,23 @@
       if(request!==mainPreviewRequest)return;
       mainPreviewRestoreElement=samePage&&inspectorScope==='element'&&
         canvasSelectedElementIsVisible()?{request,pageId,sectionId,elementId}:null;
+      const tracks=[];
+      if(samePage){
+        for(const host of frame.contentDocument?.querySelectorAll(
+          '[data-cms-editor-section]')||[]){
+          [...host.querySelectorAll('.cms-gallery-carousel')].forEach((track,index)=>{
+            if(track.scrollLeft>0)tracks.push({
+              sectionId:host.dataset.cmsEditorSection,index,left:track.scrollLeft
+            });
+          });
+        }
+      }
+      mainPreviewRestoreCarousels={request,items:tracks};
       frame.srcdoc=html;
       viewport.setAttribute('aria-label','Предпросмотр всей страницы '+page.title);
     }catch(error){
       if(request!==mainPreviewRequest)return;
-      mainPreviewRestoreElement=null;
+      mainPreviewRestoreElement=null;mainPreviewRestoreCarousels=null;
       frame.srcdoc='<!doctype html><html lang="ru"><body style="font:14px system-ui;padding:24px;color:#8b3030">'+
         'Не удалось построить предпросмотр страницы: '+escapeHtml(error.message)+'</body></html>';
     }

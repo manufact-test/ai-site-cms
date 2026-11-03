@@ -1088,7 +1088,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const caption=page.locator('#fields [data-field="content.caption"]');
     await caption.fill('Дальний кадр галереи');
     await caption.dispatchEvent('change');
-    const galleryStillVisible=id=>page.waitForFunction(selectedId=>{
+    const galleryStillVisible=async id=>{
+      try{await page.waitForFunction(selectedId=>{
       const doc=document.querySelector('#preview')?.contentDocument;
       const track=doc?.querySelector('.cms-gallery-carousel');
       const card=[...(track?.querySelectorAll(':scope > figure')||[])]
@@ -1096,7 +1097,23 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       if(!track||!card)return false;
       const frame=track.getBoundingClientRect(),rect=card.getBoundingClientRect();
       return track.scrollLeft>0&&rect.left>=frame.left-2&&rect.right<=frame.right+2;
-    },id,{timeout:10000});
+    },id,{timeout:10000});}
+      catch(error){
+        const diagnostic=await page.evaluate(selectedId=>{
+          const doc=document.querySelector('#preview')?.contentDocument;
+          const track=doc?.querySelector('.cms-gallery-carousel');
+          const card=[...(track?.querySelectorAll(':scope > figure')||[])]
+            .find(node=>node.dataset.cmsEditorElement===selectedId);
+          return {selectedId,exists:!!card,scrollLeft:track?.scrollLeft,
+            scrollWidth:track?.scrollWidth,clientWidth:track?.clientWidth,
+            trackRect:track?.getBoundingClientRect().toJSON(),
+            cardRect:card?.getBoundingClientRect().toJSON(),
+            inspector:document.querySelector('#inspector-eyebrow')?.textContent};
+        },id);
+        throw new Error('Gallery redraw lost the selected card: '+
+          JSON.stringify(diagnostic),{cause:error});
+      }
+    };
     await page.waitForFunction(()=>document.querySelector('#preview')?.contentDocument!==
       window.__galleryCanvasDocument);
     await galleryStillVisible(lastGalleryId);
