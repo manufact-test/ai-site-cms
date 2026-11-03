@@ -731,8 +731,12 @@ async function execute(){
   const canvasGraph=imported.pages[0].sections.find(section=>section.designGraph);
   assert.ok(canvasGraph,'The approved-site browser fixture has an individual Design Graph section');
   const graphTextId='approved-custom-copy';
-  await page.frameLocator('#preview').locator(
-    '[data-cms-section-id="'+canvasGraph.id+'"] [data-cms-editor-graph-node="'+graphTextId+'"]').click();
+  const graphVisual=page.frameLocator('#preview').locator(
+    '#'+canvasGraph.id+' .cmsdg-n-'+graphTextId);
+  await graphVisual.waitFor();
+  assert.equal(await graphVisual.getAttribute('data-cms-editor-graph-node'),graphTextId,
+    'Only a real validated PHP-rendered Graph node receives the editor binding');
+  await graphVisual.click();
   await page.locator('#cms-page-preview[open]').waitFor();
   assert.equal(await page.locator('#cms-work-graph-node').inputValue(),graphTextId,
     'Selecting an individual Graph text node opens its exact existing Workbench inspector');
