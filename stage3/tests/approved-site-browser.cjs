@@ -824,6 +824,41 @@ async function execute(){
     path:path.join(studioScreenDir,'owner-studio-canvas-section-contents.png'),animations:'disabled'});
   assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
     hostedCanvasDraftBefore,'Hosted preview selection does not modify the server draft');
+  // A slow stale PHP preview reply must NEVER replace the latest canvas or
+  // leave an old document clickable against a newer editor/device state.
+  // Inject one delayed 409 into the real browser transport, while the newer
+  // request still runs through the actual PHP renderer on the test host.
+  let competingCanvasRequests=0;
+  const competingCanvasRoute='**/api/sites/site-approved-browser/preview';
+  await page.route(competingCanvasRoute,async route=>{
+    competingCanvasRequests++;
+    if(competingCanvasRequests===1){
+      await new Promise(resolve=>setTimeout(resolve,1150));
+      return route.fulfill({status:409,contentType:'application/json',
+        body:JSON.stringify({error:'Stale editor revision'})});
+    }
+    return route.continue();
+  });
+  await tabletDevice.click();
+  await page.locator('#preview[aria-busy="true"]').waitFor();
+  assert.equal(await page.locator('#preview').evaluate(node=>node.style.pointerEvents),'none',
+    'An older PHP canvas must not receive clicks while its replacement is pending');
+  await desktopDevice.click();
+  await page.waitForFunction(()=>{
+    const frame=document.querySelector('#preview'),doc=frame?.contentDocument;
+    return !frame.hasAttribute('aria-busy')&&frame.style.pointerEvents===''&&
+      !!doc?.querySelector('[data-cms-editor-section]')&&
+      Number(doc.querySelector('meta[name="cms-canvas-render-ticket"]')?.content)>0;
+  },null,{timeout:20000});
+  await page.waitForTimeout(1250);
+  assert.ok(competingCanvasRequests>=2,'The test exercised competing server canvas renders');
+  assert.equal(await page.locator('#preview').getAttribute('aria-busy'),null);
+  assert.doesNotMatch(await page.frameLocator('#preview').locator('body').innerText(),
+    /Stale editor revision|Не удалось построить предпросмотр страницы/,
+    'A late 409 from the obsolete preview must never displace the newer PHP page');
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    hostedCanvasDraftBefore,'Canvas render races must not modify the owner draft');
+  await page.unroute(competingCanvasRoute);
   const canvasGraph=imported.pages[0].sections.find(section=>section.designGraph);
   assert.ok(canvasGraph,'The approved-site browser fixture has an individual Design Graph section');
   const graphTextId='approved-custom-copy';
@@ -1006,6 +1041,41 @@ async function execute(){
     return reachable;
   }),true,'The whole contextual Inspector is reachable by normal phone dialog scrolling');
   await page.setViewportSize({width:1400,height:1000});
+  // Rapid page switching in the same Workbench: an old server-side conflict
+  // must not unfreeze or replace the newer PHP iframe. Verify real HTML, not
+  // a mocked offline preview or a hidden error in the modal background.
+  const originalWorkPath=await page.locator('#cms-page-preview-path').inputValue();
+  const alternateWorkPath=imported.pages.find(row=>row.path!==originalWorkPath)?.path;
+  assert.ok(alternateWorkPath,'Approved fixture needs a second real page for the race');
+  let competingWorkRequests=0;
+  await page.route(competingCanvasRoute,async route=>{
+    competingWorkRequests++;
+    if(competingWorkRequests===1){
+      await new Promise(resolve=>setTimeout(resolve,1150));
+      return route.fulfill({status:409,contentType:'application/json',
+        body:JSON.stringify({error:'Stale editor revision'})});
+    }
+    return route.continue();
+  });
+  await page.locator('#cms-page-preview-path').selectOption(alternateWorkPath);
+  await page.locator('#cms-page-preview-frame[aria-busy="true"]').waitFor();
+  assert.equal(await page.locator('#cms-page-preview-frame').evaluate(node=>node.style.pointerEvents),
+    'none','Workbench disables selection during the in-flight replacement');
+  await page.locator('#cms-page-preview-path').selectOption(originalWorkPath);
+  await page.waitForFunction(()=>{
+    const frame=document.querySelector('#cms-page-preview-frame');
+    const doc=frame?.contentDocument;
+    return !frame?.hasAttribute('aria-busy')&&frame.style.pointerEvents===''&&
+      !!doc?.querySelector('.cms-work-target')&&
+      Number(doc.querySelector('meta[name="cms-work-render-ticket"]')?.content)>0;
+  },null,{timeout:20000});
+  await page.waitForTimeout(1250);
+  assert.ok(competingWorkRequests>=2,'The browser exercised competing Workbench PHP requests');
+  assert.doesNotMatch(await page.frameLocator('#cms-page-preview-frame').locator('body').innerText(),
+    /Stale editor revision|Не удалось построить серверный предпросмотр/,
+    'A stale Workbench response cannot replace the latest selected page');
+  assert.equal(await page.locator('#cms-page-preview-path').inputValue(),originalWorkPath);
+  await page.unroute(competingCanvasRoute);
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
   await page.locator('#server-nav-site-settings').click();
   await page.locator('#server-view-site-settings:visible').waitFor();

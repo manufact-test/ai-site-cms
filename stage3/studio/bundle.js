@@ -5434,6 +5434,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     let mode='desktop',previewRequest=0,previewScroll=0,reviewScroll=null;
     let renderedIdentity='',requestedIdentity='',renderedSite=null,requestedSite=null;
     let focusOnFirstMobileLoad=false;
+    const ticketWorkHtml=(html,request)=>html.replace(/<head\b[^>]*>/i,
+      match=>match+'<meta name="cms-work-render-ticket" content="'+request+'">');
     const render=async({deviceOnly=false}={})=>{
       previewScroll=frame.contentWindow?.scrollY||0;
       const path=pathSelect.value,site=session.current,identity=site.siteId+'|'+path;
@@ -5448,6 +5450,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const hasPage=!!frame.contentDocument?.querySelector('main,[data-cms-section-id],section[id]');
       if(deviceOnly&&(requestedIdentity===identity&&requestedSite===site||
         renderedIdentity===identity&&renderedSite===site&&hasPage)){
+        // A resize while the new PHP revision is in flight may still show
+        // the previous document. It is deliberately non-interactive until
+        // the latest, ticketed iframe has finished loading.
+        if(frame.hasAttribute('aria-busy'))return;
         highlightWork();
         // When a formerly wide viewport becomes short, the selected heading
         // can land below the visible iframe even though its page scroll is 0.
@@ -5486,11 +5492,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const html=await window.Stage3Host.previewPage(site,path);
         if(requestId!==previewRequest)return;
         renderedIdentity=identity;renderedSite=site;
-        requestedIdentity='';requestedSite=null;frame.srcdoc=html;
+        requestedIdentity='';requestedSite=null;frame.srcdoc=ticketWorkHtml(html,requestId);
       }catch(error){
         if(requestId!==previewRequest)return;
         renderedIdentity='';renderedSite=null;requestedIdentity='';requestedSite=null;
-        frame.srcdoc='<!doctype html><html><body style="font:15px system-ui;padding:24px"><p>Не удалось построить серверный предпросмотр: '+escapeHtml(error.message)+'</p></body></html>';
+        frame.srcdoc=ticketWorkHtml('<!doctype html><html><head></head><body style="font:15px system-ui;padding:24px"><p>Не удалось построить серверный предпросмотр: '+escapeHtml(error.message)+'</p></body></html>',requestId);
         frame.style.pointerEvents='';frame.removeAttribute('aria-busy');
         previewProgress.hidden=true;
       }
@@ -5654,8 +5660,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     };
     frame.addEventListener('load',()=>{
       const doc=frame.contentDocument,page=pageForWork();if(!doc||!page)return;
+      if(Number(doc.querySelector('meta[name="cms-work-render-ticket"]')?.content)!==previewRequest)return;
       const ids=new Set(page.sections.map(s=>s.id));
       if(renderedIdentity===session.current.siteId+'|'+page.path&&
+        renderedSite===session.current&&
         doc.querySelector('main,[data-cms-section-id],section[id]')){
         frame.style.pointerEvents='';frame.removeAttribute('aria-busy');
         previewProgress.hidden=true;
@@ -11240,6 +11248,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   let mainPreviewRestoreSelection=null,mainPreviewRestoreScrollports=null;
   const canvasScrollportSelectors=['.cms-gallery-carousel','.cms-compare-scroll'];
   const mainPreviewFrame=$('preview');
+  // An earlier PHP document remains useful while a new revision is rendered,
+  // but its clickable section IDs must not be bound to the newer draft. Give
+  // every iframe document an inert load ticket and accept only the latest one.
+  const ticketCanvasHtml=(html,request)=>html.replace(/<head\b[^>]*>/i,
+    match=>match+'<meta name="cms-canvas-render-ticket" content="'+request+'">');
   /* Retain only the context the owner was actually viewing. Do not snap back
      to a selected block or element the owner deliberately scrolled away from. */
   function canvasSelectedContextIsVisible(){
@@ -11345,6 +11358,12 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   }
   mainPreviewFrame.addEventListener('load',()=>{
     const doc=mainPreviewFrame.contentDocument;
+    if(!doc||Number(doc.querySelector('meta[name="cms-canvas-render-ticket"]')?.content)!==mainPreviewRequest)
+      return;
+    // Complete the ready transition only after the current iframe has loaded.
+    // A late load or 409 from an obsolete revision cannot re-enable its clicks.
+    mainPreviewFrame.style.pointerEvents='';
+    mainPreviewFrame.removeAttribute('aria-busy');
     const page=session.current.pages.find(p=>p.id===pageId);
     if(!doc||!page)return;
     const ids=new Set(page.sections.map(section=>section.id));
@@ -11533,6 +11552,8 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     $('canvas-caption').textContent=canvasSelectionCaption(section,m);
     frame.title='Полный предпросмотр страницы '+page.title;
     frame.style.height='calc(100vh - 270px)';
+    frame.style.pointerEvents='none';
+    frame.setAttribute('aria-busy','true');
     try{
       const html=HOSTED?
         await window.Stage3Host.previewPage(session.current,page.path):
@@ -11555,13 +11576,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         }
       }
       mainPreviewRestoreScrollports={request,items:tracks};
-      frame.srcdoc=html;
+      frame.srcdoc=ticketCanvasHtml(html,request);
       viewport.setAttribute('aria-label','Предпросмотр всей страницы '+page.title);
     }catch(error){
       if(request!==mainPreviewRequest)return;
       mainPreviewRestoreSelection=null;mainPreviewRestoreScrollports=null;
-      frame.srcdoc='<!doctype html><html lang="ru"><body style="font:14px system-ui;padding:24px;color:#8b3030">'+
-        'Не удалось построить предпросмотр страницы: '+escapeHtml(error.message)+'</body></html>';
+      frame.srcdoc=ticketCanvasHtml('<!doctype html><html lang="ru"><head></head><body style="font:14px system-ui;padding:24px;color:#8b3030">'+
+        'Не удалось построить предпросмотр страницы: '+escapeHtml(error.message)+'</body></html>',request);
     }
   }
   function drawVersions(){
