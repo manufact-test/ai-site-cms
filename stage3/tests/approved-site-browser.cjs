@@ -1076,6 +1076,41 @@ async function execute(){
     'A stale Workbench response cannot replace the latest selected page');
   assert.equal(await page.locator('#cms-page-preview-path').inputValue(),originalWorkPath);
   await page.unroute(competingCanvasRoute);
+  // Everyday Elementor-like editing: changing a real Graph text and an
+  // appearance select must not tear down the owner's active Inspector field,
+  // collapse the expanded group or jump its internal scroll back to the top.
+  await page.locator('#cms-work-section').selectOption('section-approved-custom');
+  await page.locator('#cms-work-graph-node').selectOption('approved-custom-copy');
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'cms-work-graph-node',
+    'Selecting a nested Graph element keeps keyboard focus on its new picker');
+  const workText=page.locator('[data-work-graph-field="text"]');
+  const originalWorkText=await workText.inputValue();
+  await workText.fill(originalWorkText+' · пробная правка');
+  await workText.press('Tab');
+  await page.waitForFunction(()=>window.Stage3Editor.getSite().pages[0].sections
+    .find(s=>s.id==='section-approved-custom').designGraph.nodes[0].children
+    .find(n=>n.id==='approved-custom-copy').text.endsWith('· пробная правка'));
+  assert.equal(await page.locator('[data-work-graph-field="text"]').inputValue(),
+    originalWorkText+' · пробная правка');
+  assert.equal(await page.evaluate(()=>document.activeElement?.closest('.cms-work-panel')!==null),true,
+    'Tab after saving a field stays inside the contextual Inspector');
+  const appearance=page.locator('.cms-work-appearance');
+  await appearance.locator('summary').click();
+  const appearanceScroll=await page.locator('.cms-work-panel').evaluate(node=>node.scrollTop);
+  await page.locator('[data-work-appearance="surface"]').selectOption('tint');
+  assert.equal(await appearance.evaluate(node=>node.open),true,
+    'Appearance settings remain expanded after editing one of their fields');
+  assert.equal(await page.evaluate(()=>document.activeElement?.dataset.workAppearance),'surface',
+    'The selected appearance control retains keyboard focus across Inspector redraws');
+  const retainedScroll=await page.locator('.cms-work-panel').evaluate(node=>node.scrollTop);
+  if(appearanceScroll>35)assert.ok(retainedScroll>20,
+    'A deep Appearance change cannot reset the Inspector to its top');
+  await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+  await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
+  assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections
+    .find(s=>s.id==='section-approved-custom').designGraph.nodes[0].children
+    .find(n=>n.id==='approved-custom-copy').text),originalWorkText,
+    'Both Inspector edits remain independent, exact Undo transactions');
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
   await page.locator('#server-nav-site-settings').click();
   await page.locator('#server-view-site-settings:visible').waitFor();

@@ -5992,8 +5992,42 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         workGraphNode=nextNodeId;
       });
     }
+    // The contextual Inspector is rebuilt after each validated edit. Preserve
+    // the owner's place in that SAME element instead of collapsing the open
+    // controls, resetting its scroll or dropping text-field keyboard focus.
+    // Switching sections, elements, Graph nodes or devices starts a new scope.
+    let lastWorkScope='';
+    const workControlKey=node=>{
+      if(!node||!workPanel.contains(node))return '';
+      if(node.id)return 'id:'+node.id;
+      for(const name of ['workGraphField','pageField','workAppearance','deviceImage',
+        'sectionDevice','workBackdropAssetId','workFormField']){
+        if(node.dataset[name]!==undefined)return name+':'+node.dataset[name];
+      }
+      return '';
+    };
+    const workDisclosureKey=details=>{
+      const steps=[];
+      for(let current=details;current&&workPanel.contains(current);
+        current=current.parentElement?.closest('details')){
+        steps.unshift(current.id||[...current.classList].join('.')||
+          current.querySelector(':scope > summary')?.textContent?.trim()||'details');
+      }
+      return steps.join('/');
+    };
     function showWork(){
       const page=pageForWork(),section=sectionForWork();
+      const scope=[page?.id||'',section?.id||'',workElement,workGraphNode,mode].join('|');
+      const sameScope=modal.open&&scope===lastWorkScope;
+      const panelScroll=sameScope?workPanel.scrollTop:0;
+      const dialogScroll=sameScope?modal.scrollTop:0;
+      const openDisclosures=sameScope?new Set([...workPanel.querySelectorAll('details[open]')]
+        .map(workDisclosureKey)):new Set();
+      const active=sameScope?document.activeElement:null;
+      const focusedField=workControlKey(active);
+      const caret=active&&typeof active.selectionStart==='number'?
+        [active.selectionStart,active.selectionEnd,active.selectionDirection]:null;
+      lastWorkScope=scope;
       workTitle.textContent=section?(manifest(section)?.label||section.component):'Выберите блок на странице';
       const modeName={desktop:'ПК',tablet:'планшете',mobile:'телефоне'}[mode];
       workHint.textContent=section?.deviceVisibility?.[mode]===false
@@ -6226,7 +6260,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           nodes.append(option);
         }
         nodes.value=workGraphNode;
-        nodes.addEventListener('change',()=>{workGraphNode=nodes.value;showWork();highlightWork();});
+        nodes.addEventListener('change',()=>{
+          const panelScroll=workPanel.scrollTop,dialogScroll=modal.scrollTop;
+          workGraphNode=nodes.value;showWork();
+          workPanel.scrollTop=panelScroll;modal.scrollTop=dialogScroll;
+          workFields.querySelector('#cms-work-graph-node')?.focus({preventScroll:true});
+          highlightWork();
+        });
         const graphActions=document.createElement('div');
         graphActions.className='cms-work-graph-actions';
         // Compose real typed content directly in the full-page visual canvas.
@@ -7310,6 +7350,20 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       ops.append(move,workButton('Скопировать',()=>place('copy')));
       cross.append(crossCaption,destination,placementSelect,ops);
       workAdd.append(cross);
+      for(const details of workPanel.querySelectorAll('details'))
+        if(openDisclosures.has(workDisclosureKey(details)))details.open=true;
+      workPanel.scrollTop=panelScroll;
+      if(sameScope)modal.scrollTop=dialogScroll;
+      if(focusedField){
+        const replacement=[...workPanel.querySelectorAll('input,select,textarea')]
+          .find(node=>workControlKey(node)===focusedField&&!node.disabled);
+        if(replacement){
+          replacement.focus({preventScroll:true});
+          if(caret&&typeof replacement.setSelectionRange==='function'){
+            try{replacement.setSelectionRange(...caret);}catch(_){}
+          }
+        }
+      }
       for(const b of workPanel.querySelectorAll('[data-editor-write]'))b.disabled ||= !canWrite();
     }
     workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();showWork();highlightWork();});
