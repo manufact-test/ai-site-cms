@@ -1251,6 +1251,77 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.deepEqual(structuralErrors,[],'Isolated structural flow has no browser errors');
     await structuralPage.close();
 
+    /* Page creation and deletion also keep the owner near the edited page.
+       Use a fresh tab so Undo/Redo cannot affect the long-page scenario. */
+    const pageErrors=[],pageFlow=await ctx.newPage();
+    pageFlow.on('pageerror',error=>pageErrors.push(error.message));
+    await pageFlow.goto(pathToFileURL(html).href);
+    const originalPages=await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+    const originalSecond=(JSON.parse(originalPages)).pages[1];
+    await pageFlow.locator('#pages .nav-entry').last().click();
+    const openPageActions=async()=>pageFlow.evaluate(()=>{
+      document.getElementById('page-actions-more').open=true;
+    });
+    const submitPage=async(action,title,pagePath)=>{
+      await openPageActions();
+      await pageFlow.locator('#'+action).click();
+      await pageFlow.locator('#cms-page-details-dialog[open]').waitFor();
+      await pageFlow.locator('#cms-page-details-title').fill(title);
+      await pageFlow.locator('#cms-page-details-path').fill(pagePath);
+      await pageFlow.locator('#cms-page-details-submit').click();
+      await pageFlow.locator('#cms-page-details-dialog[open]').waitFor({state:'hidden'});
+      assert.equal(await pageFlow.locator('#pages .nav-entry.active').innerText(),title,
+        'An inserted page is immediately selected in the existing editor');
+      assert.equal(await pageFlow.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ СТРАНИЦЫ');
+    };
+    await submitPage('page-add','Новая страница истории','/history-created/');
+    assert.equal((await pageFlow.evaluate(()=>window.Stage3Editor.getSite())).pages.length,3);
+    await pageFlow.locator('#undo').click();
+    assert.equal(await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      originalPages,'Undo of added page restores every original site value');
+    assert.equal(await pageFlow.locator('#pages .nav-entry.active').innerText(),originalSecond.title,
+      'Undo of an appended page selects the preceding surviving page, not the home page');
+    await pageFlow.locator('#redo').click();
+    assert.equal((await pageFlow.evaluate(()=>window.Stage3Editor.getSite())).pages.length,3);
+    await pageFlow.locator('#undo').click();
+    assert.equal(await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),originalPages);
+
+    await submitPage('page-duplicate','Копия страницы А','/history-copy-a/');
+    const withFirstCopy=await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+    await pageFlow.locator('#undo').click();
+    assert.equal(await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),originalPages);
+    assert.equal(await pageFlow.locator('#pages .nav-entry.active').innerText(),originalSecond.title);
+    await pageFlow.locator('#redo').click();
+    assert.equal(await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),withFirstCopy);
+    await pageFlow.locator('#pages .nav-entry').last().click();
+    await submitPage('page-duplicate','Копия страницы Б','/history-copy-b/');
+    const withBothCopies=await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+    const secondCopy=JSON.parse(withBothCopies).pages.at(-1);
+    await openPageActions();
+    pageFlow.once('dialog',dialog=>dialog.accept());
+    await pageFlow.locator('#page-remove').click();
+    assert.equal(await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),withFirstCopy);
+    assert.equal(await pageFlow.locator('#pages .nav-entry.active').innerText(),'Копия страницы А',
+      'Removing the last page selects the previous neighbour');
+    await pageFlow.locator('#undo').click();
+    assert.equal(await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),withBothCopies);
+    await pageFlow.locator('#pages .nav-entry').filter({hasText:'Копия страницы А'}).click();
+    await openPageActions();
+    pageFlow.once('dialog',dialog=>dialog.accept());
+    await pageFlow.locator('#page-remove').click();
+    assert.equal(await pageFlow.locator('#pages .nav-entry.active').innerText(),secondCopy.title,
+      'Removing a middle page selects the following neighbour');
+    await pageFlow.locator('#undo').click();
+    assert.equal(await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),withBothCopies);
+    await pageFlow.locator('#undo').click();
+    assert.equal(await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),withFirstCopy);
+    await pageFlow.locator('#undo').click();
+    assert.equal(await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),originalPages,
+      'Page insert/duplicate/remove history returns the exact initial draft');
+    assert.equal(await pageFlow.locator('#pages .nav-entry.active').innerText(),originalSecond.title);
+    assert.deepEqual(pageErrors,[],'Isolated page history has no browser errors');
+    await pageFlow.close();
+
     /* A wide comparison row is larger than its phone scrollport. Editing and
        Undo must preserve the manually inspected right-hand columns. */
     await openSectionTree();

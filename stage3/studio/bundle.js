@@ -3946,6 +3946,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   function structural(command){
     try{
       const before=session.current;
+      const previousPageIndex=before.pages.findIndex(page=>page.id===pageId);
       const priorPage=command.action==='updatePage'?before.pages.find(x=>x.id===command.pageId):null;
       const urlChanged=!!priorPage&&priorPage.path!==command.path;
       /* Keep the editing position when the owner removes a selected block. */
@@ -3954,8 +3955,18 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       const oldIndex=removedCurrent?
         before.pages.find(x=>x.id===pageId)?.sections.findIndex(x=>x.id===sectionId):-1;
       session=D.structure(session,manifests,{...command,expectedRevision:session.revision});
-      const selected=session.current.pages.find(x=>x.id===pageId);
-      if(!selected){pageId=session.current.pages[0].id;sectionId='';}
+      /* Page creation and deletion follow the same nearby-context rule as
+         sections, without briefly rendering the old page in between. */
+      const insertedPage=['addPage','duplicatePage'].includes(command.action)?
+        session.current.pages.find(page=>page.id===command.id):null;
+      if(insertedPage||!session.current.pages.some(page=>page.id===pageId)){
+        const nextPage=insertedPage||session.current.pages[
+          Math.min(Math.max(previousPageIndex,0),session.current.pages.length-1)];
+        pageId=nextPage.id;
+        sectionId=nextPage.sections[0].id;
+        elementId=nextPage.sections[0].elements[0].id;
+        inspectorScope='page';
+      }
       const page=session.current.pages.find(x=>x.id===pageId);
       const inserted=['addSection','duplicateSection'].includes(command.action)&&
         command.pageId===pageId? page.sections.find(x=>x.id===command.id):null;
@@ -9842,19 +9853,9 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         }else if(mode==='add'){
           const id=uniqueId('page'),firstSectionId=uniqueId('section');
           structural({action:'addPage',id,path,title,sectionId:firstSectionId,component:'company-hero'});
-          const added=session.current.pages.find(x=>x.id===id);
-          if(added){
-            pageId=id;sectionId=added.sections[0].id;
-            elementId=added.sections[0].elements[0].id;draw();
-          }
         }else{
           const id=uniqueId('page');
           structural({action:'duplicatePage',pageId:targetId,id,title,path});
-          const copy=session.current.pages.find(x=>x.id===id);
-          if(copy){
-            pageId=id;sectionId=copy.sections[0].id;
-            elementId=copy.sections[0].elements[0].id;draw();
-          }
         }
         if(before===session.current){
           error.textContent='Страница не изменена. Проверьте уникальность адреса и сообщение внизу экрана.';
@@ -11580,6 +11581,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
   /* Undo/Redo can remove the selected block or repeated item. Keep editing
      at its nearest surviving neighbour instead of resetting to page start. */
   function stepHistory(direction){
+    const previousPageIndex=session.current.pages.findIndex(page=>page.id===pageId);
     const previousPage=session.current.pages.find(page=>page.id===pageId);
     const previousSection=previousPage?.sections.find(section=>section.id===sectionId);
     const sectionIndex=previousPage?.sections.findIndex(section=>section.id===sectionId)??-1;
@@ -11588,9 +11590,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const page=session.current.pages.find(item=>item.id===pageId);
     let revealSelected=false;
     if(!page){
-      pageId=session.current.pages[0].id;
-      sectionId=session.current.pages[0].sections[0].id;
-      elementId=session.current.pages[0].sections[0].elements[0].id;
+      const nearest=session.current.pages[
+        Math.min(Math.max(previousPageIndex,0),session.current.pages.length-1)];
+      pageId=nearest.id;
+      sectionId=nearest.sections[0].id;
+      elementId=nearest.sections[0].elements[0].id;
       inspectorScope='page';
     }else{
       let section=page.sections.find(item=>item.id===sectionId);
