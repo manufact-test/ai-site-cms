@@ -2006,6 +2006,7 @@
     area.append(previewProgress);
     let mode='desktop',previewRequest=0,previewScroll=0,reviewScroll=null;
     let renderedIdentity='',requestedIdentity='',renderedSite=null,requestedSite=null;
+    let focusOnFirstMobileLoad=false;
     const render=async({deviceOnly=false}={})=>{
       previewScroll=frame.contentWindow?.scrollY||0;
       const path=pathSelect.value,site=session.current,identity=site.siteId+'|'+path;
@@ -2444,6 +2445,23 @@
       }else if(reviewScroll===null&&previewScroll>0)
         frame.contentWindow?.scrollTo(0,previewScroll);
       highlightWork();
+      // A phone-sized Workbench opens on the owner's SELECTED content, not
+      // the tall site header above it. Do this once, after real PHP bindings
+      // exist; never override a deliberate Review scroll or future edits.
+      if(focusOnFirstMobileLoad&&mode==='mobile'&&doc.querySelector('main')){
+        focusOnFirstMobileLoad=false;
+        const target=doc.querySelector('.cms-work-graph-current')||
+          doc.querySelector('.cms-work-element-current')||
+          doc.querySelector('.cms-work-current');
+        if(target){
+          requestAnimationFrame(()=>{
+            if(!modal.open||frame.contentDocument!==doc)return;
+            const top=target.getBoundingClientRect().top+
+              (frame.contentWindow?.scrollY||0)-20;
+            frame.contentWindow?.scrollTo(0,Math.max(0,Math.round(top)));
+          });
+        }
+      }
     });
     function structureWork(action){
       if(!canWrite())return feedback('Нет права на редактирование.',true);
@@ -3866,6 +3884,7 @@
       workElement=elementId;workFocusPath='';workFormField='';workGraphNode=focus?.nodeId||'';
       if(focus){mode=focus.device;reviewScroll=focus.scrollY;previewScroll=0;}
       else reviewScroll=null;
+      focusOnFirstMobileLoad=mode==='mobile'&&!focus;
       dismissQuick();showWork();
       frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el.dataset.mode===mode));
       render();modal.showModal();

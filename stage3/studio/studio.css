@@ -621,6 +621,36 @@ button:disabled{opacity:.45}
   .cms-page-preview{padding:9px}
   .cms-work-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(200px,1fr) minmax(240px,42vh)}
 }
+/* Workbench stays a real page editor on smaller screens: the late light-theme
+   grid rule above previously overrode the tablet one-column layout, leaving
+   half a preview beside the inspector and a large empty lower dialog. */
+@media(min-width:651px) and (max-width:900px){
+  .cms-work-layout{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:minmax(230px,1fr) minmax(190px,34dvh);
+  }
+  .cms-work-layout .cms-page-preview-area iframe{height:100%;min-height:0}
+}
+@media(max-width:650px){
+  .cms-page-preview{gap:7px}
+  .cms-page-preview-header{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;
+    gap:7px;padding-bottom:8px;
+  }
+  .cms-page-preview-header h2{grid-column:1/-1;font-size:16px}
+  .cms-page-preview-header .control{grid-column:1/-1}
+  .cms-page-preview-header .cms-page-preview-modes{grid-column:1;width:auto;min-width:0}
+  .cms-page-preview-header>button:last-child{grid-column:2}
+  .cms-page-preview>small{
+    display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .cms-work-layout{
+    gap:8px;grid-template-columns:minmax(0,1fr);
+    grid-template-rows:minmax(170px,1fr) minmax(160px,28dvh);
+  }
+  .cms-work-layout .cms-page-preview-area{min-height:170px;padding:4px}
+  .cms-work-layout .cms-page-preview-area iframe{height:100%;min-height:0}
+}
 @media(prefers-reduced-motion:reduce){
   .btn,.viewport,.nav-entry,.skip-link{transition:none!important}
 }

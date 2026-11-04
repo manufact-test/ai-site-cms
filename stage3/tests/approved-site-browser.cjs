@@ -912,6 +912,17 @@ async function execute(){
   await assertNoHorizontalOverflow('Workbench at 768px');
   await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="tablet"]').click();
   await page.waitForFunction(()=>!!document.querySelector('#cms-page-preview-frame')?.contentDocument?.querySelector('[data-cms-section-id],section[id]'));
+  const tabletWorkbench=await page.evaluate(()=>{
+    const area=document.querySelector('#cms-page-preview .cms-page-preview-area').getBoundingClientRect();
+    const panel=document.querySelector('#cms-page-preview .cms-work-panel').getBoundingClientRect();
+    const modal=document.querySelector('#cms-page-preview').getBoundingClientRect();
+    return {area:{y:area.y,width:area.width,bottom:area.bottom},
+      panel:{y:panel.y},modalWidth:modal.width};
+  });
+  assert.ok(tabletWorkbench.panel.y>=tabletWorkbench.area.bottom-2,
+    'Tablet Workbench stacks the Inspector below the page instead of splitting it in half');
+  assert.ok(tabletWorkbench.area.width>tabletWorkbench.modalWidth*.8,
+    'Tablet preview gets nearly the whole dialog width');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-tablet.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});
   await assertNoHorizontalOverflow('Workbench at 390px');
@@ -928,6 +939,30 @@ async function execute(){
   'Phone and tablet switches retain the actual PHP iframe document and its scroll/selection');
   assert.equal(await page.locator('#cms-work-preview-progress').isVisible(),false,
     'Responsive mode switching never displays a loading state');
+  const mobileWorkbench=await page.evaluate(()=>{
+    const area=document.querySelector('#cms-page-preview .cms-page-preview-area').getBoundingClientRect();
+    const panel=document.querySelector('#cms-page-preview .cms-work-panel').getBoundingClientRect();
+    const frame=document.querySelector('#cms-page-preview-frame').getBoundingClientRect();
+    return {areaHeight:area.height,areaBottom:area.bottom,panelTop:panel.top,frameHeight:frame.height};
+  });
+  assert.ok(mobileWorkbench.areaHeight>=210,
+    'Phone Workbench gives the page a useful viewport instead of a toolbar sliver');
+  assert.ok(mobileWorkbench.panelTop>=mobileWorkbench.areaBottom-2,
+    'Phone Inspector stays below the page preview');
+  assert.ok(mobileWorkbench.frameHeight<=mobileWorkbench.areaHeight+5,
+    'Phone PHP iframe fits the visible viewport instead of being cropped');
+  // Opening directly in phone mode should reveal the active section in the
+  // real iframe. Device-only switches above intentionally preserve scroll.
+  await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
+  await page.locator('#server-edit-page').click();
+  await page.locator('#cms-page-preview[open]').waitFor();
+  await page.waitForFunction(()=>{
+    const frame=document.querySelector('#cms-page-preview-frame');
+    const selected=frame?.contentDocument?.querySelector('.cms-work-current');
+    if(!selected||!frame||frame.getAttribute('aria-busy')==='true')return false;
+    const rect=(selected.querySelector('h1,h2')||selected).getBoundingClientRect();
+    return rect.bottom>0&&rect.top<frame.getBoundingClientRect().height;
+  });
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-mobile.png'),fullPage:true});
   await page.setViewportSize({width:1400,height:1000});
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
