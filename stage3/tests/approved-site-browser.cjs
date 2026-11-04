@@ -963,7 +963,9 @@ async function execute(){
     const area=document.querySelector('#cms-page-preview .cms-page-preview-area').getBoundingClientRect();
     const panel=document.querySelector('#cms-page-preview .cms-work-panel').getBoundingClientRect();
     const frame=document.querySelector('#cms-page-preview-frame').getBoundingClientRect();
-    return {areaHeight:area.height,areaBottom:area.bottom,panelTop:panel.top,frameHeight:frame.height};
+    const dialog=document.querySelector('#cms-page-preview');
+    return {areaHeight:area.height,areaBottom:area.bottom,panelTop:panel.top,frameHeight:frame.height,
+      dialogScrollHeight:dialog.scrollHeight,dialogClientHeight:dialog.clientHeight};
   });
   assert.ok(mobileWorkbench.areaHeight>=210,
     'Phone Workbench gives the page a useful viewport instead of a toolbar sliver');
@@ -971,6 +973,8 @@ async function execute(){
     'Phone Inspector stays below the page preview');
   assert.ok(mobileWorkbench.frameHeight<=mobileWorkbench.areaHeight+5,
     'Phone PHP iframe fits the visible viewport instead of being cropped');
+  assert.ok(mobileWorkbench.dialogScrollHeight>mobileWorkbench.dialogClientHeight+30,
+    'The phone Workbench scrolls to its complete inspector rather than clipping it');
   // Opening directly in phone mode should reveal the active section in the
   // real iframe. Device-only switches above intentionally preserve scroll.
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
@@ -984,6 +988,14 @@ async function execute(){
     return rect.bottom>0&&rect.top<frame.getBoundingClientRect().height;
   });
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-mobile.png'),fullPage:true});
+  assert.equal(await page.locator('#cms-page-preview').evaluate(dialog=>{
+    dialog.scrollTop=dialog.scrollHeight;
+    const inspector=dialog.querySelector('.cms-work-panel').getBoundingClientRect();
+    const viewport=dialog.getBoundingClientRect();
+    const reachable=inspector.top<viewport.bottom&&inspector.bottom>viewport.top;
+    dialog.scrollTop=0;
+    return reachable;
+  }),true,'The whole contextual Inspector is reachable by normal phone dialog scrolling');
   await page.setViewportSize({width:1400,height:1000});
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
   await page.locator('#server-nav-site-settings').click();
