@@ -778,19 +778,20 @@ async function execute(){
   });
   // The main canvas may focus the selected block. Full-page composition is
   // verified in the dedicated page-preview dialog below.
-  await page.frameLocator('#preview').locator('[data-cms-section-id],section[id]')
-    .first().waitFor({state:'attached'});
+  const hostedBoundSection=page.frameLocator('#preview').locator('[data-cms-editor-section]').first();
+  await hostedBoundSection.waitFor({state:'visible'});
   assert.equal(await page.locator('#canvas-title').innerText(),imported.pages[0].title,
     'Main canvas shows the full selected page, not an isolated block preview');
   assert.equal(await page.locator('#preview').getAttribute('sandbox'),'allow-same-origin',
     'The hosted canvas remains scriptless while the parent can select rendered blocks');
   const hostedCanvasDraftBefore=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
   await page.evaluate(()=>{window.__hostedCanvasDoc=document.querySelector('#preview').contentDocument;});
-  /* PHP-rendered blocks may still be settling after asset layout updates.
-     Force only skips Playwright's stability wait; the iframe receives a native
-     pointer click and the Inspector/draft assertions below still verify it. */
-  await page.frameLocator('#preview').locator('[data-cms-section-id],section[id]')
-    .filter({visible:true}).first().click({position:{x:6,y:6},force:true});
+  /* Test a bound and visible editor section, not arbitrary nested page markup.
+     Normal pointer actionability ensures the click reaches the intended block. */
+  await hostedBoundSection.click({position:{x:6,y:6},timeout:12000});
+  await page.waitForFunction(()=>
+    document.querySelector('#inspector-eyebrow')?.textContent?.trim()==='НАСТРОЙКИ БЛОКА',
+    null,{timeout:5000});
   assert.equal(await page.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА',
     'Pointer selection in actual PHP preview opens the block Inspector');
   assert.equal(await page.evaluate(()=>document.querySelector('#preview').contentDocument===window.__hostedCanvasDoc),true,
