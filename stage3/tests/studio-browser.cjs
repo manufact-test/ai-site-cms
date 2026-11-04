@@ -200,6 +200,9 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await page.locator('#pages .nav-entry').count(),3);
     await page.locator('#undo').click();
     assert.equal(await page.locator('#pages .nav-entry').count(),2);
+    assert.equal(await page.locator('#pages .nav-entry.active').innerText(),'Контакты',
+      'Undo of a new final page keeps the nearest existing page in view');
+    await page.locator('#pages .nav-entry').first().click();
     // Whole-site verified content pass protects existing custom headings and
     // applies one atomic change-set without touching Save/Publish.
     const beforeFill=await page.evaluate(()=>window.Stage3Editor.getSite());
