@@ -880,14 +880,22 @@ async function execute(){
     'Closing the menu dialog with Escape must return focus to its launcher');
   await page.locator('#server-nav-editor').click();
 
+  // The preceding owner-phone journey leaves the outer browser at 390px.
+  // Restore desktop BEFORE opening the Workbench so its screenshot really
+  // documents the wide editor, rather than a mislabeled second phone shot.
+  await page.setViewportSize({width:1400,height:1000});
+  await assertNoHorizontalOverflow('Workbench at 1400px');
   await page.locator('#server-edit-page').click();
   await page.locator('#cms-page-preview[open]').waitFor();
+  await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="desktop"]').click();
   await page.waitForFunction(()=>{
     const frame=document.querySelector('#cms-page-preview-frame');
     return !!frame?.contentDocument?.querySelector('[data-cms-section-id],section[id]');
   });
   await page.frameLocator('#cms-page-preview-frame')
     .locator('[data-cms-section-id],section[id]').filter({visible:true}).nth(1).waitFor();
+  assert.equal(page.viewportSize().width,1400,
+    'owner-studio-workbench-desktop.png must capture a genuine desktop viewport');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-desktop.png'),fullPage:true});
   await page.setViewportSize({width:768,height:900});
   await assertNoHorizontalOverflow('Workbench at 768px');
@@ -2120,7 +2128,14 @@ async function execute(){
   assert.equal(mediaState.node.responsiveMedia.mobileAssetId,mediaState.asset.id);
   assert.equal(mediaState.asset.mime,'image/webp');
   assert.equal(await page.locator('#cms-page-preview').evaluate(node=>node.open),true);
+  // The Graph is in mobile preview mode, but the outer screenshot should
+  // also capture real phone layout; otherwise the artifact name misleads UX QA.
+  await page.setViewportSize({width:390,height:844});
+  await assertNoHorizontalOverflow('Workbench mobile image asset selection at 390px');
+  assert.equal(page.viewportSize().width,390,
+    'owner-studio-workbench-image-mobile.png must capture a genuine phone viewport');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-image-mobile.png'),fullPage:true});
+  await page.setViewportSize({width:1400,height:1000});
   await page.locator('#server-work-save').click();
   await page.locator('#server-work-state').getByText(/сохранён/).waitFor();
   const savedPhone=(await (await page.request.get(
