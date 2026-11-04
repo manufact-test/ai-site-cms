@@ -1400,7 +1400,8 @@ async function execute(){
   assert.equal(customImage.responsiveMedia.mobileAssetId,importedMobileLogo.id);
   assert.equal(await page.locator('#cms-work-graph-image-previews figure').nth(2)
     .locator('figcaption').innerText(),'Телефон · свой файл');
-  await page.locator('#cms-work-graph-image-library > summary').click();
+  assert.equal(await page.locator('#cms-work-graph-image-library').evaluate(node=>node.open),true,
+    'The image library stays open for the next image after selecting a mobile variant');
   await page.locator('#cms-work-graph-image-library [data-graph-device-asset-id="'+
     importedDesktopLogo.id+'"]').click();
   customImage=await customPhoto();
@@ -1447,7 +1448,8 @@ async function execute(){
     .find(s=>s.id==='section-approved-custom').designGraph.nodes[0]
     .backgroundVideo.mobilePosterAssetId),importedDesktopLogo.id,
   'Thumbnail picker edits only the active phone cover');
-  await page.locator('#cms-work-backgroundVideo-library summary').click();
+  assert.equal(await page.locator('#cms-work-backgroundVideo-library').evaluate(node=>node.open),true,
+    'The poster library stays open while choosing several phone cover variants');
   await page.locator('#cms-work-backgroundVideo-library [data-backdrop-media-id="'+
     importedMobileLogo.id+'"]').click();
   const backdrop=()=>page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections
