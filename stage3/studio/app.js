@@ -8150,8 +8150,38 @@
   window.addEventListener('beforeunload',e=>{
     if(JSON.stringify(session.current)!==savedBytes){e.preventDefault();e.returnValue='';}
   });
-  $('undo').addEventListener('click',()=>{session=D.undo(session,manifests);draw();});
-  $('redo').addEventListener('click',()=>{session=D.redo(session,manifests);draw();});
+  /* Undo/Redo can remove the selected block or repeated item. Keep editing
+     at its nearest surviving neighbour instead of resetting to page start. */
+  function stepHistory(direction){
+    const previousPage=session.current.pages.find(page=>page.id===pageId);
+    const previousSection=previousPage?.sections.find(section=>section.id===sectionId);
+    const sectionIndex=previousPage?.sections.findIndex(section=>section.id===sectionId)??-1;
+    const itemIndex=previousSection?.items?.findIndex(item=>item.id===elementId)??-1;
+    session=direction==='undo'?D.undo(session,manifests):D.redo(session,manifests);
+    const page=session.current.pages.find(item=>item.id===pageId);
+    let revealSelected=false;
+    if(!page){
+      pageId=session.current.pages[0].id;
+      sectionId=session.current.pages[0].sections[0].id;
+      elementId=session.current.pages[0].sections[0].elements[0].id;
+      inspectorScope='page';
+    }else{
+      let section=page.sections.find(item=>item.id===sectionId);
+      if(!section){
+        section=page.sections[Math.min(Math.max(sectionIndex,0),page.sections.length-1)];
+        sectionId=section.id;elementId=section.elements[0].id;
+        if(inspectorScope!=='page'){inspectorScope='block';revealSelected=true;}
+      }else if(![...section.elements,...(section.items||[])]
+        .some(item=>item.id===elementId)){
+        elementId=(itemIndex>=0?section.items?.[Math.min(itemIndex,section.items.length-1)]?.id:null)||
+          section.elements[0].id;
+        revealSelected=inspectorScope==='element';
+      }
+    }
+    draw({revealSelected});
+  }
+  $('undo').addEventListener('click',()=>stepHistory('undo'));
+  $('redo').addEventListener('click',()=>stepHistory('redo'));
   $('save').addEventListener('click',save);
   $('export').addEventListener('click',exportJson);
   $('export-factory-handoff').addEventListener('click',exportFactoryHandoff);

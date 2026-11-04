@@ -1171,6 +1171,71 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await structuralPage.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
       blockBeforeStructural,'Undo restores the removed middle section and every draft value');
 
+    /* Undo of an inserted section must hand the Inspector to its nearest
+       neighbour. Redo restores site data without replacing the chosen page. */
+    await openStructuralTree();
+    await structuralPage.locator('#sections .nav-entry')
+      .filter({hasText:'Этапы работы · дорожная карта'}).click();
+    const beforeHistoryCopy=(await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections.map(section=>section.id);
+    await openStructuralActions();
+    await structuralPage.locator('#section-duplicate').click();
+    const afterHistoryCopy=(await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections;
+    const historyCopy=afterHistoryCopy.find(section=>!beforeHistoryCopy.includes(section.id));
+    assert.ok(historyCopy&&historyCopy.component==='process-timeline');
+    await structuralPage.locator('#undo').click();
+    assert.equal(await structuralPage.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      blockBeforeStructural,'Undo of copied section restores the exact site draft');
+    await structuralPage.waitForFunction(id=>{
+      const doc=document.querySelector('#preview')?.contentDocument;
+      const node=[...(doc?.querySelectorAll('[data-cms-editor-section]')||[])]
+        .find(section=>section.dataset.cmsEditorSection===id);
+      const rect=node?.getBoundingClientRect(),height=doc?.defaultView?.innerHeight||0;
+      return node?.classList.contains('cms-editor-current')&&rect&&
+        Math.min(rect.bottom,height-18)-Math.max(rect.top,18)>=32;
+    },comparisonAfterTimeline.id,{timeout:10000});
+    assert.equal(await structuralPage.locator('#inspector-eyebrow').innerText(),'НАСТРОЙКИ БЛОКА');
+    await structuralPage.locator('#redo').click();
+    assert.ok((await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections.some(section=>section.id===historyCopy.id));
+    await structuralPage.locator('#undo').click();
+    assert.equal(await structuralPage.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      blockBeforeStructural,'Undo after Redo restores the site again');
+
+    /* The same history reconciliation applies to a newly added FAQ item:
+       stay in the repeat list instead of jumping back to a generic heading. */
+    await openStructuralTree();
+    await structuralPage.locator('#sections .nav-entry')
+      .filter({hasText:'FAQ'}).click();
+    await structuralPage.locator('[data-inspector-scope="element"]').click();
+    const faqBeforeHistory=(await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections.find(section=>section.component==='faq-accordion');
+    assert.ok(faqBeforeHistory?.items?.length>=2);
+    const previousFaqItem=faqBeforeHistory.items.at(-1).id;
+    await structuralPage.locator('#cms-repeat-add').click();
+    const faqAfterHistory=(await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections.find(section=>section.component==='faq-accordion');
+    const newFaqItem=faqAfterHistory.items.at(-1).id;
+    assert.notEqual(newFaqItem,previousFaqItem);
+    await structuralPage.locator('#undo').click();
+    assert.equal(await structuralPage.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      blockBeforeStructural,'Undo of new FAQ card restores the original draft');
+    await structuralPage.waitForFunction(id=>{
+      const doc=document.querySelector('#preview')?.contentDocument;
+      return [...(doc?.querySelectorAll('[data-cms-editor-element]')||[])]
+        .some(node=>node.dataset.cmsEditorElement===id&&
+          node.classList.contains('cms-editor-element-current'));
+    },previousFaqItem,{timeout:10000});
+    assert.equal(await structuralPage.locator('#inspector-eyebrow').innerText(),'СВОЙСТВА ЭЛЕМЕНТА');
+    await structuralPage.locator('#redo').click();
+    assert.ok((await structuralPage.evaluate(()=>window.Stage3Editor.getSite()))
+      .pages[0].sections.find(section=>section.component==='faq-accordion')
+      .items.some(item=>item.id===newFaqItem));
+    await structuralPage.locator('#undo').click();
+    assert.equal(await structuralPage.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+      blockBeforeStructural,'FAQ history undo/redo leaves no draft mutation');
+
     assert.deepEqual(structuralErrors,[],'Isolated structural flow has no browser errors');
     await structuralPage.close();
 
