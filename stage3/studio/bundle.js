@@ -5930,7 +5930,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         if(broken.length)throw Error('Новая битая ссылка: '+broken[0].path);
         session=next;
         if(!sectionForWork())workSection=pageForWork()?.sections[0]?.id||'';
-        workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();draw();showWork();render();
+        // Appearance and device visibility modify properties of the SAME
+        // section. Keep its selected element/Graph node and open controls;
+        // only real structural moves/removals invalidate that selection.
+        if(!['updateAppearance','setSectionVisibility'].includes(action.action)){
+          workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();
+        }
+        draw();showWork();render();
         feedback('Структура изменена в черновике. Сохранить и опубликовать — отдельно.');
       }catch(e){feedback(e.message,true);}
     }

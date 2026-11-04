@@ -1102,6 +1102,8 @@ async function execute(){
   await page.locator('[data-work-appearance="surface"]').selectOption('tint');
   assert.equal(await appearance.evaluate(node=>node.open),true,
     'Appearance settings remain expanded after editing one of their fields');
+  assert.equal(await page.locator('#cms-work-graph-node').inputValue(),'approved-custom-copy',
+    'Appearance changes keep the selected nested Graph element');
   assert.equal(await page.evaluate(()=>document.activeElement?.dataset.workAppearance),'surface',
     'The selected appearance control retains keyboard focus across Inspector redraws');
   const retainedScroll=await page.locator('.cms-work-panel').evaluate(node=>node.scrollTop);
