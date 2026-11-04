@@ -894,6 +894,17 @@ async function execute(){
   });
   await page.frameLocator('#cms-page-preview-frame')
     .locator('[data-cms-section-id],section[id]').filter({visible:true}).nth(1).waitFor();
+  // Responsive controls resize the SAME PHP document; no new preview POST,
+  // iframe navigation, flash or lost section selection should be introduced.
+  await page.evaluate(()=>{
+    window.__ownerWorkbenchDocument=document.querySelector('#cms-page-preview-frame').contentDocument;
+  });
+  let responsivePreviewRequests=0;
+  const countResponsivePreview=request=>{
+    if(request.method()==='POST'&&new URL(request.url()).pathname===
+      '/api/sites/site-approved-browser/preview')responsivePreviewRequests++;
+  };
+  page.on('request',countResponsivePreview);
   assert.equal(page.viewportSize().width,1400,
     'owner-studio-workbench-desktop.png must capture a genuine desktop viewport');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-desktop.png'),fullPage:true});
@@ -909,6 +920,14 @@ async function execute(){
     'Workbench dialog must remain inside the phone viewport');
   await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="mobile"]').click();
   await page.waitForFunction(()=>!!document.querySelector('#cms-page-preview-frame')?.contentDocument?.querySelector('[data-cms-section-id],section[id]'));
+  page.off('request',countResponsivePreview);
+  assert.equal(responsivePreviewRequests,0,
+    'Phone and tablet switches do not trigger duplicate authenticated PHP renders');
+  assert.equal(await page.evaluate(()=>document.querySelector('#cms-page-preview-frame').contentDocument===
+    window.__ownerWorkbenchDocument),true,
+  'Phone and tablet switches retain the actual PHP iframe document and its scroll/selection');
+  assert.equal(await page.locator('#cms-work-preview-progress').isVisible(),false,
+    'Responsive mode switching never displays a loading state');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-mobile.png'),fullPage:true});
   await page.setViewportSize({width:1400,height:1000});
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
@@ -2109,6 +2128,18 @@ async function execute(){
     name:'approved-phone-noise.png',mimeType:'image/png',buffer:inlineFile
   });
   await page.locator('#server-work-graph-alt').fill('Тестовый мобильный вариант');
+  // The image upload changes the server revision. Deliberately hold the NEW
+  // revision's PHP render to exercise the Workbench in-flight state against
+  // actual PHP/Chromium, not just mocked offline editor HTML.
+  let delayedImagePreviews=0;
+  const delayedImagePreview='**/api/sites/site-approved-browser/preview';
+  await page.route(delayedImagePreview,async route=>{
+    if(route.request().postDataJSON()?.site?.assets?.length===inlineBefore+1){
+      delayedImagePreviews++;
+      await new Promise(resolve=>setTimeout(resolve,950));
+    }
+    await route.continue();
+  });
   // The prior genuine mobile screenshot showed "Stale editor revision" behind
   // this Workbench. The processed image upload advances the server CAS, then
   // editor.replace() immediately requests a fresh *background* PHP preview.
@@ -2121,6 +2152,13 @@ async function execute(){
     return body.site?.assets?.length===inlineBefore+1;
   },{timeout:20000});
   await page.locator('#server-work-graph-apply').click();
+  await page.locator('#cms-work-preview-progress').waitFor({state:'visible',timeout:20000});
+  assert.equal(await page.frameLocator('#cms-page-preview-frame')
+    .locator('.cmsdg-n-approved-custom-photo').count(),1,
+  'The complete previous PHP page remains visible during the slow image revision render');
+  assert.equal(await page.locator('#cms-page-preview-frame').getAttribute('aria-busy'),'true');
+  assert.equal(await page.locator('#cms-page-preview-frame').evaluate(frame=>frame.style.pointerEvents),'none',
+    'The previous revision cannot accept new editing clicks while its replacement is pending');
   const updatedCanvasResponse=await updatedCanvasPreview;
   assert.equal(updatedCanvasResponse.request().postDataJSON().expectedRevision,
     partialBatch.revision+1,'Workbench preview must use the post-upload server revision');
@@ -2137,6 +2175,10 @@ async function execute(){
   // image UI and makes the screenshot unsuitable for a visual regression.
   await page.frameLocator('#cms-page-preview-frame')
     .locator('.cmsdg-n-approved-custom-photo').waitFor({timeout:20000});
+  await page.locator('#cms-work-preview-progress').waitFor({state:'hidden',timeout:20000});
+  assert.ok(delayedImagePreviews>0,'Chromium exercised the slow real PHP render');
+  assert.equal(await page.locator('#cms-page-preview-frame').getAttribute('aria-busy'),null);
+  await page.unroute(delayedImagePreview);
   assert.doesNotMatch(await page.frameLocator('#cms-page-preview-frame').locator('body').innerText(),
     /Stale editor revision|Не удалось построить серверный предпросмотр/);
   const mediaState=await page.evaluate(()=>{
