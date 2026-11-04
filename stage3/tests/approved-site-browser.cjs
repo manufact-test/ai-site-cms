@@ -943,6 +943,15 @@ async function execute(){
     'Tablet Workbench stacks the Inspector below the page instead of splitting it in half');
   assert.ok(tabletWorkbench.area.width>tabletWorkbench.modalWidth*.8,
     'Tablet preview gets nearly the whole dialog width');
+  await page.waitForFunction(()=>{
+    const frame=document.querySelector('#cms-page-preview-frame');
+    const doc=frame?.contentDocument;
+    const heading=doc?.querySelector('.cms-work-element-current')||
+      doc?.querySelector('.cms-work-current h1,.cms-work-current h2');
+    if(!heading||!frame)return false;
+    const rect=heading.getBoundingClientRect();
+    return rect.bottom>0&&rect.top<frame.clientHeight-32;
+  });
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-tablet.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});
   await assertNoHorizontalOverflow('Workbench at 390px');

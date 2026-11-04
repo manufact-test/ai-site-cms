@@ -2021,7 +2021,27 @@
       const hasPage=!!frame.contentDocument?.querySelector('main,[data-cms-section-id],section[id]');
       if(deviceOnly&&(requestedIdentity===identity&&requestedSite===site||
         renderedIdentity===identity&&renderedSite===site&&hasPage)){
-        highlightWork();return;
+        highlightWork();
+        // When a formerly wide viewport becomes short, the selected heading
+        // can land below the visible iframe even though its page scroll is 0.
+        // Reveal it only in this untouched-at-top case. A manual scroll-away
+        // is intentional and must never be overridden by device switches.
+        if(hasPage&&previewScroll===0&&mode!=='desktop'){
+          const doc=frame.contentDocument,device=mode;
+          requestAnimationFrame(()=>{
+            if(!modal.open||mode!==device||frame.contentDocument!==doc)return;
+            const selected=doc.querySelector('.cms-work-graph-current')||
+              doc.querySelector('.cms-work-element-current')||
+              doc.querySelector('.cms-work-current h1,.cms-work-current h2')||
+              doc.querySelector('.cms-work-current');
+            if(!selected)return;
+            const rect=selected.getBoundingClientRect();
+            if(rect.top<frame.clientHeight-32&&rect.bottom>0)return;
+            const top=rect.top+(frame.contentWindow?.scrollY||0)-20;
+            frame.contentWindow?.scrollTo(0,Math.max(0,Math.round(top)));
+          });
+        }
+        return;
       }
       const requestId=++previewRequest;
       requestedIdentity=identity;requestedSite=site;
