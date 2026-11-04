@@ -2109,11 +2109,29 @@ async function execute(){
     name:'approved-phone-noise.png',mimeType:'image/png',buffer:inlineFile
   });
   await page.locator('#server-work-graph-alt').fill('Тестовый мобильный вариант');
+  // The prior genuine mobile screenshot showed "Stale editor revision" behind
+  // this Workbench. The processed image upload advances the server CAS, then
+  // editor.replace() immediately requests a fresh *background* PHP preview.
+  // Wait for that exact new-asset preview response before taking evidence.
+  const updatedCanvasPreview=page.waitForResponse(response=>{
+    const request=response.request();
+    if(request.method()!=='POST'||
+      new URL(request.url()).pathname!=='/api/sites/site-approved-browser/preview')return false;
+    const body=request.postDataJSON();
+    return body.site?.assets?.length===inlineBefore+1;
+  },{timeout:20000});
   await page.locator('#server-work-graph-apply').click();
+  const updatedCanvasResponse=await updatedCanvasPreview;
+  assert.equal(updatedCanvasResponse.request().postDataJSON().expectedRevision,
+    partialBatch.revision+1,'Workbench preview must use the post-upload server revision');
+  assert.equal(updatedCanvasResponse.status(),200,
+    'A committed image must not leave a stale-revision warning behind the Workbench');
   await page.waitForFunction(before=>{
     const site=window.Stage3Editor.getSite();
     return site.assets.length===before+1&&window.Stage3Editor.isDirty();
   },inlineBefore,{timeout:20000});
+  await page.waitForFunction(()=>!!document.querySelector('#preview')?.contentDocument
+    ?.querySelector('[data-cms-editor-section]'));
   const mediaState=await page.evaluate(()=>{
     const site=window.Stage3Editor.getSite(),section=site.pages[0].sections
       .find(s=>s.id==='section-approved-custom');

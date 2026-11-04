@@ -3666,8 +3666,13 @@
     const switched=state.siteId!==result.site.siteId;
     if(switched){previewData.clear();loadingMedia.clear();}
     state.siteId=result.site.siteId;
-    editor.replace(restoreServerGraphMaps(result.site));
+    // replace() synchronously redraws the main canvas and starts an async PHP
+    // preview. Publish the server's matching CAS revision BEFORE that redraw:
+    // a media upload/import/restore has already committed this site revision.
+    // Otherwise the new site snapshot is previewed with the previous revision
+    // and the server correctly rejects it as a stale editor request (409).
     state.revision=Number(result.revision);
+    editor.replace(restoreServerGraphMaps(result.site));
     if(switched){pageSearch.reset();blockSearch.reset();}
     editorVisible(true);
     drawMedia();drawStatus();

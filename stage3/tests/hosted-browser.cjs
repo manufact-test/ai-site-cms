@@ -437,11 +437,30 @@ async function execute(){
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Черновик #6/).waitFor();
   const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y6Pe3UAAAAASUVORK5CYII=','base64');
+  // Captures real browser POST bodies, not a mocked preview renderer. A media
+  // upload commits a server revision and calls editor.replace(), which starts
+  // the next preview synchronously. That request must carry the NEW revision.
+  const mediaPreviewClaims=[];
+  const captureMediaPreview=request=>{
+    if(request.method()!=='POST'||
+      new URL(request.url()).pathname!=='/api/sites/'+siteId+'/preview')return;
+    const body=request.postDataJSON();
+    mediaPreviewClaims.push({revision:body.expectedRevision,
+      assets:body.site?.assets?.length});
+  };
+  page.on('request',captureMediaPreview);
   replies.push('Фото цеха');
   await page.locator('#server-media-file').setInputFiles({
     name:'factory.png',mimeType:'image/png',buffer:png
   });
   await page.locator('#server-status').getByText(/Черновик #7/).waitFor();
+  await page.frameLocator('#preview').locator('section.showcase').waitFor();
+  const singleUploadClaims=mediaPreviewClaims.filter(claim=>claim.assets===1);
+  assert.ok(singleUploadClaims.length>0,'The newly committed media must trigger a PHP canvas preview');
+  assert.ok(singleUploadClaims.every(claim=>claim.revision===7),
+    'A new asset must never be previewed with the previous server revision: '+
+      JSON.stringify(singleUploadClaims));
+  page.off('request',captureMediaPreview);
   const assetId=(await page.evaluate(()=>window.Stage3Editor.getSite())).assets[0].id;
   assert.equal(await page.locator('#server-media-list img').count(),1);
   await page.locator('#cms-open-seo').click();
@@ -1646,6 +1665,15 @@ async function execute(){
     revision:Number(document.querySelector('#server-status').textContent.match(/Черновик #(\d+)/)[1]),
     assets:window.Stage3Editor.getSite().assets.length
   }));
+  const batchPreviewClaims=[];
+  const captureBatchPreview=request=>{
+    if(request.method()!=='POST'||
+      new URL(request.url()).pathname!=='/api/sites/'+siteId+'/preview')return;
+    const body=request.postDataJSON();
+    batchPreviewClaims.push({revision:body.expectedRevision,
+      assets:body.site?.assets?.length});
+  };
+  page.on('request',captureBatchPreview);
   await page.locator('#server-media-file').setInputFiles([
     {name:'desktop_photo.png',mimeType:'image/png',buffer:png},
     {name:'mobile_photo.png',mimeType:'image/png',buffer:png}
@@ -1665,6 +1693,15 @@ async function execute(){
   assert.equal(afterBatch.revision,beforeBatch.revision+2);
   assert.equal(afterBatch.assets.length,beforeBatch.assets+2);
   assert.deepEqual(afterBatch.assets.slice(-2).map(a=>a.alt),['Цех на широком экране','']);
+  for(const increment of [1,2]){
+    const claims=batchPreviewClaims.filter(claim=>claim.assets===beforeBatch.assets+increment);
+    assert.ok(claims.length>0,'Each committed batch image must refresh the central PHP canvas');
+    assert.ok(claims.every(claim=>claim.revision===beforeBatch.revision+increment),
+      'Batch preview must carry the matching server revision: '+JSON.stringify(claims));
+  }
+  page.off('request',captureBatchPreview);
+  await page.waitForFunction(()=>!!document.querySelector('#preview')?.contentDocument
+    ?.querySelector('[data-cms-editor-section]'));
   assert.equal((await visitor.goto(publicUrl)).status(),200,'Batch never publishes private images');
 
   // One malformed file must be detected before any POST, including a valid
