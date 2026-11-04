@@ -5427,25 +5427,57 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     const frame=document.createElement('iframe');frame.id='cms-page-preview-frame';
     frame.setAttribute('sandbox','allow-same-origin');frame.title='Изолированный предпросмотр всей страницы';
     frame.setAttribute('referrerpolicy','no-referrer');area.append(frame);
+    const previewProgress=document.createElement('small');
+    previewProgress.id='cms-work-preview-progress';previewProgress.setAttribute('role','status');
+    previewProgress.textContent='Обновляем предпросмотр…';previewProgress.hidden=true;
+    area.append(previewProgress);
     let mode='desktop',previewRequest=0,previewScroll=0,reviewScroll=null;
-    const render=async()=>{
+    let renderedIdentity='',requestedIdentity='',renderedSite=null,requestedSite=null;
+    const render=async({deviceOnly=false}={})=>{
       previewScroll=frame.contentWindow?.scrollY||0;
-      const requestId=++previewRequest,path=pathSelect.value;
+      const path=pathSelect.value,site=session.current,identity=site.siteId+'|'+path;
       frame.style.width=mode==='mobile'?'390px':mode==='tablet'?'768px':'100%';
       if(!HOSTED){frame.srcdoc=window.Stage3Editor.previewDocument(session.current,path,mode);return;}
-      frame.srcdoc='<!doctype html><html><body style="font:15px system-ui;padding:24px">Строим предпросмотр черновика…</body></html>';
+      // PHP returns one responsive HTML document. A device-only switch needs
+      // only the iframe width: keep the real page, scroll and interaction
+      // bindings instead of another network request and blank loading frame.
+      const hasPage=!!frame.contentDocument?.querySelector('[data-cms-section-id],section[id]');
+      if(deviceOnly&&(requestedIdentity===identity&&requestedSite===site||
+        renderedIdentity===identity&&renderedSite===site&&hasPage)){
+        highlightWork();return;
+      }
+      const requestId=++previewRequest;
+      requestedIdentity=identity;requestedSite=site;
+      // On same-page edits, leave the last PHP document visible until its
+      // replacement is verified. Disable its now-stale click targets while
+      // the new revision is in flight. A different page/site still gets a
+      // neutral placeholder, never content from the previous page.
+      if(renderedIdentity!==identity||!hasPage){
+        renderedIdentity='';renderedSite=null;
+        frame.srcdoc='<!doctype html><html><body style="font:15px system-ui;padding:24px">Строим предпросмотр черновика…</body></html>';
+      }
+      frame.style.pointerEvents='none';frame.setAttribute('aria-busy','true');
+      previewProgress.hidden=false;
       try{
-        const html=await window.Stage3Host.previewPage(session.current,path);
-        if(requestId===previewRequest)frame.srcdoc=html;
+        const html=await window.Stage3Host.previewPage(site,path);
+        if(requestId!==previewRequest)return;
+        renderedIdentity=identity;renderedSite=site;
+        requestedIdentity='';requestedSite=null;frame.srcdoc=html;
       }catch(error){
         if(requestId!==previewRequest)return;
+        renderedIdentity='';renderedSite=null;requestedIdentity='';requestedSite=null;
         frame.srcdoc='<!doctype html><html><body style="font:15px system-ui;padding:24px"><p>Не удалось построить серверный предпросмотр: '+escapeHtml(error.message)+'</p></body></html>';
+        frame.style.pointerEvents='';frame.removeAttribute('aria-busy');
+        previewProgress.hidden=true;
       }
     };
-    modal.addEventListener('close',()=>{previewRequest++;});
+    modal.addEventListener('close',()=>{
+      previewRequest++;requestedIdentity='';requestedSite=null;
+      frame.style.pointerEvents='';frame.removeAttribute('aria-busy');previewProgress.hidden=true;
+    });
     for(const [value,name] of [['desktop','ПК'],['tablet','Планшет'],['mobile','Телефон']]){
       const option=button(name,'btn small',()=>{
-        mode=value;frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el===option));showWork();render();
+        mode=value;frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el===option));showWork();render({deviceOnly:true});
       });
       option.dataset.mode=value;frameMode.append(option);
     }
@@ -5599,6 +5631,11 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     frame.addEventListener('load',()=>{
       const doc=frame.contentDocument,page=pageForWork();if(!doc||!page)return;
       const ids=new Set(page.sections.map(s=>s.id));
+      if(renderedIdentity===session.current.siteId+'|'+page.path&&
+        doc.querySelector('[data-cms-section-id],section[id]')){
+        frame.style.pointerEvents='';frame.removeAttribute('aria-busy');
+        previewProgress.hidden=true;
+      }
       const css=doc.createElement('style');
       css.textContent='.cms-work-target:hover{outline:2px dashed #20b0dc!important;cursor:grab}.cms-work-current{outline:3px solid #ff9b37!important;outline-offset:-3px!important}.cms-work-before{box-shadow:inset 0 6px #20b0dc!important}.cms-work-after{box-shadow:inset 0 -6px #20b0dc!important}.cms-work-element-current{outline:2px solid #ffab58!important;outline-offset:3px!important}.cms-work-linked{cursor:text!important}.cms-work-linked:hover{box-shadow:inset 0 -2px #20b0dc}.cms-work-graph-target:hover{outline:2px dashed #3278ef!important;outline-offset:3px!important}.cms-work-graph-current{outline:3px solid #f4a341!important;outline-offset:4px!important}';
       doc.head.append(css);

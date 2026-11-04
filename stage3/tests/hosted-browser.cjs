@@ -223,13 +223,50 @@ async function execute(){
   assert.equal(await draftFrame.locator('h1').innerText(),'Проверка серверного сайта',
     'Hosted Studio previews the draft through the publication renderer');
   assert.equal(await draftFrame.locator('meta[name="robots"]').getAttribute('content'),'noindex,nofollow');
+  // PHP preview HTML is responsive already. Switching devices must not make
+  // another network request, discard the iframe DOM or jump back to loading.
+  const initialWorkDocument=await page.evaluate(()=>{
+    window.__workDocumentBeforeDeviceSwitch=document.querySelector('#cms-page-preview-frame').contentDocument;
+    return window.__workDocumentBeforeDeviceSwitch.querySelector('h1')?.textContent;
+  });
+  assert.equal(initialWorkDocument,'Проверка серверного сайта');
+  let devicePreviewRequests=0;
+  const countDevicePreview=request=>{
+    if(request.method()==='POST'&&new URL(request.url()).pathname===
+      '/api/sites/'+siteId+'/preview')devicePreviewRequests++;
+  };
+  page.on('request',countDevicePreview);
+  for(const device of ['mobile','tablet','desktop']){
+    await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="'+device+'"]').click();
+    assert.equal(await page.evaluate(()=>document.querySelector('#cms-page-preview-frame')
+      .contentDocument===window.__workDocumentBeforeDeviceSwitch),true,
+    'Changing the '+device+' width must preserve the PHP iframe document');
+  }
+  page.off('request',countDevicePreview);
+  assert.equal(devicePreviewRequests,0,'Responsive mode changes need no duplicate PHP preview POST');
+  assert.equal(await page.locator('#cms-work-preview-progress').isVisible(),false);
   await draftFrame.locator('section.hero h1').click();
   assert.equal(await page.locator('#cms-work-element').inputValue(),'section-hero-heading',
     'PHP renderer maps visual headline to exact typed control');
   const visualDraftField=page.locator('#cms-work-fields [data-page-field="content.text"]');
+  // Slow network: keep the previous complete PHP page visible during a draft
+  // change, show a restrained pending marker and guard its stale click targets.
+  await page.route('**/api/sites/'+siteId+'/preview',async route=>{
+    await new Promise(resolve=>setTimeout(resolve,650));
+    await route.continue();
+  });
   await visualDraftField.fill('Редактирование страницы в Studio');
   await visualDraftField.dispatchEvent('change');
+  await page.locator('#cms-work-preview-progress').waitFor({state:'visible'});
+  assert.equal(await draftFrame.locator('h1').innerText(),'Проверка серверного сайта',
+    'The previous real page remains visible while the new draft preview is pending');
+  assert.equal(await page.locator('#cms-page-preview-frame').getAttribute('aria-busy'),'true');
+  assert.equal(await page.locator('#cms-page-preview-frame').evaluate(frame=>frame.style.pointerEvents),'none',
+    'Stale PHP preview cannot intercept element editing while it is being replaced');
   await draftFrame.locator('h1').getByText('Редактирование страницы в Studio').waitFor();
+  await page.locator('#cms-work-preview-progress').waitFor({state:'hidden'});
+  assert.equal(await page.locator('#cms-page-preview-frame').getAttribute('aria-busy'),null);
+  await page.unroute('**/api/sites/'+siteId+'/preview');
   await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
   assert.equal(await draftFrame.locator('h1').innerText(),'Проверка серверного сайта');
   const oldSummary=await draftFrame.locator('section.hero p').first().innerText();
@@ -249,6 +286,23 @@ async function execute(){
   await page.locator('#cms-work-history').getByRole('button',{name:'↶ Отмена'}).click();
   assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),startingPreviewSite,
     'Quick appearance lives only in typed draft until explicitly saved');
+
+  // Switching to a DIFFERENT page must never leave the previous page's HTML
+  // on screen while the server is still rendering the selected destination.
+  await page.route('**/api/sites/'+siteId+'/preview',async route=>{
+    if(route.request().postDataJSON()?.path==='/contact/')
+      await new Promise(resolve=>setTimeout(resolve,500));
+    await route.continue();
+  });
+  await page.locator('#cms-page-preview-path').selectOption('/contact/');
+  await page.locator('#cms-work-preview-progress').waitFor({state:'visible'});
+  assert.match(await draftFrame.locator('body').innerText(),/Строим предпросмотр черновика/,
+    'Page changes display a neutral loading state, not an unrelated old page');
+  await draftFrame.locator('section.contact h2').waitFor();
+  await page.locator('#cms-work-preview-progress').waitFor({state:'hidden'});
+  await page.unroute('**/api/sites/'+siteId+'/preview');
+  await page.locator('#cms-page-preview-path').selectOption('/');
+  await draftFrame.locator('section.hero h1').waitFor();
 
   await page.locator('#cms-page-preview').getByRole('button',{name:'Закрыть'}).click();
   await page.locator('#cms-page-preview[open]').waitFor({state:'hidden'});
