@@ -835,6 +835,27 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       await page.locator('[data-inspector-scope="element"]').click();
     }
     await page.setViewportSize({width:1450,height:600});
+    // Reproduce the real CI race: section navigation schedules a deferred
+    // focus restore, then the user immediately focuses the page navigator.
+    // Stale callbacks must not steal that newer keyboard/pointer interaction.
+    await page.evaluate(()=>{
+      document.querySelector('#sections .nav-entry:nth-child(2)').click();
+      document.querySelector('#pages .nav-entry:first-child').focus();
+    });
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.equal(await page.locator('#pages .nav-entry:first-child').evaluate(node=>document.activeElement===node),true,
+      'Deferred section focus must not steal a newer page navigation focus');
+    // Symmetric race: switching pages may re-render the section buttons, but
+    // must not retake focus after the user has started navigating sections.
+    await page.evaluate(()=>{
+      document.querySelector('#pages .nav-entry:last-child').click();
+      document.querySelector('#sections .nav-entry:first-child').focus();
+    });
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.equal(await page.locator('#sections .nav-entry:first-child').evaluate(node=>document.activeElement===node),true,
+      'Deferred page focus must not steal a newer section navigation focus');
+    await page.locator('#pages .nav-entry').first().click();
+    await openSectionTree();
     const sectionNav=page.locator('#sections .nav-entry');
     await sectionNav.first().focus();
     await page.keyboard.press('ArrowDown');

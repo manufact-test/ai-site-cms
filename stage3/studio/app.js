@@ -473,6 +473,11 @@
             const targetPageId=page.id;
             requestAnimationFrame(()=>{
               if(pageId!==targetPageId)return;
+              // A fresh keyboard/pointer action may already have focused the
+              // other navigator or an editable field. A stale deferred focus
+              // from this page draw must not steal that newer interaction.
+              const active=document.activeElement;
+              if(active!==document.body&&!active?.closest('#pages'))return;
               const live=$('pages').querySelector('.nav-entry.active');
               if(live&&document.activeElement!==live)live.focus({preventScroll:true});
             });
@@ -499,6 +504,8 @@
             const targetPageId=pageId,targetSectionId=section.id;
             requestAnimationFrame(()=>{
               if(pageId!==targetPageId||sectionId!==targetSectionId)return;
+              const active=document.activeElement;
+              if(active!==document.body&&!active?.closest('#sections'))return;
               const live=$('sections').querySelector('.nav-entry.active');
               if(live&&document.activeElement!==live)live.focus({preventScroll:true});
             });
