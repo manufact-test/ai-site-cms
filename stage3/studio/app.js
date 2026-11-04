@@ -3939,6 +3939,27 @@
       }
       for(const b of workPanel.querySelectorAll('[data-editor-write]'))b.disabled ||= !canWrite();
     }
+    // Native Tab calculates its next target from the OLD Inspector DOM. If
+    // blur commits a changed text field, showWork() replaces that DOM before
+    // Chromium finishes the native focus movement. Move by stable field keys
+    // after the commit instead; ordinary non-editing keyboard navigation is
+    // left to the browser whenever the next control cannot be identified.
+    workPanel.addEventListener('keydown',event=>{
+      if(event.key!=='Tab'||event.ctrlKey||event.altKey||event.metaKey||
+        !workFields.contains(event.target)||
+        !event.target.matches('input,select,textarea'))return;
+      const focusables=()=>[...workPanel.querySelectorAll(
+        'button,input,select,textarea,summary,[tabindex]:not([tabindex="-1"])')]
+        .filter(node=>!node.disabled&&node.getClientRects().length>0);
+      const before=focusables(),index=before.indexOf(event.target);
+      const adjacent=before[index+(event.shiftKey?-1:1)];
+      const key=adjacent&&workControlKey(adjacent);
+      if(index<0||!key)return;
+      event.preventDefault();
+      event.target.blur(); // Triggers normal validation, Undo and draft redraw.
+      const next=focusables().find(node=>workControlKey(node)===key);
+      next?.focus({preventScroll:false});
+    },true);
     workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();showWork();highlightWork();});
     workElementPicker.addEventListener('change',()=>{workElement=workElementPicker.value;workFocusPath='';workFormField='';dismissQuick();showWork();highlightWork();});
     pathSelect.addEventListener('change',()=>{previewScroll=0;workSection=pageForWork()?.sections[0]?.id||'';workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();showWork();});
