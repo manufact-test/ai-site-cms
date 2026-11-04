@@ -786,9 +786,29 @@ async function execute(){
     'The hosted canvas remains scriptless while the parent can select rendered blocks');
   const hostedCanvasDraftBefore=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
   await page.evaluate(()=>{window.__hostedCanvasDoc=document.querySelector('#preview').contentDocument;});
-  /* Test a bound and visible editor section, not arbitrary nested page markup.
-     Normal pointer actionability ensures the click reaches the intended block. */
-  await hostedBoundSection.click({position:{x:6,y:6},timeout:12000});
+  /* Test a REAL pointer hit on a bound PHP section. Playwright's locator.click
+     waits for pixel-stable geometry; animated content inside this otherwise
+     selectable section can make that wait time out forever. Calculate an
+     actual on-screen hit inside its unbound background and use the mouse. */
+  const sectionPointer=await page.evaluate(()=>{
+    const iframe=document.querySelector('#preview');
+    const doc=iframe.contentDocument;
+    const section=doc.querySelector('[data-cms-editor-section]');
+    section.scrollIntoView({block:'start',behavior:'instant'});
+    const frameRect=iframe.getBoundingClientRect(),rect=section.getBoundingClientRect();
+    const localX=rect.left+Math.min(20,rect.width/3);
+    const localY=rect.top+Math.min(180,rect.height/3);
+    const x=frameRect.left+localX*frameRect.width/iframe.clientWidth;
+    const y=frameRect.top+localY*frameRect.height/iframe.clientHeight;
+    const target=doc.elementFromPoint(localX,localY);
+    return {x,y,boundSectionHit:!!target&&section.contains(target),
+      iframeHit:document.elementFromPoint(x,y)===iframe};
+  });
+  assert.equal(sectionPointer.boundSectionHit,true,
+    'The real Chromium pointer target belongs to the selected PHP section');
+  assert.equal(sectionPointer.iframeHit,true,
+    'No Studio overlay intercepts the full-page canvas pointer');
+  await page.mouse.click(sectionPointer.x,sectionPointer.y);
   await page.waitForFunction(()=>
     document.querySelector('#inspector-eyebrow')?.textContent?.trim()==='НАСТРОЙКИ БЛОКА',
     null,{timeout:5000});
