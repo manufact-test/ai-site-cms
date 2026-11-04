@@ -1096,7 +1096,7 @@ async function execute(){
     'Tab after saving a field stays inside the contextual Inspector');
   assert.notEqual(await page.evaluate(()=>document.activeElement?.dataset.workGraphField),'text',
     'Tab advances to the next field instead of refocusing the field just committed');
-  const appearance=page.locator('.cms-work-appearance');
+  const appearance=page.locator('#cms-work-fields > details.cms-work-appearance');
   await appearance.locator('summary').click();
   const appearanceScroll=await page.locator('.cms-work-panel').evaluate(node=>node.scrollTop);
   await page.locator('[data-work-appearance="surface"]').selectOption('tint');
