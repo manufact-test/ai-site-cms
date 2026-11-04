@@ -2132,6 +2132,13 @@ async function execute(){
   },inlineBefore,{timeout:20000});
   await page.waitForFunction(()=>!!document.querySelector('#preview')?.contentDocument
     ?.querySelector('[data-cms-editor-section]'));
+  // Await the real completed Workbench PHP document as well. Capturing while
+  // its async iframe still says "building preview" hides the actual mobile
+  // image UI and makes the screenshot unsuitable for a visual regression.
+  await page.frameLocator('#cms-page-preview-frame')
+    .locator('.cmsdg-n-approved-custom-photo').waitFor({timeout:20000});
+  assert.doesNotMatch(await page.frameLocator('#cms-page-preview-frame').locator('body').innerText(),
+    /Stale editor revision|Не удалось построить серверный предпросмотр/);
   const mediaState=await page.evaluate(()=>{
     const site=window.Stage3Editor.getSite(),section=site.pages[0].sections
       .find(s=>s.id==='section-approved-custom');
