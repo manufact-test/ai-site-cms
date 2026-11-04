@@ -5,6 +5,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
+const crypto=require('node:crypto');
 const {spawnSync}=require('node:child_process');
 
 const repo=path.resolve(__dirname,'../..');
@@ -33,6 +34,7 @@ function normalize(folder){
 function check(backup,candidate,expected=0){
   return run(process.execPath,[preflight,backup,candidate],repo,expected);
 }
+const sha=buffer=>crypto.createHash('sha256').update(buffer).digest('hex');
 
 try{
   const source=path.join(tmp,'release');
@@ -67,6 +69,61 @@ try{
   assert.equal(result.installationLocalPointerMustBePreserved,true);
   assert.equal(result.independentDatabaseBackupAndOwnerSwitchApprovalStillRequired,true);
 
+  // A pinned invocation prevents a different green-looking ZIP/commit from
+  // silently being substituted during a manual update review.
+  const fingerprint=result.candidate.fingerprint;
+  const pins=[`--expect-commit=${'a'.repeat(40)}`,
+    `--expect-fingerprint=${fingerprint}`,`--expect-zip-sha256=${sha(fs.readFileSync(candidate))}`];
+  const pinned=JSON.parse(run(process.execPath,[preflight,backup,candidate,...pins]).stdout);
+  assert.equal(pinned.candidate.pinnedCommitMatched,true);
+  assert.equal(pinned.candidate.pinnedFingerprintMatched,true);
+  assert.equal(pinned.candidate.pinnedZipSha256Matched,true);
+  assert.match(run(process.execPath,[preflight,backup,candidate,
+    `--expect-commit=${'b'.repeat(40)}`],repo,1).stderr,/pinned commit/);
+  assert.match(run(process.execPath,[preflight,backup,candidate,
+    `--expect-fingerprint=${'b'.repeat(64)}`],repo,1).stderr,/pinned release/);
+  assert.match(run(process.execPath,[preflight,backup,candidate,
+    `--expect-zip-sha256=${'b'.repeat(64)}`],repo,1).stderr,/pinned SHA-256/);
+  assert.match(run(process.execPath,[preflight,backup,candidate,pins[0],pins[0]],repo,1).stderr,
+    /repeated release expectation/);
+
+  // Reproduce the real FOX change set on a disposable installed tree: six
+  // older Studio assets, with every server/component/media file unchanged.
+  const six=['studio/access.js','studio/bundle.js','studio/hosted.css',
+    'studio/hosted.js','studio/index.html','studio/studio.css'];
+  for(const name of six)fs.appendFileSync(path.join(installed,name),'\n/* synthetic older Studio */\n');
+  const sixBackup=path.join(tmp,'six-ui-file-delta.zip');
+  zipTree(installed,sixBackup,oldNames);
+  assert.deepEqual(JSON.parse(check(sixBackup,candidate).stdout).delta.modified,six);
+
+  // Only this reviewed UI delta is permitted; even a hash-consistent release
+  // must not silently touch a different component or an existing PHP file.
+  const component=path.join(installed,'components/faq-accordion.json');
+  fs.appendFileSync(component,'\n');
+  const badComponent=path.join(tmp,'unreviewed-component.zip');
+  zipTree(installed,badComponent,oldNames);
+  assert.match(check(badComponent,candidate,1).stderr,/outside the reviewed six-file Studio delta/);
+  fs.copyFileSync(path.join(candidateRoot,'stage3/components/faq-accordion.json'),component);
+  const serverPhp=path.join(installed,'server/RuntimeConfig.php');
+  fs.appendFileSync(serverPhp,'\n/* synthetic backend drift */\n');
+  const changedServer=path.join(tmp,'unreviewed-backend.zip');
+  zipTree(installed,changedServer,oldNames);
+  assert.match(check(changedServer,candidate,1).stderr,/outside the reviewed six-file Studio delta/);
+  fs.copyFileSync(path.join(candidateRoot,'stage3/server/RuntimeConfig.php'),serverPhp);
+
+  // Installed runtime ZIP is not trusted to be safe merely because the
+  // candidate has good 0755/0644 permissions.
+  fs.chmodSync(pointerPath,0o644);
+  const loosePointer=path.join(tmp,'loose-pointer.zip');
+  zipTree(installed,loosePointer,oldNames);
+  assert.match(check(loosePointer,candidate,1).stderr,/unsafe file type or mode/);
+  fs.chmodSync(pointerPath,0o600);
+  fs.chmodSync(path.join(installed,'server'),0o700);
+  const blockedServer=path.join(tmp,'blocked-old-server.zip');
+  zipTree(installed,blockedServer,oldNames);
+  assert.match(check(blockedServer,candidate,1).stderr,/unsafe file type or mode/);
+  fs.chmodSync(path.join(installed,'server'),0o755);
+
   // Reject a ZIP that File Manager cannot normally traverse.
   fs.chmodSync(candidateRoot,0o700);
   const badMode=path.join(tmp,'bad-mode.zip');
@@ -98,7 +155,9 @@ try{
   process.stdout.write(JSON.stringify({action:'fox-update-preflight-smoke',valid:true,
     installedPointerPreserved:true,hostPermissionsChecked:true,
     badModeRejected:true,tamperedRuntimeRejected:true,missingPointerRejected:true,
-    extraInstalledStateRejected:true,hostMutation:false})+'\n');
+    extraInstalledStateRejected:true,releasePinsVerified:true,sixStudioDeltaChecked:true,
+    unreviewedComponentAndPhpDeltaRejected:true,unsafeInstalledModesRejected:true,
+    hostMutation:false})+'\n');
 }finally{
   fs.rmSync(tmp,{recursive:true,force:true});
 }

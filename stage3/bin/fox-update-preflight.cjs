@@ -6,6 +6,8 @@
  * private configuration contents, or any installed file.
  *
  * Usage: node stage3/bin/fox-update-preflight.cjs INSTALLED_STAGE3_ZIP FOX_INNER_ZIP
+ *   [--expect-commit=40_HEX] [--expect-fingerprint=64_HEX]
+ *   [--expect-zip-sha256=64_HEX]
  */
 const crypto=require('node:crypto');
 const fs=require('node:fs');
@@ -16,6 +18,25 @@ const sha=buffer=>crypto.createHash('sha256').update(buffer).digest('hex');
 const refuse=reason=>{throw Error('FOX update preflight refused: '+reason);};
 const pointer='server/private-config-path.json';
 const installedOnlyAllowed=new Set([pointer,'server/bin/finish-stage3-install.php']);
+// This is the *current* FOX Studio-only update contract. Future releases that
+// legitimately change components, media helpers or the server need their own
+// reviewed allowlist and gate; they must not silently inherit this approval.
+const allowedStudioChanges=new Set([
+  'studio/access.js','studio/bundle.js','studio/hosted.css',
+  'studio/hosted.js','studio/index.html','studio/studio.css'
+]);
+
+function expectations(args){
+  const expected={};
+  for(const arg of args){
+    const match=/^--expect-(commit|fingerprint|zip-sha256)=([a-f0-9]+)$/.exec(arg);
+    if(!match||expected[match[1]]!==undefined
+      ||!new RegExp('^[a-f0-9]{'+(match[1]==='commit'?40:64)+'}$').test(match[2]))
+      refuse('invalid or repeated release expectation');
+    expected[match[1]]=match[2];
+  }
+  return expected;
+}
 
 function command(program,args,maxBuffer=16*1024*1024){
   const result=spawnSync(program,args,{encoding:null,timeout:30000,maxBuffer});
@@ -53,11 +74,15 @@ function modes(file,entries){
   return found;
 }
 function readEntry(file,name){return command('unzip',['-p',file,name]);}
-function validateCandidate(file){
+function validateCandidate(file,expected){
   const entries=inventory(file);
   const top=entries.find(name=>/^fox-update-[a-f0-9]{40}\/$/.test(name));
   if(!top||entries.filter(name=>/^fox-update-[a-f0-9]{40}\/$/.test(name)).length!==1)
     refuse('expected one commit-addressed FOX update wrapper');
+  if(expected.commit&&top!==`fox-update-${expected.commit}/`)
+    refuse('candidate ZIP wrapper does not match pinned commit');
+  if(expected['zip-sha256']&&sha(fs.readFileSync(file))!==expected['zip-sha256'])
+    refuse('candidate ZIP bytes do not match pinned SHA-256');
   if(entries.some(name=>!name.startsWith(top)))refuse('ZIP contains entries outside the FOX wrapper');
   const manifestName=top+'cms-release.json';
   if(!entries.includes(manifestName))refuse('missing candidate manifest');
@@ -72,24 +97,26 @@ function validateCandidate(file){
     refuse('invalid release manifest contract');
   if(sha(Buffer.from(JSON.stringify(manifest.files)))!==manifest.fingerprint)
     refuse('candidate manifest fingerprint mismatch');
+  if(expected.fingerprint&&manifest.fingerprint!==expected.fingerprint)
+    refuse('candidate runtime fingerprint differs from pinned release');
 
-  const expected=new Set([manifestName]);
+  const expectedFiles=new Set([manifestName]);
   let total=0;
   for(const fileEntry of manifest.files){
     if(!fileEntry||typeof fileEntry.path!=='string'||!/^stage3\/(?:components|media-motion|server|studio)\//.test(fileEntry.path)
       ||!Number.isSafeInteger(fileEntry.size)||fileEntry.size<0
-      ||!/^[a-f0-9]{64}$/.test(fileEntry.sha256)||expected.has(top+fileEntry.path))
+      ||!/^[a-f0-9]{64}$/.test(fileEntry.sha256)||expectedFiles.has(top+fileEntry.path))
       refuse('invalid runtime file inventory');
     const name=top+fileEntry.path;
     const bytes=readEntry(file,name);
     if(bytes.length!==fileEntry.size||sha(bytes)!==fileEntry.sha256)
       refuse('candidate file hash mismatch: '+fileEntry.path);
-    expected.add(name);
+    expectedFiles.add(name);
     total+=bytes.length;
   }
   if(total!==manifest.bytes)refuse('candidate total size mismatch');
   const actualFiles=entries.filter(name=>!name.endsWith('/'));
-  if(actualFiles.length!==expected.size||actualFiles.some(name=>!expected.has(name)))
+  if(actualFiles.length!==expectedFiles.size||actualFiles.some(name=>!expectedFiles.has(name)))
     refuse('unexpected file in candidate ZIP');
   const permissions=modes(file,entries);
   for(const [name,mode] of permissions){
@@ -104,8 +131,12 @@ function validateCandidate(file){
 function compareInstalled(backup,candidate){
   const entries=inventory(backup),permissions=modes(backup,entries);
   if(!entries.includes(pointer))refuse('installed backup is missing its private config pointer');
+  for(const [name,mode] of permissions){
+    const safe=name.endsWith('/')?'drwxr-xr-x':
+      name===pointer?'-rw-------':'-rw-r--r--';
+    if(mode!==safe)refuse('installed backup contains an unsafe file type or mode: '+name);
+  }
   const pointerMode=permissions.get(pointer);
-  if(pointerMode?.slice(4).match(/[rwx]/))refuse('installed private config pointer is group/world accessible');
   const oldFiles=entries.filter(name=>!name.endsWith('/'));
   const current=new Set(oldFiles),next=new Set(candidate.manifest.files.map(file=>file.path.slice('stage3/'.length)));
   const oldOnly=oldFiles.filter(name=>!next.has(name)).sort();
@@ -120,23 +151,27 @@ function compareInstalled(backup,candidate){
     (oldHash===nextFile.sha256?unchanged:modified).push(name);
   }
   modified.sort();unchanged.sort();
-  if([...modified,...added].some(name=>name.startsWith('server/')))
-    refuse('candidate modifies PHP server code; explicit separate backend review is required');
+  const unreviewed=[...modified,...added].filter(name=>!allowedStudioChanges.has(name));
+  if(unreviewed.length)
+    refuse('candidate changes files outside the reviewed six-file Studio delta: '+unreviewed.join(', '));
   return {oldFiles:oldFiles.length,added,modified,unchanged:unchanged.length,installedOnly:oldOnly,
     pointerMode,requiresPointerTransfer:true,requiresDatabaseBackupGate:true};
 }
 
 try{
-  if(process.argv.length!==4)refuse('usage: fox-update-preflight.cjs INSTALLED_STAGE3_ZIP FOX_INNER_ZIP');
+  if(process.argv.length<4)refuse('usage: fox-update-preflight.cjs INSTALLED_STAGE3_ZIP FOX_INNER_ZIP [--expect-commit=SHA] [--expect-fingerprint=SHA] [--expect-zip-sha256=SHA]');
+  const expected=expectations(process.argv.slice(4));
   const backup=guardZip(process.argv[2]),candidateZip=guardZip(process.argv[3]);
-  const candidate=validateCandidate(candidateZip);
+  const candidate=validateCandidate(candidateZip,expected);
   const comparison=compareInstalled(backup,candidate);
   console.log(JSON.stringify({
     action:'fox-code-update-preflight',valid:true,deployed:false,
     installedBackup:{file:path.basename(backup),files:comparison.oldFiles,pointerPresent:true,
       pointerMode:comparison.pointerMode},
     candidate:{file:path.basename(candidateZip),runtimeFiles:candidate.manifest.files.length,
-      fingerprint:candidate.manifest.fingerprint,zipMode:'directories-0755/files-0644'},
+      fingerprint:candidate.manifest.fingerprint,zipMode:'directories-0755/files-0644',
+      pinnedCommitMatched:!!expected.commit,pinnedFingerprintMatched:!!expected.fingerprint,
+      pinnedZipSha256Matched:!!expected['zip-sha256']},
     delta:{added:comparison.added,modified:comparison.modified,
       unchanged:comparison.unchanged,installedOnly:comparison.installedOnly},
     installationLocalPointerMustBePreserved:true,

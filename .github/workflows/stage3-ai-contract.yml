@@ -170,6 +170,8 @@ jobs:
           node --check stage3/bin/fox-update-preflight.cjs
           node --check stage3/tests/fox-update-preflight-smoke.cjs
           node stage3/tests/fox-update-preflight-smoke.cjs
+          node --check stage3/tests/fox-update-rehearsal-smoke.cjs
+          node stage3/tests/fox-update-rehearsal-smoke.cjs
           mkdir -p "$RUNNER_TEMP/hostinger-stage3-package"
           node stage3/bin/cms-release.cjs pack-hostinger-sibling "$GITHUB_WORKSPACE" "$RUNNER_TEMP/hostinger-stage3-package/release"
           node stage3/bin/cms-release.cjs verify "$RUNNER_TEMP/hostinger-stage3-package/release"
@@ -212,6 +214,11 @@ jobs:
           test ! -e "$extracted/stage3/server/private-config-path.json"
           test ! -e "$extracted/public_html"
           node "$GITHUB_WORKSPACE/stage3/bin/cms-release.cjs" verify-fox-code-only "$extracted"
+          # Exercise the *actual final uploaded ZIP* through a disposable
+          # installed-tree preflight, code switch and exact reverse rename.
+          # The synthetic config pointer lives only in RUNNER_TEMP; NO HOST.
+          node "$GITHUB_WORKSPACE/stage3/tests/fox-update-rehearsal-smoke.cjs" \
+            "$RUNNER_TEMP/fox-stage3-code/ai-site-stage3-fox-code-$GITHUB_SHA.zip"
       - name: Upload FOX runtime-only code artifact (manual update, no deployment)
         uses: actions/upload-artifact@v4
         with:
