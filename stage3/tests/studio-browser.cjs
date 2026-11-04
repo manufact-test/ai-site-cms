@@ -1256,6 +1256,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const pageErrors=[],pageFlow=await ctx.newPage();
     pageFlow.on('pageerror',error=>pageErrors.push(error.message));
     await pageFlow.goto(pathToFileURL(html).href);
+    await pageFlow.evaluate(site=>window.Stage3Editor.replace(site),
+      require('../fixtures/industrial-site.json'));
     const originalPages=await pageFlow.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
     const originalSecond=(JSON.parse(originalPages)).pages[1];
     await pageFlow.locator('#pages .nav-entry').last().click();
