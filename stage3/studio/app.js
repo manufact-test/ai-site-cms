@@ -2014,7 +2014,10 @@
       // PHP returns one responsive HTML document. A device-only switch needs
       // only the iframe width: keep the real page, scroll and interaction
       // bindings instead of another network request and blank loading frame.
-      const hasPage=!!frame.contentDocument?.querySelector('[data-cms-section-id],section[id]');
+      // A new, still-empty page has no section anchors, but PHP already
+      // renders its real <main>. Treat it as loaded rather than leaving the
+      // preview indefinitely busy or re-requesting it on every device click.
+      const hasPage=!!frame.contentDocument?.querySelector('main,[data-cms-section-id],section[id]');
       if(deviceOnly&&(requestedIdentity===identity&&requestedSite===site||
         renderedIdentity===identity&&renderedSite===site&&hasPage)){
         highlightWork();return;
@@ -2205,7 +2208,7 @@
       const doc=frame.contentDocument,page=pageForWork();if(!doc||!page)return;
       const ids=new Set(page.sections.map(s=>s.id));
       if(renderedIdentity===session.current.siteId+'|'+page.path&&
-        doc.querySelector('[data-cms-section-id],section[id]')){
+        doc.querySelector('main,[data-cms-section-id],section[id]')){
         frame.style.pointerEvents='';frame.removeAttribute('aria-busy');
         previewProgress.hidden=true;
       }
