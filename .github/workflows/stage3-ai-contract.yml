@@ -188,10 +188,27 @@ jobs:
           cmp "$RUNNER_TEMP/hostinger-stage3-package/release/cms-release.json" "$RUNNER_TEMP/fox-stage3-code/release/cms-release.json"
           mv "$RUNNER_TEMP/fox-stage3-code/release" "$RUNNER_TEMP/fox-stage3-code/fox-update-$GITHUB_SHA"
           cd "$RUNNER_TEMP/fox-stage3-code"
+          # pack-php-host deliberately creates a private 0700/0600 worktree.
+          # The manual Hostinger File Manager archive needs traversable 0755
+          # directories and readable 0644 code files after extraction. It has
+          # no installation-local private-config pointer or credentials.
+          find "fox-update-$GITHUB_SHA" -type d -exec chmod 0755 {} +
+          find "fox-update-$GITHUB_SHA" -type f -exec chmod 0644 {} +
           zip -q -r "ai-site-stage3-fox-code-$GITHUB_SHA.zip" "fox-update-$GITHUB_SHA"
           unzip -Z1 "ai-site-stage3-fox-code-$GITHUB_SHA.zip" > entries.txt
           grep -q "^fox-update-$GITHUB_SHA/stage3/" entries.txt
           ! grep -q "public_html" entries.txt
+          mkdir -p "$RUNNER_TEMP/fox-stage3-code/unzip-audit"
+          unzip -q "ai-site-stage3-fox-code-$GITHUB_SHA.zip" -d "$RUNNER_TEMP/fox-stage3-code/unzip-audit"
+          extracted="$RUNNER_TEMP/fox-stage3-code/unzip-audit/fox-update-$GITHUB_SHA"
+          test "$(stat -c '%a' "$extracted")" = '755'
+          test "$(stat -c '%a' "$extracted/stage3")" = '755'
+          test "$(stat -c '%a' "$extracted/stage3/server")" = '755'
+          test "$(stat -c '%a' "$extracted/stage3/studio/bundle.js")" = '644'
+          test "$(stat -c '%a' "$extracted/cms-release.json")" = '644'
+          test ! -e "$extracted/stage3/server/private-config-path.json"
+          test ! -e "$extracted/public_html"
+          node "$GITHUB_WORKSPACE/stage3/bin/cms-release.cjs" verify-fox-code-only "$extracted"
       - name: Upload FOX runtime-only code artifact (manual update, no deployment)
         uses: actions/upload-artifact@v4
         with:
