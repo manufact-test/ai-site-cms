@@ -167,6 +167,9 @@ jobs:
           node --check stage3/bin/cms-release.cjs
           node --check stage3/tests/hostinger-package-smoke.cjs
           node stage3/tests/hostinger-package-smoke.cjs
+          node --check stage3/bin/fox-update-preflight.cjs
+          node --check stage3/tests/fox-update-preflight-smoke.cjs
+          node stage3/tests/fox-update-preflight-smoke.cjs
           mkdir -p "$RUNNER_TEMP/hostinger-stage3-package"
           node stage3/bin/cms-release.cjs pack-hostinger-sibling "$GITHUB_WORKSPACE" "$RUNNER_TEMP/hostinger-stage3-package/release"
           node stage3/bin/cms-release.cjs verify "$RUNNER_TEMP/hostinger-stage3-package/release"

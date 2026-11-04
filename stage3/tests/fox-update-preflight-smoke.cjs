@@ -1,0 +1,104 @@
+#!/usr/bin/env node
+'use strict';
+// Disposable ZIP fixtures. Never reads installed host credentials or touches a DB.
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const os=require('node:os');
+const path=require('node:path');
+const {spawnSync}=require('node:child_process');
+
+const repo=path.resolve(__dirname,'../..');
+const builder=path.join(repo,'stage3/bin/cms-release.cjs');
+const preflight=path.join(repo,'stage3/bin/fox-update-preflight.cjs');
+const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'fox-update-preflight-'));
+const wrapper='fox-update-'+('a'.repeat(40));
+const pointer='server/private-config-path.json';
+
+function run(binary,args,cwd=repo,expected=0){
+  const result=spawnSync(binary,args,{cwd,encoding:'utf8',timeout:60000,maxBuffer:16*1024*1024});
+  if(result.error||result.status!==expected)throw Error('Unexpected command exit: '+binary+' '+args.join(' ')+
+    '\n'+(result.error?.message||result.stderr||result.stdout));
+  return result;
+}
+function zipTree(root,file,names){run('zip',['-q','-r',file,...names],root);}
+function normalize(folder){
+  fs.chmodSync(folder,0o755);
+  for(const entry of fs.readdirSync(folder,{withFileTypes:true})){
+    const full=path.join(folder,entry.name);
+    if(entry.isDirectory())normalize(full);
+    else if(entry.isFile())fs.chmodSync(full,0o644);
+    else throw Error('unexpected fixture file type');
+  }
+}
+function check(backup,candidate,expected=0){
+  return run(process.execPath,[preflight,backup,candidate],repo,expected);
+}
+
+try{
+  const source=path.join(tmp,'release');
+  run(process.execPath,[builder,'pack-php-host',repo,source]);
+  const candidateRoot=path.join(tmp,wrapper);
+  fs.renameSync(source,candidateRoot);
+  normalize(candidateRoot);
+  const candidate=path.join(tmp,'code-only.zip');
+  zipTree(tmp,candidate,[wrapper]);
+
+  const installed=path.join(tmp,'installed');
+  fs.cpSync(path.join(candidateRoot,'stage3'),installed,{recursive:true});
+  const pointerPath=path.join(installed,pointer);
+  fs.writeFileSync(pointerPath,'{"fixture":"opaque and never read"}\n',{mode:0o600});
+  fs.chmodSync(pointerPath,0o600);
+  fs.writeFileSync(path.join(installed,'server/bin/finish-stage3-install.php'),
+    '<?php /* installed-only fixture, never executed */\n');
+  const oldNames=['components','media-motion','server','studio'];
+  const backup=path.join(tmp,'installed-backup.zip');
+  zipTree(installed,backup,oldNames);
+
+  const result=JSON.parse(check(backup,candidate).stdout);
+  assert.equal(result.action,'fox-code-update-preflight');
+  assert.equal(result.valid,true);
+  assert.equal(result.deployed,false);
+  assert.equal(result.installedBackup.pointerMode,'-rw-------');
+  assert.equal(result.candidate.zipMode,'directories-0755/files-0644');
+  assert.deepEqual(result.delta.added,[]);
+  assert.deepEqual(result.delta.modified,[]);
+  assert.equal(result.delta.unchanged,result.candidate.runtimeFiles);
+  assert.deepEqual(result.delta.installedOnly,['server/bin/finish-stage3-install.php',pointer]);
+  assert.equal(result.installationLocalPointerMustBePreserved,true);
+  assert.equal(result.independentDatabaseBackupAndOwnerSwitchApprovalStillRequired,true);
+
+  // Reject a ZIP that File Manager cannot normally traverse.
+  fs.chmodSync(candidateRoot,0o700);
+  const badMode=path.join(tmp,'bad-mode.zip');
+  zipTree(tmp,badMode,[wrapper]);
+  assert.match(check(backup,badMode,1).stderr,/mode/);
+  fs.chmodSync(candidateRoot,0o755);
+
+  // Reject stale/tampered runtime bytes even when the manifest is unchanged.
+  const sourcePhp=path.join(candidateRoot,'stage3/server/RuntimeConfig.php');
+  fs.appendFileSync(sourcePhp,'\n/* tampered package */\n');
+  const badRuntime=path.join(tmp,'bad-runtime.zip');
+  zipTree(tmp,badRuntime,[wrapper]);
+  assert.match(check(backup,badRuntime,1).stderr,/hash mismatch/);
+
+  // Reject a purported installed snapshot lacking the installation pointer.
+  fs.unlinkSync(pointerPath);
+  const noPointer=path.join(tmp,'missing-pointer.zip');
+  zipTree(installed,noPointer,oldNames);
+  assert.match(check(noPointer,candidate,1).stderr,/missing its private config pointer/);
+
+  // Reject silent loss of any other installed runtime file.
+  fs.writeFileSync(pointerPath,'{"fixture":"opaque and never read"}\n',{mode:0o600});
+  fs.chmodSync(pointerPath,0o600);
+  fs.writeFileSync(path.join(installed,'server/unknown-install-state.php'),'<?php // fixture\n');
+  const unknown=path.join(tmp,'unknown-old-state.zip');
+  zipTree(installed,unknown,oldNames);
+  assert.match(check(unknown,candidate,1).stderr,/unreviewed installed runtime files/);
+
+  process.stdout.write(JSON.stringify({action:'fox-update-preflight-smoke',valid:true,
+    installedPointerPreserved:true,hostPermissionsChecked:true,
+    badModeRejected:true,tamperedRuntimeRejected:true,missingPointerRejected:true,
+    extraInstalledStateRejected:true,hostMutation:false})+'\n');
+}finally{
+  fs.rmSync(tmp,{recursive:true,force:true});
+}
