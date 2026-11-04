@@ -2233,7 +2233,7 @@
     };
     frame.addEventListener('load',()=>{
       const doc=frame.contentDocument,page=pageForWork();if(!doc||!page)return;
-      if(Number(doc.querySelector('meta[name="cms-work-render-ticket"]')?.content)!==previewRequest)return;
+      if(HOSTED&&Number(doc.querySelector('meta[name="cms-work-render-ticket"]')?.content)!==previewRequest)return;
       const ids=new Set(page.sections.map(s=>s.id));
       if(renderedIdentity===session.current.siteId+'|'+page.path&&
         renderedSite===session.current&&
