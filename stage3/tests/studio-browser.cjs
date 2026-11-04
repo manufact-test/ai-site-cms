@@ -839,20 +839,32 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(await sectionNav.nth(1).getAttribute('aria-current'),'location');
     assert.equal(await sectionNav.nth(1).getAttribute('aria-keyshortcuts'),
       'ArrowUp ArrowDown Home End');
+    await page.waitForFunction(()=>
+      document.activeElement===document.querySelector('#sections .nav-entry.active'),
+      null,{timeout:3000});
     assert.equal(await sectionNav.nth(1).evaluate(node=>document.activeElement===node),true,
       'Section arrow navigation retains focus on the selected entry');
     await page.keyboard.press('End');
-    assert.equal(await sectionNav.last().evaluate(node=>document.activeElement===node),true);
+    await page.waitForFunction(()=>
+      document.activeElement===document.querySelector('#sections .nav-entry:last-child'),
+      null,{timeout:3000});
     await page.keyboard.press('Home');
-    assert.equal(await sectionNav.first().evaluate(node=>document.activeElement===node),true);
+    await page.waitForFunction(()=>
+      document.activeElement===document.querySelector('#sections .nav-entry:first-child'),
+      null,{timeout:3000});
     const pageNav=page.locator('#pages .nav-entry');
     await pageNav.first().focus();
     await page.keyboard.press('ArrowDown');
+    await page.waitForFunction(()=>
+      document.activeElement===document.querySelector('#pages .nav-entry.active[aria-current="page"]'),
+      null,{timeout:3000});
     assert.equal(await pageNav.nth(1).evaluate(node=>document.activeElement===node),true,
       'Page arrow navigation retains focus on its current entry');
     assert.equal(await pageNav.nth(1).getAttribute('aria-current'),'page');
     await page.keyboard.press('Home');
-    assert.equal(await pageNav.first().evaluate(node=>document.activeElement===node),true);
+    await page.waitForFunction(()=>
+      document.activeElement===document.querySelector('#pages .nav-entry:first-child'),
+      null,{timeout:3000});
     await openSectionTree();
     await page.locator('#sections .nav-entry')
       .filter({hasText:'Услуги · повторяемые карточки'}).click();
