@@ -1099,6 +1099,7 @@ async function execute(){
   const appearance=page.locator('#cms-work-fields > details.cms-work-appearance');
   await appearance.locator('summary').click();
   const appearanceScroll=await page.locator('.cms-work-panel').evaluate(node=>node.scrollTop);
+  await page.locator('[data-work-appearance="surface"]').focus();
   await page.locator('[data-work-appearance="surface"]').selectOption('tint');
   assert.equal(await appearance.evaluate(node=>node.open),true,
     'Appearance settings remain expanded after editing one of their fields');
