@@ -1212,8 +1212,8 @@ async function execute(){
   assert.notEqual(insertedWorkbenchSection,'section-approved-custom',
     'The newly inserted section is selected for immediate editing');
   await page.locator('#cms-work-undo').click();
-  assert.equal(await page.locator('#cms-work-section').inputValue(),'section-approved-custom',
-    'Undo on an inserted block selects the nearest surviving section, not an empty Inspector');
+  assert.equal(await page.locator('#cms-work-section').inputValue(),'section-approved-faq',
+    'Undo on an inserted block selects the following surviving section, not an empty Inspector');
   assert.ok(await page.locator('#cms-work-fields input, #cms-work-fields textarea').count()>0);
   assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
     beforeWorkbenchStructure,'Undo exactly restores the pre-insertion draft');
