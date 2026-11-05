@@ -1,5 +1,7 @@
 # Stage3 — integrated regression gate and reversible FOX update plan (updated 2026-11-05)
 
+> **MOST RECENT NO-DEPLOY ENGINEERING BUILD, 05.11.2026:** functional code/test SHA [`a5e559e16a8a01a25cae3c53abd7a5cf5f3042ac`](https://github.com/manufact-test/ai-site-cms/commit/a5e559e16a8a01a25cae3c53abd7a5cf5f3042ac), [full CI #42042863738 SUCCESS 4/4](https://github.com/manufact-test/ai-site-cms/actions/runs/42042863738). Matching [code-only FOX artifact #13423571722](https://github.com/manufact-test/ai-site-cms/actions/runs/42042863738/artifacts/13423571722) exists, but **the new exact bytes have not been independently downloaded, hashed or compared to the actual installed 85-file backup**. The `36511a9` hashes below are historical. The real Hostinger Studio remains on older installed code and the SQL restore/permission/explicit authorization gates remain unsatisfied: **LIVE SWITCH NO-GO**. No private-file read, runtime switch, DB or `public_html/` mutation was performed; owner 0/135 MUST. Transfer of active code/UX context: [NEXT-CHAT.md](../../docs/NEXT-CHAT.md).
+
 ## Current 2026-11-05 engineering candidate — LIVE SWITCH STILL NO-GO
 
 - Exact source/test SHA `36511a9c77342ca65eec12767c9b3a136f59cd24`, [NO DEPLOY CI #41989971893 — SUCCESS 4/4](https://github.com/manufact-test/ai-site-cms/actions/runs/41989971893) covering real offline/PHP Chromium, technology runtime, MariaDB 10.11 and 11.8. Previous 2026-11-04 `ffb9765` candidate and hashes below remain **historical**, not the current ZIP pins.
