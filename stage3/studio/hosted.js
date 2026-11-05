@@ -26,7 +26,7 @@
   const status=element('div','hosted-status','Нет открытого сайта');
   status.id='server-status';
   const row=element('div','hosted-buttons');
-  row.append(open,action('Обновить','server-reload',()=>safe(reload)),
+  row.append(open,action('Обновить','server-reload',()=>void reload()),
     action('Выйти','server-logout',()=>safe(logout)));
   const launchReviewButton=action('Проверка сайта','server-launch-review',()=>safe(openLaunchReview));
   row.append(launchReviewButton);
@@ -2961,7 +2961,7 @@
     if(button&&!button.disabled)button.click();
   });
   const conflictReload=action('Загрузить серверную версию','server-conflict-reload',()=>{
-    conflictDialog.close();void safe(reload);
+    conflictDialog.close();void reload();
   });
   const conflictStay=action('Остаться в редакторе','server-conflict-stay',()=>conflictDialog.close());
   const conflictActions=element('div','hosted-conflict-actions');
@@ -3682,7 +3682,7 @@
     }
     return site;
   }
-  function selectSite(result){
+  function selectSite(result,{preserveSelection=false}={}){
     const switched=state.siteId!==result.site.siteId;
     if(switched){previewData.clear();loadingMedia.clear();}
     state.siteId=result.site.siteId;
@@ -3692,7 +3692,7 @@
     // Otherwise the new site snapshot is previewed with the previous revision
     // and the server correctly rejects it as a stale editor request (409).
     state.revision=Number(result.revision);
-    editor.replace(restoreServerGraphMaps(result.site));
+    editor.replace(restoreServerGraphMaps(result.site),{preserveSelection:preserveSelection&&!switched});
     if(switched){pageSearch.reset();blockSearch.reset();}
     editorVisible(true);
     drawMedia();drawStatus();
@@ -5160,12 +5160,19 @@
     });
   }
   async function reload(){
-    if(!state.siteId)return;
-    if(isDirty()&&!confirm('Отменить несохранённые правки и загрузить серверную версию?'))return;
-    const id=state.siteId;
-    const data=await api('/api/sites/'+encodeURIComponent(id));
-    selectSite(data);await refreshSites();await loadHistory();await loadTemplates();
-    notice('Загружена текущая серверная ревизия.');
+    // The main canvas Reset action calls reload() directly, whereas the site
+    // toolbar and conflict dialog used to wrap it in safe(). Guard the entire
+    // shared path: a slow GET must never replace edits typed after it starts.
+    return safe(async()=>{
+      if(!state.siteId)return;
+      if(isDirty()&&!confirm('Отменить несохранённые правки и загрузить серверную версию?'))return;
+      const id=state.siteId;
+      const data=await api('/api/sites/'+encodeURIComponent(id));
+      if(state.siteId!==id)return;
+      selectSite(data,{preserveSelection:true});
+      await refreshSites();await loadHistory();await loadTemplates();
+      notice('Загружена текущая серверная ревизия.');
+    });
   }
   async function publishSite(){
     if(!state.siteId)throw Error('Нет открытого сайта');

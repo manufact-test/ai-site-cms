@@ -176,6 +176,29 @@ async function execute(){
     'A successful server Save keeps the currently selected page, section and element');
   assert.match(await page.locator('#pages .nav-entry.active').innerText(),/Контакт/);
   assert.match(await page.locator('#canvas-title').innerText(),/Контакт/);
+  // The main canvas Reset/Reload command formerly bypassed the server busy
+  // lock. A slow GET could silently overwrite edits made during the request.
+  let releaseReload,reloadSeen;
+  const reloadGate=new Promise(resolve=>{releaseReload=resolve;});
+  const reloadStarted=new Promise(resolve=>{reloadSeen=resolve;});
+  const reloadRoute='**/api/sites/'+siteId;
+  await page.route(reloadRoute,async route=>{
+    if(route.request().method()!=='GET')return route.continue();
+    reloadSeen();await reloadGate;return route.continue();
+  });
+  await page.locator('#reset').click();
+  await Promise.race([reloadStarted,new Promise((_,reject)=>
+    setTimeout(()=>reject(Error('Main canvas Reload request never started')),15000))]);
+  try{
+    assert.equal(await page.locator('.workspace').evaluate(node=>node.inert),true,
+      'Both edits and navigation lock while the server Reload is pending');
+    assert.equal(await page.locator('#server-reload').isDisabled(),true);
+  }finally{releaseReload();}
+  await page.waitForFunction(()=>!document.querySelector('.workspace').inert);
+  await page.unroute(reloadRoute);
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeSaveSelection,
+    'Reload of the same server site also returns to the same authoring context');
+  assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/);
   await page.locator('#pages .nav-entry').first().click();
   // A single operator-facing launch checklist previews every page and device
   // without publishing or bypassing the existing guarded Save/Publish buttons.
