@@ -2438,7 +2438,9 @@
               section.items?.some(item=>item.id===workElement))&&
             workFields.querySelector('[data-page-field="content.media"]');
           const imagePicker=graphMedia?
-            workFields.querySelector('#cms-work-graph-image-library, #cms-work-graph-media'):
+            (selectedGraphNode()?.type==='image'?
+              workFields.querySelector('#cms-work-graph-image-library'):
+              null)||workFields.querySelector('#cms-work-graph-media'):
             manifestMedia?workFields.querySelector('#cms-work-media'):null;
           if(imagePicker)imagePicker.open=true;
           const target=imagePicker|| (workGraphNode?
