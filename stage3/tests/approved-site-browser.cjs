@@ -1283,6 +1283,44 @@ async function execute(){
     'Undoing a nested duplicate picks its next surviving sibling');
   assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
     beforeGraphRemoval,'Duplicating and undoing a Graph node leaves no draft changes');
+  // Restricted Graph collections have dedicated add-item controls. A generic
+  // heading beside a list item is refused without changing the draft or
+  // losing the owner's exact selection in the contextual Inspector.
+  await page.locator('#cms-work-graph-node').selectOption('approved-custom-copy');
+  await page.locator('#cms-work-graph-insert-type').selectOption('list');
+  await page.locator('#cms-work-graph-insert-placement').selectOption('after');
+  await page.locator('#cms-work-graph-insert').click();
+  const newList=await page.locator('#cms-work-graph-node').inputValue();
+  assert.notEqual(newList,'approved-custom-copy');
+  assert.equal(await page.locator('#cms-work-graph-insert-placement option[value="inside"]')
+    .isDisabled(),true,'Typed lists expose their specific add-item action');
+  const listItem=await page.evaluate(id=>{
+    const section=window.Stage3Editor.getSite().pages[0].sections
+      .find(s=>s.id==='section-approved-custom');
+    const find=nodes=>{
+      for(const node of nodes){
+        if(node.id===id)return node;
+        const nested=find(node.children||[]);if(nested)return nested;
+      }
+      return null;
+    };
+    return find(section.designGraph.nodes)?.children[0].id;
+  },newList);
+  assert.ok(listItem);
+  await page.locator('#cms-work-graph-node').selectOption(listItem);
+  const beforeRejectedListInsert=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+  await page.locator('#cms-work-graph-insert-type').selectOption('heading');
+  await page.locator('#cms-work-graph-insert-placement').selectOption('after');
+  await page.locator('#cms-work-graph-insert').click();
+  assert.match(await page.locator('#cms-work-error').innerText(),/разрешён только тип/,
+    'A typed collection explains why this insertion is not permitted');
+  assert.equal(await page.locator('#cms-work-graph-node').inputValue(),listItem,
+    'A rejected insertion retains the exact selected list item');
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeRejectedListInsert,'Rejected Graph insertion does not mutate the draft');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeGraphRemoval,'Undo removes only the temporary list and restores Graph content');
   // A rejected inline text edit must not discard what the owner typed: the
   // same quick-edit overlay stays open until valid text actually commits.
   await page.locator('#cms-work-section').selectOption('section-approved-faq');
@@ -1305,6 +1343,56 @@ async function execute(){
   await page.locator('#cms-work-undo').click();
   assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
     beforeQuickValidation,'Inline text correction is a single reversible transaction');
+  // Copy/move across two genuine PHP pages must remain one reversible draft
+  // command. Undo/Redo follows a moved section's stable ID across pages.
+  await page.locator('#cms-work-section').selectOption('section-approved-image');
+  const beforeCrossPagePlacement=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+  await page.locator('#cms-work-section-operations > summary').click();
+  const destPage=imported.pages.find(p=>p.path===alternateWorkPath);
+  assert.ok(destPage);
+  await page.locator('#cms-work-destination').selectOption(destPage.id);
+  await page.locator('#cms-work-position').selectOption('');
+  await page.locator('.cms-work-cross').getByRole('button',{name:'Скопировать'}).click();
+  const copiedSection=await page.locator('#cms-work-section').inputValue();
+  assert.notEqual(copiedSection,'section-approved-image');
+  assert.equal(await page.locator('#cms-page-preview-path').inputValue(),alternateWorkPath,
+    'Copy selects the new section on the destination page');
+  await page.waitForFunction(id=>{
+    const frame=document.querySelector('#cms-page-preview-frame');
+    return !frame.hasAttribute('aria-busy')&&
+      !!frame.contentDocument?.querySelector('[data-cms-section-id="'+id+'"],section[id="'+id+'"]');
+  },copiedSection);
+  assert.equal(await page.frameLocator('#cms-page-preview-frame')
+    .locator('.cms-work-current').getAttribute('id'),copiedSection,
+    'The copied section is selected in the real destination page canvas');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeCrossPagePlacement,'Undo of cross-page copy restores the exact original site');
+  assert.notEqual(await page.locator('#cms-work-section').inputValue(),copiedSection,
+    'Undo of copy leaves a valid destination Inspector');
+  await page.locator('#cms-page-preview-path').selectOption(originalWorkPath);
+  await page.locator('#cms-work-section').selectOption('section-approved-image');
+  if(!(await page.locator('#cms-work-section-operations').evaluate(node=>node.open)))
+    await page.locator('#cms-work-section-operations > summary').click();
+  await page.locator('#cms-work-destination').selectOption(destPage.id);
+  await page.locator('#cms-work-position').selectOption('');
+  await page.locator('.cms-work-cross').getByRole('button',{name:'Перенести'}).click();
+  assert.equal(await page.locator('#cms-page-preview-path').inputValue(),alternateWorkPath);
+  assert.equal(await page.locator('#cms-work-section').inputValue(),'section-approved-image',
+    'A cross-page move retains the exact original section ID');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.locator('#cms-page-preview-path').inputValue(),originalWorkPath,
+    'Undo of move follows the restored section back to its source page');
+  assert.equal(await page.locator('#cms-work-section').inputValue(),'section-approved-image');
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeCrossPagePlacement,'Move Undo restores both page structures exactly');
+  await page.locator('#cms-work-redo').click();
+  assert.equal(await page.locator('#cms-page-preview-path').inputValue(),alternateWorkPath,
+    'Redo follows the same section to its destination again');
+  assert.equal(await page.locator('#cms-work-section').inputValue(),'section-approved-image');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeCrossPagePlacement,'Final Undo leaves the approved site unchanged');
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
   await page.locator('#server-nav-site-settings').click();
   await page.locator('#server-view-site-settings:visible').waitFor();

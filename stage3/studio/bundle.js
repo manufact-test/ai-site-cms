@@ -5607,7 +5607,14 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     };
     const recoverWorkSelection=anchor=>{
       const pages=session.current.pages;
-      const page=pages.find(p=>p.id===anchor.pageId)||
+      const previousPage=pages.find(p=>p.id===anchor.pageId);
+      // A moved section keeps its stable ID. After Undo/Redo (or a direct
+      // cross-page move), follow that exact section across pages instead of
+      // silently selecting an unrelated block on its former page. A truly
+      // deleted section still falls back to the nearest surviving sibling.
+      const relocated=workSection&&!previousPage?.sections.some(s=>s.id===workSection)
+        ?pages.find(p=>p.sections.some(s=>s.id===workSection)):null;
+      const page=relocated||previousPage||
         pages[Math.min(Math.max(anchor.pageIndex,0),pages.length-1)];
       if(!page)return false;
       let changed=false;
@@ -6122,12 +6129,17 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     function editGraphTreeWork(operation,nextNodeId=''){
       const reveal=['insert','duplicate','remove'].includes(operation.action);
       const priorReveal=revealAfterHistory;
+      const priorNode=workGraphNode;
       if(reveal)revealAfterHistory=true;
       const applied=mutateGraphWork(({section})=>{
         section.designGraph=DESIGN_GRAPH.editTree(section.designGraph,operation);
         workGraphNode=nextNodeId;
       });
-      if(!applied)revealAfterHistory=priorReveal;
+      if(!applied){
+        revealAfterHistory=priorReveal;
+        workGraphNode=priorNode;
+        showWork();highlightWork();
+      }
       return applied;
     }
     // The contextual Inspector is rebuilt after each validated edit. Preserve
@@ -6453,10 +6465,22 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const insertPlace=document.createElement('select');insertPlace.className='control';
         insertPlace.id='cms-work-graph-insert-placement';
         insertPlace.setAttribute('aria-label','Расположение нового элемента');
+        // Lists, galleries, tabs, carousels and tables have strictly typed
+        // children and already expose their own dedicated "add" controls.
+        // Never offer a generic nested node that the SDK must reject.
+        const freeContainer=['container','disclosure','tab','popup'].includes(current.type);
         for(const [value,label] of [['after','После'],['before','Перед'],['inside','Внутрь контейнера']]){
           const option=document.createElement('option');option.value=value;option.textContent=label;
-          option.disabled=value==='inside'&&!['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(current.type);insertPlace.append(option);
+          option.disabled=value==='inside'&&!freeContainer;insertPlace.append(option);
         }
+        const graphParentType=(nodes,id,parent='')=>{
+          for(const node of nodes||[]){
+            if(node.id===id)return parent;
+            const found=graphParentType(node.children,id,node.type);
+            if(found!==null)return found;
+          }
+          return null;
+        };
         const makeNode=type=>{
           const node={id:uniqueId('dg-node'),type,styles:{}};
           if(type==='text')node.text='Новый текстовый элемент';
@@ -6519,8 +6543,16 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           return node;
         };
         const insertNode=(type,placement)=>{
-          if(placement==='inside'&&!['container','disclosure','tabs','tab','list','gallery','table','table-row','popup'].includes(current.type))
-            return feedback('Вложить можно только в контейнер.',true);
+          if(placement==='inside'&&!freeContainer)
+            return feedback('Для этого элемента используйте специальную кнопку добавления ниже.',true);
+          const parentType=placement==='inside'?current.type:
+            graphParentType(section.designGraph.nodes,current.id);
+          const restricted={list:'list-item',gallery:'image',carousel:'container',
+            tabs:'tab',table:'table-row','table-row':'table-cell'};
+          if(restricted[parentType]&&restricted[parentType]!==type)
+            return feedback('Внутри «'+workNodeLabel({type:parentType})+
+              '» разрешён только тип «'+workNodeLabel({type:restricted[parentType]})+
+              '». Выберите родительский элемент и его кнопку добавления.',true);
           try{
             const node=makeNode(type);
             // Popovers belong only to the graph root, regardless of inspector selection.
@@ -7511,13 +7543,13 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         structureWork({action:'placeSection',mode:modeValue,pageId:page.id,
           sectionId,toPageId:target.id,targetSectionId:placementSelect.value||undefined,
           side:placementSelect.value?'before':'end',...(modeValue==='copy'?{id}:{})});
-        if(target.sections.some(s=>s.id===id)||session.current.pages
-          .find(p=>p.id===target.id)?.sections.some(s=>s.id===id)){
-          const actual=session.current.pages.find(p=>p.id===target.id);
-          if(actual.sections.some(s=>s.id===id)){
-            pathSelect.value=actual.path;workSection=id;workElement='';
-            showWork();render();
-          }
+        const actual=session.current.pages.find(p=>p.id===target.id);
+        if(actual?.sections.some(s=>s.id===id)&&
+          (pathSelect.value!==actual.path||workSection!==id)){
+          pathSelect.value=actual.path;workSection=id;workElement='';
+          workFocusPath='';workFormField='';workGraphNode='';
+          previewScroll=0;revealAfterHistory=true;
+          dismissQuick();showWork();render();
         }
       };
       const ops=document.createElement('div');ops.className='cms-work-actions';
