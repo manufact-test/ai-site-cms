@@ -1191,6 +1191,72 @@ async function execute(){
     .find(s=>s.id==='section-approved-custom').designGraph.nodes[0].children
     .find(n=>n.id==='approved-custom-copy').text),originalWorkText,
     'Both Inspector edits remain independent, exact Undo transactions');
+  // A section chosen from the existing Workbench list must become visible
+  // on its own central canvas, even when it is far below the current scroll.
+  await page.frameLocator('#cms-page-preview-frame').locator('body').evaluate(node=>{
+    node.ownerDocument.defaultView.scrollTo(0,0);
+  });
+  await page.locator('#cms-work-section').selectOption('section-approved-faq');
+  await page.locator('#cms-work-section').selectOption('section-approved-custom');
+  assert.equal(await page.frameLocator('#cms-page-preview-frame')
+    .locator('.cms-work-current').evaluate(node=>{
+      const rect=node.getBoundingClientRect();
+      return rect.top>=-3&&rect.top<node.ownerDocument.defaultView.innerHeight-48;
+    }),true,'Choosing a distant section in the Inspector reveals it in the page canvas');
+  // Adding a section is an Undo transaction: the Workbench must keep a usable
+  // nearby Inspector when the just-inserted selection disappears again.
+  const beforeWorkbenchStructure=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+  await page.locator('#cms-work-component').selectOption('feature-highlights');
+  await page.locator('.cms-work-add').getByRole('button',{name:'+ Блок после'}).click();
+  const insertedWorkbenchSection=await page.locator('#cms-work-section').inputValue();
+  assert.notEqual(insertedWorkbenchSection,'section-approved-custom',
+    'The newly inserted section is selected for immediate editing');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.locator('#cms-work-section').inputValue(),'section-approved-custom',
+    'Undo on an inserted block selects the nearest surviving section, not an empty Inspector');
+  assert.ok(await page.locator('#cms-work-fields input, #cms-work-fields textarea').count()>0);
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeWorkbenchStructure,'Undo exactly restores the pre-insertion draft');
+  await page.locator('#cms-work-redo').click();
+  assert.ok(await page.locator('#cms-work-section option').count()>0,
+    'Redo retains a usable contextual Inspector after restoring the insertion');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeWorkbenchStructure);
+  // Adding/removing FAQ cards and Undo must recover the adjacent surviving
+  // card (not the section heading), retaining the original text verbatim.
+  await page.locator('#cms-work-section').selectOption('section-approved-faq');
+  await page.locator('#cms-work-element').selectOption('approved-faq-item-1');
+  const beforeFaqRemoval=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+  await page.locator('#cms-work-repeat-add').click();
+  const addedFaqItem=await page.locator('#cms-work-element').inputValue();
+  assert.notEqual(addedFaqItem,'approved-faq-item-1');
+  await page.locator('#cms-work-element').selectOption('approved-faq-item-1');
+  page.once('dialog',dialog=>dialog.accept());
+  await page.locator('#cms-work-repeat').getByRole('button',{name:'× Карточка'}).click();
+  assert.equal(await page.locator('#cms-work-element').inputValue(),addedFaqItem,
+    'Removing a repeat card keeps its nearest surviving sibling selected');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.locator('#cms-work-element').inputValue(),addedFaqItem,
+    'Undo of a repeat-card removal retains the surviving selected card');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeFaqRemoval,'Undo restores both FAQ transactions exactly');
+  assert.ok(await page.locator('#cms-work-fields [data-page-field="content.question"]').count()>0,
+    'FAQ properties remain editable after the removed item is restored');
+  // The same recovery is required after deleting a non-first section.
+  await page.locator('#cms-work-section').selectOption('section-approved-image');
+  const beforeSectionRemoval=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+  await page.locator('#cms-work-section-operations > summary').click();
+  page.once('dialog',dialog=>dialog.accept());
+  await page.locator('#cms-work-section-operations').getByRole('button',{name:'Удалить',exact:true}).click();
+  assert.equal(await page.locator('#cms-work-section').inputValue(),'section-approved-custom',
+    'Deleting a middle section reveals its next sibling rather than the first page block');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeSectionRemoval,'Workbench Undo restores a removed middle section byte for byte');
+  assert.ok(await page.locator('#cms-work-fields').locator('input,textarea,select').count()>0,
+    'The contextual Inspector remains active after section Undo');
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
   await page.locator('#server-nav-site-settings').click();
   await page.locator('#server-view-site-settings:visible').waitFor();

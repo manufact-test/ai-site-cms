@@ -2121,6 +2121,7 @@
     // Select sections only in the validated, scriptless page preview.
     // Every edit uses the same SDK draft history as the right-side inspector.
     let workSection='',workElement='',workFocusPath='',workFormField='',workGraphNode='';
+    let revealAfterHistory=false;
     // Keep the owner's explicit choice to expand structural Graph operations
     // while switching between elements, but start every Workbench visit clean.
     let graphOperationsOpen=false;
@@ -2147,6 +2148,49 @@
     const canWrite=()=>!HOSTED||!!window.Stage3Host?.canEditStudio?.();
     const pageForWork=()=>session.current.pages.find(p=>p.path===pathSelect.value);
     const sectionForWork=()=>pageForWork()?.sections.find(s=>s.id===workSection);
+    // Keep the Workbench at the nearest surviving selection when an Undo,
+    // deletion or cross-page move removes its current section or repeat card.
+    // The main canvas already has this safeguard; the full-page editor uses
+    // its own selection and must recover independently.
+    const workSelectionAnchor=()=>{
+      const page=pageForWork(),section=sectionForWork();
+      return {pageId:page?.id||'',pageIndex:session.current.pages.indexOf(page),
+        sectionIndex:page?.sections.indexOf(section)??-1,
+        itemIndex:section?.items?.findIndex(item=>item.id===workElement)??-1,
+        graphIndex:graphNodes(section).findIndex(row=>row.node.id===workGraphNode)};
+    };
+    const recoverWorkSelection=anchor=>{
+      const pages=session.current.pages;
+      const page=pages.find(p=>p.id===anchor.pageId)||
+        pages[Math.min(Math.max(anchor.pageIndex,0),pages.length-1)];
+      if(!page)return false;
+      let changed=false;
+      if(pathSelect.value!==page.path){
+        pathSelect.replaceChildren();
+        for(const p of pages){const option=document.createElement('option');
+          option.value=p.path;option.textContent=p.title+' · '+p.path;pathSelect.append(option);}
+        pathSelect.value=page.path;previewScroll=0;changed=true;
+      }
+      const section=page.sections.find(s=>s.id===workSection)||
+        page.sections[Math.min(Math.max(anchor.sectionIndex,0),page.sections.length-1)];
+      if(!section)return changed;
+      const sectionChanged=section.id!==workSection;
+      if(sectionChanged){workSection=section.id;changed=true;}
+      const entities=[...section.elements,...(section.items||[])];
+      if(!entities.some(e=>e.id===workElement)){
+        workElement=(!sectionChanged&&anchor.itemIndex>=0?
+          section.items?.[Math.min(anchor.itemIndex,section.items.length-1)]?.id:null)||
+          section.elements[0]?.id||entities[0]?.id||'';
+        workFocusPath='';workFormField='';changed=true;
+      }
+      const rows=graphNodes(section);
+      if(!rows.some(row=>row.node.id===workGraphNode)){
+        const surviving=rows[Math.min(Math.max(sectionChanged?0:anchor.graphIndex,0),rows.length-1)]?.node.id||'';
+        if(workGraphNode!==surviving){workGraphNode=surviving;changed=true;}
+      }
+      if(changed)dismissQuick();
+      return changed;
+    };
     const feedback=(s,bad=false)=>{workError.textContent=bad?s:'';workStatus.textContent=bad?'Не применено':s;};
     const workButton=(label,fn)=>{const b=button(label,'btn small',fn);b.dataset.editorWrite='true';return b;};
     function highlightWork(){
@@ -2165,6 +2209,30 @@
         el.classList.toggle('cms-work-graph-current',!!workGraphNode&&
           el.dataset.cmsWorkGraphNode===workGraphNode);
     }
+    // A deliberate Inspector-list selection must reveal the matching item on
+    // the page. Never call this for ordinary edits or responsive switches:
+    // scrolling away from a selected item remains the owner's own choice.
+    const revealWorkSelection=(prefer='graph')=>{
+      const doc=frame.contentDocument;
+      if(!doc||frame.hasAttribute('aria-busy'))return false;
+      const selected=workGraphNode?
+        [...doc.querySelectorAll('[data-cms-work-graph-node]')]
+          .find(el=>el.dataset.cmsWorkGraphNode===workGraphNode):null;
+      const element=workElement?[...doc.querySelectorAll('[data-cms-work-element]')]
+        .find(el=>el.dataset.cmsWorkElement===workElement&&
+          (!workFocusPath||el.dataset.cmsWorkPath===workFocusPath)):null;
+      const section=[...doc.querySelectorAll('.cms-work-target')]
+        .find(el=>(el.dataset.cmsSectionId||el.id)===workSection);
+      const target=prefer==='section'?section:
+        prefer==='element'?element||section:selected||element||section;
+      if(!target)return false;
+      const rect=target.getBoundingClientRect(),height=frame.clientHeight;
+      if(!rect.width&&!rect.height)return false;
+      if(rect.top>=12&&rect.top<height-48)return true;
+      frame.contentWindow?.scrollTo(0,Math.max(0,Math.round(
+        (frame.contentWindow?.scrollY||0)+rect.top-24)));
+      return true;
+    };
     const quick=document.createElement('div');quick.className='cms-work-quick';quick.hidden=true;
     quick.id='cms-work-quick';quick.setAttribute('role','group');
     const quickLabel=document.createElement('label');quickLabel.textContent='Изменить текст на странице';
@@ -2505,6 +2573,9 @@
       }else if(reviewScroll===null&&previewScroll>0)
         frame.contentWindow?.scrollTo(0,previewScroll);
       highlightWork();
+      if(revealAfterHistory&&sections.some(el=>ids.has(idOf(el)))){
+        revealAfterHistory=false;revealWorkSelection();
+      }
       // A phone-sized Workbench opens on the owner's SELECTED content, not
       // the tall site header above it. Do this once, after real PHP bindings
       // exist; never override a deliberate Review scroll or future edits.
@@ -2526,6 +2597,7 @@
     function structureWork(action){
       if(!canWrite())return feedback('Нет права на редактирование.',true);
       try{
+        const anchor=workSelectionAnchor();
         const signature=x=>[x.kind,x.pageId,x.sectionId||'',x.path].join('|');
         const before=new Set(C.inspectSite(session.current,manifests).errors
           .filter(x=>x.kind==='broken-link'||x.kind==='broken-anchor').map(signature));
@@ -2534,14 +2606,12 @@
           (x.kind==='broken-link'||x.kind==='broken-anchor')&&!before.has(signature(x)));
         if(broken.length)throw Error('Новая битая ссылка: '+broken[0].path);
         session=next;
-        if(!sectionForWork())workSection=pageForWork()?.sections[0]?.id||'';
-        // Appearance and device visibility modify properties of the SAME
-        // section. Keep its selected element/Graph node and open controls;
-        // only real structural moves/removals invalidate that selection.
-        if(!['updateAppearance','setSectionVisibility'].includes(action.action)){
-          workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();
-        }
+        const recovered=recoverWorkSelection(anchor);
+        // The selected object may survive a move, card reorder, link or
+        // duplication. Recovery above resets only the identities actually
+        // removed; do not discard a still-valid element on every operation.
         draw();showWork();render();
+        if(recovered)revealAfterHistory=true;
         feedback('Структура изменена в черновике. Сохранить и опубликовать — отдельно.');
       }catch(e){feedback(e.message,true);}
     }
@@ -2900,6 +2970,7 @@
           workPanel.scrollTop=panelScroll;modal.scrollTop=dialogScroll;
           workFields.querySelector('#cms-work-graph-node')?.focus({preventScroll:true});
           highlightWork();
+          revealWorkSelection('graph');
         });
         const graphActions=document.createElement('div');
         graphActions.className='cms-work-graph-actions';
@@ -4034,18 +4105,23 @@
       const next=focusables().find(node=>workControlKey(node)===key);
       next?.focus({preventScroll:false});
     },true);
-    workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();showWork();highlightWork();});
-    workElementPicker.addEventListener('change',()=>{workElement=workElementPicker.value;workFocusPath='';workFormField='';dismissQuick();showWork();highlightWork();});
+    workSectionPicker.addEventListener('change',()=>{workSection=workSectionPicker.value;workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();showWork();highlightWork();revealWorkSelection('section');});
+    workElementPicker.addEventListener('change',()=>{workElement=workElementPicker.value;workFocusPath='';workFormField='';dismissQuick();showWork();highlightWork();revealWorkSelection('element');});
     pathSelect.addEventListener('change',()=>{previewScroll=0;workSection=pageForWork()?.sections[0]?.id||'';workElement='';workFocusPath='';workFormField='';workGraphNode='';dismissQuick();showWork();});
     const history=document.createElement('div');history.id='cms-work-history';history.className='cms-work-history';
-    const undoWork=workButton('↶ Отмена',()=>{
-      if(!canWrite())return;session=D.undo(session,manifests);draw();showWork();render();
-      feedback('Undo восстановил черновик, публикация не изменена.');
-    });undoWork.id='cms-work-undo';
-    const redoWork=workButton('↷ Повтор',()=>{
-      if(!canWrite())return;session=D.redo(session,manifests);draw();showWork();render();
-      feedback('Redo обновил черновик, публикация не изменена.');
-    });redoWork.id='cms-work-redo';
+    const stepWorkHistory=direction=>{
+      if(!canWrite())return;
+      const anchor=workSelectionAnchor();
+      session=direction==='undo'?D.undo(session,manifests):D.redo(session,manifests);
+      revealAfterHistory=recoverWorkSelection(anchor);
+      draw();showWork();render();
+      feedback(direction==='undo'?'Undo восстановил черновик, публикация не изменена.':
+        'Redo обновил черновик, публикация не изменена.');
+    };
+    const undoWork=workButton('↶ Отмена',()=>stepWorkHistory('undo'));
+    undoWork.id='cms-work-undo';
+    const redoWork=workButton('↷ Повтор',()=>stepWorkHistory('redo'));
+    redoWork.id='cms-work-redo';
     history.append(undoWork,redoWork);workPanel.append(history);
     const open=button('Вся страница · редактировать','btn small',()=>{
       pathSelect.replaceChildren();
