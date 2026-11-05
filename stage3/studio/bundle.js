@@ -12156,11 +12156,16 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     },
     refreshPreview:()=>drawPreview(),
     isDirty:()=>JSON.stringify(session.current)!==savedBytes,
-    replace:site=>{
+    replace:(site,{preserveSelection=false}={})=>{
       const checked=C.validateSite(site,manifests);
+      // Opening a different site starts at its first page. A successful Save
+      // refreshes this SAME site from the server: keep the owner's current
+      // page/section/element instead of jumping to the top after every Save.
+      const selection=preserveSelection?{pageId,sectionId,elementId}:null;
       session=D.begin(checked,manifests);versions=[];
-      pageId=checked.pages[0].id;sectionId=checked.pages[0].sections[0].id;
-      elementId=checked.pages[0].sections[0].elements[0].id;
+      pageId=selection?.pageId||checked.pages[0].id;
+      sectionId=selection?.sectionId||checked.pages[0].sections[0].id;
+      elementId=selection?.elementId||checked.pages[0].sections[0].elements[0].id;
       savedBytes=JSON.stringify(checked);draw();
     },
     remapImportedMedia:(site,idMap,assets)=>C.remapImportedMedia(site,manifests,idMap,assets),

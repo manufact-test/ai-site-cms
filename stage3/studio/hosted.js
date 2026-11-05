@@ -5153,7 +5153,7 @@
       const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/save','POST',
         {site:candidate,expectedRevision:state.revision});
       state.revision=result.revision;
-      editor.replace(restoreServerGraphMaps(result.site));
+      editor.replace(restoreServerGraphMaps(result.site),{preserveSelection:true});
       await refreshSites();await loadHistory();
       notice('Черновик сохранён на сервере как ревизия #'+state.revision+'. Публикация отдельно.');
       return true;

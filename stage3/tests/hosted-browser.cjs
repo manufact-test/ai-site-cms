@@ -162,9 +162,21 @@ async function execute(){
   await page.locator('#undo').click();
   assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).pages[1].sections.length,1);
 
+  // Saving a draft is not a navigation command. Keep the selected secondary
+  // page (and its Inspector context) after the PHP Save response replaces the
+  // local snapshot; the owner should not be sent back to page one.
+  await page.locator('#pages .nav-entry').last().click();
+  const beforeSaveSelection=await page.evaluate(()=>window.Stage3Editor.selection());
+  assert.equal(beforeSaveSelection.pageId,'page-contact');
+  assert.match(await page.locator('#canvas-title').innerText(),/Контакт/);
   await page.locator('#save').click();
   await page.locator('#server-status').getByText(/Черновик #2/).waitFor();
   assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/);
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeSaveSelection,
+    'A successful server Save keeps the currently selected page, section and element');
+  assert.match(await page.locator('#pages .nav-entry.active').innerText(),/Контакт/);
+  assert.match(await page.locator('#canvas-title').innerText(),/Контакт/);
+  await page.locator('#pages .nav-entry').first().click();
   // A single operator-facing launch checklist previews every page and device
   // without publishing or bypassing the existing guarded Save/Publish buttons.
   // The real full-page editor exposes draft state and routes to the same
@@ -1840,8 +1852,14 @@ async function execute(){
     return section.elements.find(e=>e.id===photoId).values['content.media'];
   },{sectionId:showcaseLocation.sectionId,photoId:showcaseLocation.photoId})),directAssetId);
   assert.equal(await page.locator('#cms-page-preview').evaluate(el=>el.open),true);
+  const canvasBeforeWorkSave=await page.evaluate(()=>window.Stage3Editor.selection());
   await page.locator('#server-work-save').click();
   await page.locator('#server-work-state').getByText(/сохранён/).waitFor();
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),canvasBeforeWorkSave,
+    'Workbench Save preserves the main canvas context as well as its draft data');
+  assert.equal(await page.locator('#cms-page-preview-path').inputValue(),showcaseLocation.path);
+  assert.equal(await page.locator('#cms-work-section').inputValue(),showcaseLocation.sectionId);
+  assert.equal(await page.locator('#cms-work-element').inputValue(),showcaseLocation.photoId);
 
   // A larger original is optimized in the browser by the already audited
   // MediaMotionEngine; the original bytes never leave the tab. On a Graph
