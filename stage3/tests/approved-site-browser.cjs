@@ -943,6 +943,13 @@ async function execute(){
   await page.locator('#server-edit-page').click();
   await page.locator('#cms-page-preview[open]').waitFor();
   await page.locator('#cms-page-preview .cms-page-preview-modes [data-mode="desktop"]').click();
+  const secondaryWorkActions=page.locator('#cms-work-section-operations');
+  assert.equal(await secondaryWorkActions.evaluate(el=>el.open),false,
+    'A real hosted Workbench opens with secondary section actions hidden');
+  assert.equal(await page.locator('#cms-work-destination').isVisible(),false,
+    'Cross-page controls cannot overwhelm the contextual PHP editor');
+  assert.equal(await page.locator('#cms-work-fields').isVisible(),true,
+    'Editable properties remain visible in the real hosted Workbench');
   await page.waitForFunction(()=>{
     const frame=document.querySelector('#cms-page-preview-frame');
     return !!frame?.contentDocument?.querySelector('[data-cms-section-id],section[id]');
@@ -1081,8 +1088,13 @@ async function execute(){
   // collapse the expanded group or jump its internal scroll back to the top.
   await page.locator('#cms-work-section').selectOption('section-approved-custom');
   await page.locator('#cms-work-graph-node').selectOption('approved-custom-copy');
+  assert.equal(await secondaryWorkActions.evaluate(el=>el.open),false,
+    'Picking a different block keeps the technical actions collapsed');
   assert.equal(await page.evaluate(()=>document.activeElement?.id),'cms-work-graph-node',
     'Selecting a nested Graph element keeps keyboard focus on its new picker');
+  await secondaryWorkActions.locator('summary').click();
+  assert.equal(await page.locator('#cms-work-destination').isVisible(),true,
+    'Optional cross-page actions can still be opened deliberately');
   const workText=page.locator('[data-work-graph-field="text"]');
   const originalWorkText=await workText.inputValue();
   await workText.fill(originalWorkText+' · пробная правка');
@@ -1092,6 +1104,8 @@ async function execute(){
     .find(n=>n.id==='approved-custom-copy').text.endsWith('· пробная правка'));
   assert.equal(await page.locator('[data-work-graph-field="text"]').inputValue(),
     originalWorkText+' · пробная правка');
+  assert.equal(await secondaryWorkActions.evaluate(el=>el.open),true,
+    'An explicit secondary-actions disclosure remains open after editing the same element');
   assert.equal(await page.evaluate(()=>document.activeElement?.closest('.cms-work-panel')!==null),true,
     'Tab after saving a field stays inside the contextual Inspector');
   assert.notEqual(await page.evaluate(()=>document.activeElement?.dataset.workGraphField),'text',

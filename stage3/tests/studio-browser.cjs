@@ -1893,6 +1893,22 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     await page.locator('#cms-open-page-preview').click();
     await page.locator('#cms-page-preview').waitFor({state:'visible'});
     assert.equal(await page.locator('#cms-page-preview-frame').getAttribute('sandbox'),'allow-same-origin');
+    const workOperations=page.locator('#cms-work-section-operations');
+    assert.equal(await workOperations.evaluate(node=>node.open),false,
+      'Rare section actions start collapsed so editable content comes first');
+    assert.equal(await page.locator('#cms-work-fields').isVisible(),true,
+      'Element properties remain immediately available without opening section actions');
+    assert.equal(await page.locator('#cms-work-shared-status').isVisible(),false,
+      'Cross-page service controls stay out of the everyday Inspector');
+    const beforeWorkDisclosure=await page.evaluate(()=>window.Stage3Editor.getSite());
+    await workOperations.locator('summary').click();
+    assert.equal(await page.locator('#cms-work-destination').isVisible(),true,
+      'Moving or copying a section remains accessible inside the same disclosure');
+    assert.equal(await page.locator('#cms-work-device-visibility').isVisible(),true,
+      'Device visibility stays available among secondary section actions');
+    await workOperations.locator('summary').click();
+    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeWorkDisclosure,
+      'Opening and closing secondary controls never changes the site draft');
     await page.frameLocator('#cms-page-preview-frame').locator('h1').first().waitFor();
     await page.locator('#cms-page-preview-path').selectOption('/contact/');
     await page.frameLocator('#cms-page-preview-frame').locator('.contact').first().waitFor();
@@ -1900,6 +1916,10 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     const original=await page.frameLocator('#cms-page-preview-frame').locator('section.contact h2').innerText();
     assert.equal(await page.locator('#cms-work-element').inputValue(),'section-contact-heading',
       'Clicking heading selects the exact typed element');
+    assert.equal(await page.locator('#cms-work-element option[value="section-contact-heading"]').textContent(),
+      'Заголовок контактов','Element picker uses a meaningful manifest label, not the raw heading slot');
+    assert.equal(await workOperations.evaluate(node=>node.open),false,
+      'Selecting a different section does not expose secondary actions again');
     assert.equal(await page.locator('#cms-work-fields .cms-work-field-current [data-page-field]').getAttribute('data-page-field'),'content.text');
     await page.frameLocator('#cms-page-preview-frame').locator('section.contact .action').dblclick();
     assert.equal(await page.locator('#cms-work-element').inputValue(),'section-contact-action',

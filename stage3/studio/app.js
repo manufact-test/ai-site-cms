@@ -2620,6 +2620,15 @@
           (s.deviceVisibility?.[mode]===false?' · скрыто на '+modeName:'');
         workSectionPicker.append(o);}
       workSectionPicker.value=section.id;
+      // Keep the everyday element editor at the top of the Workbench. Rare
+      // section operations remain available together, but do not obscure the
+      // selected element's actual fields on each new selection/device.
+      const extra=document.createElement('details');extra.id='cms-work-section-operations';
+      extra.className='cms-work-operations';
+      const extraTitle=document.createElement('summary');
+      extraTitle.textContent='Дополнительные действия с секцией';
+      const extraBody=document.createElement('div');extraBody.className='cms-work-operations-body';
+      extra.append(extraTitle,extraBody);workActions.append(extra);
       const position=page.sections.indexOf(section);
       const up=workButton('↑',()=>structureWork({action:'moveSection',pageId:page.id,sectionId:section.id,delta:-1}));
       const down=workButton('↓',()=>structureWork({action:'moveSection',pageId:page.id,sectionId:section.id,delta:1}));
@@ -2637,7 +2646,9 @@
       const inspect=button('Полный инспектор','btn small',()=>{
         pageId=page.id;sectionId=section.id;elementId=workElement;breakpoint=mode;draw();modal.close();
       });
-      workActions.append(up,down,duplicate,remove,inspect);
+      const sectionOps=document.createElement('div');sectionOps.className='cms-work-actions';
+      sectionOps.append(up,down,duplicate,remove,inspect);
+      extraBody.append(sectionOps);
       const linked=section.sharedKey;
       const linkedCount=linked?session.current.pages.reduce((n,p)=>
         n+p.sections.filter(s=>s.sharedKey===linked).length,0):0;
@@ -2646,7 +2657,7 @@
       sharedStatus.textContent=linked?
         'Общая секция · '+linkedCount+' связанных страниц':
         'Секция на одной странице';
-      workActions.append(sharedStatus);
+      extraBody.append(sharedStatus);
       const availablePages=session.current.pages.filter(p=>p.id!==page.id&&
         p.sections.length<100&&(!linked||!p.sections.some(s=>s.sharedKey===linked)));
       if(availablePages.length){
@@ -2662,7 +2673,7 @@
             sharedKey:linked||uniqueId('shared')});
         });
         addShared.id='cms-work-shared-link';addShared.disabled=!canWrite();
-        workActions.append(target,addShared);
+        extraBody.append(target,addShared);
       }
       if(linked){
         const detach=workButton('Отвязать','cms-work-shared-detach',()=>{
@@ -2670,7 +2681,7 @@
             structureWork({action:'detachSharedSection',pageId:page.id,sectionId:section.id});
         });
         detach.id='cms-work-shared-detach';detach.disabled=!canWrite();
-        workActions.append(detach);
+        extraBody.append(detach);
       }
       const visibleControls=document.createElement('fieldset');visibleControls.id='cms-work-device-visibility';
       const visibleLegend=document.createElement('legend');visibleLegend.textContent='Видимость блока по устройствам';
@@ -2685,11 +2696,20 @@
         });
         row.append(control,document.createTextNode(' '+label));visibleControls.append(row);
       }
-      workActions.append(visibleControls);
+      extraBody.append(visibleControls);
       const els=[...section.elements,...(section.items||[])];
       if(!els.some(e=>e.id===workElement))workElement=section.elements[0].id;
-      for(const e of els){const o=document.createElement('option');o.value=e.id;
-        o.textContent=e.slot||'Карточка '+(section.items.indexOf(e)+1);workElementPicker.append(o);}
+      for(const e of els){
+        const o=document.createElement('option');o.value=e.id;
+        const index=section.items.indexOf(e);
+        const definition=manifest(section)?.elements?.find(item=>item.slot===e.slot);
+        const itemTitle=e.values?.['content.title']||e.values?.['content.question']||
+          e.values?.['content.caption']||e.values?.['content.author'];
+        o.textContent=index>=0?
+          (index+1)+'. '+String(itemTitle||'Карточка').slice(0,58):
+          (definition?.label||e.slot||'Элемент');
+        workElementPicker.append(o);
+      }
       workElementPicker.value=workElement;
       const controls=C.controls(session.current,manifests,page.id,section.id,workElement);
       if(!controls.some(f=>f.path===workFocusPath))workFocusPath='';
@@ -3881,12 +3901,12 @@
         workButton('Расширенное оформление',()=>openExisting('section-appearance')));
       if(section.component==='lead-form-flex')
         advanced.append(workButton('Конструктор формы',()=>openExisting('cms-form-builder-open')));
-      workFields.append(advanced);
+      extraBody.append(advanced);
 
       // Precise copy/move across pages and within a page: target before/after,
       // or append. Only the original moved section rewires incoming anchors.
-      const cross=document.createElement('details');cross.className='cms-work-cross';
-      const crossCaption=document.createElement('summary');crossCaption.textContent='Разместить на другой странице';
+      const cross=document.createElement('section');cross.className='cms-work-cross';
+      const crossCaption=document.createElement('h4');crossCaption.textContent='Разместить на другой странице';
       const destination=document.createElement('select');destination.className='control';
       destination.id='cms-work-destination';
       for(const p of session.current.pages){
@@ -3928,7 +3948,7 @@
       move.disabled=page.sections.length===1||!canWrite();
       ops.append(move,workButton('Скопировать',()=>place('copy')));
       cross.append(crossCaption,destination,placementSelect,ops);
-      workAdd.append(cross);
+      extraBody.append(cross);
       for(const details of workPanel.querySelectorAll('details'))
         if(openDisclosures.has(workDisclosureKey(details)))details.open=true;
       workPanel.scrollTop=panelScroll;

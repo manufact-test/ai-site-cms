@@ -229,6 +229,17 @@
 .cms-work-panel{min-width:0;overflow:auto;background:#10222e;border:1px solid #38535e;border-radius:9px;padding:12px;display:flex;flex-direction:column;gap:10px}
 .cms-work-panel h3{font-size:16px;margin:0}
 .cms-work-actions,.cms-work-history{display:flex;flex-wrap:wrap;gap:6px}
+.cms-work-operations{width:100%;min-width:0;border:1px solid #38535e;border-radius:9px;padding:10px;background:#142632}
+.cms-work-operations>summary{cursor:pointer;font-size:12px;font-weight:700;color:#b9d1df;line-height:1.5}
+.cms-work-operations>summary:focus-visible{outline:2px solid #89e9c2;outline-offset:4px}
+.cms-work-operations-body{display:grid;gap:10px;padding-top:12px}
+.cms-work-operations-body>.control{width:100%}
+.cms-work-operations-body>small{color:#9db7c7;line-height:1.5}
+.cms-work-operations-body fieldset{min-width:0;margin:0;border:1px solid #38535e;border-radius:9px;padding:9px}
+.cms-work-operations-body fieldset label{font-size:12px;margin-right:8px}
+.cms-work-operations-body .cms-work-advanced{margin:0}
+.cms-work-operations-body .cms-work-cross{margin:0}
+.cms-work-operations-body .cms-work-cross>h4{margin:0 0 9px;font-size:12px}
 .cms-work-field{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#bdd8e6;margin-bottom:9px}
 .cms-work-field .control{width:100%;min-width:0}
 .cms-work-field textarea{min-height:72px;resize:vertical}
