@@ -2264,6 +2264,7 @@
         return el&&ids.has(idOf(el))?el:null;
       };
       const sections=[...doc.querySelectorAll('[data-cms-section-id],section[id]')];
+      const uploadedAssetIds=new Set(session.current.assets.map(asset=>asset.id));
       for(const el of sections){
         if(!ids.has(idOf(el)))continue;
         el.classList.add('cms-work-target');
@@ -2349,15 +2350,16 @@
         const used=new Set();
         const repeatNodes=section.items&&repeatSelectors[section.component]?
           [...host.querySelectorAll(repeatSelectors[section.component])]:[];
+        // PHP omits gallery/logo cards without an uploaded image. Map the
+        // rendered cards to the same *filtered* item order, including empty or
+        // duplicate captions and repeated use of the same image. The offline
+        // mock renders placeholders, so its complete item order is unchanged.
+        const visibleItems=HOSTED&&['partner-logos','photo-gallery','adaptive-gallery']
+          .includes(section.component)?
+          section.items.filter(item=>uploadedAssetIds.has(item.values?.['content.media'])):
+          section.items||[];
         for(const [index,card] of repeatNodes.entries()){
-          let item=section.items[index];
-          // Media-only galleries may omit unbound assets from PHP output.
-          if(['partner-logos','photo-gallery','adaptive-gallery'].includes(section.component)){
-            item=section.items.find(x=>!repeatNodes.some((node,k)=>k<index&&
-              node.dataset.cmsWorkElement===x.id)&&
-              (norm(x.values['content.caption'])&&norm(card.textContent)
-                .includes(norm(x.values['content.caption']))))||item;
-          }
+          const item=visibleItems[index];
           if(!item)continue;
           card.dataset.cmsWorkElement=item.id;
           bindText(card,item,section,used);
@@ -2430,11 +2432,20 @@
           // iframe should actually reveal that item's existing Inspector.
           // Do not focus an input (which would open the soft keyboard) or
           // change the user's desktop/tablet canvas position.
-          const target=workGraphNode?
-            workFields.querySelector('#cms-work-graph-panel [data-work-graph-field="text"]')?.closest('.cms-work-field')||
+          const graphMedia=workGraphNode&&['image','video'].includes(selectedGraphNode()?.type);
+          const manifestMedia=workElement&&
+            (workFocusPath==='content.media'||!workFocusPath&&
+              section.items?.some(item=>item.id===workElement))&&
+            workFields.querySelector('[data-page-field="content.media"]');
+          const imagePicker=graphMedia?
+            workFields.querySelector('#cms-work-graph-image-library, #cms-work-graph-media'):
+            manifestMedia?workFields.querySelector('#cms-work-media'):null;
+          if(imagePicker)imagePicker.open=true;
+          const target=imagePicker|| (workGraphNode?
+            workFields.querySelector('#cms-work-graph-panel [data-work-graph-field="text"], #cms-work-graph-panel [data-work-graph-field^="richText:"]')?.closest('.cms-work-field')||
               workFields.querySelector('#cms-work-graph-panel'):
             workFormField?workFields.querySelector('#cms-work-form-focus'):
-              control?.closest('.cms-work-field')||workTitle;
+              control?.closest('.cms-work-field')||workFields.querySelector(':scope > .cms-work-field')||workTitle);
           target?.scrollIntoView({block:'start',behavior:'instant'});
         }else control?.scrollIntoView({block:'nearest'});
         return true;

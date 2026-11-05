@@ -1087,6 +1087,23 @@ async function execute(){
     'A normal template heading/paragraph likewise reveals the exact editable phone field');
   assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),beforePhoneTap);
   await page.locator('#cms-page-preview').evaluate(dialog=>{dialog.scrollTop=0;});
+  // An image has a different primary action from a text element: the owner
+  // should reach the EXISTING responsive media chooser with one canvas tap.
+  await page.frameLocator('#cms-page-preview-frame').locator('.cmsdg-n-approved-custom-photo').click();
+  assert.equal(await page.locator('#cms-work-graph-node').inputValue(),'approved-custom-photo');
+  assert.equal(await page.locator('#cms-work-graph-image-library').evaluate(node=>node.open),true,
+    'Tapping an authored image opens its real per-device library on a phone');
+  const phoneImageChooser=await page.evaluate(()=>{
+    const dialog=document.querySelector('#cms-page-preview');
+    const summary=dialog.querySelector('#cms-work-graph-image-library > summary');
+    const rect=summary.getBoundingClientRect(),view=dialog.getBoundingClientRect();
+    return {scroll:dialog.scrollTop,visible:rect.top>=view.top&&rect.top<view.bottom-40};
+  });
+  assert.ok(phoneImageChooser.scroll>30&&phoneImageChooser.visible,
+    'The phone jumps to the responsive image picker, not the distant Graph heading');
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),beforePhoneTap,
+    'Opening an image chooser by touch never edits or saves the draft');
+  await page.locator('#cms-page-preview').evaluate(dialog=>{dialog.scrollTop=0;});
   await page.setViewportSize({width:1400,height:1000});
   // Rapid page switching in the same Workbench: an old server-side conflict
   // must not unfreeze or replace the newer PHP iframe. Verify real HTML, not
@@ -2457,6 +2474,63 @@ async function execute(){
   await page.locator('#server-nav-editor').click();
   assert.equal((await visitor.goto(origin+'/published/site-approved-browser/')).status(),200,
     'Changing draft mobile imagery does not publish the new asset');
+
+  // Real PHP media renderers skip gallery items without a media file. Two
+  // visible cards may also have the same asset AND caption. Workbench binding
+  // must follow the exact remaining item order, never guess by caption or the
+  // unfiltered repeater index (which could edit an invisible neighbour).
+  const beforeSkippedMedia=await page.evaluate(()=>window.Stage3Editor.getSite());
+  const galleryProbe=await page.evaluate(()=>{
+    const original=window.Stage3Editor.getSite(),draft=structuredClone(original);
+    const asset=draft.assets.find(a=>/^image\/(png|jpeg|webp)$/.test(a.mime));
+    if(!asset)throw Error('Approved browser needs one owned photo');
+    const manifest=window.Stage3Editor.manifests().find(m=>m.id==='adaptive-gallery');
+    const defaults=fields=>Object.fromEntries(fields.map(f=>[f.path,structuredClone(f.default)]));
+    const section={id:'section-skipped-photo-probe',component:manifest.id,
+      manifestVersion:manifest.version,
+      elements:manifest.elements.map((entry,index)=>({id:'skipped-gallery-el-'+index,
+        slot:entry.slot,values:defaults(entry.fields)})),
+      items:['blank','second','third'].map((which,index)=>({
+        id:'skipped-gallery-'+which,
+        values:{...defaults(manifest.repeat.fields),
+          'content.media':index===0?'':asset.id,
+          'content.caption':'Одинаковая подпись'}
+      }))};
+    draft.pages[0].sections.push(section);
+    window.Stage3Editor.replace(draft);
+    return section.id;
+  });
+  await page.locator('#server-edit-page').click();
+  await page.locator('#cms-page-preview[open]').waitFor();
+  await page.locator('#cms-page-preview-path').selectOption('/');
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('#cms-page-preview [data-mode="mobile"]').click();
+  const renderedGallery=page.frameLocator('#cms-page-preview-frame')
+    .locator('#'+galleryProbe+' .cms-adaptive-card');
+  await page.waitForFunction(id=>{
+    const doc=document.querySelector('#cms-page-preview-frame')?.contentDocument;
+    const cards=doc?.querySelectorAll('#'+id+' .cms-adaptive-card');
+    return cards?.length===2&&cards[0].querySelector('img')
+      ?.dataset.cmsWorkElement==='skipped-gallery-second';
+  },galleryProbe,{timeout:20000});
+  assert.equal(await renderedGallery.count(),2,
+    'PHP omits the gallery item that has no valid uploaded photo');
+  await renderedGallery.first().locator('img').click();
+  assert.equal(await page.locator('#cms-work-element').inputValue(),'skipped-gallery-second',
+    'First visible image picks the second authored item after a skipped blank item');
+  assert.equal(await page.locator('#cms-work-media').evaluate(node=>node.open),true,
+    'A phone tap on a normal gallery photo opens its existing image choices');
+  await renderedGallery.nth(1).locator('img').click();
+  assert.equal(await page.locator('#cms-work-element').inputValue(),'skipped-gallery-third',
+    'Duplicate captions and image IDs do not collapse distinct gallery item identities');
+  assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections
+    .find(s=>s.id==='section-skipped-photo-probe').items[0].values['content.media']),'',
+    'Image selection never changes the hidden blank item');
+  await page.locator('#cms-page-preview').evaluate(dialog=>dialog.close());
+  await page.evaluate(site=>window.Stage3Editor.replace(site),beforeSkippedMedia);
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeSkippedMedia,
+    'The isolated test gallery is fully removed before account and production checks');
+  await page.setViewportSize({width:1400,height:1000});
 
   // Sign-out belongs to the account area, not the page or site settings.
   await page.locator('#server-nav-account').click();
