@@ -3581,8 +3581,10 @@
     const editingLocked=state.busy||!canEdit();
     document.querySelector('.workspace').inert=state.busy;
     if(workModal){
-      workModal.querySelector('.cms-work-panel').inert=editingLocked;
-      workModal.querySelector('.cms-page-preview-area').inert=editingLocked;
+      // Read-only roles can still inspect/select a page. Only an in-flight
+      // request freezes navigation as well as edits.
+      workModal.querySelector('.cms-work-panel').inert=state.busy;
+      workModal.querySelector('.cms-page-preview-area').inert=state.busy;
     }
     document.getElementById('fields').inert=editingLocked;
     for(const control of document.querySelectorAll('#cms-site-report [data-editor-write]'))control.disabled=editingLocked;
