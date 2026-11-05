@@ -1255,6 +1255,56 @@ async function execute(){
     beforeSectionRemoval,'Workbench Undo restores a removed middle section byte for byte');
   assert.ok(await page.locator('#cms-work-fields').locator('input,textarea,select').count()>0,
     'The contextual Inspector remains active after section Undo');
+  // Nested authored content is a real sibling hierarchy, not a flat set of
+  // technical nodes: removing text must focus its adjacent image, then Undo
+  // must restore the exact text and retain the still-valid image selection.
+  await page.locator('#cms-work-section').selectOption('section-approved-custom');
+  await page.locator('#cms-work-graph-node').selectOption('approved-custom-copy');
+  const beforeGraphRemoval=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+  await page.locator('#cms-work-graph-operations > summary').click();
+  await page.locator('#cms-work-graph-remove').click();
+  assert.equal(await page.locator('#cms-work-graph-node').inputValue(),'approved-custom-photo',
+    'Removing nested copy selects its adjacent image, not the unrelated root container');
+  assert.ok(await page.locator('#cms-work-graph-image-library').count()>0,
+    'The neighboring image properties remain ready for editing');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeGraphRemoval,'Undo restores the entire authored Graph text and its styles exactly');
+  assert.equal(await page.locator('#cms-work-graph-node').inputValue(),'approved-custom-photo',
+    'Undo retains the valid neighboring image selection');
+  // Duplicating and undoing a nested node must use the same nearby-context
+  // recovery, including real graph IDs created only after the click.
+  await page.locator('#cms-work-graph-node').selectOption('approved-custom-copy');
+  await page.locator('#cms-work-graph-duplicate').click();
+  const duplicatedGraphNode=await page.locator('#cms-work-graph-node').inputValue();
+  assert.notEqual(duplicatedGraphNode,'approved-custom-copy');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.locator('#cms-work-graph-node').inputValue(),'approved-custom-photo',
+    'Undoing a nested duplicate picks its next surviving sibling');
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeGraphRemoval,'Duplicating and undoing a Graph node leaves no draft changes');
+  // A rejected inline text edit must not discard what the owner typed: the
+  // same quick-edit overlay stays open until valid text actually commits.
+  await page.locator('#cms-work-section').selectOption('section-approved-faq');
+  const beforeQuickValidation=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+  await page.frameLocator('#cms-page-preview-frame')
+    .locator('[data-cms-work-element="element-approved-faq-0"][data-cms-work-path="content.text"]')
+    .dblclick();
+  await page.locator('#cms-work-quick:not([hidden])').waitFor();
+  const existingQuickText=await page.locator('#cms-work-quick-input').inputValue();
+  await page.locator('#cms-work-quick-input').evaluate(input=>{input.value='X'.repeat(250);});
+  await page.locator('#cms-work-quick-save').click();
+  assert.equal(await page.locator('#cms-work-quick').evaluate(node=>node.hidden),false,
+    'An invalid inline text edit stays open for correction');
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeQuickValidation,'Rejected inline text never touches the draft');
+  await page.locator('#cms-work-quick-input').fill(existingQuickText+' · правка');
+  await page.locator('#cms-work-quick-save').click();
+  assert.equal(await page.locator('#cms-work-quick').evaluate(node=>node.hidden),true,
+    'A valid corrected text edit commits and closes normally');
+  await page.locator('#cms-work-undo').click();
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),
+    beforeQuickValidation,'Inline text correction is a single reversible transaction');
   await page.evaluate(()=>document.querySelector('#cms-page-preview').close());
   await page.locator('#server-nav-site-settings').click();
   await page.locator('#server-view-site-settings:visible').waitFor();

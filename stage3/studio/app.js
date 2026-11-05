@@ -2143,6 +2143,24 @@
       if(section?.designGraph)walk(section.designGraph.nodes,0);
       return rows;
     };
+    // Nearest surviving Graph context, in the same visual nesting level:
+    // next sibling, previous sibling, then enclosing group. A flat first-node
+    // fallback otherwise sends the owner to an unrelated root container.
+    const graphNeighborIds=(section,id)=>{
+      const visit=(nodes,ancestors=[])=>{
+        for(const [index,node] of (nodes||[]).entries()){
+          if(node.id===id)return [
+            ...nodes.slice(index+1).map(sibling=>sibling.id),
+            ...nodes.slice(0,index).reverse().map(sibling=>sibling.id),
+            ...ancestors
+          ];
+          const nested=visit(node.children,[node.id,...ancestors]);
+          if(nested)return nested;
+        }
+        return null;
+      };
+      return visit(section?.designGraph?.nodes||[])||[];
+    };
     const selectedGraphNode=()=>graphNodes(sectionForWork())
       .find(x=>x.node.id===workGraphNode)?.node||null;
     const canWrite=()=>!HOSTED||!!window.Stage3Host?.canEditStudio?.();
@@ -2157,7 +2175,8 @@
       return {pageId:page?.id||'',pageIndex:session.current.pages.indexOf(page),
         sectionIndex:page?.sections.indexOf(section)??-1,
         itemIndex:section?.items?.findIndex(item=>item.id===workElement)??-1,
-        graphIndex:graphNodes(section).findIndex(row=>row.node.id===workGraphNode)};
+        graphIndex:graphNodes(section).findIndex(row=>row.node.id===workGraphNode),
+        graphNeighbors:graphNeighborIds(section,workGraphNode)};
     };
     const recoverWorkSelection=anchor=>{
       const pages=session.current.pages;
@@ -2185,7 +2204,9 @@
       }
       const rows=graphNodes(section);
       if(!rows.some(row=>row.node.id===workGraphNode)){
-        const surviving=rows[Math.min(Math.max(sectionChanged?0:anchor.graphIndex,0),rows.length-1)]?.node.id||'';
+        const valid=new Set(rows.map(row=>row.node.id));
+        const sibling=!sectionChanged?anchor.graphNeighbors?.find(id=>valid.has(id)):null;
+        const surviving=sibling||rows[Math.min(Math.max(sectionChanged?0:anchor.graphIndex,0),rows.length-1)]?.node.id||'';
         if(workGraphNode!==surviving){workGraphNode=surviving;changed=true;}
       }
       if(changed)dismissQuick();
@@ -2260,7 +2281,10 @@
       const field=page&&section?C.controls(session.current,manifests,page.id,section.id,workElement)
         .find(f=>f.path===workFocusPath&&f.type==='text'):null;
       if(!field||!canWrite())return feedback('Текст не доступен для изменения.',true);
-      editWork(field,quickInput);dismissQuick();
+      // Match Graph quick edits: validation may reject a too-long value.
+      // Keep the owner's draft text visible for correction, not silently
+      // close this temporary editor after a failed write.
+      if(editWork(field,quickInput))dismissQuick();
     });
     quickSave.id='cms-work-quick-save';
     quickButtons.append(quickSave,quickCancel);quick.append(quickLabel,quickRuns,quickButtons);area.append(quick);
@@ -2616,9 +2640,9 @@
       }catch(e){feedback(e.message,true);}
     }
     function editWork(f,field){
-      if(!canWrite())return feedback('Нет права на редактирование.',true);
+      if(!canWrite())return feedback('Нет права на редактирование.',true),false;
       const page=pageForWork(),section=sectionForWork();
-      if(!page||!section)return;
+      if(!page||!section)return false;
       try{
         const raw=f.type==='boolean'?field.checked:field.value;
         session=D.edit(session,manifests,{pageId:page.id,sectionId:section.id,
@@ -2626,7 +2650,8 @@
           breakpoint:f.responsive?mode:null,expectedRevision:session.revision});
         draw();showWork();render();
         feedback('Поле изменено в черновике. Undo доступен.');
-      }catch(e){feedback(e.message,true);}
+        return true;
+      }catch(e){feedback(e.message,true);return false;}
     }
 
     // Graph mutations are applied only against a cloned, validated site. An
@@ -2668,10 +2693,15 @@
       return mutateGraphWork(({node,site})=>mutate(node,site));
     }
     function editGraphTreeWork(operation,nextNodeId=''){
-      return mutateGraphWork(({section})=>{
+      const reveal=['insert','duplicate','remove'].includes(operation.action);
+      const priorReveal=revealAfterHistory;
+      if(reveal)revealAfterHistory=true;
+      const applied=mutateGraphWork(({section})=>{
         section.designGraph=DESIGN_GRAPH.editTree(section.designGraph,operation);
         workGraphNode=nextNodeId;
       });
+      if(!applied)revealAfterHistory=priorReveal;
+      return applied;
     }
     // The contextual Inspector is rebuilt after each validated edit. Preserve
     // the owner's place in that SAME element instead of collapsing the open
@@ -3204,7 +3234,8 @@
           const removed=new Set();
           const collect=node=>{removed.add(node.id);for(const child of node.children||[])collect(child);};
           collect(current);
-          const fallback=rows.find(row=>!removed.has(row.node.id))?.node.id||'';
+          const fallback=graphNeighborIds(section,current.id).find(id=>!removed.has(id))||
+            rows.find(row=>!removed.has(row.node.id))?.node.id||'';
           editGraphTreeWork({action:'remove',nodeId:current.id},fallback);
         });
         removeGraphNode.id='cms-work-graph-remove';
