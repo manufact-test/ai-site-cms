@@ -2701,7 +2701,7 @@
       if(!els.some(e=>e.id===workElement))workElement=section.elements[0].id;
       for(const e of els){
         const o=document.createElement('option');o.value=e.id;
-        const index=section.items.indexOf(e);
+        const index=section.items?.indexOf(e)??-1;
         const definition=manifest(section)?.elements?.find(item=>item.slot===e.slot);
         const itemTitle=e.values?.['content.title']||e.values?.['content.question']||
           e.values?.['content.caption']||e.values?.['content.author'];
