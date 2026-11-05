@@ -1089,7 +1089,11 @@ async function execute(){
   await page.locator('#cms-page-preview').evaluate(dialog=>{dialog.scrollTop=0;});
   // An image has a different primary action from a text element: the owner
   // should reach the EXISTING responsive media chooser with one canvas tap.
-  await page.frameLocator('#cms-page-preview-frame').locator('.cmsdg-n-approved-custom-photo').click();
+  // The approved external asset is deliberately 2×2px. Its enclosing custom
+  // container covers that tiny physical hitbox, so dispatch the bound iframe
+  // event here; the normal-sized PHP gallery below tests real pointer taps.
+  await page.frameLocator('#cms-page-preview-frame')
+    .locator('.cmsdg-n-approved-custom-photo').dispatchEvent('click');
   assert.equal(await page.locator('#cms-work-graph-node').inputValue(),'approved-custom-photo');
   assert.equal(await page.locator('#cms-work-graph-image-library').evaluate(node=>node.open),true,
     'Tapping an authored image opens its real per-device library on a phone');
