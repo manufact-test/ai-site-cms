@@ -3157,6 +3157,7 @@
     workSave.disabled=!ready||$('save').disabled;
     workReview.disabled=!ready||launchReviewButton.disabled;
     workState.textContent=!state.siteId?'Нет выбранного сайта':
+      state.busy?'Идёт серверная операция · дождитесь завершения перед новой правкой':
       isDirty()?'Есть несохранённые изменения · публикация недоступна':
       'Черновик #'+state.revision+' сохранён · не обязательно опубликован';
   };
@@ -3573,11 +3574,21 @@
     backupFile.disabled=state.busy;backupTarget.disabled=state.busy;
     backupRestore.disabled=state.busy||!pendingArchive||!state.authorized;
     $('reset').disabled=!available;
-    document.getElementById('fields').inert=!canEdit();
-    for(const control of document.querySelectorAll('#cms-site-report [data-editor-write]'))control.disabled=!canEdit();
-    for(const control of document.querySelectorAll('#elements .cms-repeat-row .btn, #cms-repeat-add'))control.disabled=!canEdit();
-    for(const node of document.querySelectorAll('.structure-tools'))node.inert=!canEdit();
-    for(const id of ['undo','redo'])if(!canEdit())$(id).disabled=true;
+    // A slow Save may finish after the owner starts another edit. The Save
+    // response replaces the editor snapshot, so disable both real editing
+    // surfaces for the whole request instead of accepting a doomed local
+    // change and then silently replacing it with the saved revision.
+    const editingLocked=state.busy||!canEdit();
+    document.querySelector('.workspace').inert=state.busy;
+    if(workModal){
+      workModal.querySelector('.cms-work-panel').inert=editingLocked;
+      workModal.querySelector('.cms-page-preview-area').inert=editingLocked;
+    }
+    document.getElementById('fields').inert=editingLocked;
+    for(const control of document.querySelectorAll('#cms-site-report [data-editor-write]'))control.disabled=editingLocked;
+    for(const control of document.querySelectorAll('#elements .cms-repeat-row .btn, #cms-repeat-add'))control.disabled=editingLocked;
+    for(const node of document.querySelectorAll('.structure-tools'))node.inert=editingLocked;
+    for(const id of ['undo','redo'])if(editingLocked)$(id).disabled=true;
     templatesList.inert=!canEdit();leadsPanel.hidden=!canEdit();alertsRow.hidden=!canEdit();
     backupDownload.hidden=!isOwner();backupOpen.hidden=!isOwner();
     window.dispatchEvent(new Event('stage3-session'));
@@ -3597,6 +3608,13 @@
   }
   async function safe(fn){
     if(state.busy)return;
+    // Blur commits ordinary native change-fields before the request captures
+    // its draft. The separate quick-text editor still requires "Apply" and
+    // is deliberately not committed by an unrelated Save.
+    const focused=document.activeElement;
+    if(focused?.matches?.('#fields input, #fields textarea, #fields select, '+
+      '#cms-work-fields input, #cms-work-fields textarea, #cms-work-fields select'))
+      focused.blur();
     state.busy=true;drawStatus();
     try{return await fn();}catch(e){
       notice(e.message,true);

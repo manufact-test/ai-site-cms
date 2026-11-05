@@ -2669,10 +2669,53 @@ async function execute(){
     'owner-studio-workbench-image-mobile.png must capture a genuine phone viewport');
   await page.screenshot({path:path.join(studioScreenDir,'owner-studio-workbench-image-mobile.png'),fullPage:true});
   await page.setViewportSize({width:1400,height:1000});
-  await page.locator('#server-work-save').click();
+  // Keep a native change-based Inspector field focused when Save is invoked.
+  // The pending text must be committed BEFORE the server snapshots the draft.
+  await page.locator('#cms-work-section').selectOption('section-approved-faq');
+  await page.locator('#cms-work-element').selectOption('approved-faq-item-0');
+  const focusedQuestion=page.locator('#cms-work-fields [data-page-field="content.question"]');
+  await focusedQuestion.fill('Как оформить заказ? · сохранённая правка');
+  assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections
+    .find(s=>s.id==='section-approved-faq').items[0].values['content.question']),'Как оформить заказ?',
+    'A focused change-field has not committed before its blur');
+  // A slow real server Save must lock BOTH editing surfaces. Otherwise an
+  // owner can type another change after the payload was captured, then the
+  // successful response replaces that newer unsaved text without warning.
+  let releaseWorkbenchSave,workbenchSaveSeen;
+  const workbenchSaveGate=new Promise(resolve=>{releaseWorkbenchSave=resolve;});
+  const workbenchSaveStarted=new Promise(resolve=>{workbenchSaveSeen=resolve;});
+  const slowWorkbenchSave='**/api/sites/site-approved-browser/save';
+  await page.route(slowWorkbenchSave,async route=>{
+    workbenchSaveSeen();
+    await workbenchSaveGate;
+    await route.continue();
+  });
+  // Programmatic button dispatch intentionally omits the normal pointer blur.
+  // This also covers keyboard/synthetic Save paths that can otherwise race
+  // the still-focused native change field.
+  await page.locator('#server-work-save').evaluate(button=>button.click());
+  await Promise.race([workbenchSaveStarted,new Promise((_,reject)=>
+    setTimeout(()=>reject(Error('Workbench Save request never started')),15000))]);
+  try{
+    assert.equal(await page.locator('.workspace').evaluate(node=>node.inert),true,
+      'Main Studio canvas and Inspector are inert while a server Save is pending');
+    assert.equal(await page.locator('#cms-page-preview .cms-work-panel').evaluate(node=>node.inert),true,
+      'The Workbench property editor cannot accept doomed edits during Save');
+    assert.equal(await page.locator('#cms-page-preview .cms-page-preview-area').evaluate(node=>node.inert),true,
+      'The Workbench page cannot select/quick-edit while a server Save is pending');
+    assert.match(await page.locator('#server-work-state').innerText(),/Идёт серверная операция/,
+      'The owner sees why editing is temporarily unavailable');
+  }finally{releaseWorkbenchSave();}
   await page.locator('#server-work-state').getByText(/сохранён/).waitFor();
+  await page.unroute(slowWorkbenchSave);
+  assert.equal(await page.locator('.workspace').evaluate(node=>node.inert),false);
+  assert.equal(await page.locator('#cms-page-preview .cms-work-panel').evaluate(node=>node.inert),false,
+    'Workbench controls are editable again after the real Save completes');
   const savedPhone=(await (await page.request.get(
     origin+'/api/sites/site-approved-browser')).json()).site;
+  assert.equal(savedPhone.pages[0].sections.find(s=>s.id==='section-approved-faq')
+    .items[0].values['content.question'],'Как оформить заказ? · сохранённая правка',
+    'The real PHP server persists the focused Workbench field, not only the earlier image');
   assert.equal(savedPhone.pages[0].sections.find(s=>s.id==='section-approved-custom')
     .designGraph.nodes[0].children.find(n=>n.id==='approved-custom-photo')
     .responsiveMedia.mobileAssetId,mediaState.asset.id);
