@@ -1841,6 +1841,33 @@ async function execute(){
     return canvas.toDataURL('image/png').split(',')[1];
   });
   const directFile=Buffer.from(directPhoto,'base64');
+  // Media hashing happens before the HTTP POST. Hold that first async step
+  // and verify the main canvas is already locked, then reject a bad hash
+  // without creating a server revision or leaving the editor frozen.
+  await page.evaluate(base64=>{
+    const engine=window.MediaMotionEngine;
+    const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
+    const file=new Blob([bytes],{type:'image/png'});
+    const waiting=new Promise(resolve=>{window.__releaseMediaHash=resolve;});
+    window.MediaMotionEngine={...engine,hash:async(blob)=>{
+      window.__mediaHashEntered=true;await waiting;return engine.hash(blob);
+    }};
+    window.__testMediaHash=window.Stage3Host.uploadProcessed(file,'Проверка SHA',false,
+      '0'.repeat(64)).then(()=>null,error=>error.message).finally(()=>{
+      window.MediaMotionEngine=engine;
+    });
+  },directPhoto);
+  await page.waitForFunction(()=>window.__mediaHashEntered===true);
+  assert.equal(await page.locator('.workspace').evaluate(node=>node.inert),true,
+    'The canvas is locked from the beginning of asynchronous media hashing');
+  await page.evaluate(()=>window.__releaseMediaHash());
+  assert.match(await page.evaluate(()=>window.__testMediaHash),/Изображение изменилось/);
+  await page.waitForFunction(()=>!document.querySelector('.workspace').inert);
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite())).assets.length,directBefore,
+    'A failed media integrity check leaves the server draft and local assets untouched');
+  await page.locator('#pages .nav-entry').last().click();
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.selection())).pageId,'page-contact',
+    'The main canvas is on the second page before a Workbench media upload');
   await page.locator('#cms-open-page-preview').click();
   await page.locator('#cms-page-preview[open]').waitFor();
   const showcaseLocation=await page.evaluate(()=>{
@@ -1854,6 +1881,7 @@ async function execute(){
   await page.locator('#cms-page-preview-path').selectOption(showcaseLocation.path);
   await page.locator('#cms-work-section').selectOption(showcaseLocation.sectionId);
   await page.locator('#cms-work-element').selectOption(showcaseLocation.photoId);
+  const beforeWorkbenchMedia=await page.evaluate(()=>window.Stage3Editor.selection());
   await page.locator('#cms-work-media > summary').click();
   await page.locator('#server-work-legacy-upload').waitFor();
   await page.locator('#server-work-media-search').fill('невозможное имя');
@@ -1869,6 +1897,8 @@ async function execute(){
     return site.assets.length===before+1&&window.Stage3Editor.isDirty();
   },directBefore,{timeout:15000});
   const directAssetId=await page.evaluate(()=>window.Stage3Editor.getSite().assets.at(-1).id);
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeWorkbenchMedia,
+    'A committed private image must not jump the main canvas back to page one');
   assert.equal((await page.evaluate(({sectionId,photoId})=>{
     const section=window.Stage3Editor.getSite().pages.flatMap(p=>p.sections)
       .find(s=>s.id===sectionId);

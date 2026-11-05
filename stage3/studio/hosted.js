@@ -1954,7 +1954,7 @@
             base64:await readImageBase64(files[i]),alt:alts[i],expectedRevision:state.revision
           });
           if(state.siteId!==siteId)throw Error('Открытый сайт изменился во время загрузки');
-          selectSite(response);uploaded++;
+          selectSite(response,{preserveSelection:true});uploaded++;
           mediaBatchRows.children[i].dataset.uploaded='true';
         }
         await refreshSites();await loadHistory();
@@ -1986,7 +1986,7 @@
       const base64=await readImageBase64(file);
       const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/media','POST',
         {base64,alt:description,expectedRevision:state.revision});
-      selectSite(response);await refreshSites();await loadHistory();
+      selectSite(response,{preserveSelection:true});await refreshSites();await loadHistory();
       notice('Изображение добавлено. Выберите его в поле блока «Изображение и описание».');
     });
   }
@@ -2037,7 +2037,7 @@
         {base64,alt,sha256,expectedRevision:state.revision});
       if(result.sha256!==sha256||result.asset?.mime!=='font/woff2')
         throw Error('Сервер не подтвердил целостность шрифта');
-      selectSite(result);await refreshSites();await loadHistory();
+      selectSite(result,{preserveSelection:true});await refreshSites();await loadHistory();
       notice('Шрифт загружен. Откройте «Стили и язык сайта», чтобы назначить его тексту/заголовкам.');
     });
   });
@@ -2088,7 +2088,7 @@
         }
       }
       if(response.sha256!==sha256)throw Error('Серверная SHA256 видео не совпадает');
-      selectSite(response);await refreshSites();await loadHistory();
+      selectSite(response,{preserveSelection:true});await refreshSites();await loadHistory();
       notice('MP4 добавлен в библиотеку. Привяжите его к видеоэлементу композиции; публикация отдельно.');
     });
   });
@@ -2285,38 +2285,40 @@
       throw Error('Описание изображения должно быть до 200 символов без управляющих символов');
     if(typeof expectedHash!=='string'||!/^[a-f0-9]{64}$/.test(expectedHash))
       throw Error('Отсутствует проверенный SHA256');
-    const actual=await window.MediaMotionEngine.hash(blob);
-    if(actual!==expectedHash)throw Error('Изображение изменилось после обработки');
     if(!Array.isArray(variants)||variants.length>3)throw Error('Неверный набор responsive-изображений');
-    const packed=[];
-    for(const v of variants){
-      if(![360,720,1200].includes(v.width)||!(v.blob instanceof Blob)||v.blob.type!==blob.type||
-        v.blob.size>1000000||v.blob.size<20||await window.MediaMotionEngine.hash(v.blob)!==v.sha256)
-        throw Error('Непроверенный responsive-вариант');
-      const data=await new Promise((resolve,reject)=>{
-        const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));
-        reader.onerror=()=>reject(Error('Невозможно прочитать responsive-вариант'));reader.readAsDataURL(v.blob);
-      });
-      packed.push({width:v.width,base64:data.split(',')[1]||'',sha256:v.sha256});
-    }
     const selection=editor.selection();
-    const base64=await new Promise((resolve,reject)=>{
-      const reader=new FileReader();
-      reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');
-      reader.onerror=()=>reject(Error('Не удалось прочитать обработанное изображение'));
-      reader.readAsDataURL(blob);
-    });
+    // Hashing and FileReader are asynchronous too. Lock before the first await:
+    // an edit during preprocessing must not be overwritten by the media POST.
     state.busy=true;drawStatus();
     try{
+      const actual=await window.MediaMotionEngine.hash(blob);
+      if(actual!==expectedHash)throw Error('Изображение изменилось после обработки');
+      const packed=[];
+      for(const v of variants){
+        if(![360,720,1200].includes(v.width)||!(v.blob instanceof Blob)||v.blob.type!==blob.type||
+          v.blob.size>1000000||v.blob.size<20||await window.MediaMotionEngine.hash(v.blob)!==v.sha256)
+          throw Error('Непроверенный responsive-вариант');
+        const data=await new Promise((resolve,reject)=>{
+          const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));
+          reader.onerror=()=>reject(Error('Невозможно прочитать responsive-вариант'));reader.readAsDataURL(v.blob);
+        });
+        packed.push({width:v.width,base64:data.split(',')[1]||'',sha256:v.sha256});
+      }
+      const base64=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');
+        reader.onerror=()=>reject(Error('Не удалось прочитать обработанное изображение'));
+        reader.readAsDataURL(blob);
+      });
       const response=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/media','POST',
         {base64,alt,sha256:actual,variants:packed,expectedRevision:state.revision});
       if(response.sha256!==actual){
         // The upload is an immutable server-side revision. Never falsely claim
         // successful linkage if returned bytes do not match the local digest.
-        selectSite(response);await refreshSites();await loadHistory();
+        selectSite(response,{preserveSelection:true});await refreshSites();await loadHistory();
         throw Error('Сервер вернул несовпадающий SHA256. Новый файл не привязан к блоку.');
       }
-      selectSite(response);await refreshSites();await loadHistory();
+      selectSite(response,{preserveSelection:true});await refreshSites();await loadHistory();
       let attached=false;
       if(bind)attached=editor.bindMedia(response.asset.id,selection);
       drawMedia();drawStatus();
