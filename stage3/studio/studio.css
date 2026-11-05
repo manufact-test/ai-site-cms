@@ -309,6 +309,7 @@
 .cms-work-graph-panel #cms-work-graph-open{margin-top:5px;white-space:normal}
 
 .cms-work-graph-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.cms-work-graph-panel #cms-work-graph-operations .cms-work-graph-actions{margin-top:10px}
 .cms-work-graph-actions .btn{white-space:normal;min-width:0;min-height:34px;line-height:1.25}
 @media(max-width:680px){.cms-work-graph-actions{grid-template-columns:1fr 1fr}}
 
@@ -583,6 +584,8 @@ button:disabled{opacity:.45}
 .cms-work-graph-panel{background:#f5f9ff;border-color:#cfe0f4}
 .cms-work-graph-panel>strong{color:#2054a0}
 .cms-work-graph-panel>small{color:#69839c}
+.cms-work-graph-panel #cms-work-graph-operations{background:#fff;border-color:#cfe0f4}
+.cms-work-graph-panel #cms-work-graph-operations>summary{color:#245188}
 .cms-work-backdrop-previews figcaption{color:#e4eefa}
 .cms-work-quick{background:#fff;border-color:#91baf0;color:#18314a;box-shadow:0 12px 40px #1e355a33}
 @media(max-width:1220px){

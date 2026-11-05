@@ -1047,6 +1047,46 @@ async function execute(){
     dialog.scrollTop=0;
     return reachable;
   }),true,'The whole contextual Inspector is reachable by normal phone dialog scrolling');
+  // On an actual 390px phone, clicking an element in the *PHP iframe* should
+  // bring its existing property into view without making the owner manually
+  // scroll past the entire preview and structural button list.
+  const beforePhoneTap=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
+  await page.frameLocator('#cms-page-preview-frame').locator('.cmsdg-n-approved-custom-copy').click();
+  assert.equal(await page.locator('#cms-work-graph-node').inputValue(),'approved-custom-copy');
+  assert.match(await page.locator('#cms-work-graph-node option:checked').innerText(),/^— Текст · /,
+    'Nested elements are described in Russian instead of leaking raw Graph types');
+  assert.equal(await page.locator('#cms-work-graph-operations').evaluate(node=>node.open),false,
+    'Structure actions start closed beneath the editable Graph properties');
+  const revealedPhoneField=await page.evaluate(()=>{
+    const dialog=document.querySelector('#cms-page-preview');
+    const field=dialog.querySelector('#cms-work-graph-panel [data-work-graph-field="text"]');
+    const view=dialog.getBoundingClientRect(),rect=field.getBoundingClientRect();
+    return {scroll:dialog.scrollTop,visible:rect.top>=view.top&&rect.top<view.bottom-40,
+      active:document.activeElement?.id};
+  });
+  assert.ok(revealedPhoneField.scroll>30&&revealedPhoneField.visible,
+    'Tapping Graph text on the phone reveals its editable property in the single scrolling dialog');
+  assert.notEqual(revealedPhoneField.active,'cms-work-graph-node',
+    'Canvas selection does not focus an input and summon a phone keyboard');
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),beforePhoneTap,
+    'Revealing an Inspector field never changes the draft');
+  await page.locator('#cms-page-preview').evaluate(dialog=>{dialog.scrollTop=0;});
+  const ordinaryPhoneText=page.frameLocator('#cms-page-preview-frame')
+    .locator('[data-cms-work-element][data-cms-work-path="content.text"]:visible').first();
+  const ordinaryPhoneId=await ordinaryPhoneText.getAttribute('data-cms-work-element');
+  await ordinaryPhoneText.click();
+  assert.equal(await page.locator('#cms-work-element').inputValue(),ordinaryPhoneId,
+    'A regular template text is also selected by its real manifest element ID');
+  const ordinaryPhoneField=await page.evaluate(()=>{
+    const dialog=document.querySelector('#cms-page-preview');
+    const field=dialog.querySelector('#cms-work-fields .cms-work-field-current [data-page-field="content.text"]');
+    const rect=field.getBoundingClientRect(),view=dialog.getBoundingClientRect();
+    return {scroll:dialog.scrollTop,visible:rect.top>=view.top&&rect.top<view.bottom-40};
+  });
+  assert.ok(ordinaryPhoneField.scroll>30&&ordinaryPhoneField.visible,
+    'A normal template heading/paragraph likewise reveals the exact editable phone field');
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite())),beforePhoneTap);
+  await page.locator('#cms-page-preview').evaluate(dialog=>{dialog.scrollTop=0;});
   await page.setViewportSize({width:1400,height:1000});
   // Rapid page switching in the same Workbench: an old server-side conflict
   // must not unfreeze or replace the newer PHP iframe. Verify real HTML, not
@@ -1364,6 +1404,7 @@ async function execute(){
   await page.locator('#cms-page-preview[open]').waitFor();
   await page.locator('#cms-work-section').selectOption('section-approved-custom');
   await page.locator('#cms-work-graph-node').selectOption('approved-custom-container');
+  await page.locator('#cms-work-graph-operations > summary').click();
   await page.locator('#cms-work-graph-insert-type').selectOption('carousel');
   await page.locator('#cms-work-graph-insert-placement').selectOption('after');
   await page.locator('#cms-work-graph-insert').click();

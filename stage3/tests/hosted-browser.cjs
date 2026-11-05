@@ -1185,6 +1185,7 @@ async function execute(){
   await fullGraphTitle.click();
   assert.equal(await page.locator('#cms-work-graph-node').inputValue(),graphSectionId+'-title',
     'Hosted full-page canvas selects the exact graph node');
+  await page.locator('#cms-work-graph-operations > summary').click();
   await page.locator('#cms-work-graph-add-text').click();
   const inlineNodeId=await page.locator('#cms-work-graph-node').inputValue();
   assert.notEqual(inlineNodeId,graphSectionId+'-title');

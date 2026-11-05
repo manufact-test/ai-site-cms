@@ -5548,6 +5548,16 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
     // Select sections only in the validated, scriptless page preview.
     // Every edit uses the same SDK draft history as the right-side inspector.
     let workSection='',workElement='',workFocusPath='',workFormField='',workGraphNode='';
+    // Keep the owner's explicit choice to expand structural Graph operations
+    // while switching between elements, but start every Workbench visit clean.
+    let graphOperationsOpen=false;
+    const workNodeLabels={container:'Группа',heading:'Заголовок',text:'Текст',button:'Кнопка',
+      link:'Ссылка',image:'Изображение',video:'Видео',icon:'Иконка',quote:'Цитата',
+      gallery:'Галерея',carousel:'Карусель',table:'Таблица','table-row':'Строка таблицы',
+      'table-cell':'Ячейка таблицы',divider:'Разделитель',disclosure:'Раскрывающийся блок',
+      tabs:'Вкладки',tab:'Вкладка',list:'Список','list-item':'Пункт списка',
+      popup:'Всплывающее окно','form-slot':'Форма заявки'};
+    const workNodeLabel=node=>workNodeLabels[node.type]||'Элемент';
     const graphNodes=section=>{
       const rows=[];
       const walk=(nodes,depth)=>{
@@ -5637,7 +5647,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
             input.value=run.text;label.append(input);quickRuns.append(label);
           });
         }else{
-          quickLabel.firstChild.textContent='Текст узла: '+graph.type;
+          quickLabel.firstChild.textContent='Изменить: '+workNodeLabel(graph);
           quickInput.value=graph.text;
           quickInput.maxLength=graph.type==='table-cell'?1600:['tab','disclosure'].includes(graph.type)?160:3000;
         }
@@ -5840,11 +5850,20 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           field.dataset.cmsWorkElement:'';
         workFocusPath=workElement?(field.dataset.cmsWorkPath||''):'';
         dismissQuick();showWork();highlightWork();
-        if(workFocusPath){
-          const control=[...workFields.querySelectorAll('[data-page-field]')]
-            .find(node=>node.dataset.pageField===workFocusPath);
-          control?.scrollIntoView({block:'nearest'});
-        }
+        const control=workFocusPath?[...workFields.querySelectorAll('[data-page-field]')]
+          .find(node=>node.dataset.pageField===workFocusPath):null;
+        if(window.matchMedia('(max-width:650px)').matches&&modal.open){
+          // A phone has a single scrolling Workbench: tapping an item in its
+          // iframe should actually reveal that item's existing Inspector.
+          // Do not focus an input (which would open the soft keyboard) or
+          // change the user's desktop/tablet canvas position.
+          const target=workGraphNode?
+            workFields.querySelector('#cms-work-graph-panel [data-work-graph-field="text"]')?.closest('.cms-work-field')||
+              workFields.querySelector('#cms-work-graph-panel'):
+            workFormField?workFields.querySelector('#cms-work-form-focus'):
+              control?.closest('.cms-work-field')||workTitle;
+          target?.scrollIntoView({block:'start',behavior:'instant'});
+        }else control?.scrollIntoView({block:'nearest'});
         return true;
       };
       doc.addEventListener('click',e=>{
@@ -6282,7 +6301,10 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const nodes=document.createElement('select');nodes.id='cms-work-graph-node';nodes.className='control';
         for(const row of rows){
           const option=document.createElement('option');option.value=row.node.id;
-          option.textContent='  '.repeat(row.depth)+row.node.type+' · '+(row.node.text||row.node.alt||row.node.id).slice(0,55);
+          const description=typeof row.node.text==='string'&&row.node.text.trim()||
+            typeof row.node.alt==='string'&&row.node.alt.trim()||'';
+          option.textContent='— '.repeat(row.depth)+workNodeLabel(row.node)+
+            (description?' · '+description.slice(0,55):'');
           nodes.append(option);
         }
         nodes.value=workGraphNode;
@@ -6532,7 +6554,20 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
         const subtreeSize=node=>1+(node.children||[]).reduce((sum,child)=>sum+subtreeSize(child),0);
         removeGraphNode.disabled=!canWrite()||subtreeSize(current)>=rows.length;
         graphActions.append(addText,addChild,moveUp,moveDown,duplicateGraphNode,removeGraphNode);
-        panel.append(title,hint,nodes,graphActions);
+        // Properties come directly after the selected node. Insert/move/remove
+        // are intentionally one collapsed secondary group, not a wall of
+        // buttons between the clicked text and its editable value.
+        const graphOperations=document.createElement('details');
+        graphOperations.className='cms-work-operations';
+        graphOperations.id='cms-work-graph-operations';
+        graphOperations.open=graphOperationsOpen;
+        const graphOperationsLabel=document.createElement('summary');
+        graphOperationsLabel.textContent='Добавить, переместить или удалить элемент';
+        graphOperations.append(graphOperationsLabel,graphActions);
+        graphOperations.addEventListener('toggle',()=>{
+          if(graphOperations.isConnected)graphOperationsOpen=graphOperations.open;
+        });
+        panel.append(title,hint,nodes);
         const property=(label,key,value,options=null)=>{
           const wrap=document.createElement('label');wrap.className='cms-work-field';
           const caption=document.createElement('span');caption.textContent=label;
@@ -7266,7 +7301,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
           pageId=page.id;sectionId=section.id;elementId=section.elements[0].id;breakpoint=mode;
           draw();modal.close();$('section-design-graph')?.click();
         });
-        edit.id='cms-work-graph-open';panel.append(edit);
+        edit.id='cms-work-graph-open';panel.append(graphOperations,edit);
         workFields.prepend(panel);
       }
 
@@ -7441,6 +7476,7 @@ const FIXTURE={"format":"manufact-ai-site-v1","siteId":"site-industrial-demo","t
       if(focus){mode=focus.device;reviewScroll=focus.scrollY;previewScroll=0;}
       else reviewScroll=null;
       focusOnFirstMobileLoad=mode==='mobile'&&!focus;
+      graphOperationsOpen=false;
       dismissQuick();showWork();
       frameMode.querySelectorAll('button').forEach(el=>el.classList.toggle('active',el.dataset.mode===mode));
       render();modal.showModal();

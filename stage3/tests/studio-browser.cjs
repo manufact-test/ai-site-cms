@@ -2180,6 +2180,8 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       'Whole-page selection resolves the exact nested graph node');
     assert.equal(await graphCopy.getAttribute('data-cms-work-graph-node'),selectedSection+'-copy');
     await graphCopy.dblclick();
+    assert.match(await page.locator('#cms-work-quick label').first().innerText(),/Изменить: Текст/,
+      'Quick-edit names the selected Graph text in Russian, not its raw type');
     await page.locator('#cms-work-quick-input').fill('Текст композиции прямо на странице');
     await page.locator('#cms-work-quick-save').click();
     await wholeGraph.locator('.cmsdg-n-'+selectedSection+'-copy')
@@ -2211,6 +2213,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
       return count(section.designGraph.nodes);
     },selectedSection);
     const graphCountBefore=await inlineGraphCount();
+    await page.locator('#cms-work-graph-operations > summary').click();
     await page.locator('#cms-work-graph-add-text').click();
     assert.equal(await inlineGraphCount(),graphCountBefore+1,'Canvas adds a typed sibling node');
     await page.locator('#cms-work-graph-duplicate').click();
@@ -2708,6 +2711,7 @@ if(!browserPath)throw Error('Stage3 requires genuine local Chromium for the sing
     assert.equal(pastedList.children[2].text,'Запуск');
     await page.locator('#cms-open-page-preview').click();
     await page.locator('#cms-work-graph-node').selectOption('sheet-table-ui');
+    await page.locator('#cms-work-graph-operations > summary').click();
     await page.locator('#cms-work-graph-table-paste').click();
     await page.locator('#cms-graph-table-data').fill('Услуга\tЦена\tСрок\nСайт\t300\t3 дня\nМагазин\t500\t5 дней');
     await page.locator('#cms-graph-table-apply').click();
