@@ -1232,7 +1232,6 @@ async function execute(){
   const addedFaqItem=await page.locator('#cms-work-element').inputValue();
   assert.notEqual(addedFaqItem,'approved-faq-item-1');
   await page.locator('#cms-work-element').selectOption('approved-faq-item-1');
-  page.once('dialog',dialog=>dialog.accept());
   await page.locator('#cms-work-repeat').getByRole('button',{name:'× Карточка'}).click();
   assert.equal(await page.locator('#cms-work-element').inputValue(),addedFaqItem,
     'Removing a repeat card keeps its nearest surviving sibling selected');
@@ -1248,7 +1247,6 @@ async function execute(){
   await page.locator('#cms-work-section').selectOption('section-approved-image');
   const beforeSectionRemoval=await page.evaluate(()=>JSON.stringify(window.Stage3Editor.getSite()));
   await page.locator('#cms-work-section-operations > summary').click();
-  page.once('dialog',dialog=>dialog.accept());
   await page.locator('#cms-work-section-operations').getByRole('button',{name:'Удалить',exact:true}).click();
   assert.equal(await page.locator('#cms-work-section').inputValue(),'section-approved-custom',
     'Deleting a middle section reveals its next sibling rather than the first page block');
