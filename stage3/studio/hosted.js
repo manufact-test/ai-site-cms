@@ -3582,6 +3582,10 @@
     // change and then silently replacing it with the saved revision.
     const editingLocked=state.busy||!canEdit();
     document.querySelector('.workspace').inert=state.busy;
+    // The global CMS navigation is in the header, outside the inert editor.
+    // Do not let a slow Save/restore move the owner to another workspace
+    // while its server revision is still being committed.
+    for(const button of cmsNavButtons.values())button.disabled=state.busy||state.loading;
     if(workModal){
       // Read-only roles can still inspect/select a page. Only an in-flight
       // request freezes navigation as well as edits.
@@ -3686,6 +3690,7 @@
   }
   function selectSite(result,{preserveSelection=false}={}){
     const switched=state.siteId!==result.site.siteId;
+    const keepContext=preserveSelection&&!switched;
     if(switched){previewData.clear();loadingMedia.clear();}
     state.siteId=result.site.siteId;
     // replace() synchronously redraws the main canvas and starts an async PHP
@@ -3694,9 +3699,13 @@
     // Otherwise the new site snapshot is previewed with the previous revision
     // and the server correctly rejects it as a stale editor request (409).
     state.revision=Number(result.revision);
-    editor.replace(restoreServerGraphMaps(result.site),{preserveSelection:preserveSelection&&!switched});
+    editor.replace(restoreServerGraphMaps(result.site),{preserveSelection:keepContext});
     if(switched){pageSearch.reset();blockSearch.reset();}
-    editorVisible(true);
+    // A same-site Save, recovery, media edit or import updates data, not the
+    // owner's location in the CMS. In particular, an action performed under
+    // Resources must not unexpectedly reopen the page editor. Opening a new
+    // site still starts with the normal editor/overview navigation.
+    if(!keepContext)editorVisible(true);
     drawMedia();drawStatus();
   }
   async function openSite(id){

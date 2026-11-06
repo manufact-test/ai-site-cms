@@ -1375,8 +1375,12 @@ async function execute(){
   const beforeCollectionSelection=await page.evaluate(()=>window.Stage3Editor.selection());
   assert.equal(beforeCollectionSelection.pageId,'page-contact');
   const assertCollectionSelection=async label=>{
+    assert.equal(await page.locator('#server-view-resources:visible').count(),1,
+      label+' stays in Resources instead of silently opening the editor');
+    assert.equal(await page.locator('#server-nav-resources').getAttribute('aria-current'),'page');
     assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),
       beforeCollectionSelection,label+' keeps page, section and Inspector focus');
+    await page.locator('#server-nav-editor').click();
     assert.match(await page.locator('#pages .nav-entry.active').innerText(),/Контакт/,
       label+' keeps the second page visible in navigation');
     assert.match(await page.locator('#canvas-title').innerText(),/Контакт/,

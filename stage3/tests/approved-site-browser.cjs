@@ -2434,13 +2434,36 @@ async function execute(){
   await page.locator('#server-history-section').selectOption('section-approved-faq');
   await page.locator('#server-history-plan').click();
   await page.waitForFunction(()=>!document.querySelector('#server-history-apply')?.disabled);
+  let releaseHistoryApply,historyApplySeen;
+  const pendingHistory=new Promise(resolve=>{releaseHistoryApply=resolve;});
+  const historyStarted=new Promise(resolve=>{historyApplySeen=resolve;});
+  const historyApplyRoute='**/api/sites/site-approved-browser/history/apply';
+  await page.route(historyApplyRoute,async route=>{
+    historyApplySeen();await pendingHistory;await route.continue();
+  });
   await page.locator('#server-history-apply').click();
+  try{
+    await Promise.race([historyStarted,new Promise((_,reject)=>
+      setTimeout(()=>reject(Error('History apply request never started')),15000))]);
+    assert.equal(await page.locator('.workspace').evaluate(node=>node.inert),true,
+      'The CMS resources workspace cannot change while recovery is pending');
+    assert.equal(await page.locator('#server-nav-editor').isDisabled(),true,
+      'The header navigation is locked during the server history transaction');
+    assert.equal(await page.locator('#server-nav-resources').isDisabled(),true);
+    assert.equal(await page.locator('#server-view-resources:visible').count(),1);
+  }finally{releaseHistoryApply();}
   await page.locator('#server-history-dialog').waitFor({state:'hidden'});
+  await page.unroute(historyApplyRoute);
   await page.waitForFunction(expected=>document.querySelector('#server-status')?.textContent
     ?.includes('Черновик #'+expected),preRestoreRevision+2);
+  assert.equal(await page.locator('#server-view-resources:visible').count(),1,
+    'Recovering a saved block leaves the owner in the Resources workspace');
+  assert.equal(await page.locator('#server-nav-resources').getAttribute('aria-current'),'page');
+  assert.equal(await page.locator('#server-nav-editor').isEnabled(),true,
+    'The CMS routes become usable again after recovery commits');
   assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeHistorySelection,
     'Selective history recovery on another page keeps the current page, block and Inspector');
-  assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/);
+  assert.match(await page.locator('#dirty').textContent(),/сохранён на сервере/);
   assert.equal(await page.locator('#pages .nav-entry.active').count(),1);
   assert.deepEqual((await page.evaluate(()=>window.Stage3Editor.getSite()))
     .pages[0].sections.find(s=>s.id==='section-approved-faq')
@@ -2453,6 +2476,9 @@ async function execute(){
     'Restoring a private revision never changes the public site');
   // Keep the remainder of the approved-site acceptance journey on its
   // original first page after verifying the second-page history behavior.
+  await page.locator('#server-nav-editor').click();
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeHistorySelection,
+    'Explicitly opening the editor restores the exact selected page and Inspector');
   await page.locator('#pages .nav-entry').first().click();
 
   // Edit the global footer through Studio, save a private revision, and verify
@@ -2717,6 +2743,8 @@ async function execute(){
       'The Workbench property editor cannot accept doomed edits during Save');
     assert.equal(await page.locator('#cms-page-preview .cms-page-preview-area').evaluate(node=>node.inert),true,
       'The Workbench page cannot select/quick-edit while a server Save is pending');
+    assert.equal(await page.locator('#server-nav-resources').isDisabled(),true,
+      'Global CMS navigation cannot switch workspaces during a delayed Save');
     assert.match(await page.locator('#server-work-state').innerText(),/Идёт серверная операция/,
       'The owner sees why editing is temporarily unavailable');
   }finally{releaseWorkbenchSave();}
@@ -2794,6 +2822,41 @@ async function execute(){
   assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.getSite()),beforeSkippedMedia,
     'The isolated test gallery is fully removed before account and production checks');
   await page.setViewportSize({width:1400,height:1000});
+
+  // Another real Resources transaction: changing a non-home page URL makes a
+  // new private revision but neither relocates the owner nor publishes the
+  // migration. Re-entering the editor restores the same selected page.
+  await page.locator('#pages .nav-entry').last().click();
+  const beforeLinkMigration=await page.evaluate(()=>window.Stage3Editor.selection());
+  assert.equal(beforeLinkMigration.pageId,imported.pages[1].id);
+  const routeBefore=beforeSkippedMedia.pages[1].path;
+  const beforeLinkRevision=(await (await page.request.get(origin+
+    '/api/sites/site-approved-browser')).json()).revision;
+  await page.locator('#server-nav-resources').click();
+  await page.locator('#server-drawer-media').evaluate(node=>{node.open=true;});
+  await page.locator('#server-links-open').click();
+  await page.locator('#server-links-dialog[open]').waitFor();
+  const migratedRoute=page.locator('#server-links-pages input[data-previous-path="'+routeBefore+'"]');
+  await migratedRoute.fill('/browser-renamed-private/');
+  await page.locator('#server-links-plan').click();
+  await page.locator('#server-links-plan-summary').getByText(/Переименовать страниц: 1/).waitFor();
+  await page.locator('#server-links-apply').click();
+  await page.locator('#server-links-dialog').waitFor({state:'hidden'});
+  await page.waitForFunction(expected=>document.querySelector('#server-status')?.textContent
+    ?.includes('Черновик #'+expected),beforeLinkRevision+1);
+  assert.equal(await page.locator('#server-view-resources:visible').count(),1,
+    'Link migration finishes in Resources instead of throwing the owner into the editor');
+  assert.equal(await page.locator('#server-nav-resources').getAttribute('aria-current'),'page');
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeLinkMigration);
+  const linkDraft=await page.evaluate(()=>window.Stage3Editor.getSite());
+  assert.equal(linkDraft.pages.find(p=>p.id===imported.pages[1].id).path,
+    '/browser-renamed-private/','Route migration persists the target page by stable ID');
+  assert.equal((await visitor.goto(origin+'/published/site-approved-browser/'+
+    routeBefore.replace(/^\/|\/$/g,'')+'/')).status(),200,
+    'The published original route remains untouched before an explicit Publish');
+  await page.locator('#server-nav-editor').click();
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeLinkMigration,
+    'Explicitly reopening the editor after URL migration restores its Inspector');
 
   // Sign-out belongs to the account area, not the page or site settings.
   await page.locator('#server-nav-account').click();
