@@ -1368,6 +1368,22 @@ async function execute(){
   await page.locator('#server-site-select').selectOption('site-cross-browser');
   await page.locator('#server-open').click();
   await page.locator('#server-status').getByText(/Черновик #1/).waitFor();
+  // Server operations below modify the destination while the owner edits
+  // its SECOND page. None is an instruction to jump back to page one.
+  await page.locator('#server-project-editor').click();
+  await page.locator('#pages .nav-entry').last().click();
+  const beforeCollectionSelection=await page.evaluate(()=>window.Stage3Editor.selection());
+  assert.equal(beforeCollectionSelection.pageId,'page-contact');
+  const assertCollectionSelection=async label=>{
+    assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),
+      beforeCollectionSelection,label+' keeps page, section and Inspector focus');
+    assert.match(await page.locator('#pages .nav-entry.active').innerText(),/Контакт/,
+      label+' keeps the second page visible in navigation');
+    assert.match(await page.locator('#canvas-title').innerText(),/Контакт/,
+      label+' keeps the central canvas on the active page');
+    assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/,
+      label+' leaves a clean saved server draft');
+  };
   await page.locator('#server-cross-open').click();
   await page.locator('#server-cross-dialog[open]').waitFor();
   await page.locator('#server-cross-source').selectOption(siteId);
@@ -1381,6 +1397,7 @@ async function execute(){
   await page.locator('#server-cross-apply').click();
   await page.locator('#server-cross-dialog').waitFor({state:'hidden'});
   await page.locator('#server-status').getByText(/Черновик #2/).waitFor();
+  await assertCollectionSelection('Copying a cross-site section');
   assert.ok(await page.evaluate(id=>{
     const blocks=window.Stage3Editor.getSite().pages[0].sections;
     return blocks.some(section=>section.designGraph&&section.id!==id&&
@@ -1404,6 +1421,7 @@ async function execute(){
   await page.locator('#server-kit-apply').click();
   await page.locator('#server-kit-dialog').waitFor({state:'hidden'});
   await page.locator('#server-status').getByText(/Черновик #3/).waitFor();
+  await assertCollectionSelection('Importing a section collection');
   assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections.length)),5,
     'Two selected source blocks copied in one save');
   await page.locator('#server-kit-open').click();
@@ -1417,6 +1435,7 @@ async function execute(){
   await page.locator('#server-kit-apply').click();
   await page.locator('#server-kit-dialog').waitFor({state:'hidden'});
   await page.locator('#server-status').getByText(/Черновик #4/).waitFor();
+  await assertCollectionSelection('Importing a complete page');
   assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().pages
     .some(p=>p.path==='/copied-browser/'&&p.sections.length>=2)),true,
     'Whole-page copy preserves the source page structure');
@@ -1437,6 +1456,7 @@ async function execute(){
   await page.locator('#server-history-apply').click();
   await page.locator('#server-history-dialog').waitFor({state:'hidden'});
   await page.locator('#server-status').getByText(/Черновик #5/).waitFor();
+  await assertCollectionSelection('Recovering a historical section');
   assert.equal((await page.request.get(origin+'/published/site-cross-browser/copied-browser/')).status(),404,
     'Selective historical recovery cannot implicitly publish a copied page');
   // Authenticated cross-page media inventory, staged alt change and one
@@ -1454,6 +1474,7 @@ async function execute(){
   await page.locator('#server-media-work-apply').click();
   await page.locator('#server-media-work-dialog').waitFor({state:'hidden'});
   await page.locator('#server-status').getByText(/Черновик #6/).waitFor();
+  await assertCollectionSelection('Updating the media inventory');
   assert.ok(await page.evaluate(()=>window.Stage3Editor.getSite().assets
     .some(a=>a.alt==='Browser batch alt description')));
   assert.equal((await page.request.get(origin+'/published/site-cross-browser/copied-browser/')).status(),404,
@@ -1471,12 +1492,30 @@ async function execute(){
   await page.locator('#server-links-apply').click();
   await page.locator('#server-links-dialog').waitFor({state:'hidden'});
   await page.locator('#server-status').getByText(/Черновик #7/).waitFor();
+  await assertCollectionSelection('Migrating page URLs');
   assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().pages.some(p=>
     p.path==='/browser-moved/')),true);
   assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().redirects.some(r=>
     r.from==='/copied-browser/'&&r.to==='/browser-moved/')),true);
   assert.equal((await page.request.get(origin+'/published/site-cross-browser/browser-moved/')).status(),404,
     'Migrated route remains private until separately published');
+  // Restoring a whole revision must not leave the editor pointing to a page
+  // which the rollback deletes. Exercise both the missing-page fallback and
+  // the strict separation of saved draft and public site.
+  await page.locator('#pages .nav-entry').last().click();
+  const pageBeingRemoved=await page.evaluate(()=>window.Stage3Editor.selection().pageId);
+  assert.equal(await page.evaluate(id=>window.Stage3Editor.getSite().pages
+    .find(p=>p.id===id)?.path,pageBeingRemoved),'/browser-moved/');
+  await page.locator('#versions .version').last().click();
+  await page.locator('#server-status').getByText(/Черновик #8/).waitFor();
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.selection())).pageId,'page-home',
+    'Deleted selected page falls back safely to the first surviving page');
+  assert.notEqual((await page.evaluate(()=>window.Stage3Editor.selection())).pageId,pageBeingRemoved);
+  assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/);
+  assert.equal(await page.evaluate(()=>window.Stage3Editor.getSite().pages.some(p=>
+    p.path==='/browser-moved/')),false,'Old revision removes unpublished copied page');
+  assert.equal((await page.request.get(origin+'/published/site-cross-browser/')).status(),404,
+    'Restoring an old revision cannot publish a draft');
   await page.locator('#server-site-select').selectOption(siteId);
   await page.locator('#server-open').click();
   // A prior published status can match before the API finishes opening
@@ -1486,6 +1525,8 @@ async function execute(){
     return window.Stage3Editor.getSite().siteId===expected &&
       picker && !picker.disabled;
   },siteId,{timeout:20000});
+  assert.equal((await page.evaluate(()=>window.Stage3Editor.selection())).pageId,
+    'page-home','Opening a different site intentionally resets the editing context');
   // ONE critical real-browser path for the approved external folder: the PHP
   // server must store asset bytes before accepting any references to them.
   // Tiny synthetic design images exercise transport only, not visual acceptance.
@@ -1735,8 +1776,13 @@ async function execute(){
   await page.locator('#elements .cms-repeat-row').last().locator('button.element').click();
   await page.locator('#fields [data-field="content.question"]').fill('Черновик, который нужно откатить');
   await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
+  const beforeFaqRevisionRestore=await page.evaluate(()=>window.Stage3Editor.selection());
   await page.locator('#save').click();
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeFaqRevisionRestore,
+    'Save keeps the imported FAQ element selected');
   await page.locator('#versions .version').nth(1).click();
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeFaqRevisionRestore,
+    'Whole-revision recovery keeps an existing selected FAQ item in the Inspector');
   assert.deepEqual((await page.evaluate(()=>window.Stage3Editor.getSite()))
     .pages[0].sections.find(s=>s.id==='section-approved-faq')
     .items.map(i=>i.values['content.question']),

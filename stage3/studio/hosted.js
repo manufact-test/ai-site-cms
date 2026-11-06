@@ -786,7 +786,7 @@
     const result=await api('/api/sites/'+encodeURIComponent(pending.siteId)+'/media-maintenance/apply',
       'POST',{confirmationToken:pending.token});
     mediaWorkDialog.close();
-    selectSite(result);await refreshSites();await loadHistory();await loadTemplates();
+    selectSite(result,{preserveSelection:true});await refreshSites();await loadHistory();await loadTemplates();
     drawMedia();drawStatus();
     notice('Массовые правки медиабиблиотеки сохранены одной ревизией. Публикация отдельно.');
   }));
@@ -921,7 +921,7 @@
     invalidateLinkPlan();
     const applied=await api('/api/sites/'+encodeURIComponent(pending.siteId)+'/links/apply',
       'POST',{confirmationToken:pending.token});
-    linkDialog.close();selectSite(applied);
+    linkDialog.close();selectSite(applied,{preserveSelection:true});
     await refreshSites();await loadHistory();await loadTemplates();
     drawStatus();notice('Маршруты и ссылки обновлены одной ревизией. Публикация отдельно.');
   }));
@@ -1055,7 +1055,7 @@
     const saved=await api('/api/sites/'+encodeURIComponent(p.destination)+'/transfer/apply',
       'POST',{confirmationToken:p.token});
     crossDialog.close();
-    selectSite(saved);await refreshSites();await loadHistory();await loadTemplates();
+    selectSite(saved,{preserveSelection:true});await refreshSites();await loadHistory();await loadTemplates();
     drawMedia();drawStatus();
     notice('Блок и его медиа скопированы в сохранённый черновик. Публикация — отдельно.');
   }));
@@ -1243,7 +1243,7 @@
     const saved=await api('/api/sites/'+encodeURIComponent(pending.siteId)+'/import/apply',
       'POST',{confirmationToken:pending.token});
     kitDialog.close();
-    selectSite(saved);await refreshSites();await loadHistory();await loadTemplates();
+    selectSite(saved,{preserveSelection:true});await refreshSites();await loadHistory();await loadTemplates();
     drawMedia();drawStatus();
     notice(saved.import.createsPage?'Страница с SEO и медиа скопирована в черновик. Публикация отдельно.':
       'Выбранные блоки сохранены одной ревизией. Публикация отдельно.');
@@ -2517,7 +2517,7 @@
     const restored=await api('/api/sites/'+encodeURIComponent(pending.siteId)+'/history/apply',
       'POST',{confirmationToken:pending.token});
     historyDialog.close();
-    selectSite(restored);await refreshSites();await loadHistory();await loadTemplates();
+    selectSite(restored,{preserveSelection:true});await refreshSites();await loadHistory();await loadTemplates();
     drawMedia();drawStatus();
     notice(restored.recovered.pageRecreated?
       'Удалённая страница восстановлена отдельной ревизией. Публикация — отдельно.':
@@ -2561,7 +2561,7 @@
         if(!confirm('Восстановить публикацию v'+release.version+' в новый черновик? Публичный сайт останется прежним до отдельной публикации.'))return;
         const restored=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/restore-release','POST',
           {version:release.version,expectedRevision:state.revision});
-        selectSite(restored);await refreshSites();await loadHistory();await loadTemplates();
+        selectSite(restored,{preserveSelection:true});await refreshSites();await loadHistory();await loadTemplates();
         notice('Публикация v'+release.version+' возвращена в черновик #'+state.revision+'.');
       })));
       wrap.querySelector('button').disabled=!canEdit();releaseList.append(wrap);
@@ -6086,7 +6086,7 @@
         if(!confirm('Восстановить ревизию #'+item.revision+' как НОВЫЙ серверный черновик? Опубликованный сайт не изменится.'))return;
         const result=await api('/api/sites/'+encodeURIComponent(state.siteId)+'/restore','POST',
           {targetRevision:Number(item.revision),expectedRevision:state.revision});
-        selectSite(result);await refreshSites();await loadHistory();
+        selectSite(result,{preserveSelection:true});await refreshSites();await loadHistory();
         notice('Ревизия #'+item.revision+' восстановлена как новый черновик #'+state.revision+'.');
       }));
       b.className='version';b.disabled=!canEdit();
