@@ -1384,6 +1384,7 @@ async function execute(){
     assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/,
       label+' leaves a clean saved server draft');
   };
+  await page.locator('#server-nav-resources').click();
   await page.locator('#server-cross-open').click();
   await page.locator('#server-cross-dialog[open]').waitFor();
   await page.locator('#server-cross-source').selectOption(siteId);
@@ -1407,6 +1408,7 @@ async function execute(){
     'Cross-site transfer never activates the destination site');
   // Curated multi-section kit: server preflight, one revision for two sections,
   // browser confirmation, and completely private unpublished destination.
+  await page.locator('#server-nav-resources').click();
   await page.locator('#server-kit-open').click();
   await page.locator('#server-kit-dialog[open]').waitFor();
   await page.locator('#server-kit-source').selectOption(siteId);
@@ -1424,6 +1426,7 @@ async function execute(){
   await assertCollectionSelection('Importing a section collection');
   assert.equal((await page.evaluate(()=>window.Stage3Editor.getSite().pages[0].sections.length)),5,
     'Two selected source blocks copied in one save');
+  await page.locator('#server-nav-resources').click();
   await page.locator('#server-kit-open').click();
   await page.locator('#server-kit-dialog[open]').waitFor();
   await page.locator('#server-kit-source').selectOption(siteId);
@@ -1441,6 +1444,7 @@ async function execute(){
     'Whole-page copy preserves the source page structure');
   assert.equal((await page.request.get(origin+'/published/site-cross-browser/copied-browser/')).status(),404,
     'Imported page is not published implicitly');
+  await page.locator('#server-nav-resources').click();
   await page.locator('#server-history-open').click();
   await page.locator('#server-history-dialog[open]').waitFor();
   await page.locator('#server-history-page option').first().waitFor({state:'attached'});
@@ -1461,6 +1465,7 @@ async function execute(){
     'Selective historical recovery cannot implicitly publish a copied page');
   // Authenticated cross-page media inventory, staged alt change and one
   // immutable draft transaction. Never publish or mutate active live version.
+  await page.locator('#server-nav-resources').click();
   await page.locator('#server-media-work-open').click();
   await page.locator('#server-media-work-dialog[open]').waitFor();
   const mediaWorkFirst=page.locator('#server-media-work-rows [data-media-work-id]').first();
@@ -1481,6 +1486,7 @@ async function execute(){
     'Media maintenance does not publish new cloned pages');
   // Real hosted browser migration: move one page route with a retained
   // redirect through read-only confirmation into one draft revision.
+  await page.locator('#server-nav-resources').click();
   await page.locator('#server-links-open').click();
   await page.locator('#server-links-dialog[open]').waitFor();
   const renamedInput=page.locator('#server-links-pages input[data-previous-path="/copied-browser/"]');

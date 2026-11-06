@@ -2398,7 +2398,6 @@ async function execute(){
     // Capture artifacts are evidence for human visual review, not pixel-diff approval.
   // Owner can restore imported site's previously saved version without mutating
   // public content: stale drafts and published pages are separate snapshots.
-  // Save/Publish reload the server snapshot and may reset the inspector focus.
   // Re-select the exact imported FAQ before changing the next private draft.
   await page.locator('#pages .nav-entry').first().click();
   await openSectionTree();
@@ -2410,7 +2409,15 @@ async function execute(){
   await page.locator('#fields [data-field="content.question"]').dispatchEvent('change');
   const preRestoreRevision=(await (await page.request.get(
     origin+'/api/sites/site-approved-browser')).json()).revision;
+  const beforeFaqSave=await page.evaluate(()=>window.Stage3Editor.selection());
   await page.locator('#save').click();
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeFaqSave,
+    'Saving a modified FAQ retains the selected element and Inspector context');
+  // Recover a section on the first page while the author is viewing the
+  // SECOND page. History is a data operation, not a navigation command.
+  await page.locator('#pages .nav-entry').last().click();
+  const beforeHistorySelection=await page.evaluate(()=>window.Stage3Editor.selection());
+  assert.notEqual(beforeHistorySelection.pageId,imported.pages[0].id);
   // Page recovery stays in site resources, outside the editor toolbar.
   await page.locator('#server-nav-resources').click();
   await page.locator('#server-view-resources:visible').waitFor();
@@ -2431,6 +2438,10 @@ async function execute(){
   await page.locator('#server-history-dialog').waitFor({state:'hidden'});
   await page.waitForFunction(expected=>document.querySelector('#server-status')?.textContent
     ?.includes('Черновик #'+expected),preRestoreRevision+2);
+  assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeHistorySelection,
+    'Selective history recovery on another page keeps the current page, block and Inspector');
+  assert.match(await page.locator('#dirty').innerText(),/сохранён на сервере/);
+  assert.equal(await page.locator('#pages .nav-entry.active').count(),1);
   assert.deepEqual((await page.evaluate(()=>window.Stage3Editor.getSite()))
     .pages[0].sections.find(s=>s.id==='section-approved-faq')
     .items.map(i=>i.values['content.question']),
@@ -2440,6 +2451,9 @@ async function execute(){
   assert.deepEqual(await visitor.locator('section.faq summary').allInnerTexts(),
     ['Как оформить заказ?','Что входит в комплект?'],
     'Restoring a private revision never changes the public site');
+  // Keep the remainder of the approved-site acceptance journey on its
+  // original first page after verifying the second-page history behavior.
+  await page.locator('#pages .nav-entry').first().click();
 
   // Edit the global footer through Studio, save a private revision, and verify
   // that the already-published visitor remains unchanged without Publish.
