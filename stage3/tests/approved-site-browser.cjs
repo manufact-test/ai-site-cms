@@ -2459,6 +2459,9 @@ async function execute(){
   assert.equal(await page.locator('#server-view-resources:visible').count(),1,
     'Recovering a saved block leaves the owner in the Resources workspace');
   assert.equal(await page.locator('#server-nav-resources').getAttribute('aria-current'),'page');
+  // The response updates the revision before safe() runs its finally block.
+  // The route lock must remain until that final transaction cleanup finishes.
+  await page.waitForFunction(()=>!document.getElementById('server-nav-editor')?.disabled);
   assert.equal(await page.locator('#server-nav-editor').isEnabled(),true,
     'The CMS routes become usable again after recovery commits');
   assert.deepEqual(await page.evaluate(()=>window.Stage3Editor.selection()),beforeHistorySelection,
