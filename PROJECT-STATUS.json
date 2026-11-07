@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
-  "date": "2026-11-06",
-  "status": "stage2-no-go-stage3-source-verified-fox-live-switch-blocked-owner-ux-pending",
+  "date": "2026-11-07",
+  "status": "stage2-historical-no-go-stage3-fox-update-reported-by-work-reference-site-design-next-owner-ux-pending",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -11,11 +11,26 @@
     "not_needed": 16
   },
   "latest_handoff": "docs/NEXT-CHAT.md",
+  "active_delivery_checkpoint_2026_11_07": {
+    "date": "2026-11-07",
+    "functional_source_sha": "5c863f476cc538112ff3252f18a4cdedb336e4b6",
+    "code_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/42185003407",
+    "fox_url": "https://mediumpurple-fox-175549.hostingersite.com/studio",
+    "reported_host_status": "Dedicated existing Work chat reports six Studio UI files switched; owner screenshot confirms live authenticated empty-site dashboard. Exact installed live-file hashes not independently attested by main chat.",
+    "genuine_backup_preflight": "77 identical files, 6 changed Studio-only files, no unexpected files; reported Work PASS",
+    "rollback_rehearsal": "true original 85-file backup; six-file switch/reverse and 0600 private pointer preservation reported PASS",
+    "sql": "No SQL changes for the released six-file UI update; independent SQL restore not verified; one-time explicit owner waiver for this UI-only operation (NOT blanket authorization).",
+    "owner_acceptance": "0/135 MUST; practical acceptance postponed until FIRST APPROVED site is built and linked",
+    "next_phase": "Master TZ section 2 A audit reference website → B separately drawn static PC/tablet/mobile + client explanation and internal spec → C owner approval → D actual site code → E CMS integration → F real owner acceptance",
+    "reference_rule": "Owner-provided existing website is a SOURCE/REFERENCE FOR IMPROVEMENT, not an approved mockup, direct CMS import, or published site.",
+    "work_chat_rule": "Already-existing dedicated Work cloud-browser chat handles actions unavailable in main chat; main drafts short exact task, user forwards, Work replies concise evidence, main independently checks. No additional plugins or new Work sessions.",
+    "historic_current_stage_caveat": "Older current_stage/Stage2 fields describe prior formal phase and are not the active first-site design handoff; formal Stage2 acceptance is not silently assumed."
+  },
   "latest_source_sha": "5c863f476cc538112ff3252f18a4cdedb336e4b6",
   "source_editor_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/42185003407",
   "source_php_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/42185003407",
   "source_offweb_ci": null,
-  "source_ci_result": "Exact functional source SHA 5c863f476cc538112ff3252f18a4cdedb336e4b6 on feature/stage3-ai-site-contract; full GitHub Actions #42185003407 SUCCESS 4/4 (contract + PHP/Chromium, runtime, MariaDB 10.11 and 11.8). Real FOX code-only artifact #13487227156 independently hashed and source-reproduced: 83 files, manifest fingerprint ae6bfee2f7a0b1d01105475e86800b9713604576e7565b26598bb78726919662. Live installed FOX has older code; SQL restore, host permissions, real installed-backup preflight and owner switch approval remain NO-GO; owner acceptance 0/135 MUST. No host deployment or private access.",
+  "source_ci_result": "Functional Stage3 release 5c863f476cc538112ff3252f18a4cdedb336e4b6, GitHub Actions #42185003407 SUCCESS 4/4. 2026-11-07 dedicated Work chat reported six-file code-only Hostinger FOX Studio update completed after genuine 77 unchanged / 6 changed preflight and actual 85-file backup rollback rehearsal. Owner screenshot confirmed authenticated FOX /studio normal empty-state; exact live six-file hash comparison and full owner Edit/Save/Publish/Restore E2E not independently proven. Independent SQL restore waiver was owner-approved only for this six-file no-database-change update. Formal acceptance remains 0/135 MUST, to be tested on first approved real site.",
   "accelerated_program": {
     "enabled": true,
     "principle": "Complete full CMS rapidly with cross-subsystem workflows (no duration padding), then correct issues from real use; avoid tiny features and endless tests",
@@ -64,11 +79,11 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Ship the existing CMS: resolve separate, legitimate SQL restore evidence and broken FOX permissions; compare exact pinned code-only candidate against genuine installed snapshot; obtain explicit owner approval before reversible FOX code-only update; verify hosted Smoke, then Ilya's 135-MUST editor acceptance. Do not bypass a blocked SQL export or create new features/sites. First client landing depends on original source and separately approved PC/tablet/mobile designs.",
+  "next_step": "Follow docs/MASTER-TZ.md section 2 A-F. First-site reference audit (existing owner-provided landing is an example to improve, NOT an import). Then improved concept, separate static desktop/tablet/mobile visuals, client-facing rationale and precise internal spec, explicit owner approval, only then build real site and connect it to CMS; functional owner acceptance later. Use existing Work cloud-browser chat for authenticated Hostinger actions via short task message; verify reported results back in main chat.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "stage3-fox-delivery-audit-2026-11-06",
+  "checkpoint_version": "stage3-post-fox-owner-reference-design-handoff-2026-11-07",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
