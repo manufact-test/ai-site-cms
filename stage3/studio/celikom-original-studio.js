@@ -196,4 +196,16 @@
   launch.id='server-celikom-original';
   const toolsContainer=document.getElementById('local-site-tools-content');
   if(toolsContainer)toolsContainer.prepend(launch);
+  // Expose the preserved-source pilot on the real empty "Мои сайты" view;
+  // it is not a fake typed site in the Stage3 site repository.
+  const homeList=document.getElementById('server-site-list');
+  if(homeList){
+    const entry=make('section','cms-hub-card celikom-home-entry');
+    entry.append(make('h3','','CELIKOM · сохранённый оригинал'),
+      make('p','celikom-note','Оригинальный HTML/CSS/JS. Изменяются только разрешённые тексты и FAQ.'),
+      btn('Открыть оригинал CELIKOM',()=>run(async()=>{
+        try{await open();}catch(e){if(panel.open)show(e.message,true);else alert(e.message);}
+      })));
+    homeList.before(entry);
+  }
 })();
