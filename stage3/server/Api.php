@@ -486,6 +486,35 @@ final class Api
                 header('ETag: "'.$asset['sha256'].'"');
                 header('Cache-Control: public, max-age=31536000, immutable');
                 header("Content-Security-Policy: default-src 'none'; sandbox");
+                if ($asset['mime']==='audio/mpeg') {
+                    // Support real media seeking on the separately approved public host.
+                    $data=$asset['bytes'];$total=strlen($data);
+                    $start=0;$end=$total-1;$range=$_SERVER['HTTP_RANGE']??null;
+                    header('Accept-Ranges: bytes');
+                    if ($range!==null) {
+                        if (!is_string($range) ||
+                            !preg_match('/^bytes=(\\d*)-(\\d*)$/D',$range,$m) ||
+                            ($m[1]==='' && $m[2]==='')) {
+                            http_response_code(416);
+                            header('Content-Range: bytes */'.$total);exit;
+                        }
+                        if ($m[1]==='') {
+                            $start=max(0,$total-(int)$m[2]);
+                        } else {
+                            $start=(int)$m[1];
+                            if ($m[2]!=='')$end=min($end,(int)$m[2]);
+                        }
+                        if ($start>=$total || $end<$start) {
+                            http_response_code(416);
+                            header('Content-Range: bytes */'.$total);exit;
+                        }
+                        http_response_code(206);
+                        header('Content-Range: bytes '.$start.'-'.$end.'/'.$total);
+                    }
+                    header('Content-Length: '.($end-$start+1));
+                    if ($method!=='HEAD')echo substr($data,$start,$end-$start+1);
+                    exit;
+                }
                 if ($method!=='HEAD') echo $asset['bytes'];
                 exit;
             } catch (Throwable $error) {
