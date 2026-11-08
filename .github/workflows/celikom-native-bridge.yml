@@ -4,6 +4,7 @@ on:
     branches: ['feature/celikom-preserved-source-bridge']
     paths:
       - 'stage3/site-adapters/celikom-original/**'
+      - 'stage3/tests/celikom-original-studio-e2e.cjs'
       - 'stage3/server/Api.php'
       - 'stage3/server/bootstrap.php'
       - 'stage3/server/CelikomSource.php'
