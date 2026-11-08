@@ -43,7 +43,7 @@
   frame.setAttribute('referrerpolicy','no-referrer');
   frame.setAttribute('loading','lazy');
   stage.append(frame);
-  const previewNote=make('small','celikom-note','Скрипты запускаются в изолированном iframe без доступа к кабинету CMS. Аудио и Manrope отсутствуют в исходном архиве.');
+  const previewNote=make('small','celikom-note','Оригинальные скрипты работают в изолированном iframe без доступа к кабинету CMS. Наличие медиа проверяется по приватному пакету.');
   [['ПК',1440],['Планшет',768],['Телефон',390]].forEach(([caption,width])=>{
     devices.append(btn(caption,()=>{
       frame.style.width=width+'px';
@@ -133,6 +133,12 @@
       sidebar.append(fold);
     }
     updateMenus();
+    const missing=Array.isArray(current.incompleteAssets)?current.incompleteAssets:[];
+    const audioMissing=missing.some(name=>String(name).startsWith('demo_audio='));
+    const fontMissing=missing.some(name=>String(name).includes('Manrope'));
+    previewNote.textContent='Оригинальный JS запускается в изолированном iframe без доступа к CMS. '+
+      (audioMissing?'Аудиофрагменты не подключены. ':'Обе версии аудио подключены в приватном пакете. ')+
+      (fontMissing?'Исходный архив не содержит файлов шрифта Manrope.':'');
     show('Черновик #'+current.revision+' загружен · '+Object.keys(current.keys).length+
       ' разрешённых полей'+(current.publicConfigured?'':' · публичный хост ещё не настроен'));
   }
