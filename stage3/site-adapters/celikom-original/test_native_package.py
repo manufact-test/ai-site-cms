@@ -5,6 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 from bridge import digest
+import native_package
 from native_package import make_package
 
 
@@ -35,6 +36,8 @@ def test():
                      'owner-v10-motion.js.Без названия'):
             html.append(f'<script src="{folder}/{name}"></script>')
         html.append(f'<img src="{folder}/saved_resource" alt="Демо">')
+        html.append('<audio id="celikom-demo-service" src="/?demo_audio=service"></audio>')
+        html.append('<audio id="celikom-demo-restored" src="/?demo_audio=restored"></audio>')
         html.append('</body></html>')
         archive = root / 'source.zip'
         with ZipFile(archive,'w') as z:
@@ -61,13 +64,45 @@ def test():
         assert '{{CELIKOM:faq.faq-01.question}}' in html
         assert '<span>{{CELIKOM:hero.heading.1}}</span>' in html
         assert not (package/'assets/faq.js.Без названия').exists()
+        # Synthetic stand-ins never ship to the website or public release.
+        service=root/'synthetic-service.mp3'; restored=root/'synthetic-restored.mp3'
+        service.write_bytes(b'A'*1536); restored.write_bytes(b'B'*1536)
+        original_hashes=native_package.AUDIO_SHA256
+        native_package.AUDIO_SHA256={
+            'service':digest(service.read_bytes()),'restored':digest(restored.read_bytes())
+        }
+        try:
+            paired=root/'with-paired-audio'
+            paired_result=make_package(archive,paired,expected_sha=digest(archive.read_bytes()),
+                                       service_mp3=service,restored_mp3=restored)
+            assert paired_result['audio_paired'] is True
+            paired_manifest=json.loads((paired/'manifest.json').read_text())
+            assert paired_manifest['assets']['service.mp3']['sha256']==digest(service.read_bytes())
+            assert paired_manifest['assets']['restored.mp3']['sha256']==digest(restored.read_bytes())
+            assert paired_manifest['assets']['celikom-player-center-fix.css']['mime']=='text/css'
+            paired_html=(paired/'template.html').read_text()
+            assert '/celikom-original-assets/service.mp3' in paired_html
+            assert '/celikom-original-assets/restored.mp3' in paired_html
+            assert '/celikom-original-assets/celikom-player-center-fix.css' in paired_html
+            assert (paired/'source-archive.zip').read_bytes()==archive.read_bytes()
+            assert (paired/'assets/faq.js').read_bytes()==b'window.demo_19=1;'
+            service.write_bytes(b'TAMPERED'*192)
+            try:
+                make_package(archive,root/'reject-audio',expected_sha=digest(archive.read_bytes()),
+                             service_mp3=service,restored_mp3=restored)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError('Modified A/B clip accepted')
+        finally:
+            native_package.AUDIO_SHA256=original_hashes
         try:
             make_package(archive,root/'rejected',expected_sha='0'*64)
         except ValueError:
             pass
         else:
             raise AssertionError('Unapproved source hash was allowed')
-        print('PASS CELIKOM source package: 11 sections, 28 FAQ, 99 fields, 14 byte-preserved assets')
+        print('PASS CELIKOM source package: source integrity, 11 sections, 28 FAQ, 99 fields, 14 original assets, paired private audio and visual correction')
 
 if __name__=='__main__':
     test()
