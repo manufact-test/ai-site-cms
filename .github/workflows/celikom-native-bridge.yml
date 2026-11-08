@@ -42,6 +42,10 @@ jobs:
           php -l stage3/server/CelikomSource.php
           php stage3/site-adapters/celikom-original/test_native_source.php
           node --check stage3/studio/celikom-original-studio.js
+      - name: Install existing editor browser test dependencies
+        run: |
+          npm ci --prefix cms/editor --ignore-scripts
+          node --check stage3/tests/celikom-original-studio-e2e.cjs
       - name: Exact PHP-host package includes the new source adapter
         run: |
           node stage3/bin/cms-release.cjs pack-hostinger-sibling "$GITHUB_WORKSPACE" "$RUNNER_TEMP/celikom-cms-release"
@@ -49,3 +53,8 @@ jobs:
           test -f "$RUNNER_TEMP/celikom-cms-release/stage3/server/CelikomSource.php"
           test -f "$RUNNER_TEMP/celikom-cms-release/stage3/studio/celikom-original-studio.js"
           test -f "$RUNNER_TEMP/celikom-cms-release/stage3/studio/celikom-original-studio.css"
+
+      - name: Real hosted Studio E2E (disposable synthetic CELIKOM; no deploy)
+        run: |
+          php -m | grep -qi pdo_sqlite
+          node stage3/tests/celikom-original-studio-e2e.cjs
