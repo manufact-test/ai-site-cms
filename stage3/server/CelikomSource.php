@@ -10,6 +10,8 @@ use RuntimeException;
 final class CelikomSource
 {
     public const SOURCE_SHA256 = 'f998e96ccc9393dfe958a51d144be10d5fb1f1d068721d163ff40048077104aa';
+    // Second genuine owner-uploaded CELIKOM capture (2026-11-08); original ZIP bytes remain unchanged.
+    public const SOURCE_SHA256_OWNER_V2 = 'f3ed9d1bdfeb4ddce1a94370b6f0f3675de2a505e527aa991cfa0a04e0f25001';
     private const FORMAT = 'manufact-celikom-preserved-source-v1';
     private string $root;
     private array $manifest;
@@ -38,13 +40,17 @@ final class CelikomSource
         $raw = $this->read('manifest.json', 500000);
         $manifest = json_decode($raw, true, 32, JSON_THROW_ON_ERROR);
         if (!is_array($manifest) || ($manifest['format'] ?? null) !== self::FORMAT
-            || !hash_equals($expectedHash, (string)($manifest['source_zip_sha256'] ?? ''))
+            || !in_array((string)($manifest['source_zip_sha256'] ?? ''),
+                $expectedHash === self::SOURCE_SHA256
+                    ? [self::SOURCE_SHA256, self::SOURCE_SHA256_OWNER_V2]
+                    : [$expectedHash], true)
             || !preg_match('/^[a-f0-9]{64}$/D', (string)($manifest['template_sha256'] ?? ''))
             || !is_array($manifest['fields'] ?? null) || count($manifest['fields']) !== 99
             || !is_array($manifest['assets'] ?? null) || count($manifest['assets']) > 100) {
             throw new InvalidArgumentException('Invalid approved CELIKOM source manifest');
         }
-        if (!hash_equals($expectedHash, hash('sha256', $this->read('source-archive.zip', 41943040)))) {
+        if (!hash_equals((string)$manifest['source_zip_sha256'],
+                hash('sha256', $this->read('source-archive.zip', 41943040)))) {
             throw new RuntimeException('Original CELIKOM ZIP does not match owner-approved SHA-256');
         }
         $this->template = $this->read('template.html', 1000000);
