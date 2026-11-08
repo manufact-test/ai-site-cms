@@ -18,6 +18,7 @@ Python 3.10+ with beautifulsoup4 is required only on the build machine.
     python bridge.py prepare /ABS/owner-capture.zip /ABS/working-copy
     # Edit /ABS/working-copy/values.json
     python bridge.py build /ABS/working-copy /ABS/preview
+    python finalize_static.py /ABS/preview /ABS/preview-final
     python test_bridge.py
     CELIKOM_CAPTURE_ZIP=/ABS/owner-capture.zip python test_bridge.py
 
@@ -30,3 +31,5 @@ Python 3.10+ with beautifulsoup4 is required only on the build machine.
 5. Never put private source captures, site HTML, actual text values, or private media in this public repository. Only generic tool code and synthetic tests are committed.
 
 Existing functional SHA 5c863f4, Stage3 core, main, FOX, production and design status are unchanged.
+
+The captured archive has three artificial '.Без названия' script suffixes and a PNG named 'saved_resource'. The separate finalize step changes only output names/links so a static HTTP server supplies correct JS/PNG MIME types, preserving the original file bytes; it refuses overwrite.
