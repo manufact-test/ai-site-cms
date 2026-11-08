@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
   "date": "2026-11-08",
-  "status": "stage2-historical-no-go-stage3-fox-ui-reported-first-celikom-design-no-go-owner-ux-pending",
+  "status": "stage2-formal-no-go-stage3-fox-ui-reported-celikom-original-source-bridge-wip-no-owner-acceptance",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -9,6 +9,34 @@
     "required": 135,
     "desirable": 42,
     "not_needed": 16
+  },
+  "active_celikom_source_bridge_2026_11_08": {
+    "date": "2026-11-08",
+    "decision": "Owner stopped CELIKOM redesign after all visual concepts were rejected; use existing original CELIKOM HTML/CSS/JS for an isolated, source-preserving pilot with the existing CMS.",
+    "active_handoff": "docs/CELIKOM-ORIGINAL-CMS-BRIDGE-HANDOFF-2026-11-08.md",
+    "next_chat_message": "handoffs/lead-integrator/FIRST-MESSAGE-CELIKOM-ORIGINAL-BRIDGE-2026-11-08.md",
+    "lead_branch": "feature/stage3-ai-site-contract",
+    "source_functional_sha": "5c863f476cc538112ff3252f18a4cdedb336e4b6",
+    "source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/42185003407",
+    "wip_bridge_branch": "feature/celikom-preserved-source-bridge",
+    "wip_bridge_head": "ea2df813a4ac9c8ff9e7882d287d50a9ce0ca6b1",
+    "wip_bridge_pr": "https://github.com/manufact-test/ai-site-cms/pull/11",
+    "bridge_scope": "Owner-origin CELIKOM offline text allowlist only, NOT a CMS Studio integration or general arbitrary HTML importer.",
+    "original_source_sha256": "f998e96ccc9393dfe958a51d144be10d5fb1f1d068721d163ff40048077104aa",
+    "static_preview_sha256": "14e21688aa14f6f8e07723a16b141547c1957152fc7382b898eb2165dae121d0",
+    "workspace_zip_sha256": "2c1bdec1144952b4c525618072a14837dda6109ddc05e32b603337045ee9ca69",
+    "original_source": "User-conversation attachment Сытый пёс(1).zip; not committed publicly; original ZIP extraction emits filename encoding warnings.",
+    "counts": {
+      "sections": 11,
+      "faq": 28,
+      "editable_keys": 99
+    },
+    "locally_verified": "9/9 local bridge tests PASS on local captured source; 14/14 linked CSS/JS/image HTTP 200 in saved local smoke report.",
+    "not_verified": "GitHub WIP source was not independently executed with exact local tested ZIP; no real browser E2E, audio/fonts, Studio Import/Edit/Save/Publish/Restore, FOX site connection, 135-MUST owner acceptance.",
+    "source_missing": "Two audio demo streams and four Manrope WOFF2",
+    "cms_import_constraint": "Native Подключить готовый сайт only accepts typed manufactured approved-site packages and cannot import arbitrary captured HTML/CSS/JS.",
+    "fox_status": "No pilot site created or imported, no new host changes; earlier Work reported UI-only update, live hashes not independently attested.",
+    "next_step": "Reconcile WIP GitHub bridge with tested local ZIP; design security-bounded first-party CELIKOM-only source-preserving Studio integration, implement one real end-to-end local Save/Reload/Preview/Publish/Restore scenario before requesting any separately authorized FOX test; no site redesign."
   },
   "latest_handoff": "docs/NEXT-CHAT.md",
   "active_delivery_checkpoint_2026_11_07": {
@@ -83,7 +111,7 @@
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
-  "checkpoint_version": "stage3-post-fox-owner-reference-design-handoff-2026-11-07",
+  "checkpoint_version": "stage3-celikom-original-site-bridge-wip-handoff-2026-11-08",
   "current_stage": {
     "number": 2,
     "name": "Адаптация выбранной основы и финальная архитектура",
