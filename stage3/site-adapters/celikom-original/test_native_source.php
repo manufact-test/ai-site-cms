@@ -52,9 +52,11 @@ try {
     ensure(hash('sha256',$adapter->asset('original.js')['bytes'])===$manifest['assets']['original.js']['sha256'],
         'original JavaScript bytes are immutable');
     $next=$fields;$next['seo.title']='Улучшенный CELIKOM';
+    $next['faq.test-01.question']='Новый вопрос по CELIKOM';
     ensure($adapter->save($next,1)['revision']===2,'CAS save creates revision 2');
     $reload=new CelikomSource($root,hash('sha256',$zip));
     ensure($reload->snapshot()['fields']['seo.title']==='Улучшенный CELIKOM','reloaded saved heading');
+    ensure($reload->snapshot()['fields']['faq.test-01.question']==='Новый вопрос по CELIKOM','reloaded saved FAQ question');
     expectedException(fn()=> $reload->save($next,1),'Stale');
     ensure($reload->publish(2)['version']===1,'separate immutable publication');
     ensure(str_contains($reload->html(null,1),'Улучшенный CELIKOM'),'published output retains saved content');
