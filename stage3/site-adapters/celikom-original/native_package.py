@@ -12,8 +12,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from bs4 import BeautifulSoup, NavigableString
-from bridge import (digest, discover_fields, make_edit_workspace,
-                    normalize_local_links, source_inventory)
+from bridge import (digest, discover_fields, make_edit_workspace, source_inventory)
 from finalize_static import RENAMES
 
 FORMAT = 'manufact-celikom-preserved-source-v1'
@@ -50,9 +49,9 @@ def make_package(archive: Path, target: Path, expected_sha: str = PINNED_SOURCE_
                 node.clear()
                 node.append(NavigableString(marker))
             limits[key] = {'max': row['max']}
-        template = normalize_local_links(str(soup))
-        # Only same-page original origin links are adapted; all visible styling stays intact.
-        template = template.replace('https://lemonchiffon-narwhal-791953.hostingersite.com/', '/')
+        template = str(soup)
+        # Only same-page anchor navigation is rewritten; canonical/SEO stays intact.
+        template = template.replace('https://lemonchiffon-narwhal-791953.hostingersite.com/#', '#')
         resource_ref = re.escape(resources.name) + '/'
         template, count = re.subn(r'(?:\./)?' + resource_ref,
                                   '/celikom-original-assets/', template)
