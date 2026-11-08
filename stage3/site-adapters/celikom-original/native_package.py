@@ -178,8 +178,8 @@ def make_package(archive: Path, target: Path, expected_sha: str | None = None,
                 'source_html_sha256': digest(html),
                 'template_sha256': digest(template.encode('utf-8')),
                 'fields': limits, 'assets': assets,
-                'missing_assets': ['demo_audio=service', 'demo_audio=restored',
-                                   'Manrope WOFF2 (4 files)']
+                'missing_assets': (['Manrope WOFF2 (4 files)'] if owner_audio else
+                               ['demo_audio=service', 'demo_audio=restored', 'Manrope WOFF2 (4 files)'])
             }
             state = {'format': FORMAT, 'revision': 1,
                      'revisions': {'1': values}, 'releases': {}}
