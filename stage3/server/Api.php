@@ -474,6 +474,12 @@ final class Api
                 $source=CelikomSource::configured();
                 if ($source===null) throw new NotFound('Not configured');
                 $asset=$source->asset($assetMatch[1]);
+                // The verified owner demo audio must NEVER be anonymously readable on Studio.
+                // Only a separately configured public CELIKOM host can serve published MP3.
+                // An authenticated Studio preview embeds short clips in-memory below.
+                if ($asset['mime']==='audio/mpeg' && !CelikomSource::publicHostAllowed()) {
+                    http_response_code(404);exit;
+                }
                 header('Content-Type: '.$asset['mime']);
                 header('Access-Control-Allow-Origin: *');
                 header('Cross-Origin-Resource-Policy: cross-origin');
@@ -760,7 +766,27 @@ final class Api
                     $body=$this->request(800000);
                     if ($path==='/api/celikom-original/preview') {
                         if (!is_array($body['fields']??null)) throw new InvalidArgumentException('CELIKOM preview fields missing');
-                        $this->response(200,['html'=>$source->html($body['fields']),'published'=>false]);
+                        $html=$source->html($body['fields']);
+                        // A sandboxed srcdoc has no owner session. Embed exact short source
+                        // audio only into this owner+CSRF-protected response; never expose
+                        // private MP3 through the public /celikom-original-assets route.
+                        foreach (['service','restored'] as $label) {
+                            try {
+                                $audio=$source->asset($label.'.mp3');
+                            } catch (NotFound $notFound) {
+                                continue; // Historical original ZIPs without paired audio.
+                            }
+                            if ($audio['mime']!=='audio/mpeg') {
+                                throw new RuntimeException('Unexpected CELIKOM A/B audio MIME');
+                            }
+                            $src='src="/celikom-original-assets/'.$label.'.mp3"';
+                            if (substr_count($html,$src)!==1) {
+                                throw new RuntimeException('Missing verified CELIKOM A/B reference');
+                            }
+                            $html=str_replace($src,'src="data:audio/mpeg;base64,'.
+                                base64_encode($audio['bytes']).'"',$html);
+                        }
+                        $this->response(200,['html'=>$html,'published'=>false]);
                     }
                     if ($path==='/api/celikom-original/save') {
                         if (!is_array($body['fields']??null)) throw new InvalidArgumentException('CELIKOM fields missing');
