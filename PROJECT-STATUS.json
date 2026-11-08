@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
-  "date": "2026-11-07",
-  "status": "stage2-historical-no-go-stage3-fox-update-reported-by-work-reference-site-design-next-owner-ux-pending",
+  "date": "2026-11-08",
+  "status": "stage2-historical-no-go-stage3-fox-ui-reported-first-celikom-design-no-go-owner-ux-pending",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -79,7 +79,7 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Follow docs/MASTER-TZ.md section 2 A-F. First-site reference audit (existing owner-provided landing is an example to improve, NOT an import). Then improved concept, separate static desktop/tablet/mobile visuals, client-facing rationale and precise internal spec, explicit owner approval, only then build real site and connect it to CMS; functional owner acceptance later. Use existing Work cloud-browser chat for authenticated Hostinger actions via short task message; verify reported results back in main chat.",
+  "next_step": "Continue MASTER-TZ section 2 A-B-C for CELIKOM first site: use owner-provided saved original as reference only; perform professional UI/UX/SEO/visual/art-direction research; deliver two truly distinct complete static desktop concepts; owner selects and revises one; then tablet/mobile only for selected one, full client explanation, precise spec and explicit owner approval; only then build site, attach to existing CMS, and perform F acceptance. All previous CELIKOM concepts rejected. Use existing Work only for bounded browser/Hostinger tasks, never new plugins.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
@@ -2161,7 +2161,7 @@
   },
   "engine_update_design_commit": "18e4c86365ccb4bbbb93abc8c79e26c2a10071d3",
   "latest_docs_sha": "43366ac50eee5b0dfd314b866ca4e805f5d8933a",
-  "latest_branch_head_before_handoff": "43366ac50eee5b0dfd314b866ca4e805f5d8933a",
+  "latest_branch_head_before_handoff": "b65e2af0dcfe01cef66908066b578e37dcf18973",
   "stage3_docs_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/41333649907",
   "stage3_docs_checkpoint_sha": "43366ac50eee5b0dfd314b866ca4e805f5d8933a",
   "stage3_v9_13_checkpoint": {
@@ -2234,5 +2234,27 @@
       "handoffs/lead-integrator/MAIN-HANDOFF-v9.14-2026-11-01.md",
       "handoffs/lead-integrator/FIRST-MESSAGE-v9.14-2026-11-01.md"
     ]
+  },
+  "active_delivery_checkpoint_2026_11_08": {
+    "date": "2026-11-08",
+    "repo_branch": "feature/stage3-ai-site-contract",
+    "source_original_url": "https://lemonchiffon-narwhal-791953.hostingersite.com/",
+    "source_received_as": "Previous chat upload Сытый пёс.zip containing locally saved CELIKOM HTML/CSS/JS/SVG; site not publicly accessible; transfer bundle can be re-attached",
+    "pilot_source_rule": "Example/material for improvement, NOT an approved design, CMS import package, or site to publish",
+    "source_factual_audit": "docs/FIRST-SITE-CELIKOM-DESIGN-NOGO-2026-11-08.md",
+    "rejected_desktop_concepts": "A/B, A2/B2, A3/B3, A4/B4 and last imagegen renders. All DESIGN NO-GO; no design approved.",
+    "failure": "Ignored required research/art direction and owner QA: typography/line breaks, icon consistency, intra-group vs inter-section spacing, optical center, hero/header collision, product truth, visual richness. Original owner design judged better.",
+    "owner_requested_flow": "A actual audit/references -> B TWO different static desktop concepts -> select/edit ONE -> only its tablet/mobile -> client and internal spec -> C explicit owner approval of all three -> D code -> E CMS attach -> F real owner acceptance",
+    "site_or_cms_code_changes": false,
+    "hostinger_changes": false,
+    "cms_functional_source_sha": "5c863f476cc538112ff3252f18a4cdedb336e4b6",
+    "source_ci": "https://github.com/manufact-test/ai-site-cms/actions/runs/42185003407",
+    "source_ci_result": "4/4 SUCCESS on code; NO acceptance of design or live CMS",
+    "fox_reported_status": "Work reported six Studio-only files updated; owner saw empty sites dashboard; independently verified live hashes/owner E2E not done",
+    "owner_accepted_must": 0,
+    "design_approved": false,
+    "source_archive_path_warning": "Previous chat upload path may not be mounted in a new conversation; owner can attach supplied transfer ZIP. Do not assume source files are committed to GitHub.",
+    "docs_only_handoff_parent_sha": "b65e2af0dcfe01cef66908066b578e37dcf18973",
+    "first_message": "handoffs/lead-integrator/FIRST-MESSAGE-POST-DESIGN-NOGO-2026-11-08.md"
   }
 }

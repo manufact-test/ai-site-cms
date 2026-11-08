@@ -1,6 +1,21 @@
-# ACTIVE HANDOFF — MANUFACT AI Site CMS, 2026-11-07 (READ FIRST)
+# ACTIVE HANDOFF — MANUFACT AI Site CMS, 2026-11-08 (READ FIRST)
 
-This is the **only current handoff**. Older checkpoints below are historical and must not override this. The source of truth for the product is `docs/MASTER-TZ.md`, especially section 2 (A–F), plus `docs/ROADMAP.md`. Continue the EXISTING project; do not start a new CMS, a second editor or a template factory.
+**Это единственная текущая передача; весь блок 07.11 ниже — история.** Рабочая CMS сохраняется, код не переделывать. Исходный мастер: [MASTER ТЗ §2 A–F](MASTER-TZ.md), [ROADMAP](ROADMAP.md), [полный CELIKOM design NO-GO](FIRST-SITE-CELIKOM-DESIGN-NOGO-2026-11-08.md).
+
+## Точная контрольная точка 08.11
+- Ветка `feature/stage3-ai-site-contract`; входящий документационный HEAD `b65e2af0dcfe01cef66908066b578e37dcf18973`. **Функциональный код не меняли**: `5c863f476cc538112ff3252f18a4cdedb336e4b6`, [CI #42185003407](https://github.com/manufact-test/ai-site-cms/actions/runs/42185003407) 4/4 SUCCESS.
+- FOX /studio: ранее Work сообщил о контролируемом Studio UI-only обновлении, пользователь видел пустую авторизованную «Мои сайты» — **первого сайта ещё нет**. Нет независимой сверки хэшей живых файлов и реального owner Save/Publish E2E. Owner acceptance **0/135 MUST**, Stage2 формально не принят.
+- Сайт-референс владельца: https://lemonchiffon-narwhal-791953.hostingersite.com/ , сейчас закрыт/не опубликован. Предыдущему чату приложен архив **`Сытый пёс.zip`**, внутри настоящий CELIKOM (HTML/CSS/JS/SVG). Не импортировать в CMS. Полные исходные факты, доступность/SEO-ограничения и визуальные ориентиры — в [аудите](FIRST-SITE-CELIKOM-DESIGN-NOGO-2026-11-08.md).
+- **Весь дизайнерский проход 07–08.11 ОТКЛОНЁН:** A/B, A2/B2, A3/B3, A4/B4 и последующие генерации **не утверждены**. Была повторена ошибка: генерация целой страницы вместо арт-дирекции, плохая типографика/переносы, иконки, отступы, иерархия, оптическое центрирование, наезды на header и слабая графика. Оригинальный CELIKOM владелец считает визуально сильнее. **Не продолжать косметически эти картинки; не объявлять дизайн принятым.**
+- **Утверждённое уточнение процесса:** A — изучить фактический исходник и реальные профессиональные референсы, обосновать UX/UI, SEO, графику, контент, анимации; B1 — сделать **ДВЕ принципиально разные полные статичные ПК-концепции**, показать и выбрать; B2 — довести выбранную ПК, потом только для неё статичные планшет и телефон; C — полная клиентская презентация, внутренняя спецификация и **явное утверждение всех трёх**; D — код нового сайта; E — подключение к существующей CMS; F — реальная проверка и owner acceptance.
+- **Первое следующее действие:** продолжить качественное дизайнерское исследование и переделать две концепции **с профессиональной композицией и проверкой до показа**. Не писать сайт/интеграцию, не придумывать фичи, не править FOX и CELIKOM production. Рабочий Work уже есть: короткое задание от Lead, владелец передаёт и приносит отчёт; новые плагины не предлагать.
+- **Первое сообщение следующему чату:** [`handoffs/lead-integrator/FIRST-MESSAGE-POST-DESIGN-NOGO-2026-11-08.md`](../handoffs/lead-integrator/FIRST-MESSAGE-POST-DESIGN-NOGO-2026-11-08.md). Обновление документации — только по просьбе владельца при переходе.
+
+---
+
+# PREVIOUS CHECKPOINT — MANUFACT AI Site CMS, 2026-11-07 (historical; superseded 08.11)
+
+This checkpoint was current on 07.11 only; it is now historical. The 08.11 section above overrides it. The source of truth for the product is `docs/MASTER-TZ.md`, especially section 2 (A–F), plus `docs/ROADMAP.md`. Continue the EXISTING project; do not start a new CMS, a second editor or a template factory.
 
 ## Current checkpoint: FOX updated by the existing Work chat; first-site DESIGN phase is next
 
