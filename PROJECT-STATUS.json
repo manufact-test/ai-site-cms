@@ -107,7 +107,7 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Continue MASTER-TZ section 2 A-B-C for CELIKOM first site: use owner-provided saved original as reference only; perform professional UI/UX/SEO/visual/art-direction research; deliver two truly distinct complete static desktop concepts; owner selects and revises one; then tablet/mobile only for selected one, full client explanation, precise spec and explicit owner approval; only then build site, attach to existing CMS, and perform F acceptance. All previous CELIKOM concepts rejected. Use existing Work only for bounded browser/Hostinger tasks, never new plugins.",
+  "next_step": "Continue the CELIKOM source-preserving CMS pilot, NOT redesign: reconcile draft PR #11 against the tested local bridge ZIP, implement a scoped first-party adapter in existing Studio for original owner's HTML/CSS/JS with 99 allowed text/SEO/FAQ fields, test real local preview/Save/reload/Publish/Restore and original 1440/768/390 fidelity; obtain separate owner approval before any FOX operation. No arbitrary HTML importer, fake approval package, automatic merge or production changes.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
