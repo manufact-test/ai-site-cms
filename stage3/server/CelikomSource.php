@@ -115,7 +115,7 @@ final class CelikomSource
         foreach ($this->manifest['fields'] as $key => $meta) {
             $value = $fields[$key];
             if (!is_string($value) || trim($value) === '' || str_contains($value, "\0")
-                || preg_match_all('/./us', $value) > $meta['max']) {
+                || preg_match('//u',$value)!==1 || preg_match_all('/./us', $value) > $meta['max']) {
                 throw new InvalidArgumentException('Invalid CELIKOM field: ' . $key);
             }
         }
