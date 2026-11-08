@@ -100,7 +100,7 @@ async function go(){
   const panel=page.locator('#celikom-original-dialog');
   await panel.waitFor({state:'visible'});
   await panel.locator('[data-celikom-key="seo.title"]').fill('CELIKOM CI NEW HEADING');
-  const faqGroup=panel.locator('details.celikom-fields-group').filter({has:panel.locator('summary:text-matches("FAQ", "i")')});
+  const faqGroup=panel.locator('details.celikom-fields-group').filter({hasText:/FAQ ·/});
   if(!(await faqGroup.evaluate(e=>e.open)))await faqGroup.locator('summary').click();
   await panel.locator('[data-celikom-key="faq.test-01.question"]').fill('CELIKOM CI NEW FAQ');
   await panel.getByRole('button',{name:'Предпросмотр'}).click();
