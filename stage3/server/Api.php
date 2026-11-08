@@ -429,6 +429,8 @@ final class Api
                 '<script src="/media-motion-sha256.js" defer></script>' .
                 '<script src="/media-motion-engine.js" defer></script>' .
                 '<script src="/hosted.js" defer></script><script src="/access.js" defer></script>' .
+                '<link rel="stylesheet" href="/celikom-original-studio.css">' .
+                '<script src="/celikom-original-studio.js" defer></script>' .
                 '<script src="/media-processing.js" defer></script></head>', $html);
             header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; font-src 'self' data: blob:; frame-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
             header('Content-Type: text/html; charset=utf-8');
@@ -441,7 +443,9 @@ final class Api
             '/hosted.js' => ['hosted.js', 'text/javascript; charset=utf-8'],
             '/access.js' => ['access.js', 'text/javascript; charset=utf-8'],
             '/hosted.css' => ['hosted.css', 'text/css; charset=utf-8'],
-            '/media-processing.js' => ['media-processing.js', 'text/javascript; charset=utf-8']
+            '/media-processing.js' => ['media-processing.js', 'text/javascript; charset=utf-8'],
+            '/celikom-original-studio.js' => ['celikom-original-studio.js', 'text/javascript; charset=utf-8'],
+            '/celikom-original-studio.css' => ['celikom-original-studio.css', 'text/css; charset=utf-8']
         ];
         // Exact first-party Workbench files are exposed ONLY to the hosted
         // editor page as JavaScript resources, never as arbitrary file paths.
@@ -462,6 +466,53 @@ final class Api
                 $this->response(503, ['error' => 'Studio asset unavailable']);
             }
             $this->staticStudioResource($data,$type);
+        }
+        // Immutable client-owned assets; no uploaded asset or private manifest is exposed.
+        if (in_array($method, ['GET','HEAD'], true)
+            && preg_match('~^/celikom-original-assets/([A-Za-z0-9._/-]{1,180})$~D', $path, $assetMatch)) {
+            try {
+                $source=CelikomSource::configured();
+                if ($source===null) throw new NotFound('Not configured');
+                $asset=$source->asset($assetMatch[1]);
+                header('Content-Type: '.$asset['mime']);
+                header('Access-Control-Allow-Origin: *');
+                header('Cross-Origin-Resource-Policy: cross-origin');
+                header('ETag: "'.$asset['sha256'].'"');
+                header('Cache-Control: public, max-age=31536000, immutable');
+                header("Content-Security-Policy: default-src 'none'; sandbox");
+                if ($method!=='HEAD') echo $asset['bytes'];
+                exit;
+            } catch (Throwable $error) {
+                http_response_code(404);
+                header('Content-Type: text/plain; charset=utf-8');
+                if($method!=='HEAD') echo 'Not found';
+                exit;
+            }
+        }
+        // Published original JS must NOT run on the authenticated Studio origin.
+        // Release is available only from an independently configured public host.
+        if (in_array($method,['GET','HEAD'],true)
+            && in_array($path,['/celikom-original-live','/celikom-original-live/'],true)) {
+            if (!CelikomSource::publicHostAllowed()) {
+                http_response_code(404);exit;
+            }
+            try {
+                $source=CelikomSource::configured();
+                if ($source===null) throw new NotFound('Not configured');
+                $version=$source->currentReleaseVersion();
+                if ($version===null) throw new NotFound('Not published');
+                $html=$source->html(null,$version);
+                header('Content-Type: text/html; charset=utf-8');
+                header('Cache-Control: no-store');
+                header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
+                if ($method!=='HEAD') echo $html;
+                exit;
+            } catch (Throwable $error) {
+                http_response_code(404);
+                header('Content-Type: text/plain; charset=utf-8');
+                if ($method!=='HEAD') echo 'Not found';
+                exit;
+            }
         }
         if (in_array($method,['GET','HEAD'],true) && preg_match('~^/published/([a-z][a-z0-9-]{2,79})/assets/([a-z][a-z0-9-]{2,79})\.(png|jpg|webp|mp4|woff2)$~D', $path, $assetMatch)) {
             try {
@@ -696,6 +747,36 @@ final class Api
             if (preg_match('~^/api/sites/([a-z][a-z0-9-]{2,79})(?:/|$)~', $path, $scope)) $siteScope = $scope[1];
             $this->auditContext = [$principal['username'], $method . ' ' . $path, $siteScope];
             $this->authorize($principal, $path, $method);
+            // First-party CELIKOM pilot uses the existing Studio session, CSRF
+            // and audit trail. Only OWNER can operate this one verified source.
+            if (str_starts_with($path, '/api/celikom-original')) {
+                if ($principal['role'] !== 'owner') $this->response(403,['error'=>'Owner only']);
+                $source=CelikomSource::configured();
+                if ($source===null) $this->response(503,['error'=>'Оригинал CELIKOM ещё не установлен в приватном хранилище']);
+                if ($method==='GET' && $path==='/api/celikom-original')
+                    $this->response(200,$source->snapshot());
+                if ($method==='POST') {
+                    $this->csrf();
+                    $body=$this->request(800000);
+                    if ($path==='/api/celikom-original/preview') {
+                        if (!is_array($body['fields']??null)) throw new InvalidArgumentException('CELIKOM preview fields missing');
+                        $this->response(200,['html'=>$source->html($body['fields']),'published'=>false]);
+                    }
+                    if ($path==='/api/celikom-original/save') {
+                        if (!is_array($body['fields']??null)) throw new InvalidArgumentException('CELIKOM fields missing');
+                        $this->response(200,$source->save($body['fields'],self::revision($body['expectedRevision']??null)));
+                    }
+                    if ($path==='/api/celikom-original/restore')
+                        $this->response(200,$source->restore(self::revision($body['targetRevision']??null),
+                            self::revision($body['expectedRevision']??null)));
+                    if ($path==='/api/celikom-original/restore-release')
+                        $this->response(200,$source->restoreRelease(self::revision($body['targetVersion']??null),
+                            self::revision($body['expectedRevision']??null)));
+                    if ($path==='/api/celikom-original/publish')
+                        $this->response(200,$source->publish(self::revision($body['expectedRevision']??null)));
+                }
+                $this->response(404,['error'=>'Unknown CELIKOM operation']);
+            }
             if ($path === '/api/hosting/diagnostics') {
                 if ($method !== 'GET') $this->response(405, ['error' => 'GET required']);
                 if ($principal['role'] !== 'owner') $this->response(403, ['error' => 'Owner only']);
