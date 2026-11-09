@@ -104,7 +104,14 @@ async function go(){
     if(msg.type()==='error' && /media-src|Media load rejected|Refused to load media/i.test(msg.text()))
       mediaViolations.push(msg.text());
   });
-  await page.goto(origin+'/studio');
+  const studioResponse=await page.goto(origin+'/studio');
+  // The meta CSP and hosted HTTP CSP intersect; both must allow self-hosted fonts.
+  const fontPolicy=/(?:^|;)\\s*font-src 'self' data: blob:(?:;|$)/;
+  assert.match(studioResponse.headers()['content-security-policy']||'',fontPolicy,
+    'Hosted Studio HTTP policy must allow private local font assets');
+  const studioMetaCsp=await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
+  assert.match(studioMetaCsp||'',fontPolicy,
+    'Studio meta CSP must not silently override HTTP font-src permission');
   await page.locator('#server-login:not([hidden])').waitFor({timeout:15000});
   assert.equal((await page.request.get(origin+'/api/celikom-original')).status(),401);
   await page.locator('#server-username').fill(env.STAGE3_OWNER_USER);
