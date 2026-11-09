@@ -1,7 +1,7 @@
 {
   "working_name": "AI Site CMS",
-  "date": "2026-11-08",
-  "status": "stage2-historical-no-go-stage3-fox-ui-reported-first-celikom-design-no-go-owner-ux-pending",
+  "date": "2026-11-09",
+  "status": "stage2-formal-pending-fox-ui-reported-celikom-original-local-studio-pilot-pass",
   "github_repository": "manufact-test/ai-site-cms",
   "first_official_release": "full-135-required-no-mvp",
   "requirements": {
@@ -11,6 +11,27 @@
     "not_needed": 16
   },
   "latest_handoff": "docs/NEXT-CHAT.md",
+  "active_delivery_checkpoint_2026_11_09": {
+    "date": "2026-11-09",
+    "scope": "first-party preserved-source CELIKOM pilot, isolated Studio only; existing CMS retained",
+    "repo_branch": "feature/celikom-preserved-source-bridge",
+    "last_verified_code_sha_before_docs": "f937ed81240ac49513013f3a3a9d8f3ae42babe0",
+    "ci_run": "https://github.com/manufact-test/ai-site-cms/actions/runs/42584022124",
+    "ci_result": "SUCCESS / NO DEPLOY (synthetic GitHub tests)",
+    "work_real_owner_studio_e2e": "PASS: My Sites -> title+FAQ -> save -> reload -> preview -> publish -> restore, all 99 original fields verified after restore",
+    "owner_audio": "Two real 11-second A/B MP3 provided by owner; kept private, not in GitHub",
+    "last_work_stress": "PASS: 20/20 rapid A/B (~60ms gaps), 3 pause-seek-resume, seek while playing, final pause; no new JS errors, volume in [0,1]",
+    "fixes": "inherited Studio meta CSP for data: media; modal contrast min 10.88:1; negative-volume rAF fade fixed in fingerprinted private runtime derivative; owner ZIP unchanged",
+    "remaining": "four pre-existing CSP/font browser messages not classified; original saved ZIP lacks four Manrope WOFF2. Only fix verified functional/visual issues, then finish CMS acceptance/release blockers.",
+    "pilot_accepted_locally": true,
+    "owner_accepted_must_total": "NOT accepted; 0/135 formal MUST remains historical until separately evaluated",
+    "fox_or_production_changed": false,
+    "main_changed": false,
+    "release_authorized": false,
+    "handoff": "docs/CELIKOM-PRESERVED-SOURCE-BRIDGE-HANDOFF-2026-11-09.md",
+    "first_message": "handoffs/lead-integrator/FIRST-MESSAGE-CELIKOM-BRIDGE-2026-11-09.md",
+    "separate_master_tz_new_site_design_gates_remain": true
+  },
   "active_delivery_checkpoint_2026_11_07": {
     "date": "2026-11-07",
     "functional_source_sha": "5c863f476cc538112ff3252f18a4cdedb336e4b6",
@@ -79,7 +100,7 @@
   "celikom_independent": true,
   "code_exists": true,
   "technology_selected": true,
-  "next_step": "Continue MASTER-TZ section 2 A-B-C for CELIKOM first site: use owner-provided saved original as reference only; perform professional UI/UX/SEO/visual/art-direction research; deliver two truly distinct complete static desktop concepts; owner selects and revises one; then tablet/mobile only for selected one, full client explanation, precise spec and explicit owner approval; only then build site, attach to existing CMS, and perform F acceptance. All previous CELIKOM concepts rejected. Use existing Work only for bounded browser/Hostinger tasks, never new plugins.",
+  "next_step": "Preserved-original CELIKOM local Studio pilot passed with genuine MP3 and 20/20 A/B Work retest. On feature/celikom-preserved-source-bridge classify the four existing CSP/font messages, check Manrope presence and real visual impact, then close meaningful remaining CMS owner acceptance/release blockers. Avoid unneeded player/design rewrites; do not deploy FOX or production without explicit owner authorization and backup/rollback. For newly designed client sites retain MASTER-TZ A→B→C approval gates.",
   "project_name": "AI Site CMS",
   "branch": "feature/stage3-ai-site-contract",
   "repo_visibility": "public",
