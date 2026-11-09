@@ -158,7 +158,11 @@ function compareInstalled(backup,candidate){
     pointerMode,requiresPointerTransfer:true,requiresDatabaseBackupGate:true};
 }
 
-try{
+// Export strict read-only validators to the separately reviewed CELIKOM release gate.
+// The legacy six-file command remains unchanged when invoked directly.
+module.exports={sha,refuse,pointer,installedOnlyAllowed,guardZip,inventory,modes,readEntry,validateCandidate};
+
+if(require.main===module)try{
   if(process.argv.length<4)refuse('usage: fox-update-preflight.cjs INSTALLED_STAGE3_ZIP FOX_INNER_ZIP [--expect-commit=SHA] [--expect-fingerprint=SHA] [--expect-zip-sha256=SHA]');
   const expected=expectations(process.argv.slice(4));
   const backup=guardZip(process.argv[2]),candidateZip=guardZip(process.argv[3]);
