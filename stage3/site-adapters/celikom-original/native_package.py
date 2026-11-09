@@ -55,6 +55,33 @@ PLAYER_FIX_CSS = """
 }
 """
 
+# The owner ZIP is immutable. Only the private, explicitly verified runtime
+# copy of the known CELIKOM player gets this narrowly scoped defect correction.
+# A requestAnimationFrame timestamp may precede performance.now() recorded
+# later in the same browser frame, producing a negative fade factor.
+OWNER_SOUND_JS_SHA256 = '5ec3e84418de792a95a831ceefb8199fe35a92c32bc4268a4ce82772ca4e4b6f'
+PLAYER_FADE_OLD = (
+    '  const t=Math.min(1,(now-start)/ms);\\n'
+    '  audio.volume=from+(to-from)*t;'
+).replace('\\n', '\n')
+PLAYER_FADE_NEW = (
+    '  const t=Math.max(0,Math.min(1,(now-start)/ms));\\n'
+    '  audio.volume=Math.max(0,Math.min(1,from+(to-from)*t));'
+).replace('\\n', '\n')
+
+
+def verified_player_fade_fix(source: bytes) -> bytes:
+    if digest(source) != OWNER_SOUND_JS_SHA256:
+        raise ValueError('CELIKOM player source fingerprint changed; manual review required')
+    old = PLAYER_FADE_OLD.encode('utf-8')
+    if source.count(old) != 1:
+        raise ValueError('CELIKOM player fade function differs from reviewed original')
+    patched = source.replace(old, PLAYER_FADE_NEW.encode('utf-8'), 1)
+    if patched == source or patched.count(PLAYER_FADE_NEW.encode('utf-8')) != 1:
+        raise ValueError('CELIKOM player correction was not applied exactly once')
+    return patched
+
+
 MIME = {'.css':'text/css', '.js':'text/javascript', '.svg':'image/svg+xml',
         '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
         '.webp':'image/webp', '.woff2':'font/woff2', '.mp3':'audio/mpeg',
@@ -136,6 +163,7 @@ def make_package(archive: Path, target: Path, expected_sha: str | None = None,
         try:
             (target / 'assets').mkdir()
             assets = {}
+            derivative = {}
             for file in sorted(resources.rglob('*')):
                 if not file.is_file():
                     continue
@@ -150,10 +178,21 @@ def make_package(archive: Path, target: Path, expected_sha: str | None = None,
                     raise ValueError('Unexpected or duplicated asset: ' + name)
                 destination = target / 'assets' / rel
                 destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(file, destination)
-                data = destination.read_bytes()
-                if data != file.read_bytes():
-                    raise ValueError('Original static asset bytes changed')
+                source_data = file.read_bytes()
+                if owner_audio and name == 'owner-sound-player.js':
+                    data = verified_player_fade_fix(source_data)
+                    derivative[name] = {
+                        'source_sha256': digest(source_data),
+                        'runtime_sha256': digest(data),
+                        'fix': 'clamp-fade-progress-and-volume-v1'
+                    }
+                else:
+                    data = source_data
+                destination.write_bytes(data)
+                if (name not in derivative and destination.read_bytes() != source_data) or (
+                    name in derivative and digest(destination.read_bytes()) != derivative[name]['runtime_sha256']
+                ):
+                    raise ValueError('CELIKOM asset integrity mismatch')
                 assets[name] = {'mime': mime, 'sha256': digest(data)}
             if owner_audio:
                 # Owner audio is retained outside GitHub. Add it only to this private verified package.
@@ -178,6 +217,7 @@ def make_package(archive: Path, target: Path, expected_sha: str | None = None,
                 'source_html_sha256': digest(html),
                 'template_sha256': digest(template.encode('utf-8')),
                 'fields': limits, 'assets': assets,
+                'reviewed_runtime_fixes': derivative,
                 'missing_assets': (['Manrope WOFF2 (4 files)'] if owner_audio else
                                ['demo_audio=service', 'demo_audio=restored', 'Manrope WOFF2 (4 files)'])
             }
@@ -187,7 +227,8 @@ def make_package(archive: Path, target: Path, expected_sha: str | None = None,
                 (target / name).write_text(json.dumps(data, ensure_ascii=False,
                                 separators=(',', ':')) + '\n', encoding='utf-8')
             (target / 'state.lock').touch(mode=0o600)
-            return {'source_zip_sha256': expected_sha, 'audio_paired': bool(owner_audio), 'assets': len(assets),
+            return {'source_zip_sha256': expected_sha, 'audio_paired': bool(owner_audio),
+                    'reviewed_runtime_fixes': list(derivative), 'assets': len(assets),
                     'fields': len(values), 'sections': source_info['sections'],
                     'faq': source_info['faq']}
         except Exception:
