@@ -19,7 +19,8 @@ final class EngineReleaseVerifier
     private const MAX_FILES = 2000;
     private const MAX_BYTES = 60000000;
     private const STUDIO_FILES = [
-        'index.html','bundle.js','studio.css','hosted.js','hosted.css','access.js','media-processing.js'
+        'index.html','bundle.js','studio.css','hosted.js','hosted.css','access.js','media-processing.js',
+        'celikom-original-studio.js','celikom-original-studio.css'
     ];
     private const MEDIA_FILES = [
         'lib/contract.cjs','lib/sha256.cjs','workbench/engine.js'
