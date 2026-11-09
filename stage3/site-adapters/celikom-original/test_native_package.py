@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Synthetic offline package test: no owner source enters the repository."""
 import json
+import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
@@ -40,6 +41,21 @@ def test():
         html.append('<audio id="celikom-demo-restored" src="/?demo_audio=restored"></audio>')
         html.append('</body></html>')
         archive = root / 'source.zip'
+        # Synthetic JS reproduces only the first-frame volume bug.
+        original_player_js = """const token=1;
+const fade=(audio,from,to,ms,stamp,done)=>{
+ const start=performance.now();
+ function next(now){
+  if(token!==stamp)return;
+  const t=Math.min(1,(now-start)/ms);
+  audio.volume=from+(to-from)*t;
+  if(t<1)requestAnimationFrame(next);
+  else if(done)done()
+ }
+ requestAnimationFrame(next)
+};
+const sourceReady=()=>true;
+"""
         with ZipFile(archive,'w') as z:
             z.writestr('owner.html',''.join(html))
             z.writestr(f'{folder}/original.css','html{background:#111}')
@@ -47,7 +63,9 @@ def test():
                 z.writestr(f'{folder}/original-{i}.css',f'.demo-{i}{{color:red}}')
             for name in ('faq.js.Без названия','owner-sound-player.js.Без названия',
                          'owner-v10-motion.js.Без названия'):
-                z.writestr(f'{folder}/{name}',f'window.demo_{len(name)}=1;')
+                z.writestr(f'{folder}/{name}',
+                           original_player_js if name.startswith('owner-sound-player') else
+                           f'window.demo_{len(name)}=1;')
             z.writestr(f'{folder}/saved_resource',b'\x89PNG\r\n\x1a\n\x00')
         package = root / 'private'
         actual = make_package(archive, package, expected_sha=digest(archive.read_bytes()))
@@ -68,9 +86,11 @@ def test():
         service=root/'synthetic-service.mp3'; restored=root/'synthetic-restored.mp3'
         service.write_bytes(b'A'*1536); restored.write_bytes(b'B'*1536)
         original_hashes=native_package.AUDIO_SHA256
+        original_js_hash=native_package.OWNER_SOUND_JS_SHA256
         native_package.AUDIO_SHA256={
             'service':digest(service.read_bytes()),'restored':digest(restored.read_bytes())
         }
+        native_package.OWNER_SOUND_JS_SHA256=digest(original_player_js.encode('utf-8'))
         try:
             paired=root/'with-paired-audio'
             paired_result=make_package(archive,paired,expected_sha=digest(archive.read_bytes()),
@@ -86,6 +106,26 @@ def test():
             assert '/celikom-original-assets/celikom-player-center-fix.css' in paired_html
             assert (paired/'source-archive.zip').read_bytes()==archive.read_bytes()
             assert (paired/'assets/faq.js').read_bytes()==b'window.demo_19=1;'
+            with ZipFile(archive) as z:
+                original_in_zip=z.read(f'{folder}/owner-sound-player.js.Без названия')
+            assert original_in_zip==original_player_js.encode('utf-8')
+            runtime_js=(paired/'assets/owner-sound-player.js').read_bytes()
+            assert runtime_js!=original_in_zip
+            assert b'Math.max(0,Math.min(1,(now-start)/ms))' in runtime_js
+            assert b'Math.max(0,Math.min(1,from+(to-from)*t))' in runtime_js
+            assert b'Math.min(1,(now-start)/ms);' not in runtime_js
+            assert paired_manifest['reviewed_runtime_fixes']['owner-sound-player.js']=={
+                'source_sha256':digest(original_in_zip),
+                'runtime_sha256':digest(runtime_js),
+                'fix':'clamp-fade-progress-and-volume-v1'
+            }
+            regression=subprocess.run(
+                ['node',str(Path(__file__).with_name('test_player_fade.cjs')),
+                 str(paired/'assets/owner-sound-player.js')],
+                capture_output=True,text=True,check=False
+            )
+            assert regression.returncode==0, regression.stderr
+            print(regression.stdout.strip())
             service.write_bytes(b'TAMPERED'*192)
             try:
                 make_package(archive,root/'reject-audio',expected_sha=digest(archive.read_bytes()),
@@ -96,6 +136,7 @@ def test():
                 raise AssertionError('Modified A/B clip accepted')
         finally:
             native_package.AUDIO_SHA256=original_hashes
+            native_package.OWNER_SOUND_JS_SHA256=original_js_hash
         try:
             make_package(archive,root/'rejected',expected_sha='0'*64)
         except ValueError:
