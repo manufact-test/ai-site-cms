@@ -184,6 +184,15 @@ jobs:
           path: ${{ runner.temp }}/hostinger-stage3-package/ai-site-stage3-hostinger-sibling.zip
           retention-days: 7
           if-no-files-found: error
+      # Separate immutable checkout: compare the *real original source files*
+      # shipped to FOX at 5c863f4, never a synthetic copy of the new branch.
+      - name: Checkout exact current FOX source for seven-file review (CI only)
+        if: github.ref == 'refs/heads/feature/celikom-preserved-source-bridge'
+        uses: actions/checkout@v4
+        with:
+          ref: 5c863f476cc538112ff3252f18a4cdedb336e4b6
+          path: .ci-fox-baseline-5c863f4
+          persist-credentials: false
       - name: Build and verify FOX code-only update (NO DEPLOY)
         run: |
           mkdir -p "$RUNNER_TEMP/fox-stage3-code"
@@ -219,6 +228,15 @@ jobs:
           # The synthetic config pointer lives only in RUNNER_TEMP; NO HOST.
           node "$GITHUB_WORKSPACE/stage3/tests/fox-update-rehearsal-smoke.cjs" \
             "$RUNNER_TEMP/fox-stage3-code/ai-site-stage3-fox-code-$GITHUB_SHA.zip"
+          # New, separate 7-file gate. Legacy 6-file gate stays fail-closed.
+          # Never connects to FOX or private SQL; the pointer is an inert fixture.
+          if [ "$GITHUB_REF" = "refs/heads/feature/celikom-preserved-source-bridge" ]; then
+            node --check "$GITHUB_WORKSPACE/stage3/bin/fox-celikom-update-preflight.cjs"
+            node --check "$GITHUB_WORKSPACE/stage3/tests/fox-celikom-preflight-rehearsal.cjs"
+            node "$GITHUB_WORKSPACE/stage3/tests/fox-celikom-preflight-rehearsal.cjs" \
+              "$RUNNER_TEMP/fox-stage3-code/ai-site-stage3-fox-code-$GITHUB_SHA.zip" \
+              "$GITHUB_WORKSPACE/.ci-fox-baseline-5c863f4"
+          fi
       - name: Upload FOX runtime-only code artifact (manual update, no deployment)
         uses: actions/upload-artifact@v4
         with:
