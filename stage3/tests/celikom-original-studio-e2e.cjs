@@ -14,6 +14,19 @@ assert.equal(process.env.GITHUB_ACTIONS,'true','Refuse operator workstation or h
 const chrome=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium','/usr/bin/chromium-browser'].find(fs.existsSync);
 assert.ok(chrome,'Chromium required');
 const hash=s=>crypto.createHash('sha256').update(s).digest('hex');
+function syntheticWave(){
+  // Only in CI: one second of generated tone, never shipped or copied to the actual CMS.
+  const rate=16000, samples=rate, wav=Buffer.alloc(44+samples*2);
+  wav.write('RIFF',0);wav.writeUInt32LE(wav.length-8,4);
+  wav.write('WAVE',8);wav.write('fmt ',12);wav.writeUInt32LE(16,16);
+  wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);
+  wav.writeUInt32LE(rate,24);wav.writeUInt32LE(rate*2,28);
+  wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);
+  wav.write('data',36);wav.writeUInt32LE(samples*2,40);
+  for(let i=0;i<samples;i++)wav.writeInt16LE(
+    Math.round(Math.sin(i*2*Math.PI*440/rate)*3600),44+i*2);
+  return wav.toString('base64');
+}
 const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'celikom-studio-ui-ci-'));
 const archive=Buffer.from('CI fixture, not the CELIKOM owner website; do not publish.');
 const dummyHash=hash(archive);
@@ -39,7 +52,7 @@ function prepareSyntheticSource(){
   assert.equal(keys.length,99);
   let html='<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>CI private fixture</title><style>body{font-family:system-ui;margin:30px}h1{color:#0b1013}</style></head><body><h1>{{CELIKOM:seo.title}}</h1><section id="faq"><h2>FAQ</h2>';
   for(const key of keys.slice(1))html+='<p data-key="'+key+'">{{CELIKOM:'+key+'}}</p>';
-  html+='</section></body></html>';
+  html+='</section><audio id="ci-celikom-media" preload="auto" src="data:audio/wav;base64,'+syntheticWave()+'"></audio></body></html>';
   for(const key of keys){meta[key]={max:3000};fields[key]=key==='seo.title'?'CELIKOM CI initial title':'CI initial '+key;}
   const manifest={format:'manufact-celikom-preserved-source-v1',
     source_zip_sha256:dummyHash,template_sha256:hash(Buffer.from(html)),
@@ -83,10 +96,14 @@ async function launch(){
 }
 async function go(){
   const origin=await launch();
-  browser=await chromium.launch({executablePath:chrome,headless:true,args:['--no-sandbox']});
+  browser=await chromium.launch({executablePath:chrome,headless:true,args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']});
   const context=await browser.newContext({viewport:{width:1440,height:900}});
-  const page=await context.newPage(),errors=[];
+  const page=await context.newPage(),errors=[],mediaViolations=[];
   page.on('pageerror',e=>errors.push(e.message));
+  page.on('console',msg=>{
+    if(msg.type()==='error' && /media-src|Media load rejected|Refused to load media/i.test(msg.text()))
+      mediaViolations.push(msg.text());
+  });
   await page.goto(origin+'/studio');
   await page.locator('#server-login:not([hidden])').waitFor({timeout:15000});
   assert.equal((await page.request.get(origin+'/api/celikom-original')).status(),401);
@@ -99,6 +116,28 @@ async function go(){
   await home.click();
   const panel=page.locator('#celikom-original-dialog');
   await panel.waitFor({state:'visible'});
+  const contrast=await panel.evaluate(dialog=>{
+    const parse=(v)=>v.match(/[\\d.]+/g).slice(0,3).map(Number);
+    const lum=values=>values.map(x=>{
+      const v=x/255;return v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4);
+    }).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+    const ratio=(fg,bg)=>{
+      const a=lum(parse(fg)),b=lum(parse(bg));
+      return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+    };
+    const background=getComputedStyle(dialog).backgroundColor;
+    const summary=dialog.querySelector('.celikom-fields-group summary');
+    const field=dialog.querySelector('.celikom-field .control');
+    const button=dialog.querySelector('.celikom-actions .btn');
+    return {
+      dialog:ratio(getComputedStyle(dialog).color,background),
+      summary:ratio(getComputedStyle(summary).color,background),
+      field:ratio(getComputedStyle(field).color,getComputedStyle(field).backgroundColor),
+      button:ratio(getComputedStyle(button).color,getComputedStyle(button).backgroundColor)
+    };
+  });
+  for(const [name,value] of Object.entries(contrast))
+    assert.ok(value>=4.5,'Insufficient CELIKOM Studio '+name+' contrast '+value);
   await panel.locator('[data-celikom-key="seo.title"]').fill('CELIKOM CI NEW HEADING');
   const faqGroup=panel.locator('details.celikom-fields-group').filter({hasText:/FAQ ·/});
   if(!(await faqGroup.evaluate(e=>e.open)))await faqGroup.locator('summary').click();
@@ -107,6 +146,25 @@ async function go(){
   const frame=panel.locator('iframe');
   await frame.waitFor();
   await frame.contentFrame().locator('h1').getByText('CELIKOM CI NEW HEADING').waitFor();
+  const audio=frame.contentFrame().locator('#ci-celikom-media');
+  const mediaState=await audio.evaluate(async element=>{
+    element.load();
+    if(element.readyState<2){
+      await new Promise((yes,no)=>{
+        element.addEventListener('canplay',yes,{once:true});
+        element.addEventListener('error',()=>no(Error('Studio inherited CSP rejected test audio: '+element.error?.code)),{once:true});
+      });
+    }
+    await element.play();
+    await new Promise(yes=>setTimeout(yes,180));
+    const seconds=element.currentTime;
+    element.pause();
+    return {readyState:element.readyState,error:element.error?.code||0,seconds};
+  },{timeout:12000});
+  assert.equal(mediaState.error,0,'Studio preview failed to load synthetic audio');
+  assert.ok(mediaState.readyState>=2 && mediaState.seconds>0.05,
+    'Studio preview audio must actually play rather than show a fake progress bar');
+  assert.deepEqual(mediaViolations,[],'Preview inherited a blocking CSP media directive');
   await panel.getByRole('button',{name:'Сохранить черновик'}).click();
   await panel.getByText(/Черновик сохранён как #2/).waitFor({timeout:12000});
   await page.reload();
@@ -137,7 +195,7 @@ async function go(){
   assert.equal(snap.releases.length,2);
   assert.equal(snap.releases[1].sourceRevision,3);
   assert.deepEqual(errors,[],'Browser JavaScript errors');
-  console.log('PASS: REAL hosted Studio UI from My Sites, title+FAQ edits, preview, save, reload, publish v1, restore draft, publish rollback v2; disposable SQLite');
+  console.log('PASS: real hosted Studio UI: My Sites, title/FAQ, preview, save/reload, publish, rollback; synthetic audio playback and WCAG 4.5+ contrast; disposable SQLite');
   await context.close();
 }
 go().catch(err=>{console.error(err.stack||err);process.exitCode=1}).finally(async()=>{
