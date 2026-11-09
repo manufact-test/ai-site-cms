@@ -35,6 +35,7 @@ require_once __DIR__ . '/TechnologyHandoff.php';
 require_once __DIR__ . '/FlexForm.php';
 require_once __DIR__ . '/FormGateway.php';
 require_once __DIR__ . '/Api.php';
+require_once __DIR__ . '/CelikomSource.php';
 
 use Manufact\Stage3\ContractValidator;
 use Manufact\Stage3\SiteRepository;

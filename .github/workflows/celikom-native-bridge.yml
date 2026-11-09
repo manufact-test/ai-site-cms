@@ -1,0 +1,62 @@
+name: CELIKOM original bridge (NO DEPLOY)
+on:
+  push:
+    branches: ['feature/celikom-preserved-source-bridge']
+    paths:
+      - 'stage3/site-adapters/celikom-original/**'
+      - 'stage3/tests/celikom-original-studio-e2e.cjs'
+      - 'stage3/server/Api.php'
+      - 'stage3/server/bootstrap.php'
+      - 'stage3/server/CelikomSource.php'
+      - 'stage3/studio/celikom-original-studio.*'
+      - 'stage3/studio/index.html'
+      - 'stage3/bin/cms-release.cjs'
+      - '.github/workflows/celikom-native-bridge.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify isolated branch (no deployment permissions)
+        run: |
+          test "$GITHUB_REF" = 'refs/heads/feature/celikom-preserved-source-bridge'
+          test "${{ github.repository }}" = 'manufact-test/ai-site-cms'
+      - name: Install Python HTML parser
+        run: |
+          python3 -m venv "$RUNNER_TEMP/celikom-venv"
+          "$RUNNER_TEMP/celikom-venv/bin/python" -m pip install 'beautifulsoup4==4.14.3'
+          echo "$RUNNER_TEMP/celikom-venv/bin" >> "$GITHUB_PATH"
+      - name: Verify bridge preparation and native text snapshots
+        run: |
+          python3 stage3/site-adapters/celikom-original/test_bridge.py
+          python3 stage3/site-adapters/celikom-original/test_native_package.py
+          python3 -m py_compile stage3/site-adapters/celikom-original/native_package.py
+      - name: Verify native runtime and existing Studio syntax
+        run: |
+          php -l stage3/server/bootstrap.php
+          php -l stage3/server/Api.php
+          php -l stage3/server/CelikomSource.php
+          php stage3/site-adapters/celikom-original/test_native_source.php
+          node --check stage3/studio/celikom-original-studio.js
+      - name: Install existing editor browser test dependencies
+        run: |
+          npm ci --prefix cms/editor --ignore-scripts
+          node --check stage3/tests/celikom-original-studio-e2e.cjs
+      - name: Exact PHP-host package includes the new source adapter
+        run: |
+          node stage3/bin/cms-release.cjs pack-hostinger-sibling "$GITHUB_WORKSPACE" "$RUNNER_TEMP/celikom-cms-release"
+          node stage3/bin/cms-release.cjs verify "$RUNNER_TEMP/celikom-cms-release"
+          test -f "$RUNNER_TEMP/celikom-cms-release/stage3/server/CelikomSource.php"
+          test -f "$RUNNER_TEMP/celikom-cms-release/stage3/studio/celikom-original-studio.js"
+          test -f "$RUNNER_TEMP/celikom-cms-release/stage3/studio/celikom-original-studio.css"
+
+      - name: Real hosted Studio E2E (disposable synthetic CELIKOM; no deploy)
+        run: |
+          php -m | grep -qi pdo_sqlite
+          node stage3/tests/celikom-original-studio-e2e.cjs
