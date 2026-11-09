@@ -106,7 +106,7 @@ async function go(){
   });
   const studioResponse=await page.goto(origin+'/studio');
   // The meta CSP and hosted HTTP CSP intersect; both must allow self-hosted fonts.
-  const fontPolicy=/(?:^|;)\\s*font-src 'self' data: blob:(?:;|$)/;
+  const fontPolicy=/(?:^|;)\s*font-src 'self' data: blob:(?:;|$)/;
   assert.match(studioResponse.headers()['content-security-policy']||'',fontPolicy,
     'Hosted Studio HTTP policy must allow private local font assets');
   const studioMetaCsp=await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
