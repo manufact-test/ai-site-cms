@@ -53,6 +53,11 @@ async function main(){
   const entries=readArchive(fs.readFileSync(packageFile));
   assert.equal(entries.has('collector/server/public/index.php'),false);
   assert.equal(entries.has('collector/server/Api.php'),false,'collector sidecar must exclude the CMS admin API');
+  assert.equal(entries.has('collector/server/CelikomSource.php'),false,
+    'Collector must not include owner-only original CELIKOM source adapter');
+  assert.equal(entries.get('collector/server/bootstrap.php').includes(
+    Buffer.from("require_once __DIR__ . '/CelikomSource.php'")),false,
+    'Collector bootstrap must not require CMS-only source adapter');
   for(const name of ['DatabaseSnapshot.php','EngineLifecycle.php','EngineReleaseVerifier.php','EngineRuntime.php']){
     assert.equal(entries.has('collector/server/'+name),false,'collector sidecar must exclude CMS engine updater code: '+name);
   }
