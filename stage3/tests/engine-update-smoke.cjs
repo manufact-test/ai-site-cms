@@ -166,7 +166,9 @@ try{
   for(const required of [
     'stage3/server/Api.php','stage3/server/RuntimeConfig.php',
     'stage3/server/bin/Stage3Installer.php','stage3/server/bin/install.php',
-    'stage3/server/bin/hosted-install-runner.php','stage3/studio/hosted.css'
+    'stage3/server/bin/hosted-install-runner.php','stage3/studio/hosted.css',
+    'stage3/server/CelikomSource.php',
+    'stage3/studio/celikom-original-studio.js','stage3/studio/celikom-original-studio.css'
   ]){
     assert.ok(releaseManifest.files.some(file=>file.path===required),
       'signed PHP-host release must retain staging installer/diagnostics file: '+required);
