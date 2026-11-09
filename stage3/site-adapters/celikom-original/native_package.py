@@ -83,14 +83,17 @@ def verified_player_fade_fix(source: bytes) -> bytes:
     return patched
 
 
-MIME = {'.css':'text/css', '.js':'text/javascript', '.svg':'image/svg+xml',
+# Exact Git blob identities from manufact-test/nomusic, feature/api-range,\n# website/public/assets/fonts/. Font files + complete SIL OFL license are\n# supplied only to private offline packaging; no external runtime calls.\nMANROPE_GIT_BLOBS = {\n    'manrope-cyrillic-ext-wght-normal.woff2': '57c7c0eefb32d1c9cf8780f8c95020499bf06e9c',\n    'manrope-cyrillic-wght-normal.woff2': '3a062296a1269ded5bf605334d18f3e43088c888',\n    'manrope-latin-ext-wght-normal.woff2': 'bd24140af06f1b5897d3bbd6538a74b03748a21e',\n    'manrope-latin-wght-normal.woff2': '71eb731d558046199aa7f985adbf812890a093a1',\n}\nMANROPE_LICENSE_GIT_BLOB = '462280f3e4037df1839fba6cdee11d0980d3f0a9'\n\ndef git_blob_id(data: bytes) -> str:\n    return hashlib.sha1(b'blob ' + str(len(data)).encode('ascii') + b'\\x00' + data).hexdigest()\n\ndef verified_manrope_dir(folder: Path | None) -> dict[str, bytes]:\n    if folder is None:\n        return {}\n    if not folder.is_dir() or folder.is_symlink():\n        raise ValueError('Manrope source must be an existing non-symlink directory')\n    files = {**MANROPE_GIT_BLOBS, 'OFL-Manrope.txt': MANROPE_LICENSE_GIT_BLOB}\n    verified = {}\n    for name, expected in files.items():\n        path = folder / name\n        if not path.is_file() or path.is_symlink() or path.stat().st_size > 100000:\n            raise ValueError('Missing, oversized or unsafe original Manrope file: ' + name)\n        data = path.read_bytes()\n        if git_blob_id(data) != expected:\n            raise ValueError('Manrope fingerprint mismatch (nomusic Git blob): ' + name)\n        if name.endswith('.woff2') and not data.startswith(b'wOF2'):\n            raise ValueError('Invalid WOFF2 signature: ' + name)\n        if name == 'OFL-Manrope.txt' and b'SIL OPEN FONT LICENSE Version 1.1' not in data:\n            raise ValueError('Unrecognized Manrope license')\n        verified[name] = data\n    return verified\n\ndef reroute_manrope_urls(css_or_html: str, counts: dict[str, int]) -> str:\n    for name in MANROPE_GIT_BLOBS:\n        old = '/assets/fonts/' + name\n        count = css_or_html.count(old)\n        if count:\n            counts[name] += count\n            css_or_html = css_or_html.replace(old, '/celikom-original-assets/fonts/' + name)\n    return css_or_html\n\nMIME = {'.css':'text/css', '.js':'text/javascript', '.svg':'image/svg+xml',
         '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
         '.webp':'image/webp', '.woff2':'font/woff2', '.mp3':'audio/mpeg',
         '.ogg':'audio/ogg', '.wav':'audio/wav'}
 
 
 def make_package(archive: Path, target: Path, expected_sha: str | None = None,
-                 service_mp3: Path | None = None, restored_mp3: Path | None = None):
+                 service_mp3: Path | None = None, restored_mp3: Path | None = None,
+                 manrope_dir: Path | None = None):
+    manrope = verified_manrope_dir(manrope_dir)
+    font_references = {name: 0 for name in MANROPE_GIT_BLOBS}
     actual_sha = digest(archive.read_bytes())
     # Injecting a non-owner hash is allowed only from local Python tests, not HTTP.
     if expected_sha is None:
@@ -155,6 +158,8 @@ def make_package(archive: Path, target: Path, expected_sha: str | None = None,
             if old not in template:
                 raise ValueError('Original resource not referenced: ' + old)
             template = template.replace(old, new)
+        if manrope:
+            template = reroute_manrope_urls(template, font_references)
         for key in values:
             if template.count('{{CELIKOM:' + key + '}}') != 1:
                 raise ValueError('Ambiguous editable field in template: ' + key)
@@ -187,6 +192,15 @@ def make_package(archive: Path, target: Path, expected_sha: str | None = None,
                         'runtime_sha256': digest(data),
                         'fix': 'clamp-fade-progress-and-volume-v1'
                     }
+                elif manrope and name.endswith('.css'):
+                    css = reroute_manrope_urls(source_data.decode('utf-8'), font_references)
+                    data = css.encode('utf-8')
+                    if data != source_data:
+                        derivative[name] = {
+                            'source_sha256': digest(source_data),
+                            'runtime_sha256': digest(data),
+                            'fix': 'local-manrope-url-routing-v1'
+                        }
                 else:
                     data = source_data
                 destination.write_bytes(data)
@@ -209,6 +223,20 @@ def make_package(archive: Path, target: Path, expected_sha: str | None = None,
                 assets['celikom-player-center-fix.css'] = {
                     'mime': 'text/css', 'sha256': digest(css_data)
                 }
+            if manrope:
+                if not all(font_references.values()):
+                    raise ValueError('Approved CELIKOM source does not reference all four Manrope subsets')
+                for name in MANROPE_GIT_BLOBS:
+                    asset = 'fonts/' + name
+                    if asset in assets:
+                        raise ValueError('Manrope asset collides with original owner archive')
+                    data = manrope[name]
+                    (target / 'assets' / 'fonts').mkdir(exist_ok=True)
+                    (target / 'assets' / asset).write_bytes(data)
+                    assets[asset] = {'mime': 'font/woff2', 'sha256': digest(data)}
+                license_target = target / 'licenses' / 'OFL-Manrope.txt'
+                license_target.parent.mkdir()
+                license_target.write_bytes(manrope['OFL-Manrope.txt'])
             if len(assets) < 10:
                 raise ValueError('Missing static CELIKOM assets')
             shutil.copyfile(archive, target / 'source-archive.zip')
@@ -219,8 +247,9 @@ def make_package(archive: Path, target: Path, expected_sha: str | None = None,
                 'template_sha256': digest(template.encode('utf-8')),
                 'fields': limits, 'assets': assets,
                 'reviewed_runtime_fixes': derivative,
-                'missing_assets': (['Manrope WOFF2 (4 files)'] if owner_audio else
-                               ['demo_audio=service', 'demo_audio=restored', 'Manrope WOFF2 (4 files)'])
+                'manrope_license_sha256': digest(manrope['OFL-Manrope.txt']) if manrope else None,
+                'missing_assets': ([] if owner_audio else ['demo_audio=service', 'demo_audio=restored']) +
+                                  ([] if manrope else ['Manrope WOFF2 (4 files)'])
             }
             state = {'format': FORMAT, 'revision': 1,
                      'revisions': {'1': values}, 'releases': {}}
@@ -231,7 +260,7 @@ def make_package(archive: Path, target: Path, expected_sha: str | None = None,
             return {'source_zip_sha256': expected_sha, 'audio_paired': bool(owner_audio),
                     'reviewed_runtime_fixes': list(derivative), 'assets': len(assets),
                     'fields': len(values), 'sections': source_info['sections'],
-                    'faq': source_info['faq']}
+                    'faq': source_info['faq'], 'fonts_paired': bool(manrope)}
         except Exception:
             shutil.rmtree(target, ignore_errors=True)
             raise
@@ -243,7 +272,9 @@ if __name__ == '__main__':
     parser.add_argument('private_destination', type=Path)
     parser.add_argument('--service-mp3', type=Path)
     parser.add_argument('--restored-mp3', type=Path)
+    parser.add_argument('--manrope-dir', type=Path, help='Local nomusic/website/public/assets/fonts; verified Git blobs and OFL')
     args = parser.parse_args()
     print(json.dumps(make_package(args.owner_zip, args.private_destination,
-                                   service_mp3=args.service_mp3, restored_mp3=args.restored_mp3),
+                                   service_mp3=args.service_mp3, restored_mp3=args.restored_mp3,
+                                   manrope_dir=args.manrope_dir),
                      ensure_ascii=False, indent=2))
