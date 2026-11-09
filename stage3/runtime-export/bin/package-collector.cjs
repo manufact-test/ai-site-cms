@@ -18,10 +18,10 @@ const requiredEnvironment=[
   'STAGE3_DSN','STAGE3_DB_USER','STAGE3_DB_PASSWORD',
   'STAGE3_FORM_SECRET','STAGE3_FORM_ORIGINS'
 ];
-// CMS-engine updater/control-plane code must never enter the independent form collector.
-const EXCLUDED_ENGINE_CONTROL_PHP=new Set([
+// CMS-only/editor and engine-control code must never enter the independent form collector.
+const EXCLUDED_CMS_ONLY_PHP=new Set([
   'DatabaseServerCompatibility.php','DatabaseSnapshot.php','EngineLifecycle.php',
-  'EngineReleaseVerifier.php','EngineRuntime.php'
+  'EngineReleaseVerifier.php','EngineRuntime.php','CelikomSource.php'
 ]);
 const EXPECTED_SERVER_PHP=[
   "AccessControl.php",
@@ -104,7 +104,7 @@ function main(){
     entries.push({name,data});
   };
   const serverFiles=fs.readdirSync(server,{withFileTypes:true})
-    .filter(de=>de.isFile()&&de.name.endsWith('.php')&&de.name!=='Api.php'&&!EXCLUDED_ENGINE_CONTROL_PHP.has(de.name))
+    .filter(de=>de.isFile()&&de.name.endsWith('.php')&&de.name!=='Api.php'&&!EXCLUDED_CMS_ONLY_PHP.has(de.name))
     .map(de=>de.name).sort();
   if(!serverFiles.includes('bootstrap.php')||!serverFiles.includes('FormGateway.php')
     ||!serverFiles.includes('SiteRepository.php')||!serverFiles.includes('ContractValidator.php'))
@@ -113,8 +113,11 @@ function main(){
     fail('collector PHP source allowlist changed; actual='+JSON.stringify(serverFiles)+' expected='+JSON.stringify(EXPECTED_SERVER_PHP));
   const sourceBootstrap=readRegular(path.join(server,'bootstrap.php')).toString('utf8');
   const apiRequire="require_once __DIR__ . '/Api.php';\n";
-  if(!sourceBootstrap.includes(apiRequire))fail('admin API boundary cannot be isolated safely');
-  const collectorBootstrap=Buffer.from(sourceBootstrap.replace(apiRequire,''),'utf8');
+  const celikomRequire="require_once __DIR__ . '/CelikomSource.php';\n";
+  if(!sourceBootstrap.includes(apiRequire)||!sourceBootstrap.includes(celikomRequire))
+    fail('CMS-only admin/source dependencies cannot be isolated safely');
+  const collectorBootstrap=Buffer.from(
+    sourceBootstrap.replace(apiRequire,'').replace(celikomRequire,''),'utf8');
   for(const name of serverFiles){
     const bytes=name==='bootstrap.php'?collectorBootstrap:readRegular(path.join(server,name));
     add('collector/server/'+name,bytes);
