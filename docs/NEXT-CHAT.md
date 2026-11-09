@@ -1,3 +1,16 @@
+# ACTIVE HANDOFF — MANUFACT AI Site CMS / CELIKOM preserved original, 09.11.2026
+
+**CURRENT CONTINUATION FOR THIS WORK BRANCH.** Read the canonical [09-Nov CELIKOM bridge handoff](CELIKOM-PRESERVED-SOURCE-BRIDGE-HANDOFF-2026-11-09.md) first. The 08-Nov design NO-GO block and earlier banners below are historical **for this preserved-source integration pilot**; do not delete their decisions or general MASTER-TZ workflow for *new* sites.
+
+- Repo `manufact-test/ai-site-cms`; active **pilot** branch `feature/celikom-preserved-source-bridge`. Last successful code/docs checkpoint before this handoff: `f937ed81240ac49513013f3a3a9d8f3ae42babe0`; [NO-DEPLOY CI SUCCESS #42584022124](https://github.com/manufact-test/ai-site-cms/actions/runs/42584022124). Any newer documentation commits are handoff-only; check fresh HEAD.
+- **Work local real-owner pilot PASS:** native CELIKOM opened from **«Мои сайты»**, changed title + first FAQ, saved/reloaded/previewed/published/restored; 99/99 original fields matched after rollback. A/B uses two genuine owner-supplied MP3, not simulated playback.
+- **Verified fixes:** Studio audio meta-CSP and modal contrast (Work min 10.88:1 on 1440/768/390), then intermittent A/B negative-volume fade fixed in a *fingerprinted private runtime derivative* without changing the original owner ZIP. Latest owner Work check: **20/20 rapid A/B, pause/seek/resume PASS, volume within [0,1], zero new JS/console errors**. Synthetic Chromium CI separately verifies regression and Studio flow.
+- **NEXT:** classify **four older CSP/font console messages**, not new regressions; ensure the missing four Manrope WOFF2 do not materially alter the agreed source design. Investigate surgically, avoid endless cosmetic loops. Continue to genuine CMS owner acceptance/release readiness. No player rewrite, no re-generated design, no new CMS features unless a reproducible blocker demands them.
+- **Boundaries:** FOX, production CELIKOM, current databases, GitHub main, public websites untouched. All publish tests local/isolation; no public release or complete 135-MUST acceptance. Do not update FOX or deploy without explicit owner authorization and rollback verification.
+- Hand-off copy-paste: [FIRST-MESSAGE-CELIKOM-BRIDGE-2026-11-09.md](../handoffs/lead-integrator/FIRST-MESSAGE-CELIKOM-BRIDGE-2026-11-09.md). Reuse existing Work chat for real browser/Hostinger tasks only when needed. Owner already supplied MP3; **do not ask again**.
+
+---
+
 # ACTIVE HANDOFF — MANUFACT AI Site CMS, 2026-11-08 (READ FIRST)
 
 **Это единственная текущая передача; весь блок 07.11 ниже — история.** Рабочая CMS сохраняется, код не переделывать. Исходный мастер: [MASTER ТЗ §2 A–F](MASTER-TZ.md), [ROADMAP](ROADMAP.md), [полный CELIKOM design NO-GO](FIRST-SITE-CELIKOM-DESIGN-NOGO-2026-11-08.md).
