@@ -201,6 +201,12 @@ async function stop(){
     {cwd:root,encoding:'utf8'}).status,0,'hidden excluded directory must be rejected');
 
   await runServer();
+  // Normal FOX without a private owner source must not advertise a ghost
+  // CELIKOM site in My Sites; configured pilot has its own positive Chromium E2E.
+  const unconfiguredStudio=await request('GET','/studio');
+  assert.equal(unconfiguredStudio.status,200);
+  assert.ok(!unconfiguredStudio.body.includes('/celikom-original-studio.js'));
+  assert.ok(!unconfiguredStudio.body.includes('/celikom-original-studio.css'));
   assert.ok(fs.existsSync(path.join(privateDir,'engine/state.json')),
     'stable engine loader initializes its private active-generation state on first HTTP request');
   assert.equal(fs.statSync(privateDir).mode&0o777,0o700,'engine state remains under a private 0700 directory');
