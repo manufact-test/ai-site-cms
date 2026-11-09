@@ -423,14 +423,21 @@ final class Api
                 '<html lang="ru" data-stage3-mode="server">', $html);
             // Offline index is connect-src none. Relax only SAME-ORIGIN in hosted mode.
             $html = str_replace("connect-src 'none'", "connect-src 'self'", $html);
+            // The preserved original is an opt-in private owner pilot. A normal
+            // FOX installation without a configured source must not show a
+            // nonfunctional CELIKOM entry in its ordinary "Мои сайты" UI.
+            $celikomSourceDir = getenv('STAGE3_CELIKOM_SOURCE_DIR');
+            $celikomUi = is_string($celikomSourceDir) && $celikomSourceDir !== ''
+                ? '<link rel="stylesheet" href="/celikom-original-studio.css">' .
+                  '<script src="/celikom-original-studio.js" defer></script>'
+                : '';
             $html = str_replace('</head>',
                 '<link rel="stylesheet" href="/hosted.css">' .
                 '<script src="/media-motion-contract.js" defer></script>' .
                 '<script src="/media-motion-sha256.js" defer></script>' .
                 '<script src="/media-motion-engine.js" defer></script>' .
                 '<script src="/hosted.js" defer></script><script src="/access.js" defer></script>' .
-                '<link rel="stylesheet" href="/celikom-original-studio.css">' .
-                '<script src="/celikom-original-studio.js" defer></script>' .
+                $celikomUi .
                 '<script src="/media-processing.js" defer></script></head>', $html);
             header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; font-src 'self' data: blob:; frame-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
             header('Content-Type: text/html; charset=utf-8');
