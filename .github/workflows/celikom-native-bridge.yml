@@ -9,6 +9,7 @@ on:
       - 'stage3/server/bootstrap.php'
       - 'stage3/server/CelikomSource.php'
       - 'stage3/studio/celikom-original-studio.*'
+      - 'stage3/studio/index.html'
       - 'stage3/bin/cms-release.cjs'
       - '.github/workflows/celikom-native-bridge.yml'
   workflow_dispatch:
