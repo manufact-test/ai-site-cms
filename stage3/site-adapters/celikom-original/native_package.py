@@ -24,7 +24,8 @@ AUDIO_SHA256 = {
     'service': 'db3de39f92642c82840b7693ea54fd6aabec1d1e66bbe3986d0213de815c9bce',
     'restored': '71915c26ffe83f946874e34dd23099e8192e902ffe3d8d9bd9d3f974bfd69c59',
 }
-# Deliberate first-party correction only: original CSS, JS and downloaded owner assets stay byte-exact.
+# Preserve every original byte inside source-archive.zip; add scoped fixes only to the
+# private runtime derivative (CSS centering and the vetted audio fade correction).
 PLAYER_FIX_CSS = """
 #sound #celikom-demo-play {
   box-sizing: border-box;
