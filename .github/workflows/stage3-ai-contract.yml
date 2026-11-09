@@ -1,7 +1,7 @@
 name: Stage 3 isolated AI site contract (NO DEPLOY)
 on:
   push:
-    branches: ['feature/stage3-ai-site-contract']
+    branches: ['feature/stage3-ai-site-contract', 'feature/celikom-preserved-source-bridge']
     paths:
       - 'stage3/**'
       - '!stage3/docs/**'
@@ -42,7 +42,7 @@ jobs:
           node-version: '24'
       - name: Confirm isolated branch and no host permissions
         run: |
-          test "$GITHUB_REF" = "refs/heads/feature/stage3-ai-site-contract"
+          test "$GITHUB_REF" = "refs/heads/feature/stage3-ai-site-contract" || test "$GITHUB_REF" = "refs/heads/feature/celikom-preserved-source-bridge"
           test "${{ github.repository }}" = "manufact-test/ai-site-cms"
       - name: Syntax and single offline contract end-to-end
         run: |
