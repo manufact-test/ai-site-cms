@@ -117,7 +117,7 @@ async function go(){
   const panel=page.locator('#celikom-original-dialog');
   await panel.waitFor({state:'visible'});
   const contrast=await panel.evaluate(dialog=>{
-    const parse=(v)=>v.match(/[\\d.]+/g).slice(0,3).map(Number);
+    const parse=(v)=>v.match(/[0-9.]+/g).slice(0,3).map(Number);
     const lum=values=>values.map(x=>{
       const v=x/255;return v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4);
     }).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
