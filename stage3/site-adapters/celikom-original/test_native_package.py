@@ -20,6 +20,8 @@ def test():
                 '<meta name="description" content="Original description">',
                 f'<link href="{folder}/original.css" rel="stylesheet">',
                 '</head><body>']
+        for font in list(native_package.MANROPE_GIT_BLOBS)[1:]:
+            html.insert(-1, '<style>@font-face{font-family:Manrope;src:url("/assets/fonts/'+font+'")}</style>')
         for section in section_names:
             if section == 'hero':
                 heading = '<h1><span>Привет</span> CELIKOM</h1>'
@@ -58,7 +60,7 @@ const sourceReady=()=>true;
 """
         with ZipFile(archive,'w') as z:
             z.writestr('owner.html',''.join(html))
-            z.writestr(f'{folder}/original.css','html{background:#111}')
+            z.writestr(f'{folder}/original.css','html{background:#111} @font-face{src:url("/assets/fonts/manrope-cyrillic-ext-wght-normal.woff2")}')
             for i in range(9):
                 z.writestr(f'{folder}/original-{i}.css',f'.demo-{i}{{color:red}}')
             for name in ('faq.js.Без названия','owner-sound-player.js.Без названия',
@@ -87,6 +89,19 @@ const sourceReady=()=>true;
         service.write_bytes(b'A'*1536); restored.write_bytes(b'B'*1536)
         original_hashes=native_package.AUDIO_SHA256
         original_js_hash=native_package.OWNER_SOUND_JS_SHA256
+        original_font_blobs=native_package.MANROPE_GIT_BLOBS
+        original_license_blob=native_package.MANROPE_LICENSE_GIT_BLOB
+        font_dir=root/'original-manrope'
+        font_dir.mkdir()
+        synthetic_fonts={}
+        for name in original_font_blobs:
+            data=b'wOF2'+name.encode('ascii')
+            (font_dir/name).write_bytes(data)
+            synthetic_fonts[name]=native_package.git_blob_id(data)
+        license_bytes=b'Copyright 2019 The Manrope Project Authors\nSIL OPEN FONT LICENSE Version 1.1\n'
+        (font_dir/'OFL-Manrope.txt').write_bytes(license_bytes)
+        native_package.MANROPE_GIT_BLOBS=synthetic_fonts
+        native_package.MANROPE_LICENSE_GIT_BLOB=native_package.git_blob_id(license_bytes)
         native_package.AUDIO_SHA256={
             'service':digest(service.read_bytes()),'restored':digest(restored.read_bytes())
         }
@@ -94,12 +109,29 @@ const sourceReady=()=>true;
         try:
             paired=root/'with-paired-audio'
             paired_result=make_package(archive,paired,expected_sha=digest(archive.read_bytes()),
-                                       service_mp3=service,restored_mp3=restored)
+                                       service_mp3=service,restored_mp3=restored,
+                                       manrope_dir=font_dir)
             assert paired_result['audio_paired'] is True
+            assert paired_result['fonts_paired'] is True
             paired_manifest=json.loads((paired/'manifest.json').read_text())
             assert paired_manifest['assets']['service.mp3']['sha256']==digest(service.read_bytes())
             assert paired_manifest['assets']['restored.mp3']['sha256']==digest(restored.read_bytes())
             assert paired_manifest['assets']['celikom-player-center-fix.css']['mime']=='text/css'
+            for name in synthetic_fonts:
+                assert (paired/'assets/fonts'/name).read_bytes()==(font_dir/name).read_bytes()
+                assert paired_manifest['assets']['fonts/'+name]['mime']=='font/woff2'
+                assert '/assets/fonts/'+name not in (paired/'template.html').read_text()
+                assert '/celikom-original-assets/fonts/'+name in (
+                    (paired/'template.html').read_text() +
+                    (paired/'assets/original.css').read_text())
+            assert (paired/'licenses/OFL-Manrope.txt').read_bytes()==license_bytes
+            assert paired_manifest['manrope_license_sha256']==digest(license_bytes)
+            assert '/celikom-original-assets/fonts/manrope-cyrillic-ext-wght-normal.woff2' in (
+                paired/'assets/original.css').read_text()
+            assert paired_manifest['reviewed_runtime_fixes']['original.css']['fix']=='local-manrope-url-routing-v1'
+            assert (package/'assets/original.css').read_bytes()!=(
+                paired/'assets/original.css').read_bytes()
+            assert not any('Manrope' in k for k in paired_manifest['missing_assets'])
             paired_html=(paired/'template.html').read_text()
             assert '/celikom-original-assets/service.mp3' in paired_html
             assert '/celikom-original-assets/restored.mp3' in paired_html
@@ -126,6 +158,16 @@ const sourceReady=()=>true;
             )
             assert regression.returncode==0, regression.stderr
             print(regression.stdout.strip())
+            (font_dir/'manrope-latin-wght-normal.woff2').write_bytes(b'wOF2TAMPERED')
+            try:
+                make_package(archive,root/'reject-font',expected_sha=digest(archive.read_bytes()),
+                             service_mp3=service,restored_mp3=restored,manrope_dir=font_dir)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError('Tampered Manrope font accepted')
+            (font_dir/'manrope-latin-wght-normal.woff2').write_bytes(
+                b'wOF2'+b'manrope-latin-wght-normal.woff2')
             service.write_bytes(b'TAMPERED'*192)
             try:
                 make_package(archive,root/'reject-audio',expected_sha=digest(archive.read_bytes()),
@@ -137,13 +179,15 @@ const sourceReady=()=>true;
         finally:
             native_package.AUDIO_SHA256=original_hashes
             native_package.OWNER_SOUND_JS_SHA256=original_js_hash
+            native_package.MANROPE_GIT_BLOBS=original_font_blobs
+            native_package.MANROPE_LICENSE_GIT_BLOB=original_license_blob
         try:
             make_package(archive,root/'rejected',expected_sha='0'*64)
         except ValueError:
             pass
         else:
             raise AssertionError('Unapproved source hash was allowed')
-        print('PASS CELIKOM source package: source integrity, 11 sections, 28 FAQ, 99 fields, 14 original assets, paired private audio and visual correction')
+        print('PASS CELIKOM source package: 99 original fields, paired private audio, SHA-pinned OFL Manrope, rewritten font URLs and tamper rejection')
 
 if __name__=='__main__':
     test()
