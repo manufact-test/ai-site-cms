@@ -2,6 +2,26 @@
 
 This isolated tool preserves an owner-provided saved CELIKOM website. It is **not a CMS importer**, does not publish a site, and makes no FOX, production or database changes.
 
+## Current verified original-source status (2026-11-09)
+
+The separately approved owner ZIP and both owner-provided 11-second MP3 clips
+are supported by the owner-only source adapter on this branch. The complete
+original owner ZIP stays byte-identical and is stored outside the GitHub repo.
+Only in a verified, private runtime package, the original player's fade code
+receives an exact one-function correction for negative
+`requestAnimationFrame` time deltas: both interpolation and volume are
+clamped to 0–1. Its source/runtime hashes and fix ID are recorded in
+`manifest.json.reviewed_runtime_fixes`. All other original script/CSS/image
+asset bytes remain unchanged.
+
+Regression: `python3 test_native_package.py` verifies immutable source ZIP,
+reviewed player derivative and 24 simulated out-of-order frame timestamps in
+`test_player_fade.cjs`. CI run:
+https://github.com/manufact-test/ai-site-cms/actions/runs/42583797774
+was successful, including existing Studio browser E2E with synthetic fixtures.
+**Real owner audio + Studio fade recheck is still required after the fix.**
+Do not deploy to FOX, CELIKOM production or main from this work.
+
 ## Features
 
 - Extract saved HTML/CSS/JS/SVG/PNG under safe path and size rules; hash all original files.
