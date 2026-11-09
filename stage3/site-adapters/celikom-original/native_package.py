@@ -83,7 +83,51 @@ def verified_player_fade_fix(source: bytes) -> bytes:
     return patched
 
 
-# Exact Git blob identities from manufact-test/nomusic, feature/api-range,\n# website/public/assets/fonts/. Font files + complete SIL OFL license are\n# supplied only to private offline packaging; no external runtime calls.\nMANROPE_GIT_BLOBS = {\n    'manrope-cyrillic-ext-wght-normal.woff2': '57c7c0eefb32d1c9cf8780f8c95020499bf06e9c',\n    'manrope-cyrillic-wght-normal.woff2': '3a062296a1269ded5bf605334d18f3e43088c888',\n    'manrope-latin-ext-wght-normal.woff2': 'bd24140af06f1b5897d3bbd6538a74b03748a21e',\n    'manrope-latin-wght-normal.woff2': '71eb731d558046199aa7f985adbf812890a093a1',\n}\nMANROPE_LICENSE_GIT_BLOB = '462280f3e4037df1839fba6cdee11d0980d3f0a9'\n\ndef git_blob_id(data: bytes) -> str:\n    return hashlib.sha1(b'blob ' + str(len(data)).encode('ascii') + b'\\x00' + data).hexdigest()\n\ndef verified_manrope_dir(folder: Path | None) -> dict[str, bytes]:\n    if folder is None:\n        return {}\n    if not folder.is_dir() or folder.is_symlink():\n        raise ValueError('Manrope source must be an existing non-symlink directory')\n    files = {**MANROPE_GIT_BLOBS, 'OFL-Manrope.txt': MANROPE_LICENSE_GIT_BLOB}\n    verified = {}\n    for name, expected in files.items():\n        path = folder / name\n        if not path.is_file() or path.is_symlink() or path.stat().st_size > 100000:\n            raise ValueError('Missing, oversized or unsafe original Manrope file: ' + name)\n        data = path.read_bytes()\n        if git_blob_id(data) != expected:\n            raise ValueError('Manrope fingerprint mismatch (nomusic Git blob): ' + name)\n        if name.endswith('.woff2') and not data.startswith(b'wOF2'):\n            raise ValueError('Invalid WOFF2 signature: ' + name)\n        if name == 'OFL-Manrope.txt' and b'SIL OPEN FONT LICENSE Version 1.1' not in data:\n            raise ValueError('Unrecognized Manrope license')\n        verified[name] = data\n    return verified\n\ndef reroute_manrope_urls(css_or_html: str, counts: dict[str, int]) -> str:\n    for name in MANROPE_GIT_BLOBS:\n        old = '/assets/fonts/' + name\n        count = css_or_html.count(old)\n        if count:\n            counts[name] += count\n            css_or_html = css_or_html.replace(old, '/celikom-original-assets/fonts/' + name)\n    return css_or_html\n\nMIME = {'.css':'text/css', '.js':'text/javascript', '.svg':'image/svg+xml',
+# Exact Git blob identities from manufact-test/nomusic, feature/api-range,
+# website/public/assets/fonts/. Font files + complete SIL OFL license are
+# supplied only to private offline packaging; no external runtime calls.
+MANROPE_GIT_BLOBS = {
+    'manrope-cyrillic-ext-wght-normal.woff2': '57c7c0eefb32d1c9cf8780f8c95020499bf06e9c',
+    'manrope-cyrillic-wght-normal.woff2': '3a062296a1269ded5bf605334d18f3e43088c888',
+    'manrope-latin-ext-wght-normal.woff2': 'bd24140af06f1b5897d3bbd6538a74b03748a21e',
+    'manrope-latin-wght-normal.woff2': '71eb731d558046199aa7f985adbf812890a093a1',
+}
+MANROPE_LICENSE_GIT_BLOB = '462280f3e4037df1839fba6cdee11d0980d3f0a9'
+
+def git_blob_id(data: bytes) -> str:
+    return hashlib.sha1(b'blob ' + str(len(data)).encode('ascii') + b'\x00' + data).hexdigest()
+
+def verified_manrope_dir(folder: Path | None) -> dict[str, bytes]:
+    if folder is None:
+        return {}
+    if not folder.is_dir() or folder.is_symlink():
+        raise ValueError('Manrope source must be an existing non-symlink directory')
+    files = {**MANROPE_GIT_BLOBS, 'OFL-Manrope.txt': MANROPE_LICENSE_GIT_BLOB}
+    verified = {}
+    for name, expected in files.items():
+        path = folder / name
+        if not path.is_file() or path.is_symlink() or path.stat().st_size > 100000:
+            raise ValueError('Missing, oversized or unsafe original Manrope file: ' + name)
+        data = path.read_bytes()
+        if git_blob_id(data) != expected:
+            raise ValueError('Manrope fingerprint mismatch (nomusic Git blob): ' + name)
+        if name.endswith('.woff2') and not data.startswith(b'wOF2'):
+            raise ValueError('Invalid WOFF2 signature: ' + name)
+        if name == 'OFL-Manrope.txt' and b'SIL OPEN FONT LICENSE Version 1.1' not in data:
+            raise ValueError('Unrecognized Manrope license')
+        verified[name] = data
+    return verified
+
+def reroute_manrope_urls(css_or_html: str, counts: dict[str, int]) -> str:
+    for name in MANROPE_GIT_BLOBS:
+        old = '/assets/fonts/' + name
+        count = css_or_html.count(old)
+        if count:
+            counts[name] += count
+            css_or_html = css_or_html.replace(old, '/celikom-original-assets/fonts/' + name)
+    return css_or_html
+
+MIME = {'.css':'text/css', '.js':'text/javascript', '.svg':'image/svg+xml',
         '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
         '.webp':'image/webp', '.woff2':'font/woff2', '.mp3':'audio/mpeg',
         '.ogg':'audio/ogg', '.wav':'audio/wav'}
