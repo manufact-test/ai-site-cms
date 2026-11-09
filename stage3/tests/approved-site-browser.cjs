@@ -1193,9 +1193,19 @@ async function execute(){
     'Both Inspector edits remain independent, exact Undo transactions');
   // A section chosen from the existing Workbench list must become visible
   // on its own central canvas, even when it is far below the current scroll.
-  await page.frameLocator('#cms-page-preview-frame').locator('body').evaluate(node=>{
-    node.ownerDocument.defaultView.scrollTo(0,0);
-  });
+  // An Undo can legitimately re-render the scriptless srcdoc. Wait for
+  // a stable, non-busy canvas from the PARENT context before testing reveal;
+  // evaluating directly inside a navigating iframe destroys that context.
+  await page.waitForFunction(()=>{
+    const frame=document.querySelector('#cms-page-preview-frame');
+    const doc=frame?.contentDocument;
+    if(!doc?.body||doc.readyState!=='complete'||frame.getAttribute('aria-busy')==='true')
+      return false;
+    const viewport=doc.defaultView;
+    if(!viewport)return false;
+    viewport.scrollTo(0,0);
+    return Math.abs(viewport.scrollY)<1;
+  },null,{timeout:10000});
   await page.locator('#cms-work-section').selectOption('section-approved-faq');
   await page.locator('#cms-work-section').selectOption('section-approved-custom');
   assert.equal(await page.frameLocator('#cms-page-preview-frame')
