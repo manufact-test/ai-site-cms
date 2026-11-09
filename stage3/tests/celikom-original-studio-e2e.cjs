@@ -54,9 +54,24 @@ function prepareSyntheticSource(){
   for(const key of keys.slice(1))html+='<p data-key="'+key+'">{{CELIKOM:'+key+'}}</p>';
   html+='</section><audio id="ci-celikom-media" preload="auto" src="data:audio/wav;base64,'+syntheticWave()+'"></audio></body></html>';
   for(const key of keys){meta[key]={max:3000};fields[key]=key==='seo.title'?'CELIKOM CI initial title':'CI initial '+key;}
+  const fontNames=[
+    'manrope-cyrillic-ext-wght-normal.woff2',
+    'manrope-cyrillic-wght-normal.woff2',
+    'manrope-latin-ext-wght-normal.woff2',
+    'manrope-latin-wght-normal.woff2'];
+  const fontAssets={};
+  fs.mkdirSync(path.join(sourceDir,'assets/fonts'),{recursive:true});
+  for(const name of fontNames){
+    const bytes=Buffer.from('wOF2 synthetic font route fixture: '+name);
+    fs.writeFileSync(path.join(sourceDir,'assets/fonts',name),bytes);
+    fontAssets['fonts/'+name]={mime:'font/woff2',sha256:hash(bytes)};
+  }
+  const ofl=Buffer.from('CI-only OFL license integrity fixture; not a real font license.');
+  fs.mkdirSync(path.join(sourceDir,'licenses'));
+  fs.writeFileSync(path.join(sourceDir,'licenses/OFL-Manrope.txt'),ofl);
   const manifest={format:'manufact-celikom-preserved-source-v1',
     source_zip_sha256:dummyHash,template_sha256:hash(Buffer.from(html)),
-    fields:meta,assets:{}};
+    fields:meta,assets:fontAssets,manrope_license_sha256:hash(ofl)};
   const state={format:manifest.format,revision:1,revisions:{'1':fields},releases:{}};
   fs.writeFileSync(path.join(sourceDir,'source-archive.zip'),archive);
   fs.writeFileSync(path.join(sourceDir,'template.html'),html);
@@ -113,6 +128,14 @@ async function go(){
   assert.match(studioMetaCsp||'',fontPolicy,
     'Studio meta CSP must not silently override HTTP font-src permission');
   await page.locator('#server-login:not([hidden])').waitFor({timeout:15000});
+  // Real private asset route: the sandbox srcdoc has an opaque origin,
+  // therefore Manrope WOFF2 requests require CORS and correct MIME.
+  const fontAsset=await page.request.get(
+    origin+'/celikom-original-assets/fonts/manrope-latin-wght-normal.woff2');
+  assert.equal(fontAsset.status(),200,'Manrope private asset route must return 200');
+  assert.match(fontAsset.headers()['content-type']||'',/^font\/woff2/);
+  assert.equal(fontAsset.headers()['access-control-allow-origin'],'*');
+  assert.equal(fontAsset.headers()['cross-origin-resource-policy'],'cross-origin');
   assert.equal((await page.request.get(origin+'/api/celikom-original')).status(),401);
   await page.locator('#server-username').fill(env.STAGE3_OWNER_USER);
   await page.locator('#server-password').fill(env.STAGE3_OWNER_PASSWORD);
