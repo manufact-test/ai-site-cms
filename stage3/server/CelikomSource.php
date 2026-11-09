@@ -81,6 +81,28 @@ final class CelikomSource
                 throw new RuntimeException('CELIKOM asset integrity mismatch: ' . $asset);
             }
         }
+        // Original Manrope is included only in the private derivative, together
+        // with its complete OFL notice. Old owner ZIPs with no fonts still load.
+        $expectedFonts = [
+            'fonts/manrope-cyrillic-ext-wght-normal.woff2',
+            'fonts/manrope-cyrillic-wght-normal.woff2',
+            'fonts/manrope-latin-ext-wght-normal.woff2',
+            'fonts/manrope-latin-wght-normal.woff2',
+        ];
+        $foundFonts = array_values(array_filter(
+            array_keys($manifest['assets']),
+            static fn(string $name): bool => str_starts_with($name, 'fonts/manrope-')
+        ));
+        if ($foundFonts !== [] || !empty($manifest['manrope_license_sha256'])) {
+            sort($foundFonts);
+            sort($expectedFonts);
+            if ($foundFonts !== $expectedFonts
+                || !preg_match('/^[a-f0-9]{64}$/D', (string)($manifest['manrope_license_sha256'] ?? ''))
+                || !hash_equals((string)$manifest['manrope_license_sha256'],
+                    hash('sha256', $this->read('licenses/OFL-Manrope.txt', 100000)))) {
+                throw new RuntimeException('CELIKOM Manrope license or font subset integrity mismatch');
+            }
+        }
         $this->manifest = $manifest;
         $this->validateState($this->loadState());
     }
